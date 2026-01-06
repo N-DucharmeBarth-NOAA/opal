@@ -1,0 +1,64 @@
+# ignore everything
+*
+# except sub-directories
+!*/
+!executables/mfcl/2.0.7.0/mfclo64
+!executables/stock-synthesis/3.30.23.1/ss3_linux
+!executables/stock-synthesis/3.30.23.1/ss3_win.exe
+!executables/stock-synthesis/3.30.22.1/ss3_linux
+!executables/stock-synthesis/3.30.22.1/ss3_win.exe
+# and certain files/file types
+# mfcl
+!*.frq
+!*.ini
+!mfcl.cfg
+!doitall.mls
+!model-files/mfcl/v11/plot-10.par.rep
+!model-files/mfcl/v11/10.par
+!condor_doitall.bet
+!doitall.condor
+# r files
+!*.r
+!*.R
+!.Rprofile
+# git files
+!.gitignore
+!DISCLAIMER.md
+!./LICENSE
+# renv files
+!renv.lock
+!settings.json
+!.renvignore
+# markdown
+!README.md
+!*.qmd
+# stock synthesis
+!control.ss
+!data.ss
+!forecast.ss
+!starter.ss
+!control.ss_new
+!data_echo.ss_new
+!forecast.ss_new
+!starter.ss_new
+!ss3.par
+!warning.sso
+!Report.sso
+# devcontainer
+!devcontainer.json
+# csv files
+!*.csv
+!*.txt
+!*.qmd
+!*.cls
+!*.tex
+!*.pdf
+!*.bib
+!*.csl
+!*.lua
+policy/README.txt
+
+/.quarto/
+_site/*
+!*.yaml
+!*.yml
