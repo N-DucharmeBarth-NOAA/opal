@@ -7,6 +7,8 @@
 !executables/stock-synthesis/3.30.23.1/ss3_win.exe
 !executables/stock-synthesis/3.30.22.1/ss3_linux
 !executables/stock-synthesis/3.30.22.1/ss3_win.exe
+!executables/stock-synthesis/3.30.24.1/ss3_linux
+!executables/stock-synthesis/3.30.24.1/ss3_win.exe
 # and certain files/file types
 # mfcl
 !*.frq
