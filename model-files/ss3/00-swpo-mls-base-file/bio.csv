@@ -1,0 +1,2 @@
+id,Count,Yr,Sex,Platoon,A1,A2,L_a_A1,L_a_A2,K,A_a_L0,Linf,CVmin,CVmax,natM_amin,natM_max,M_age0,M_nages,WtLen1,WtLen2,Mat1,Mat2,Fec1,Fec2
+04-start-1952,1,1952,1,1,0.25,10,88.3822,210.956,0.8351,-0.399999,210.992,9.9314,11.0517,0,0,0.707867,0.36,5.39942e-07,3.58378,181.205,-0.197458,1,1
