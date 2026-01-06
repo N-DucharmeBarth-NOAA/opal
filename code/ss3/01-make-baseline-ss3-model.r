@@ -18,21 +18,21 @@
 #_____________________________________________________________________________________________________________________________
 # define paths
 	proj_dir = this.path::this.proj()
-	dir_model = paste0(proj_dir,"/model-files/")
-    dir_base_mfcl = paste0(dir_model,"mfcl/v11/")
-    dir_base_stock_synthesis = paste0(dir_model,"ss3/00-swpo-mls-base-file/")
-    dir_helper_fns = paste0(proj_dir,"/code/helper-fns/")
+	dir_model = file.path(proj_dir,"model-files")
+    dir_base_mfcl = file.path(dir_model,"mfcl","v11")
+    dir_base_stock_synthesis = file.path(dir_model,"ss3","00-swpo-mls-base-file")
+    dir_helper_fns = file.path(proj_dir,"code","ss3","helper-fns")
 
 #________________________________________________________________________________________________________________________________________________________________________________________________________
 # source helper functions
-    sapply(paste0(dir_helper_fns,(list.files(dir_helper_fns))),source)
+    sapply(file.path(dir_helper_fns,(list.files(dir_helper_fns))),source)
 
 #_____________________________________________________________________________________________________________________________
 # read in baseline mfcl files
-    base_frq = parse_frq(paste0(dir_base_mfcl,"bet.frq"))
-    base_ini = read.MFCLIni(paste0(dir_base_mfcl,"bet.ini"), nseasons=4)
-    base_par = read.MFCLPar(paste0(dir_base_mfcl,"10.par"), first.yr=1952)
-    base_rep = read.MFCLRep(paste0(dir_base_mfcl,"plot-10.par.rep"))
+    base_frq = parse_frq(file.path(dir_base_mfcl,"bet.frq"))
+    base_ini = read.MFCLIni(file.path(dir_base_mfcl,"bet.ini"), nseasons=4)
+    base_par = read.MFCLPar(file.path(dir_base_mfcl,"10.par"), first.yr=1952)
+    base_rep = read.MFCLRep(file.path(dir_base_mfcl,"plot-10.par.rep"))
 
 #_____________________________________________________________________________________________________________________________
 # run new version of stock synthesis

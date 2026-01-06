@@ -1,5 +1,84 @@
 # wcpfc-bet-single-region
-Exploration of alternative model structures using 2020 WCPFC bigeye tuna stock assessment as a case study
+Exploration of alternative model structures using [2020 WCPFC bigeye tuna stock assessment](https://meetings.wcpfc.int/node/11693) as a proof-of-concept.
+
+Any model runs contained within this repository represent preliminary model explorations and should not be used '*as is*' for the consideration of management advice. Only models that have been presented and accepted to the Western and Central Pacific Fisheries Commission ([WCPFC](https://www.wcpfc.int/)) Scientific Committee should be used as the basis for management advice.
+
+## Background
+
+### WCPO Bigeye Tuna Stock
+
+Bigeye tuna (*Thunnus obesus*) in the Western and Central Pacific Ocean (WCPO) are distributed throughout tropical and subtropical waters west of 150°W. The stock is assessed regularly by the WCPFC using the integrated stock assessment software MULTIFAN-CL ([MFCL](https://github.com/PacificCommunity/multifan-cl/)). 
+
+Key characteristics:
+- **Distribution**: Throughout the WCPO, between 50°N and 40°S, west of 150°W
+- **Fisheries**: Primarily caught by longline gear (targeting larger adults for high-value sashimi markets) and purse seine sets on fish aggregating devices/FADs (incidental catch of juveniles). Additional catches come from pole-and-line and various domestic fisheries in Southeast Asia
+- **Biology**: Fast-growing with maximum fork length around ~155 cm; reproductively active from about 80 cm FL with nearly all fish >120 cm FL reproductively mature
+
+### 2020 Diagnostic Case Model
+
+The [2020 bigeye tuna stock assessment](https://meetings.wcpfc.int/node/11693) was conducted using MFCL and used a complex spatial structure with:
+- **9 spatial regions** across the WCPO (with the northern boundary of regions 3 and 4 set at 10°N)
+- **41 fisheries** defined by gear type, region, and fleet/flag
+- **Quarterly time steps** from 1952-2018
+- **Quarterly recruitment deviations** (2,403 parameters)
+- **Seasonal movement dynamics** with 104 diffusion coefficients estimated between regions
+- **Multiple data sources**: catch, effort, CPUE indices, length and weight composition data, and extensive tag-recapture data
+
+## Simplified Single Region Model
+
+### Motivation
+
+In response to concerns about model complexity and sensitivity to tagging data treatment, a simplified single-region assessment model was developed in tandem with the 2020 diagnostic case. The goals were to:
+1. Explore the implications of a drastically different set of assumptions about population dynamics
+2. Test whether model complexity was leading to inappropriate spatial buffering
+3. Provide a starting point for discussions on appropriate model structure
+4. Evaluate the sensitivity of stock status estimates to spatial assumptions
+
+### Approach
+
+The initial simplified model implemented in MFCL used a **"fleets-as-areas"** approach where spatial information was retained through fleet definitions rather than explicit spatial regions. This assumes the stock is well-mixed with no capacity for spatial buffering or partitioning of abundance and fishing mortality.
+
+**Key simplifications from the 2020 diagnostic case:**
+
+1. **Spatial structure**: Collapsed from 9 explicit spatial regions to a single, well-mixed population
+
+2. **Fishery aggregation**: Combined the 41 original fisheries into 15 fisheries based on gear type and broad geographic area:
+   - Northern longline (Fisheries 1 & 2)
+   - US longline (Fishery 3)
+   - Offshore longline (Fisheries 5 & 6)
+   - Equatorial longlines (Fisheries 4, 8 & 9)
+   - Western longline (Fishery 7)
+   - Southern longline (Fisheries 11, 12 & 29)
+   - Australian longline (Fisheries 10 & 27)
+   - Associated purse seines (Fisheries 13, 15, 25, 30, & 24)
+   - Unassociated purse seines (14, 16, 26, & 31)
+   - Domestic miscellaneous fisheries (Fisheries 17, 23, & 22)
+   - Domestic handline (Fishery 18)
+   - Northern Japanese purse-seine (Fishery 19)
+   - Northern Japanese pole-and-line (Fishery 20)
+   - Equatorial pole-and-line (Fisheries 21, 22, & 28)
+   - Index fishery (Fisheries 33-41)
+
+3. **Data aggregation**: Catch and size frequency data were aggregated from the appropriate original fisheries
+
+4. **Movement**: Eliminated quarterly movement parameters entirely (removing 104 diffusion coefficients)
+
+5. **CPUE index**: Calculated a single standardized CPUE index over the entire WCPO assessment region
+
+6. **Seasonal dynamics**: Added a seasonal catchability component for the index fishery to compensate for lack of movement
+
+7. **Selectivity**: 
+   - Removed non-decreasing penalties from most longline fisheries (except index and domestic handline)
+   - Fixed selectivity of first 3 quarterly ages to zero for some longline fisheries
+   - Retained non-decreasing selectivity for index fishery (assumed to sample largest fish) and domestic handline
+
+## Alternative models
+
+Building on the initial simplified MFCL model, equivalent models were developed using Stock Synthesis ([SS3](https://nmfs-ost.github.io/ss3-website/)) and [RTMB](https://github.com/kaskr/RTMB).
+
+**Stock Synthesis (SS3)** is a widely used and established integrated stock assessment framework that has been applied by multiple tuna Regional Fisheries Management Organizations (tRFMOs), including the Inter-American Tropical Tuna Commission (IATTC) and Indian Ocean Tuna Commission (IOTC) for assessing tropical tuna stocks. While SS3 is approaching end-of-life as software development winds down, it serves as a valuable "bridge" model between the current MFCL framework and next-generation modeling approaches.
+
+**RTMB** is a modern statistical modeling language built on Template Model Builder (TMB) that provides a flexible framework for developing bespoke population dynamics models. As a next-generation modeling platform, RTMB enables the implementation of random effects structures and seamless integration with Bayesian modeling approaches. These capabilities facilitate more robust model diagnostics and improved characterization of uncertainty compared to traditional deterministic optimization approaches. Development of an RTMB-based tuna assessment model represents an investment in modern, flexible tools for future stock assessments.
 
 ## License
 
