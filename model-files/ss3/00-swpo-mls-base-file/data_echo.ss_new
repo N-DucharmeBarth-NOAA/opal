@@ -1,16 +1,16 @@
-#V3.30.23.1;_safe;_compile_date:_Dec  5 2024;_Stock_Synthesis_by_Richard_Methot_(NOAA)_using_ADMB_13.2
+#V3.30.24.1;_safe;_compile_date:_Sep 18 2025;_Stock_Synthesis_by_Richard_Methot_(NOAA)_using_ADMB_13.2
 #_Stock_Synthesis_is_a_work_of_the_U.S._Government_and_is_not_subject_to_copyright_protection_in_the_United_States.
 #_Foreign_copyrights_may_apply._See_copyright.txt_for_more_information.
-#_User_support_available_at:NMFS.Stock.Synthesis@noaa.gov
-#_User_info_available_at:https://vlab.noaa.gov/group/stock-synthesis
+#_User_support_available_at:_https://groups.google.com/g/ss3-forum_and_NMFS.Stock.Synthesis@noaa.gov
+#_User_info_available_at:_https://nmfs-ost.github.io/ss3-website/
 #_Source_code_at:_https://github.com/nmfs-ost/ss3-source-code
 
-#_Start_time: Sat Jan 11 00:11:18 2025
+#_Start_time: Tue Jan  6 12:32:35 2026
 #_echo_input_data
 #C No comments
 #C file created using an r4ss function
 #C file write time: 2025-01-10  23:43:48
-#V3.30.23.1;_safe;_compile_date:_Dec  5 2024;_Stock_Synthesis_by_Richard_Methot_(NOAA)_using_ADMB_13.2
+#V3.30.24.1;_safe;_compile_date:_Sep 18 2025;_Stock_Synthesis_by_Richard_Methot_(NOAA)_using_ADMB_13.2
 1952 #_StartYr
 2022 #_EndYr
 4 #_Nseas
@@ -4680,20 +4680,20 @@
 #_minsamplesize: minimum sample size; set to 1 to match 3.24, minimum value is 0.001
 #
 #_mintailcomp addtocomp combM+F CompressBins CompError ParmSelect minsamplesize
-# 0 0 0 0 0 0 0 #_fleet:1_F01_LL.JP.1
+# 0 0 8 1 0 0 0 #_fleet:1_F01_LL.JP.1
 # 0 0 0 0 0 0 0 #_fleet:2_F02_LL.JP.2
-# 0 0 0 0 0 0 0 #_fleet:3_F03_LL.JP.3
+# 0 0 32 32 0 0 0 #_fleet:3_F03_LL.JP.3
 # 0 0 0 0 0 0 0 #_fleet:4_F04_LL.JP.4
-# 0 0 0 0 0 0 0 #_fleet:5_F05_LL.TW.4
-# 0 0 0 0 0 0 0 #_fleet:6_F06_LL.AU.2
-# 0 0 0 0 0 0 0 #_fleet:7_F07_LL.AU.3
-# 0 0 0 0 0 0 0 #_fleet:8_F08_LL.NZ.3
+# 0 0 -1 -1 0 0 0 #_fleet:5_F05_LL.TW.4
+# 0 0 15 15 0 0 0 #_fleet:6_F06_LL.AU.2
+# 0 0 858861104 959643696 0 0 0 #_fleet:7_F07_LL.AU.3
+# 0 0 842151220 3420213 0 0 0 #_fleet:8_F08_LL.NZ.3
 # 0 0 0 0 0 0 0 #_fleet:9_F09.REC.AU.3
 # 0 0 0 0 0 0 0 #_fleet:10_F10_REC.NZ.3
-# 0 0 0 0 0 0 0 #_fleet:11_F11_LL.ALL.1
-# 0 0 0 0 0 0 0 #_fleet:12_F12_LL.ALL.2
-# 0 0 0 0 0 0 0 #_fleet:13_F13_LL.ALL.3
-# 0 0 0 0 0 0 0 #_fleet:14_F14_LL.ALL.4
+# 0 0 1 1 0 0 0 #_fleet:11_F11_LL.ALL.1
+# 0 0 15 15 0 0 0 #_fleet:12_F12_LL.ALL.2
+# 0 0 456416408 456416648 0 0 0 #_fleet:13_F13_LL.ALL.3
+# 0 0 505 505 0 0 0 #_fleet:14_F14_LL.ALL.4
 # 0 0 0 0 0 0 0 #_fleet:15_S01_INDEX.1-4
 # 0 #_Lbin_method_for_Age_Data: 1=poplenbins; 2=datalenbins; 3=lengths
 # sex codes:  0=combined; 1=use female only; 2=use male only; 3=use both as joint sex*length distribution
