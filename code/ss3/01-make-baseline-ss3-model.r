@@ -55,6 +55,9 @@
 
 #_____________________________________________________________________________________________________________________________
 # update starter
+    tmp_starter$init_values_src = 0
+    tmp_starter$last_estimation_phase = 10
+
     tmp_starter$min_age_summary_bio = 12
     tmp_starter$depl_basis = 5
     tmp_starter$SPR_basis = 4
@@ -178,6 +181,7 @@
 
     tmp_data$minimum_size = 5
     tmp_data$maximum_size = 220
+    tmp_data$binwidth = 1
     tmp_data$lbin_vector_pop = seq(from=tmp_data$minimum_size,to=tmp_data$maximum_size,by=tmp_data$binwidth)
     tmp_data$N_lbinspop = length(tmp_data$lbin_vector_pop)
 
@@ -219,6 +223,7 @@
     tmp_lencomp_a$sex = 0
     tmp_lencomp_a$part = 0
     tmp_lencomp_a$Nsamp = rowSums(tmp_lencomp_b)
+    # tmp_lencomp_a$Nsamp = sapply(rowSums(tmp_lencomp_b),function(x)min(c(x,1000))) # apply MFCL like filter to maximum sample size
 
     # exclude males
 
@@ -242,24 +247,24 @@
                       setnames(.,"variable","bin") %>%
                       .[,bin:=as.numeric(as.character(bin))]
     
-    # need to re-aggregate comp data beginning at old bin 120 to make 2 kg
+    # need to re-aggregate comp data beginning at old bin 44kg to make 2 kg
     # need to re-aggregate comp data beginning at old bin 180 to make 4 kg
-    # old_wt_bins = seq(from=120,to=uniqueN(tmp_wtcomp_init$bin),by=1)
-    # new_wt_bins = rep(NA,length(old_wt_bins))
-    # for(i in seq_along(old_wt_bins)){
-    #     if(i %% 2 != 0){
-    #         new_wt_bins[i] = old_wt_bins[i]
-    #     } else {
-    #         new_wt_bins[i] = old_wt_bins[i-1]
-    #     }
-    #     if(old_wt_bins[i]>=180){
-    #         new_wt_bins[i] = floor(old_wt_bins[i]/4)*4
-    #     }
-    # }
+    old_wt_bins = seq(from=44,to=uniqueN(tmp_wtcomp_init$bin),by=1)
+    new_wt_bins = rep(NA,length(old_wt_bins))
+    for(i in seq_along(old_wt_bins)){
+        # if(i %% 2 != 0){
+        #     new_wt_bins[i] = old_wt_bins[i]
+        # } else {
+        #     new_wt_bins[i] = old_wt_bins[i-1]
+        # }
+        if(old_wt_bins[i]>=44){
+            new_wt_bins[i] = floor(old_wt_bins[i]/2)*2
+        }
+    }
 
-    # wt_bins_dt = data.table(bin=old_wt_bins,new_bin=new_wt_bins)
-    # # make everything bigger than 180 the 180 bin
-    # wt_bins_dt[bin>=180,new_bin:=180]
+    wt_bins_dt = data.table(bin=old_wt_bins,new_bin=new_wt_bins)
+    # make everything bigger than 138 the 138 bin
+    wt_bins_dt[bin>=138,new_bin:=138]
 
     # wt_at_pop_len = lw_params(base_ini)[1]*tmp_data$lbin_vector_pop^lw_params(base_ini)[2]
     # t_dt=as.data.table(cbind(tmp_data$lbin_vector_pop,wt_at_pop_len))
@@ -267,19 +272,19 @@
     # t_dt$bin = floor(t_dt$wt)
     # t_dt[bin<1,bin:=1]
 
-    tmp_wtcomp_init_a = tmp_wtcomp_init[bin<139]
-    # tmp_wtcomp_init_b = tmp_wtcomp_init[bin>=120] %>%
-    #                     merge(.,wt_bins_dt,by="bin") %>%
-    #                     .[,.(value=sum(value)),by=.(year,month,week,fishery,new_bin)] %>%
-    #                     setnames(.,"new_bin","bin")
-    # tmp_wtcomp = rbind(tmp_wtcomp_init_a,tmp_wtcomp_init_b) %>%
-    #                     dcast(.,year+month+week+fishery~bin) %>%
-    #               na.omit(.) %>%
-    #               as.data.frame(.)
-    tmp_wtcomp = tmp_wtcomp_init_a %>%
-                         dcast(.,year+month+week+fishery~bin) %>%
-                   na.omit(.) %>%
-                   as.data.frame(.)
+    tmp_wtcomp_init_a = tmp_wtcomp_init[bin<44]
+    tmp_wtcomp_init_b = tmp_wtcomp_init[bin>=44] %>%
+                        merge(.,wt_bins_dt,by="bin") %>%
+                        .[,.(value=sum(value)),by=.(year,month,week,fishery,new_bin)] %>%
+                        setnames(.,"new_bin","bin")
+    tmp_wtcomp = rbind(tmp_wtcomp_init_a,tmp_wtcomp_init_b) %>%
+                        dcast(.,year+month+week+fishery~bin) %>%
+                  na.omit(.) %>%
+                  as.data.frame(.)
+    # tmp_wtcomp = tmp_wtcomp_init_a %>%
+    #                      dcast(.,year+month+week+fishery~bin) %>%
+    #                na.omit(.) %>%
+    #                as.data.frame(.)
     tmp_wtcomp_a = tmp_wtcomp[,c("year","month","fishery")]
     tmp_wtcomp_a = as.data.table(tmp_wtcomp_a) %>%
                     merge(.,ts_dt,by=c("year","month")) %>%
@@ -302,6 +307,8 @@
     tmp_wtcomp_a$sex = 0
     tmp_wtcomp_a$part = 0
     tmp_wtcomp_a$Nsamp = rowSums(tmp_wtcomp_b)
+    # tmp_wtcomp_a$Nsamp = sapply(rowSums(tmp_wtcomp_b),function(x)min(c(x,1000))) # apply MFCL like filter to maximum sample size
+
 
     # exclude males
     tmp_wtcomp = as.data.table(cbind(tmp_wtcomp_a,tmp_wtcomp_b))
@@ -585,6 +592,11 @@
     length_var_adj[c(1,4,5,6,15)] = 1/40000
     weight_var_adj[c(1,4,5,6,15)] = 1/40000
 
+    # length_var_adj = 1/rep(20,15)
+    # weight_var_adj = 1/rep(20,15)
+    # length_var_adj[c(1,4,5,6,15)] = 1/40
+    # weight_var_adj[c(1,4,5,6,15)] = 1/40
+
     tmp_ctl$Variance_adjustment_list$Value[which(tmp_ctl$Variance_adjustment_list$Factor%in%c(4))] = length_var_adj
     tmp_ctl$Variance_adjustment_list$Value[which(tmp_ctl$Variance_adjustment_list$Factor%in%c(7))] = weight_var_adj
 
@@ -617,4 +629,4 @@
 #_____________________________________________________________________________________________________________________________
 # run new version of stock synthesis
     file.copy(from=paste0(proj_dir,"/executables/stock-synthesis/3.30.24.1/ss3_win.exe"),to=dir_bet_stock_synthesis_base)
-    run(dir=dir_bet_stock_synthesis_base,exe="ss3_win.exe",show_in_console = TRUE)
+    run(dir=dir_bet_stock_synthesis_base,exe="ss3_win.exe",show_in_console = TRUE,skipfinished=FALSE)
