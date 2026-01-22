@@ -1,0 +1,3 @@
+Note 1 Information: Max data length bin: 198  < max pop len bins: 220; so will accumulate larger pop len bins
+Warning 1 : Forecast=0 or -1, so rest of forecast file will not be read and can be omitted;
+Warning 2 : A one year forecast using recent F will be done automatically
