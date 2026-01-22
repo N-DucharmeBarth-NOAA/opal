@@ -616,8 +616,8 @@
                       .[,value:=1] %>%
                       .[,sizefreq_method:=1]
     # tmp_ctl$lambdas = as.data.frame(tmp_lambdas_surv)
-    tmp_ctl$lambdas = as.data.frame(rbind(tmp_lambdas_surv,tmp_lambdas_lf))
-    # tmp_ctl$lambdas = as.data.frame(rbind(tmp_lambdas_surv,tmp_lambdas_lf,tmp_lambdas_gs))
+    # tmp_ctl$lambdas = as.data.frame(rbind(tmp_lambdas_surv,tmp_lambdas_lf))
+    tmp_ctl$lambdas = as.data.frame(rbind(tmp_lambdas_surv,tmp_lambdas_lf,tmp_lambdas_gs))
     tmp_ctl$N_lambdas = nrow(tmp_ctl$lambdas)
 
     # stddev reporting
