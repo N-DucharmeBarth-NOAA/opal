@@ -72,13 +72,52 @@ The initial simplified model implemented in MFCL used a **"fleets-as-areas"** ap
    - Fixed selectivity of first 3 quarterly ages to zero for some longline fisheries
    - Retained non-decreasing selectivity for index fishery (assumed to sample largest fish) and domestic handline
 
-## Alternative models
+## Stock Synthesis (SS3) Model Development
 
-Building on the initial simplified MFCL model, equivalent models were developed using Stock Synthesis ([SS3](https://nmfs-ost.github.io/ss3-website/)) and [RTMB](https://github.com/kaskr/RTMB).
+Building on the initial simplified MFCL model, an equivalent model was developed using Stock Synthesis ([SS3](https://nmfs-ost.github.io/ss3-website/)). **SS3** is a widely used and established integrated stock assessment framework that has been applied by multiple tuna Regional Fisheries Management Organizations (tRFMOs), including the Inter-American Tropical Tuna Commission (IATTC) and Indian Ocean Tuna Commission (IOTC) for assessing tropical tuna stocks. While SS3 is approaching end-of-life as software development winds down, it serves as a valuable "bridge" model between the current MFCL framework and next-generation modeling approaches.
 
-**Stock Synthesis (SS3)** is a widely used and established integrated stock assessment framework that has been applied by multiple tuna Regional Fisheries Management Organizations (tRFMOs), including the Inter-American Tropical Tuna Commission (IATTC) and Indian Ocean Tuna Commission (IOTC) for assessing tropical tuna stocks. While SS3 is approaching end-of-life as software development winds down, it serves as a valuable "bridge" model between the current MFCL framework and next-generation modeling approaches.
+### SS3 Workflow
 
-**RTMB** is a modern statistical modeling language built on Template Model Builder ([TMB](https://github.com/kaskr/adcomp)) that provides a flexible framework for developing bespoke population dynamics models. As a next-generation modeling platform, RTMB enables the implementation of random effects structures and seamless integration with Bayesian modeling approaches. These capabilities facilitate more robust model diagnostics and improved characterization of uncertainty compared to traditional deterministic optimization approaches. Development of an RTMB-based tuna assessment model represents an investment in modern, flexible tools for future stock assessments.
+The SS3 implementation workflow consists of two main stages:
+
+#### Stage 1: Baseline Model Creation ([01-make-baseline-ss3-model.r](code/ss3/01-make-baseline-ss3-model.r))
+- Parses MFCL outputs (frequency data, parameters) using FLR4MFCL and frqit packages
+- Reads template SS3 files from `00-swpo-mls-base-file/` (fixed reference baseline)
+- Maps MFCL biological parameters (growth, maturity, length-weight) into SS3 parameter blocks
+- Configures fleets, selectivity patterns, and data components to match MFCL structure
+- Writes SS3 input files (`starter.ss`, `data.ss`, `control.ss`, `forecast.ss`) to `01-bet-base/`
+- Automatically launches SS3 executable and runs the baseline model
+
+#### Stage 2: Parameter Refinement ([02-fix-sel.r](code/ss3/02-fix-sel.r))
+- **New workflow** for iteratively addressing parameters flagged at bounds during optimization
+- Parses `Report.sso` to identify parameters hitting bounds (status HI/LO)
+- Intelligently expands parameter bounds based on parameter type:
+  - Selectivity curve parameters (ascend_se, descend_se): expanded bounds allow more shape flexibility
+  - Width parameters: adjusted for improved model convergence
+- Updates selectivity parameter matrices in control file
+- Reconfigures likelihood weights (lambdas) for all data components (surveys, length composition, weight composition)
+- Writes refined SS3 files to `02-fix-sel/` and re-runs model
+- Provides diagnostic output for bound expansion strategy
+
+### Fleet Structure & Data Integration
+
+The SS3 model maintains the same 15-fishery aggregation scheme as the MFCL simplified model:
+- **Fleet definitions** retain spatial/gear information through explicit fleet naming
+- **Selectivity** is specified separately for each fleet (peak, steepness, ascending/descending width for double-normal; inflection and width for logistic)
+- **Data components** (catch, length/weight compositions, CPUE indices) are mapped from aggregated MFCL data
+- **Likelihood weights** (lambdas) can be adjusted to emphasize or de-emphasize particular data streams in successive model refinements
+
+#### Catch Units
+
+Catch data in the SS3 model are specified in mixed units depending on fleet:
+- **Numbers (in 1000s of fish)** for longline fleets (F01–F07: Northern, US, Offshore, Equatorial, Western, Southern, Australian longlines) and the index fishery (S01)
+- **Metric tons (mt)** for all other fleets (F08–F14: Purse seines, domestic miscellaneous, domestic handline, Japanese purse-seine, and pole-and-line fleets)
+
+When converting catch data from MFCL (recorded in numbers), fleets specified in numbers are divided by 1,000 to match SS3's convention of recording catch in thousands of fish.
+
+## Alternative Models Framework
+
+Future development of an [RTMB](https://github.com/kaskr/RTMB)-based model is planned. RTMB is a modern statistical modeling language built on Template Model Builder ([TMB](https://github.com/kaskr/adcomp)) that provides a flexible framework for developing bespoke population dynamics models. As a next-generation modeling platform, RTMB enables the implementation of random effects structures and seamless integration with Bayesian modeling approaches, facilitating more robust model diagnostics and improved characterization of uncertainty compared to traditional deterministic optimization approaches.
 
 ## License
 
