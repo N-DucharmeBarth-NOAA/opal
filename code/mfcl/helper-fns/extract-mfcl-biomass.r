@@ -3,13 +3,13 @@
 # When quarterly=TRUE: ts is sequential (1,2,3,4,5,...), season is 1-4 per year
 # When quarterly=FALSE: ts is sequential by year (1,2,3,...), season is 1 for all
 
-library(FLR4MFCL)
-library(data.table)
-library(magrittr)
-library(this.path)
-rep_file = file.path(this.path::this.proj(), "model-files", "mfcl", "v11", "plot-10.par.rep")
-result = extract_mfcl_biomass(rep_file, model_name = "MFCL-v11", quarterly = FALSE)
-head(result)
+# library(FLR4MFCL)
+# library(data.table)
+# library(magrittr)
+# library(this.path)
+# rep_file = file.path(this.path::this.proj(), "model-files", "mfcl", "v11", "plot-10.par.rep")
+# result = extract_mfcl_biomass(rep_file, model_name = "MFCL-v11", quarterly = FALSE)
+# head(result)
 
 extract_mfcl_biomass = function(rep_file, model_name = NULL, quarterly = FALSE) {
 	if(!file.exists(rep_file)) {

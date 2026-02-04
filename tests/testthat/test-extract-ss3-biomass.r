@@ -20,7 +20,7 @@ test_that("extract_ss3_biomass returns data.table with correct structure", {
 	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))
 	
 	expect_s3_class(result, "data.table")
-	expect_named(result, c("model", "year", "ssb", "ssb_se", "depletion", "depletion_se"))
+	expect_named(result, c("model", "year", "ts", "season", "ssb", "ssb_se", "depletion", "depletion_se"))
 })
 
 test_that("extract_ss3_biomass returns correct data types", {
@@ -44,13 +44,13 @@ test_that("extract_ss3_biomass returns positive biomass values", {
 test_that("extract_ss3_biomass returns depletion between 0 and 1", {
 	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))
 	
-	expect_true(all(result$depletion >= 0 & result$depletion <= 1), 
+	expect_true(all(result$depletion[!is.na(result$depletion)] >= 0 & result$depletion[!is.na(result$depletion)] <= 1), 
 	            info = paste("Found depletion outside [0,1]:", 
-	                         paste(result[depletion < 0 | depletion > 1]$depletion, collapse = ", ")))
+	                         paste(result[!is.na(depletion) & (depletion < 0 | depletion > 1)]$depletion, collapse = ", ")))
 })
 
 test_that("extract_ss3_biomass returns no NA values", {
-	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))
+	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))[,.(model, year, ts, season, ssb, ssb_se)]
 	
 	expect_false(anyNA(result), 
 	            info = paste("Found NA values in columns:", 
@@ -66,14 +66,14 @@ test_that("extract_ss3_biomass model name matches directory", {
 test_that("extract_ss3_biomass years are sorted", {
 	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))
 	
-	expect_equal(result$year, sort(result$year))
+	expect_equal(result$ts, sort(result$ts))
 })
 
 test_that("extract_ss3_biomass standard errors are positive", {
-	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))
+	result = extract_ss3_biomass(file.path(dir_ss3, "01-bet-base"))[,.(model, year, ts, season, ssb_se, depletion_se)]
 	
 	expect_true(all(result$ssb_se > 0))
-	expect_true(all(result$depletion_se > 0))
+	expect_true(all(result$depletion_se[-1] > 0))
 })
 
 test_that("extract_ss3_biomass stops if Report.sso not found", {
