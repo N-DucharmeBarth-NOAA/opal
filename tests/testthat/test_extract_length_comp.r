@@ -9,10 +9,12 @@ proj_dir = this.path::this.proj()
 dir_model = file.path(proj_dir, "model-files")
 dir_ss3 = file.path(dir_model, "ss3")
 dir_mfcl = file.path(dir_model, "mfcl")
-dir_helper_fns = file.path(proj_dir, "code", "ss3", "helper-fns")
+dir_helper_fns_ss3 = file.path(proj_dir, "code", "ss3", "helper-fns")
+dir_helper_fns_mfcl = file.path(proj_dir, "code", "mfcl", "helper-fns")
 
-# Source helper functions
-sapply(file.path(dir_helper_fns, list.files(dir_helper_fns)), source)
+# Source helper functions from both directories
+sapply(file.path(dir_helper_fns_ss3, list.files(dir_helper_fns_ss3)), source)
+sapply(file.path(dir_helper_fns_mfcl, list.files(dir_helper_fns_mfcl)), source)
 
 context("extract_length_comp")
 

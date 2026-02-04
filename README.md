@@ -123,10 +123,19 @@ Future development of an [RTMB](https://github.com/kaskr/RTMB)-based model is pl
 
 This repository includes modular extractor utilities and unit tests to standardize and compare MFCL and SS3 model outputs.
 
+### Biomass Extractors
+
 - `extract_ss3_biomass()` (located in `code/ss3/helper-fns/`) reads an SS3 `Report.sso` and extracts spawning biomass (SSB) and Bratio-derived depletion.
 - `extract_mfcl_biomass()` (located in `code/mfcl/helper-fns/`) reads MFCL `.rep` output and extracts fished and unfished SSB to compute depletion.
 
 Both extractors return a `data.table` with the same columns: `model, year, ts, season, ssb, ssb_se, depletion, depletion_se`. The functions accept `quarterly=TRUE/FALSE`; when `quarterly=FALSE` they aggregate quarterly values into annual summaries (season=1) so outputs remain directly comparable.
+
+### Length Composition Extractors
+
+- `extract_ss3_length_comp()` (located in `code/ss3/helper-fns/`) reads an SS3 `Report.sso` and extracts observed and expected length composition data fits.
+- `extract_mfcl_length_comp()` (located in `code/mfcl/helper-fns/`) reads MFCL `length.fit` files and extracts length composition data.
+
+Both extractors return a `data.table` with identical columns: `id, Fleet, Fleet_name, Used, Kind, Sex, Bin, Obs, Exp, Dev, effN, Nsamp_in, Nsamp_adj`. They aggregate data across time and optionally support bin harmonization using `rebin_composition()` to enable direct cross-model comparison even when bin structures differ.
 
 ## Unit testing
 
