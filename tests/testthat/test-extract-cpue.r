@@ -146,11 +146,12 @@ context("Integration with plotting function")
 
 test_that("Outputs work with plotting function", {
   # This test verifies that the plot function can read the CSV files
-  # We don't actually generate the plot, just check it doesn't error
+  # plot_index_comparison expects cpue.csv at path/id/cpue.csv
+  # So we pass the parent directories as model_stem
   expect_error(
     plot_index_comparison(
-      model_ids = c("01-bet-base", "mfcl-v11"),
-      model_stem = c(ss3_dir, mfcl_dir),
+      model_ids = c("01-bet-base", "v11"),
+      model_stem = c(dir_ss3, dir_mfcl),
       model_labels = c("SS3", "MFCL")
     ),
     NA
