@@ -119,6 +119,25 @@ When converting catch data from MFCL (recorded in numbers), fleets specified in 
 
 Future development of an [RTMB](https://github.com/kaskr/RTMB)-based model is planned. RTMB is a modern statistical modeling language built on Template Model Builder ([TMB](https://github.com/kaskr/adcomp)) that provides a flexible framework for developing bespoke population dynamics models. As a next-generation modeling platform, RTMB enables the implementation of random effects structures and seamless integration with Bayesian modeling approaches, facilitating more robust model diagnostics and improved characterization of uncertainty compared to traditional deterministic optimization approaches.
 
+## Extractor utilities
+
+This repository includes modular extractor utilities and unit tests to standardize and compare MFCL and SS3 model outputs.
+
+- `extract_ss3_biomass()` (located in `code/ss3/helper-fns/`) reads an SS3 `Report.sso` and extracts spawning biomass (SSB) and Bratio-derived depletion.
+- `extract_mfcl_biomass()` (located in `code/mfcl/helper-fns/`) reads MFCL `.rep` output and extracts fished and unfished SSB to compute depletion.
+
+Both extractors return a `data.table` with the same columns: `model, year, ts, season, ssb, ssb_se, depletion, depletion_se`. The functions accept `quarterly=TRUE/FALSE`; when `quarterly=FALSE` they aggregate quarterly values into annual summaries (season=1) so outputs remain directly comparable.
+
+## Unit testing
+
+Unit tests are under `tests/testthat/` and validate structure, data types, value ranges, and compatibility between extractors. Run the test suite from an R session with either:
+
+```r
+devtools::test()
+# or
+testthat::test_dir("tests/testthat")
+```
+
 ## License
 
 The code contained in this repository is licensed under the GNU GENERAL PUBLIC LICENSE version 3 ([GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)).

@@ -22,11 +22,13 @@
 	dir_model = file.path(proj_dir,"model-files")
     dir_base_mfcl = file.path(dir_model,"mfcl","v11")
     dir_base_stock_synthesis = file.path(dir_model,"ss3","00-swpo-mls-base-file")
-    dir_helper_fns = file.path(proj_dir,"code","ss3","helper-fns")
+    dir_helper_fns_ss3 = file.path(proj_dir,"code","ss3","helper-fns")
+    dir_helper_fns_mfcl = file.path(proj_dir,"code","mfcl","helper-fns")
 
 #________________________________________________________________________________________________________________________________________________________________________________________________________
 # source helper functions
-    sapply(file.path(dir_helper_fns,(list.files(dir_helper_fns))),source)
+    sapply(file.path(dir_helper_fns_ss3,(list.files(dir_helper_fns_ss3))),source)
+    sapply(file.path(dir_helper_fns_mfcl,(list.files(dir_helper_fns_mfcl))),source)
 
 #_____________________________________________________________________________________________________________________________
 # read in baseline mfcl files
