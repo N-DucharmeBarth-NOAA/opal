@@ -1,12 +1,15 @@
 # Extract spawning biomass and depletion from MFCL Report (.rep) file
-# Returns data.table with columns: model, year, ssb, ssb_se, depletion, depletion_se
+# Returns data.table with columns: model, year, ts, season, ssb, ssb_se, depletion, depletion_se
+# When quarterly=TRUE: ts is sequential (1,2,3,4,5,...), season is 1-4 per year
+# When quarterly=FALSE: ts is sequential by year (1,2,3,...), season is 1 for all
 
-# library(FLR4MFCL)
-# library(data.table)
-# library(this.path)
-# rep_file = file.path(this.path::this.proj(), "model-files", "mfcl", "v11", "plot-10.par.rep")
-# result = extract_mfcl_biomass(rep_file, model_name = "MFCL-v11")
-# head(result)
+library(FLR4MFCL)
+library(data.table)
+library(magrittr)
+library(this.path)
+rep_file = file.path(this.path::this.proj(), "model-files", "mfcl", "v11", "plot-10.par.rep")
+result = extract_mfcl_biomass(rep_file, model_name = "MFCL-v11", quarterly = FALSE)
+head(result)
 
 extract_mfcl_biomass = function(rep_file, model_name = NULL, quarterly = FALSE) {
 	if(!file.exists(rep_file)) {
@@ -25,13 +28,21 @@ extract_mfcl_biomass = function(rep_file, model_name = NULL, quarterly = FALSE) 
 	if(quarterly) {
 		ssb_fished = ssb_values[age == "all", .(
 			Value = mean(value, na.rm = TRUE)
-		), by = .(yr = as.numeric(year), unit, area, iter)]
+		), by = .(yr = as.numeric(year), season = as.numeric(season), unit, area, iter)]
+		
+		# Calculate sequential timestep: ts = (years_from_start) * 4 + season
+		ssb_fished[, ts := (yr - min(yr)) * 4L + season]
+		ssb_fished = ssb_fished[, .(yr, ts, season, Value)]
 	} else {
 		ssb_fished = ssb_values[age == "all", .(
-			Value = sum(value, na.rm = TRUE)
+			Value = mean(value, na.rm = TRUE)
 		), by = .(yr = as.numeric(year), unit, area, iter)]
+		
+		# Annual timestep indexes by year
+		ssb_fished[, ts := yr - min(yr) + 1L]
+		ssb_fished[, season := 1L]
+		ssb_fished = ssb_fished[, .(yr, ts, season, Value)]
 	}
-	ssb_fished = ssb_fished[, .(yr, Value)]
 	
 	# Extract unfished SSB (dynamic B0) using adultBiomass_nofish()
 	ssb_nofishing = as.data.table(adultBiomass_nofish(rep))
@@ -39,23 +50,33 @@ extract_mfcl_biomass = function(rep_file, model_name = NULL, quarterly = FALSE) 
 	if(quarterly) {
 		ssb_unfished = ssb_nofishing[age == "all", .(
 			Value = mean(value, na.rm = TRUE)
-		), by = .(yr = as.numeric(year), unit, area, iter)]
+		), by = .(yr = as.numeric(year), season = as.numeric(season), unit, area, iter)]
+		
+		# Calculate sequential timestep: ts = (years_from_start) * 4 + season
+		ssb_unfished[, ts := (yr - min(yr)) * 4L + season]
+		ssb_unfished = ssb_unfished[, .(yr, ts, season, Value)]
 	} else {
 		ssb_unfished = ssb_nofishing[age == "all", .(
-			Value = sum(value, na.rm = TRUE)
+			Value = mean(value, na.rm = TRUE)
 		), by = .(yr = as.numeric(year), unit, area, iter)]
+		
+		# Annual timestep indexes by year
+		ssb_unfished[, ts := yr - min(yr) + 1L]
+		ssb_unfished[, season := 1L]
+		ssb_unfished = ssb_unfished[, .(yr, ts, season, Value)]
 	}
-	ssb_unfished = ssb_unfished[, .(yr, Value)]
 	
 	# Merge fished and unfished, calculate depletion
-	biomass_dt = merge(ssb_fished, ssb_unfished, by = "yr", suffixes = c("_fished", "_unfished")) %>%
+	biomass_dt = merge(ssb_fished, ssb_unfished, by = c("yr", "ts", "season"), suffixes = c("_fished", "_unfished")) %>%
 		.[, .(
 			model = model_name,
 			year = yr,
+			ts,
+			season,
 			ssb = Value_fished,
-			ssb_se = Value_fished * 0.001,
+			ssb_se = NA,
 			depletion = Value_fished / Value_unfished,
-			depletion_se = (Value_fished / Value_unfished) * 0.001
+			depletion_se = NA
 		)]
 	
 	setorderv(biomass_dt, c("year"))
