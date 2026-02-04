@@ -182,7 +182,10 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
     }
     
     wt_agg = wt_agg[, {
-      # Rebin
+      # Sort data by Bin to ensure proper ordering
+      setorder(.SD, Bin)
+      
+      # Rebin using MFCL bin structure
       obs_rebinned = rebin_composition(src_edges, Obs, target_bins)
       exp_rebinned = rebin_composition(src_edges, Exp, target_bins)
       
@@ -190,7 +193,7 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
         Bin = target_bins[-length(target_bins)],
         Obs = obs_rebinned,
         Exp = exp_rebinned,
-        Nsamp_in = Nsamp_in[1]  # Keep first value (not rebinned)
+        Nsamp_in = sum(Nsamp_in)  # Sum sample sizes
       )
     }, by = .(fishery)]
     

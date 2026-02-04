@@ -109,8 +109,11 @@ extract_ss3_weight_comp = function(model_dir, model_id,
     }
     
     wt_agg = wt_agg[, {
-      # Construct source bin edges
-      bin_width = unique(diff(sort(unique(Bin))))[1]
+      # Sort data by Bin to ensure proper ordering
+      setorder(.SD, Bin)
+      
+      # Construct source bin edges from sorted bins
+      bin_width = unique(diff(Bin))[1]
       src_edges = c(Bin, max(Bin) + bin_width)
       
       # Rebin observed and expected
@@ -122,9 +125,9 @@ extract_ss3_weight_comp = function(model_dir, model_id,
         Bin = target_bins[-length(target_bins)],
         Obs = obs_rebinned,
         Exp = exp_rebinned,
-        effN = effN[1],          # Keep first value (not rebinned)
-        Nsamp_in = Nsamp_in[1],  # Keep first value (not rebinned)
-        Nsamp_adj = Nsamp_adj[1] # Keep first value (not rebinned)
+        effN = sum(effN),          # Sum sample sizes
+        Nsamp_in = sum(Nsamp_in),  # Sum sample sizes
+        Nsamp_adj = sum(Nsamp_adj) # Sum sample sizes
       )
     }, by = .(Fleet, Used, Kind, Sex)]
     
