@@ -82,8 +82,11 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
     # Fallback: Try to parse manually or use parse_fit_file if available
     if(verbose) cat("FLR4MFCL not available, attempting alternative parsing...\n")
     
-    # Check if parse_fit_file exists
-    parse_fit_file_path = file.path(dirname(dirname(output_dir)), "code", "ss3", "helper-fns", "parse_fit_file.r")
+    # Check if parse_fit_file exists in multiple possible locations
+    parse_fit_file_path = file.path(dirname(dirname(output_dir)), "code", "mfcl", "helper-fns", "parse_fit_file.r")
+    if (!file.exists(parse_fit_file_path)) {
+      parse_fit_file_path = file.path(dirname(dirname(dirname(output_dir))), "code", "mfcl", "helper-fns", "parse_fit_file.r")
+    }
     
     if (file.exists(parse_fit_file_path)) {
       source(parse_fit_file_path)
@@ -146,11 +149,17 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
     if(verbose) cat("Harmonizing bins...\n")
     
     # Get MFCL bin structure from frq file
-    parse_frq_path = file.path(dirname(dirname(output_dir)), "code", "mfcl", "helper-fns", "parse-frq.r")
-    if(!file.exists(parse_frq_path)) {
-      parse_frq_path = file.path(dirname(dirname(dirname(output_dir))), "code", "mfcl", "helper-fns", "parse-frq.r")
+    if(!exists("parse_frq")) {
+      parse_frq_path = file.path(dirname(dirname(output_dir)), "code", "mfcl", "helper-fns", "parse-frq.r")
+      if(!file.exists(parse_frq_path)) {
+        parse_frq_path = file.path(dirname(dirname(dirname(output_dir))), "code", "mfcl", "helper-fns", "parse-frq.r")
+      }
+      if(file.exists(parse_frq_path)) {
+        source(parse_frq_path)
+      } else {
+        stop("Cannot find parse-frq.r")
+      }
     }
-    source(parse_frq_path)
     
     frq = parse_frq(frq_file)
     
@@ -159,12 +168,18 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
                    length.out = lf_range(frq)[6])
     src_edges = c(bin_lower, max(bin_lower) + lf_range(frq)[8])
     
-    # Source rebin_composition function
-    rebin_path = file.path(dirname(dirname(output_dir)), "code", "ss3", "helper-fns", "rebin_composition.r")
-    if(!file.exists(rebin_path)) {
-      rebin_path = file.path(dirname(dirname(dirname(output_dir))), "code", "ss3", "helper-fns", "rebin_composition.r")
+    # Source rebin_composition function if not already loaded
+    if(!exists("rebin_composition")) {
+      rebin_path = file.path(dirname(dirname(output_dir)), "code", "ss3", "helper-fns", "rebin_composition.r")
+      if(!file.exists(rebin_path)) {
+        rebin_path = file.path(dirname(dirname(dirname(output_dir))), "code", "ss3", "helper-fns", "rebin_composition.r")
+      }
+      if(file.exists(rebin_path)) {
+        source(rebin_path)
+      } else {
+        stop("Cannot find rebin_composition.r")
+      }
     }
-    source(rebin_path)
     
     wt_agg = wt_agg[, {
       # Rebin

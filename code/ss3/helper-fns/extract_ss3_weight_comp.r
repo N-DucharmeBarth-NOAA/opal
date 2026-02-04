@@ -95,8 +95,18 @@ extract_ss3_weight_comp = function(model_dir, model_id,
   if (harmonize_bins && !is.null(target_bins)) {
     if(verbose) cat("Harmonizing bins...\n")
     
-    # Source rebin_composition function
-    source(file.path(dirname(dirname(model_dir)), "code", "ss3", "helper-fns", "rebin_composition.r"))
+    # Source rebin_composition function if not already loaded
+    if(!exists("rebin_composition")) {
+      rebin_path = file.path(dirname(model_dir), "..", "..", "code", "ss3", "helper-fns", "rebin_composition.r")
+      if(!file.exists(rebin_path)) {
+        rebin_path = file.path(dirname(dirname(dirname(model_dir))), "code", "ss3", "helper-fns", "rebin_composition.r")
+      }
+      if(file.exists(rebin_path)) {
+        source(rebin_path)
+      } else {
+        stop("Cannot find rebin_composition.r")
+      }
+    }
     
     wt_agg = wt_agg[, {
       # Construct source bin edges
