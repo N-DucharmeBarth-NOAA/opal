@@ -103,9 +103,28 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
     data_mat = do.call(rbind, data_list)
     
     # Determine structure from frq file
-    frq_parser_file = file.path(dirname(dirname(dirname(length_fit_file))), 
-                                 "code", "mfcl", "helper-fns", "parse-frq.r")
-    if(file.exists(frq_parser_file)) {
+    if(!exists("parse_frq")) {
+      frq_parser_paths = c(
+        file.path(dirname(dirname(dirname(length_fit_file))), "code", "mfcl", "helper-fns", "parse-frq.r"),
+        "code/mfcl/helper-fns/parse-frq.r"
+      )
+      
+      frq_parser_file = NULL
+      for(path in frq_parser_paths) {
+        if(file.exists(path)) {
+          frq_parser_file = path
+          break
+        }
+      }
+      
+      if(!is.null(frq_parser_file)) {
+        source(frq_parser_file)
+      } else {
+        stop("Could not find parse-frq.r to determine bin structure")
+      }
+    }
+    
+    if(exists("parse_frq")) {
       source(frq_parser_file)
       frq = parse_frq(frq_file)
       n_bins = lf_range(frq)[2]  # LFIntervals
@@ -195,19 +214,54 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
     if(verbose) message("Applying bin harmonization")
     
     # Source rebin_composition if not already loaded
-    rebin_file = file.path(dirname(dirname(dirname(length_fit_file))), 
-                           "code", "ss3", "helper-fns", "rebin_composition.r")
-    if(file.exists(rebin_file) && !exists("rebin_composition")) {
-      source(rebin_file)
-    }
     if(!exists("rebin_composition")) {
-      stop("rebin_composition function not found. Please source rebin_composition.r")
+      possible_paths = c(
+        file.path(dirname(dirname(dirname(length_fit_file))), "code", "ss3", "helper-fns", "rebin_composition.r"),
+        "code/ss3/helper-fns/rebin_composition.r"
+      )
+      
+      rebin_file = NULL
+      for(path in possible_paths) {
+        if(file.exists(path)) {
+          rebin_file = path
+          break
+        }
+      }
+      
+      if(!is.null(rebin_file)) {
+        source(rebin_file)
+      } else {
+        stop("rebin_composition.r not found. Please ensure it is in code/ss3/helper-fns/")
+      }
+    }
+    
+    if(!exists("rebin_composition")) {
+      stop("rebin_composition function not found")
     }
     
     # Get MFCL bin structure from frq file
-    frq_parser_file = file.path(dirname(dirname(dirname(length_fit_file))), 
-                                 "code", "mfcl", "helper-fns", "parse-frq.r")
-    if(file.exists(frq_parser_file)) {
+    if(!exists("parse_frq")) {
+      frq_parser_paths = c(
+        file.path(dirname(dirname(dirname(length_fit_file))), "code", "mfcl", "helper-fns", "parse-frq.r"),
+        "code/mfcl/helper-fns/parse-frq.r"
+      )
+      
+      frq_parser_file = NULL
+      for(path in frq_parser_paths) {
+        if(file.exists(path)) {
+          frq_parser_file = path
+          break
+        }
+      }
+      
+      if(!is.null(frq_parser_file)) {
+        source(frq_parser_file)
+      } else {
+        stop("parse-frq.r not found. Please ensure it is in code/mfcl/helper-fns/")
+      }
+    }
+    
+    if(exists("parse_frq")) {
       source(frq_parser_file)
       frq = parse_frq(frq_file)
       bin_lower = seq(from = lf_range(frq)[3], by = lf_range(frq)[4],

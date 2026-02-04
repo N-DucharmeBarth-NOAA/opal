@@ -106,14 +106,29 @@ extract_ss3_length_comp = function(model_dir, model_id,
     if(verbose) message("Applying bin harmonization")
     
     # Source rebin_composition if not already loaded
-    rebin_file = file.path(dirname(sys.frame(1)$ofile), "rebin_composition.r")
-    if(!file.exists(rebin_file)) {
-      # Try alternative path
-      rebin_file = file.path(model_dir, "..", "..", "code", "ss3", "helper-fns", "rebin_composition.r")
+    if(!exists("rebin_composition")) {
+      # Try multiple possible paths
+      possible_paths = c(
+        file.path(dirname(sys.frame(1)$ofile), "rebin_composition.r"),
+        file.path(model_dir, "..", "..", "code", "ss3", "helper-fns", "rebin_composition.r"),
+        "code/ss3/helper-fns/rebin_composition.r"
+      )
+      
+      rebin_file = NULL
+      for(path in possible_paths) {
+        if(file.exists(path)) {
+          rebin_file = path
+          break
+        }
+      }
+      
+      if(!is.null(rebin_file)) {
+        source(rebin_file)
+      } else {
+        stop("rebin_composition.r not found. Please ensure it is in code/ss3/helper-fns/")
+      }
     }
-    if(file.exists(rebin_file) && !exists("rebin_composition")) {
-      source(rebin_file)
-    }
+    
     if(!exists("rebin_composition")) {
       stop("rebin_composition function not found. Please source rebin_composition.r")
     }
