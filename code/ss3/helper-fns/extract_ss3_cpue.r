@@ -61,8 +61,8 @@ extract_ss3_cpue = function(model_dir, model_id, save_csv = TRUE, verbose = TRUE
   # 2. Extract CPUE data
   cpue_dt = data.table::as.data.table(tmp_report$cpue)
   
-  # 3. Select and rename columns to standard format
-  cpue_dt = cpue_dt[, .(Fleet, Fleet_name, Time, Obs, Exp, SE, Dev, Use)]
+  # 3. Select and rename columns to standard format, convert Fleet and Time to numeric
+  cpue_dt = cpue_dt[, .(Fleet = as.numeric(Fleet), Fleet_name, Time = as.numeric(Time), Obs, Exp, SE, Dev, Use)]
   
   # 4. Add model id
   cpue_dt[, id := model_id]
