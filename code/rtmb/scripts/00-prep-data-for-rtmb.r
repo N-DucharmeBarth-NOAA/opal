@@ -113,7 +113,7 @@
 #
 # Output columns (matching catch data structure):
 # - year:     Year component of timestep (same as ts from catch data for consistency)
-# - month:    Month component (set to 1 for standardization)
+# - month:    Month component
 # - ts:       Model timestep number
 # - fishery:  Fleet identifier (15 = survey/index fleet)
 # - metric:   Data type identifier ("cpue")
