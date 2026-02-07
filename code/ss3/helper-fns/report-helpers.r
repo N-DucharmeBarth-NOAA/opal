@@ -966,6 +966,7 @@ plot_index_comparison = function(model_ids, model_stem,
 }
 
 
+
 # Function to create comparative composition plots (length or weight) across multiple models
 plot_composition_comparison = function(model_ids, model_stem, 
                                     comp_type = "length", # Can be "length" or "weight"
