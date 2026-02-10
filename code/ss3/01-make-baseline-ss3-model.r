@@ -213,8 +213,9 @@
                     merge(.,ts_dt,by=c("year","month")) %>%
                     .[,month:=1] %>%
                     .[,.(ts,month,fleet)] %>%
-                    setnames(.,c("ts"),c("year")) %>%
-                    as.data.frame(.)
+                    setnames(.,c("ts"),c("year"))%>%
+                    .[order(fleet,year)] %>%
+                    as.data.frame(.) 
 
     tmp_lencomp_b = tmp_lencomp[,-c(1:4)]
     tmp_lencomp_c = tmp_lencomp_b
@@ -282,6 +283,7 @@
     tmp_wtcomp = rbind(tmp_wtcomp_init_a,tmp_wtcomp_init_b) %>%
                         dcast(.,year+month+week+fishery~bin) %>%
                   na.omit(.) %>%
+                  .[order(fishery,year,month)] %>%
                   as.data.frame(.)
     # tmp_wtcomp = tmp_wtcomp_init_a %>%
     #                      dcast(.,year+month+week+fishery~bin) %>%
@@ -293,7 +295,8 @@
                     .[,month:=1] %>%
                     .[,.(ts,month,fishery)] %>%
                     setnames(.,c("ts","fishery"),c("year","fleet")) %>%
-                    as.data.frame(.)
+                    .[order(fleet,year)] %>%
+                    as.data.frame(.) 
     
     tmp_wtcomp_a = cbind(rep(1,nrow(tmp_wtcomp_a)),tmp_wtcomp_a)
     colnames(tmp_wtcomp_a) = c("method","year","month","fleet")

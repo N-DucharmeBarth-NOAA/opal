@@ -1,6 +1,6 @@
 #C No comments
 #C file created using an r4ss function
-#C file write time: 2026-01-15  07:06:35
+#C file write time: 2026-02-09  12:08:51
 #
 0 # 0 means do not read wtatage.ss; 1 means read and usewtatage.ss and also read and use growth parameters
 1 #_N_Growth_Patterns
@@ -396,7 +396,7 @@
 #
 1 #_maxlambdaphase
 1 #_sd_offset; must be 1 if any growthCV, sigmaR, or survey extraSD is an estimated parameter
-# read 30 changes to default Lambdas (default value is 1.0)
+# read 38 changes to default Lambdas (default value is 1.0)
 #_like_comp	fleet	phase	value	sizefreq_method
     1	 1	1	0	0	#_1         
     1	 2	1	0	0	#_2         
@@ -428,6 +428,14 @@
     4	13	1	1	0	#_28        
     4	14	1	1	0	#_29        
     4	15	1	0	0	#_30        
+    6	 1	1	1	1	#_31        
+    6	 2	1	1	1	#_32        
+    6	 3	1	1	1	#_33        
+    6	 4	1	1	1	#_34        
+    6	 5	1	1	1	#_35        
+    6	 6	1	1	1	#_36        
+    6	 7	1	1	1	#_37        
+    6	15	1	1	1	#_38        
 -9999	 0	0	0	0	#_terminator
 #
 2 # 0/1 read specs for more stddev reporting

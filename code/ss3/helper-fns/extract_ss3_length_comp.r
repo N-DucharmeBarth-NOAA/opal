@@ -89,14 +89,14 @@ extract_ss3_length_comp = function(model_dir, model_id,
   
   len_dt = len_dt[, .SD, .SDcols = required_cols]
   
-  # Step 4: Aggregate across time (sum by Fleet, Used, Kind, Sex, Bin)
+  # Step 4: Aggregate across time (convert to counts, sum, then back to proportions)
   if(verbose) message("Aggregating length composition data across time")
   
   len_agg = len_dt[, .(
-    Obs = sum(Obs, na.rm = TRUE),
-    Exp = sum(Exp, na.rm = TRUE),
+    Obs = sum(Obs * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
+    Exp = sum(Exp * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
     effN = sum(effN, na.rm = TRUE),
-    Nsamp_in = sum(Nsamp_in, na.rm = TRUE),
+    Nsamp_in = sum(Obs * Nsamp_in, na.rm = TRUE),
     Nsamp_adj = sum(Nsamp_adj, na.rm = TRUE)
   ), by = .(Fleet, Used, Kind, Sex, Bin)]
   

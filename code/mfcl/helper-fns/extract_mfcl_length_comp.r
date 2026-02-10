@@ -80,13 +80,13 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
   len_dt = NULL
   
   if(requireNamespace("FLR4MFCL", quietly = TRUE)) {
-    if(verbose) message("Using FLR4MFCL::read.MFCLLenFit()")
+    if(verbose) message("Using FLR4MFCL::read.MFCLLenFit() and lenfits() accessor")
     tryCatch({
       len_fit = FLR4MFCL::read.MFCLLenFit(length_fit_file)
-      # Convert to data.table
-      len_dt = data.table::as.data.table(len_fit@data)
+      # Use lenfits() accessor to get properly structured data
+      len_dt = data.table::as.data.table(FLR4MFCL::lenfits(len_fit))
     }, error = function(e) {
-      warning("FLR4MFCL::read.MFCLLenFit() failed: ", e$message)
+      warning("FLR4MFCL::read.MFCLLenFit() or lenfits() failed: ", e$message)
     })
   }
   
@@ -192,6 +192,19 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
   if("fishery" %in% names(len_dt)) {
     data.table::setnames(len_dt, "fishery", "Fleet", skip_absent = TRUE)
   }
+  if("length" %in% names(len_dt)) {
+    data.table::setnames(len_dt, "length", "Bin", skip_absent = TRUE)
+  }
+  if("obs" %in% names(len_dt)) {
+    data.table::setnames(len_dt, "obs", "Obs", skip_absent = TRUE)
+  }
+  if("pred" %in% names(len_dt)) {
+    data.table::setnames(len_dt, "pred", "Exp", skip_absent = TRUE)
+  }
+  if("sample_size" %in% names(len_dt)) {
+    data.table::setnames(len_dt, "sample_size", "Nsamp_in", skip_absent = TRUE)
+  }
+  # Also handle the old column names for backward compatibility with custom parser
   if("bin_lower" %in% names(len_dt)) {
     data.table::setnames(len_dt, "bin_lower", "Bin", skip_absent = TRUE)
   }
@@ -205,13 +218,13 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
     data.table::setnames(len_dt, "nsamp", "Nsamp_in", skip_absent = TRUE)
   }
   
-  # Step 3: Aggregate across time (sum proportions, sum sample sizes)
+  # Step 3: Aggregate across time (convert to counts, sum, then back to proportions)
   if(verbose) message("Aggregating length composition data across time")
   
   len_agg = len_dt[, .(
-    Obs = sum(Obs, na.rm = TRUE),
-    Exp = sum(Exp, na.rm = TRUE),
-    Nsamp_in = sum(Nsamp_in, na.rm = TRUE)
+    Obs = sum(Obs * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
+    Exp = sum(Exp * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
+    Nsamp_in = sum(Obs * Nsamp_in, na.rm = TRUE)
   ), by = .(Fleet, Bin)]
   
   # Step 4: Calculate deviation
