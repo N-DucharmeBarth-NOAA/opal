@@ -5,11 +5,11 @@
 #_User_info_available_at:_https://nmfs-ost.github.io/ss3-website/
 #_Source_code_at:_https://github.com/nmfs-ost/ss3-source-code
 
-#_Start_time: Tue Feb 10 11:36:26 2026
+#_Start_time: Tue Feb 10 22:43:51 2026
 #_echo_input_data
 #C No comments
 #C file created using an r4ss function
-#C file write time: 2026-02-10  06:51:34
+#C file write time: 2026-02-10  19:33:26
 #V3.30.24.1;_safe;_compile_date:_Sep 18 2025;_Stock_Synthesis_by_Richard_Methot_(NOAA)_using_ADMB_13.2
 1 #_StartYr
 268 #_EndYr
@@ -4752,9 +4752,9 @@
 # 0 0 0 0 0 0 0 #_fleet:4_F04_LL.EQUAT
 # 0 0 -1 -1 0 0 0 #_fleet:5_F05_LL.WEST
 # 0 0 0 0 0 0 0 #_fleet:6_F06_LL.SOUTH
-# 0 0 48 48 0 0 0 #_fleet:7_F07_LL.AU
-# 0 0 943076096 3619126 0 0 0 #_fleet:8_F08_PS.ASS
-# 0 0 0 0 0 0 0 #_fleet:9_F09_PS.UNA
+# 0 0 48 3407920 0 0 0 #_fleet:7_F07_LL.AU
+# 0 0 926168576 842020403 0 0 0 #_fleet:8_F08_PS.ASS
+# 0 0 0 55 0 0 0 #_fleet:9_F09_PS.UNA
 # 0 0 0 0 0 0 0 #_fleet:10_F10_DOM.MISC
 # 0 0 0 0 0 0 0 #_fleet:11_F11_DOM.HL
 # 0 0 0 0 0 0 0 #_fleet:12_F12_PS.JP.NORTH

@@ -1,6 +1,6 @@
 #C No comments
 #C file created using an r4ss function
-#C file write time: 2026-02-10  06:51:35
+#C file write time: 2026-02-10  19:33:27
 #
 0 # 0 means do not read wtatage.ss; 1 means read and usewtatage.ss and also read and use growth parameters
 1 #_N_Growth_Patterns
@@ -78,11 +78,11 @@
 0 # 0/1 to use steepness in initial equ recruitment calculation
 0 # future feature: 0/1 to make realized sigmaR a function of SR curvature
 #_LO	HI	INIT	PRIOR	PR_SD	PR_type	PHASE	env-var	use_dev	dev_mnyr	dev_mxyr	dev_PH	Block	Blk_Fxn # parm_name
-   2	  20	9.79614	 15	  99	0	 1	0	0	0	0	0	0	0	#_SR_LN(R0)  
- 0.2	0.99	    0.8	0.8	1000	6	-2	0	0	0	0	0	0	0	#_SR_BH_steep
-0.05	 1.9	    0.6	0.6	1000	6	-4	0	0	0	0	0	0	0	#_SR_sigmaR  
-  -4	   4	      0	  0	  99	0	-1	0	0	0	0	0	0	0	#_SR_regime  
-   0	   0	      0	  0	  99	0	-1	0	0	0	0	0	0	0	#_SR_autocorr
+   2	  20	 15	 15	  99	0	 1	0	0	0	0	0	0	0	#_SR_LN(R0)  
+ 0.2	0.99	0.8	0.8	1000	6	-2	0	0	0	0	0	0	0	#_SR_BH_steep
+0.05	 1.9	0.6	0.6	1000	6	-4	0	0	0	0	0	0	0	#_SR_sigmaR  
+  -4	   4	  0	  0	  99	0	-1	0	0	0	0	0	0	0	#_SR_regime  
+   0	   0	  0	  0	  99	0	-1	0	0	0	0	0	0	0	#_SR_autocorr
 #_no timevary SR parameters
 1 #do_recdev:  0=none; 1=devvector (R=F(SSB)+dev); 2=deviations (R=F(SSB)+dev); 3=deviations (R=R0*dev; dev2=R-f(SSB)); 4=like 3 with sum(dev2) adding penalty
 81 # first year of main recr_devs; early devs can preceed this era
@@ -166,44 +166,44 @@
 #_LO	HI	INIT	PRIOR	PR_SD	PR_type	PHASE	env-var	use_dev	dev_mnyr	dev_mxyr	dev_PH	Block	Blk_Fxn  #  parm_name
 10.1	200	  100.539	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F01_LL.NORTH(1)    
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F01_LL.NORTH(1)    
-  -7	  7	  6.21843	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F01_LL.NORTH(1)    
+  -7	  7	  6.21843	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F01_LL.NORTH(1)    
   -7	  7	 -3.30342	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F01_LL.NORTH(1)    
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F01_LL.NORTH(1)    
   -9	  9	   0.9987	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F01_LL.NORTH(1)    
 10.1	200	  105.512	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F02_LL.US(2)       
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F02_LL.US(2)       
-  -7	  7	  6.22456	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F02_LL.US(2)       
+  -7	  7	  6.22456	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F02_LL.US(2)       
   -7	  7	 -4.62114	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F02_LL.US(2)       
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F02_LL.US(2)       
   -9	  9	  1.45676	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F02_LL.US(2)       
 10.1	200	  137.652	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F03_LL.OFFSHORE(3) 
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F03_LL.OFFSHORE(3) 
-  -7	  7	  6.51135	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F03_LL.OFFSHORE(3) 
-  -7	  7	  6.84653	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F03_LL.OFFSHORE(3) 
+  -7	  7	  6.51135	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F03_LL.OFFSHORE(3) 
+  -7	  7	  6.84653	  0	99	0	-5	0	0	0	0	0	0	0	#_SizeSel_P_4_F03_LL.OFFSHORE(3) 
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F03_LL.OFFSHORE(3) 
 -999	  9	     -495	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F03_LL.OFFSHORE(3) 
 10.1	200	  127.789	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F04_LL.EQUAT(4)    
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F04_LL.EQUAT(4)    
-  -9	  9	  6.87501	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F04_LL.EQUAT(4)    
-  -9	  9	  6.87243	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F04_LL.EQUAT(4)    
+  -7	  7	  6.87501	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F04_LL.EQUAT(4)    
+  -7	  7	  6.87243	  0	99	0	-5	0	0	0	0	0	0	0	#_SizeSel_P_4_F04_LL.EQUAT(4)    
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F04_LL.EQUAT(4)    
 -999	  9	     -495	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F04_LL.EQUAT(4)    
 10.1	200	  63.4502	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F05_LL.WEST(5)     
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F05_LL.WEST(5)     
-  -7	  7	 -6.66193	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F05_LL.WEST(5)     
+  -7	  7	 -6.66193	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F05_LL.WEST(5)     
   -7	  7	-0.702849	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F05_LL.WEST(5)     
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F05_LL.WEST(5)     
   -9	  9	   5.8491	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F05_LL.WEST(5)     
 10.1	200	  116.594	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F06_LL.SOUTH(6)    
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F06_LL.SOUTH(6)    
-  -7	  7	  6.70807	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F06_LL.SOUTH(6)    
-  -7	  7	  6.55203	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F06_LL.SOUTH(6)    
+  -7	  7	  6.70807	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F06_LL.SOUTH(6)    
+  -7	  7	  6.55203	  0	99	0	-5	0	0	0	0	0	0	0	#_SizeSel_P_4_F06_LL.SOUTH(6)    
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F06_LL.SOUTH(6)    
   -9	  9	 0.889611	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F06_LL.SOUTH(6)    
 10.1	200	  110.759	100	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F07_LL.AU(7)       
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F07_LL.AU(7)       
-  -7	  7	  6.24774	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F07_LL.AU(7)       
-  -9	  9	  6.93819	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F07_LL.AU(7)       
+  -7	  7	  6.24774	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F07_LL.AU(7)       
+  -7	  7	  6.93819	  0	99	0	-5	0	0	0	0	0	0	0	#_SizeSel_P_4_F07_LL.AU(7)       
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F07_LL.AU(7)       
 -999	  9	 -1.29248	  9	99	0	 6	0	0	0	0	0	0	0	#_SizeSel_P_6_F07_LL.AU(7)       
 10.1	200	  50.7393	 40	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F08_PS.ASS(8)      
@@ -215,7 +215,7 @@
 10.1	200	  61.9319	 40	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F09_PS.UNA(9)      
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F09_PS.UNA(9)      
   -7	  7	  5.63087	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F09_PS.UNA(9)      
-  -9	  9	  6.99613	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F09_PS.UNA(9)      
+  -7	  7	  6.99613	  0	99	0	-5	0	0	0	0	0	0	0	#_SizeSel_P_4_F09_PS.UNA(9)      
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F09_PS.UNA(9)      
 -999	  9	       -9	 -9	99	0	-6	0	0	0	0	0	0	0	#_SizeSel_P_6_F09_PS.UNA(9)      
 10.1	200	  31.4346	 40	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F10_DOM.MISC(10)   
@@ -229,12 +229,12 @@
 10.1	200	  50.6613	 40	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F12_PS.JP.NORTH(12)
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F12_PS.JP.NORTH(12)
   -7	  7	  2.20661	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F12_PS.JP.NORTH(12)
-  -9	  9	  6.97642	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F12_PS.JP.NORTH(12)
+  -7	  7	  6.97642	  0	99	0	-5	0	0	0	0	0	0	0	#_SizeSel_P_4_F12_PS.JP.NORTH(12)
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F12_PS.JP.NORTH(12)
 -999	  9	       -9	 -9	99	0	-6	0	0	0	0	0	0	0	#_SizeSel_P_6_F12_PS.JP.NORTH(12)
 10.1	200	  14.5691	 40	99	0	 2	0	0	0	0	0	0	0	#_SizeSel_P_1_F13_PL.JP.NORTH(13)
   -7	  7	       -5	 -5	99	0	-3	0	0	0	0	0	0	0	#_SizeSel_P_2_F13_PL.JP.NORTH(13)
-  -7	  7	  6.61726	  0	99	0	 4	0	0	0	0	0	0	0	#_SizeSel_P_3_F13_PL.JP.NORTH(13)
+  -7	  7	  6.61726	  0	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_3_F13_PL.JP.NORTH(13)
   -7	  7	  3.99651	  0	99	0	 5	0	0	0	0	0	0	0	#_SizeSel_P_4_F13_PL.JP.NORTH(13)
 -999	  9	       -9	 -9	99	0	-4	0	0	0	0	0	0	0	#_SizeSel_P_5_F13_PL.JP.NORTH(13)
 -999	  9	       -9	 -9	99	0	-6	0	0	0	0	0	0	0	#_SizeSel_P_6_F13_PL.JP.NORTH(13)
