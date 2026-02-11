@@ -48,7 +48,8 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
                                     target_bins = NULL,
                                     output_dir = NULL,
                                     save_csv = TRUE,
-                                    verbose = TRUE) {
+                                    verbose = TRUE,
+                                    zero_replace = NULL) {
   
   # Check if length.fit file exists
   if(!file.exists(length_fit_file)) {
@@ -220,12 +221,28 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
   
   # Step 3: Aggregate across time (convert to counts, sum, then back to proportions)
   if(verbose) message("Aggregating length composition data across time")
+
+  # Optionally replace zero observed proportions with a small positive value
+  # This helps match SS3 behaviour where tiny non-zero fill-values are used
+  # for empty bins and prevents systematic aggregation differences.
+  if(!is.null(zero_replace)) {
+    if(!is.numeric(zero_replace) || length(zero_replace) != 1) {
+      stop("zero_replace must be a single numeric value or NULL")
+    }
+    if("Obs" %in% names(len_dt)) {
+      len_dt[is.na(Obs), Obs := 0]
+      len_dt[Obs == 0, Obs := zero_replace]
+    }
+  }
   
   len_agg = len_dt[, .(
     Obs = sum(Obs * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
     Exp = sum(Exp * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
     Nsamp_in = sum(Obs * Nsamp_in, na.rm = TRUE)
   ), by = .(Fleet, Bin)]
+  
+  # Ensure Bin is numeric (consistent with SS3)
+  len_agg[, Bin := as.numeric(Bin)]
   
   # Step 4: Calculate deviation
   len_agg[, Dev := Obs - Exp]
@@ -313,7 +330,7 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
         
         # Return rebinned data
         data.table::data.table(
-          Bin = target_bins[-length(target_bins)],
+          Bin = as.numeric(target_bins[-length(target_bins)]),
           Obs = obs_rebinned,
           Exp = exp_rebinned,
           Nsamp_in = Nsamp_in_val
@@ -326,9 +343,9 @@ extract_mfcl_length_comp = function(length_fit_file, frq_file, model_id,
   }
   
   # Step 6: Add standard columns
-  len_agg[, Used := 1]      # All MFCL data is used
-  len_agg[, Kind := 1]      # Length composition type
-  len_agg[, Sex := 0]       # Aggregated (MFCL typically doesn't separate)
+  len_agg[, Used := "yes"]  # All MFCL data is used (character, matching SS3)
+  len_agg[, Kind := "LEN"]  # Length composition type (character, matching SS3)
+  len_agg[, Sex := 1L]      # Aggregated (MFCL typically doesn't separate) (integer)
   len_agg[, effN := Nsamp_in]      # Use input sample size as effective
   len_agg[, Nsamp_adj := Nsamp_in]
   
