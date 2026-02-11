@@ -17,6 +17,8 @@
 !doitall.mls
 !model-files/mfcl/v11/plot-10.par.rep
 !model-files/mfcl/v11/10.par
+!model-files/mfcl/v11/length.fit
+!model-files/mfcl/v11/weight.fit
 !condor_doitall.bet
 !doitall.condor
 # r files

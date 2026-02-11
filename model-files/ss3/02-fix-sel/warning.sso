@@ -2,8 +2,7 @@ Note 1 Information: Max data length bin: 198  < max pop len bins: 220; so will a
 Warning 1 : Forecast=0 or -1, so rest of forecast file will not be read and can be omitted;
 Warning 2 : A one year forecast using recent F will be done automatically
 Warning 3 : Setting in starter does not request all priors, and 5 parameters have priors and are not estimated, so their prior not included in obj_fun.
-Warning 4 : 1st iteration warning: ssb(endyr)/ssb(styr)= 2.55164e-15; suggest start with larger R0 to get near 0.4; or use depletion fleet option
-Warning 5 : 1st iteration warning: catch logL > 50% total logL; check configuration; suggest start with larger R0
+Warning 4 : Final gradient: 0.000238469 is larger than final_conv: 1e-05
 Note 2 Information: A revised protocol for the Fcast_yr specification is available and recommended.
-Note 3 Information:  N parameters that are on or within 1% of min-max bound: 5; check results, variance may be suspect
- 5 warnings  and 3 notes 
+Note 3 Information:  N parameters that are on or within 1% of min-max bound: 2; check results, variance may be suspect
+ 4 warnings  and 3 notes 

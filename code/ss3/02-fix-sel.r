@@ -48,15 +48,16 @@
     for(idx in flag_idx){
       line = report_lines[idx]
       parts = strsplit(trimws(line), "\\s+")[[1]]
-      if(length(parts) >= 9){
+      if(length(parts) >= 10){
         param_name = parts[2]
         param_value = as.numeric(parts[3])
+        param_phase = as.numeric(parts[5])
         min_bound = as.numeric(parts[6])
         max_bound = as.numeric(parts[7])
         init_value = as.numeric(parts[8])
         status = parts[10]
         flagged_params = rbind(flagged_params, 
-          data.table(name=param_name, value=param_value, lo=min_bound, hi=max_bound, init=init_value, status=status))
+          data.table(name=param_name, value=param_value, phase=param_phase, lo=min_bound, hi=max_bound, init=init_value, status=status))
       }
     }
     
@@ -65,30 +66,41 @@
 
 #_____________________________________________________________________________________________________________________________
 # expand bounds for problematic parameters
-    # Strategy: expand bounds by 50% or to ±1 unit from INIT (whichever is larger)
+    # Strategy: 
+    # - For ascend_se/descend_se with bounds -7 to 7: fix if init value outside [-6, 6]
+    # - For end_logit with bounds -999 to 9: change lower bound to -9 if being estimated
+    # - For Size_95%width with bounds 0 to 500: change to 0 to 50
+    
     for(i in seq_len(nrow(flagged_params))){
       param_name = flagged_params$name[i]
       old_lo = flagged_params$lo[i]
       old_hi = flagged_params$hi[i]
       init_val = flagged_params$init[i]
-      
-      # Strategy: only modify ascend_se/descend_se with bounds -7 to 7 (expand to -9 to 9)
-      # Skip logit parameters with bounds -999 to 9 (they are acceptable)
-      # Skip width parameter for now
+      param_phase = flagged_params$phase[i]
       
       new_lo = old_lo
       new_hi = old_hi
+      new_phase = param_phase
       
       if(old_lo == -7 && old_hi == 7){
-        # ascend_se or descend_se parameter: expand to -9 to 9
-        new_lo = -9
-        new_hi = 9
+        # ascend_se or descend_se parameter: fix if init value outside [-6, 6]
+        if(init_val < -6 || init_val > 6){
+          new_phase = -abs(param_phase)  # fix at current value
+          message(sprintf("  Fixing %s at init value %.3f (outside [-6, 6])", param_name, init_val))
+        } else {
+          # Parameter is within reasonable bounds, skip it
+          next
+        }
       } else if(old_lo == 0 && old_hi == 500){
-        # Size_95%width parameter: set to 0 to 50
+        # Size_95%width parameter: change bounds to 0 to 50
         new_lo = 0
         new_hi = 50
+      } else if(grepl("end_logit", param_name) && (old_lo == -999 || old_lo == -999.0) && param_phase > 0){
+        # end_logit parameter being estimated: change lower bound from -999 to -9
+        new_lo = -9
+        new_hi = old_hi
       } else if(old_lo == -999 || old_lo == -999.0){
-        # Skip logit parameters (end_logit, start_logit with bounds -999 to 9)
+        # Skip start_logit and other logit parameters with bounds -999 to 9
         next
       } else {
         next
@@ -133,15 +145,49 @@
       # Find and update in size_selex_parms
       param_idx = which(rownames(tmp_ctl$size_selex_parms) == rowname_target)
       if(length(param_idx) > 0){
-        # First column is LO, second is HI
+        # Update bounds and/or phase
         tmp_ctl$size_selex_parms[param_idx, 1] = new_lo
         tmp_ctl$size_selex_parms[param_idx, 2] = new_hi
-        message(sprintf("  %s [%s]: LO %f -> %f; HI %f -> %f", 
-          param_name, rowname_target, old_lo, new_lo, old_hi, new_hi))
+        tmp_ctl$size_selex_parms[param_idx, 7] = new_phase
+        
+        if(new_phase != param_phase){
+          message(sprintf("  %s [%s]: PHASE %d -> %d", 
+            param_name, rowname_target, param_phase, new_phase))
+        } else {
+          message(sprintf("  %s [%s]: LO %f -> %f; HI %f -> %f", 
+            param_name, rowname_target, old_lo, new_lo, old_hi, new_hi))
+        }
       } else {
         warning(sprintf("Parameter %s (looking for %s) not found in size_selex_parms", param_name, rowname_target))
       }
     }
+
+#_____________________________________________________________________________________________________________________________
+# Also check ALL selectivity parameters with bounds -7 to 7 (not just flagged ones)
+    message("\nChecking all selectivity parameters with bounds -7 to 7 for extreme initial values...")
+    
+    for(i in 1:nrow(tmp_ctl$size_selex_parms)){
+      row_name = rownames(tmp_ctl$size_selex_parms)[i]
+      old_lo = tmp_ctl$size_selex_parms[i, 1]
+      old_hi = tmp_ctl$size_selex_parms[i, 2]
+      init_val = tmp_ctl$size_selex_parms[i, 3]
+      param_phase = tmp_ctl$size_selex_parms[i, 7]
+      
+      # Check if this parameter has bounds -7 to 7 and is being estimated
+      if(old_lo == -7 && old_hi == 7 && param_phase > 0){
+        # If init value is outside [-6, 6], fix the parameter
+        if(init_val < -6 || init_val > 6){
+          new_phase = -abs(param_phase)
+          tmp_ctl$size_selex_parms[i, 7] = new_phase
+          message(sprintf("  Fixing %s: init=%.3f, phase %d -> %d", 
+                         row_name, init_val, param_phase, new_phase))
+        }
+      }
+    }
+
+#_____________________________________________________________________________________________________________________________
+# update virgin recruitment
+    tmp_ctl$SR_parms["SR_LN(R0)","INIT"] = 15
 
 #_____________________________________________________________________________________________________________________________
 # setup lambdas (likelihood weights) for all data types
