@@ -262,7 +262,7 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
     
     # Add standard columns
     wt_dt[, Used := "yes"]
-    wt_dt[, Kind := "WGT"]
+    wt_dt[, Kind := "SIZE"]
     wt_dt[, Sex := 1L]
     if(!"Nsamp_in" %in% names(wt_dt)) {
       wt_dt[, Nsamp_in := NA_real_]
@@ -417,7 +417,7 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
   
   # Step 6: Add standard columns
   wt_agg[, Used := "yes"]  # All MFCL data is used (character, matching SS3)
-  wt_agg[, Kind := "WGT"]  # Weight composition type (character)
+  wt_agg[, Kind := "SIZE"]  # Weight composition type (character)
   wt_agg[, Sex := 1L]      # Aggregated (integer)
   wt_agg[, effN := Nsamp_in]
   wt_agg[, Nsamp_adj := Nsamp_in]
