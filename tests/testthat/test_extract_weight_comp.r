@@ -140,8 +140,8 @@ test_that("extract_ss3_weight_comp aggregation produces reasonable sums", {
   expect_true(all(wt_ss3_base$Obs >= 0))
   expect_true(all(wt_ss3_base$Exp >= 0))
   
-  # Check that sample sizes are positive
-  expect_true(all(wt_ss3_base$Nsamp_in > 0 | wt_ss3_base$Nsamp_in == 0))
+  # Check that sample sizes are non-negative
+  expect_true(all(wt_ss3_base$Nsamp_in >= 0 | wt_ss3_base$Nsamp_in == 0))
 })
 
 test_that("extract_ss3_weight_comp stops if Report.sso not found", {
