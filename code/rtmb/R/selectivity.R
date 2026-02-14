@@ -190,3 +190,116 @@ plot_selectivity <- function(data, object, posterior = NULL, probs = c(0.025, 0.
     scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
     scale_y_reverse(breaks = pretty_breaks())
 }
+
+#' Logistic selectivity as a function of length
+#'
+#' @param len Numeric vector of length-bin midpoints.
+#' @param a Inflection point (length at 50% selectivity).
+#' @param b The 95% width (distance between 50% and 95% selectivity).
+#' @return Numeric vector of selectivity values in (0, 1].
+#' @export
+#'
+sel_logistic <- function(len, a, b) {
+  neglog19 <- -log(19)
+  sel <- 1 / (1 + exp(neglog19 * (len - a) / b))
+  return(sel)
+}
+
+#' Double-normal selectivity as a function of length (SS3 pattern 24, full form)
+#'
+#' Only the full form is implemented (e and f both active). The simplified
+#' forms where e <= -999 or f <= -999 are not supported.
+#'
+#' @param x Numeric vector of length-bin midpoints.
+#' @param a Peak (length at which selectivity = 1.0 on ascending limb).
+#' @param b Top (controls plateau width via logistic transform).
+#' @param c Ascending width (log-space; actual width = exp(c)).
+#' @param d Descending width (log-space; actual width = exp(d)).
+#' @param e Initial selectivity value. If on (0,1), logit-transformed internally.
+#'   If negative, used directly as logit-space value.
+#' @param f Final selectivity value. Same transform behaviour as e.
+#' @return Numeric vector of selectivity values in [0, 1].
+#' @export
+#'
+sel_double_normal <- function(x, a, b, c, d, e, f) {
+  # Logit-transform e (if on (0,1) scale, convert to logit)
+  if (e == 0) e <- 1 - 0.999955
+  if (e == 1) e <- 0.999955
+  if (e > 0)  e <- log(e / (1 - e))
+
+  # Logit-transform f (if on (0,1) scale, convert to logit)
+  if (f == 0) f <- 1 - 0.999955
+  if (f == 1) f <- 0.999955
+  if (f > 0)  f <- log(f / (1 - f))
+
+  sel <- rep(NA, length(x))
+  startbin <- 1
+  peak <- a
+  upselex <- exp(c)
+  downselex <- exp(d)
+  final <- f
+
+  j1 <- startbin - 1
+  point1 <- 1 / (1 + exp(-e))
+  t1min <- exp(-(x[startbin] - peak)^2 / upselex)
+
+  j2 <- length(x)
+
+  bin_width <- x[2] - x[1]
+  peak2 <- peak + bin_width + (0.99 * x[j2] - peak - bin_width) / (1 + exp(-b))
+
+  point2 <- 1 / (1 + exp(-final))
+  t2min <- exp(-(x[j2] - peak2)^2 / downselex)
+
+  t1 <- x - peak
+  t2 <- x - peak2
+  join1 <- 1 / (1 + exp(-(20 / (1 + abs(t1))) * t1))
+  join2 <- 1 / (1 + exp(-(20 / (1 + abs(t2))) * t2))
+
+  asc <- point1 + (1 - point1) * (exp(-t1^2 / upselex) - t1min) / (1 - t1min)
+  dsc <- 1 + (point2 - 1) * (exp(-t2^2 / downselex) - 1) / (t2min - 1)
+
+  idx.seq <- (j1 + 1):j2
+  sel[idx.seq] <- asc[idx.seq] * (1 - join1[idx.seq]) +
+    join1[idx.seq] * (1 - join2[idx.seq] + dsc[idx.seq] * join2[idx.seq])
+
+  if (startbin > 1) {
+    sel[1:startbin] <- (x[1:startbin] / x[startbin])^2 * sel[startbin]
+  }
+  if (j2 < length(x)) {
+    sel[(j2 + 1):length(x)] <- sel[j2]
+  }
+
+  return(sel)
+}
+
+#' Probability of length at age matrix (age-length key)
+#'
+#' Computes the probability distribution of fish lengths across different
+#' age classes. AD-compatible: uses RTMB::pnorm and ADoverload so that
+#' gradients propagate if growth parameters (mu_a, sd_a) are estimated.
+#'
+#' @param len_lower Numeric vector of lower bounds of length bins (length L). Data only.
+#' @param len_upper Numeric vector of upper bounds of length bins (length L). Data only.
+#' @param mu_a Numeric vector of mean length at age (length A). May be AD.
+#' @param sd_a Numeric vector of SD of length at age (length A). May be AD.
+#' @return Matrix of dimensions L x A where columns sum to 1.
+#' @importFrom RTMB ADoverload pnorm
+#' @export
+#'
+get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
+  "[<-" <- ADoverload("[<-")
+  n_len <- length(len_lower)
+  n_age <- length(mu_a)
+  pla <- matrix(0, nrow = n_len, ncol = n_age)
+  for (a in seq_len(n_age)) {
+    for (z in seq_len(n_len)) {
+      pla[z, a] <- pnorm((len_upper[z] - mu_a[a]) / sd_a[a]) -
+                   pnorm((len_lower[z] - mu_a[a]) / sd_a[a])
+    }
+    col_sum <- sum(pla[, a])
+    # Normalize — use epsilon instead of if-branch for AD safety
+    pla[, a] <- pla[, a] / (col_sum + 1e-12)
+  }
+  return(pla)
+}
