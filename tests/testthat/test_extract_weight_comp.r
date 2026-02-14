@@ -42,6 +42,7 @@ if(file.exists(file.path(dir_ss3, "01-bet-base", "Report.sso")) &&
 # Create two variants: raw (no replacement) and zero-replaced (to match SS3 tiny-fill)
 wt_mfcl_v11_raw = NULL
 wt_mfcl_v11 = NULL
+par_file_mfcl = file.path(dir_mfcl, "v11", "10.par")
 if(file.exists(file.path(dir_mfcl, "v11", "weight.fit")) &&
    file.exists(file.path(dir_mfcl, "v11", "bet.frq"))) {
   tryCatch({
@@ -52,7 +53,8 @@ if(file.exists(file.path(dir_mfcl, "v11", "weight.fit")) &&
       output_dir = dir_mfcl,
       save_csv = FALSE,
       verbose = FALSE,
-      zero_replace = NULL
+      zero_replace = NULL,
+      par_file = par_file_mfcl
     )
   }, error = function(e) {
     # MFCL raw data may not be available
@@ -66,7 +68,8 @@ if(file.exists(file.path(dir_mfcl, "v11", "weight.fit")) &&
       output_dir = dir_mfcl,
       save_csv = FALSE,
       verbose = FALSE,
-      zero_replace = 9.90589e-05
+      zero_replace = 9.90589e-05,
+      par_file = par_file_mfcl
     )
   }, error = function(e) {
     # MFCL zero-replaced data may not be available
@@ -537,7 +540,8 @@ if(file.exists(file.path(dir_mfcl, "v11", "weight.fit")) &&
       output_dir = dir_mfcl,
       aggregate = FALSE,
       save_csv = FALSE,
-      verbose = FALSE
+      verbose = FALSE,
+      par_file = par_file_mfcl
     )
   }, error = function(e) {
     # MFCL time-resolved data may not be available
@@ -967,4 +971,72 @@ test_that("back_transform=TRUE SS3 Obs matches MFCL Obs for same bins", {
   # (tolerance allows for floating-point rounding through Report.sso)
   expect_equal(ss3_comp, mfcl_comp, tolerance = 1e-5,
                label = "Back-transformed SS3 Obs should match MFCL Obs for fine bins")
+})
+
+# ===== MFCL Nsamp_adj with flag 50 Tests =====
+
+test_that("MFCL Nsamp_adj uses flag 50 values when par_file provided", {
+  skip_if_not(!is.null(wt_mfcl_time) && file.exists(par_file_mfcl),
+              "MFCL time-resolved data and par file must be available")
+  
+  # Read flag 50 values directly for verification
+  if(!requireNamespace("FLR4MFCL", quietly = TRUE)) skip("FLR4MFCL not available")
+  base_par = FLR4MFCL::read.MFCLPar(par_file_mfcl, first.yr = 1952)
+  flag_dt = data.table::as.data.table(FLR4MFCL::flags(base_par))
+  flag50 = flag_dt[flag == 50 & flagtype < 0]
+  flag50[, fleet := abs(flagtype)]
+  flag50_lookup = stats::setNames(flag50$value, flag50$fleet)
+  
+  # Check one observation per fleet: Nsamp_adj should equal min(Nsamp_in, 1000) / flag50
+  for(flt in unique(wt_mfcl_time$Fleet)) {
+    flt_char = as.character(flt)
+    if(flt_char %in% names(flag50_lookup)) {
+      f50 = flag50_lookup[flt_char]
+      obs_row = wt_mfcl_time[Fleet == flt][1]
+      expected_adj = unname(min(obs_row$Nsamp_in, 1000) / f50)
+      expect_equal(obs_row$Nsamp_adj, expected_adj, tolerance = 1e-10,
+                   label = paste0("Fleet ", flt, " Nsamp_adj = min(Nsamp_in, 1000) / ", f50))
+    }
+  }
+})
+
+test_that("MFCL Nsamp_adj differs from Nsamp_in when par_file provided", {
+  skip_if_not(!is.null(wt_mfcl_time) && file.exists(par_file_mfcl),
+              "MFCL time-resolved data and par file must be available")
+  
+  # Nsamp_adj should NOT equal Nsamp_in (because flag 50 divides it)
+  # At least for rows where Nsamp_in > 0
+  rows_with_data = wt_mfcl_time[Nsamp_in > 0]
+  if(nrow(rows_with_data) > 0) {
+    expect_false(all(rows_with_data$Nsamp_adj == rows_with_data$Nsamp_in),
+                 label = "Nsamp_adj should differ from Nsamp_in when flag 50 is applied")
+  }
+})
+
+test_that("MFCL Nsamp_adj is capped at 1000/flag50 when Nsamp_in > 1000", {
+  skip_if_not(!is.null(wt_mfcl_time) && file.exists(par_file_mfcl),
+              "MFCL time-resolved data and par file must be available")
+  
+  if(!requireNamespace("FLR4MFCL", quietly = TRUE)) skip("FLR4MFCL not available")
+  base_par = FLR4MFCL::read.MFCLPar(par_file_mfcl, first.yr = 1952)
+  flag_dt = data.table::as.data.table(FLR4MFCL::flags(base_par))
+  flag50 = flag_dt[flag == 50 & flagtype < 0]
+  flag50[, fleet := abs(flagtype)]
+  flag50_lookup = stats::setNames(flag50$value, flag50$fleet)
+  
+  # For rows where Nsamp_in > 1000, Nsamp_adj should be 1000/flag50
+  for(flt in unique(wt_mfcl_time$Fleet)) {
+    flt_char = as.character(flt)
+    if(flt_char %in% names(flag50_lookup)) {
+      f50 = flag50_lookup[flt_char]
+      large_rows = wt_mfcl_time[Fleet == flt & Nsamp_in > 1000]
+      if(nrow(large_rows) > 0) {
+        expected_adj = 1000 / f50
+        expect_true(all(abs(large_rows$Nsamp_adj - expected_adj) < 1e-10),
+                    label = paste0("Fleet ", flt,
+                                   ": Nsamp_adj should be 1000/", f50,
+                                   " when Nsamp_in > 1000"))
+      }
+    }
+  }
 })

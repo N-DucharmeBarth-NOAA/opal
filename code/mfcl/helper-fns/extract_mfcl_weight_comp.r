@@ -15,6 +15,11 @@
 #' @param aggregate Logical. Aggregate across time? Default TRUE. When FALSE,
 #'   returns per-observation data with year, month, and ts columns and saves
 #'   as comp_size_time.csv instead of comp_size.csv.
+#' @param par_file Character. Path to MFCL .par file (e.g., 10.par). Used to
+#'   read fish-flag 50 values per fishery for computing Nsamp_adj. When NULL
+#'   (default), Nsamp_adj equals Nsamp_in (backward compatible).
+#' @param first_yr Integer. First year of the model, passed to
+#'   FLR4MFCL::read.MFCLPar(). Default 1952.
 #' 
 #' @return data.table with columns: id, Fleet, Fleet_name, Used, Kind, Sex, Bin,
 #'   Obs, Exp, Dev, effN, Nsamp_in, Nsamp_adj. When aggregate = FALSE, also
@@ -57,7 +62,9 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
                                     save_csv = TRUE,
                                     verbose = TRUE,
                                     zero_replace = NULL,
-                                    aggregate = TRUE) {
+                                    aggregate = TRUE,
+                                    par_file = NULL,
+                                    first_yr = 1952L) {
   
   # Check if weight.fit file exists
   if(!file.exists(weight_fit_file)) {
@@ -72,6 +79,30 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
   # Check if output_dir is provided when save_csv = TRUE
   if(save_csv && is.null(output_dir)) {
     stop("output_dir must be provided when save_csv = TRUE")
+  }
+  
+  # Step 0: Read flag 50 values from par file for Nsamp_adj calculation
+  # Fish flags have flagtype == -n where n is the fleet number.
+  # Nsamp_adj = min(Nsamp_in, 1000) / flag50_value_for_fleet
+  flag50_lookup = NULL
+  if(!is.null(par_file)) {
+    if(!file.exists(par_file)) {
+      stop(sprintf("par file not found: %s", par_file))
+    }
+    if(!requireNamespace("FLR4MFCL", quietly = TRUE)) {
+      stop("Package 'FLR4MFCL' is required to read par file for flag 50 values")
+    }
+    if(verbose) message("Reading MFCL par file for flag 50 values: ", par_file)
+    base_par = FLR4MFCL::read.MFCLPar(par_file, first.yr = first_yr)
+    flag_dt = data.table::as.data.table(FLR4MFCL::flags(base_par))
+    # Fish flags: flagtype is negative, abs(flagtype) = fleet number
+    flag50 = flag_dt[flag == 50 & flagtype < 0]
+    flag50[, fleet := abs(flagtype)]
+    # Build named lookup vector: fleet number -> flag 50 value
+    flag50_lookup = stats::setNames(flag50$value, flag50$fleet)
+    if(verbose) message("  Flag 50 values per fishery: ",
+                        paste(paste0("F", names(flag50_lookup), "=", flag50_lookup),
+                              collapse = ", "))
   }
   
   # Load required packages
@@ -268,7 +299,15 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
       wt_dt[, Nsamp_in := NA_real_]
     }
     wt_dt[, effN := Nsamp_in]
-    wt_dt[, Nsamp_adj := Nsamp_in]
+    # Compute Nsamp_adj using flag 50 values if available
+    if(!is.null(flag50_lookup)) {
+      wt_dt[, Nsamp_adj := {
+        f50 = flag50_lookup[as.character(Fleet)]
+        pmin(Nsamp_in, 1000) / f50
+      }, by = Fleet]
+    } else {
+      wt_dt[, Nsamp_adj := Nsamp_in]
+    }
     
     # Add fleet names
     if(!is.null(fishery_names) && length(fishery_names) >= max(wt_dt$Fleet)) {
@@ -308,10 +347,21 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
     }
   }
   
+  # Pre-compute Nsamp_adj on wt_dt before aggregation so it can be summed
+  if(!is.null(flag50_lookup)) {
+    wt_dt[, Nsamp_adj := {
+      f50 = flag50_lookup[as.character(Fleet)]
+      pmin(Nsamp_in, 1000) / f50
+    }, by = Fleet]
+  } else {
+    wt_dt[, Nsamp_adj := Nsamp_in]
+  }
+  
   wt_agg = wt_dt[, .(
     Obs = sum(Obs * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
     Exp = sum(Exp * Nsamp_in, na.rm = TRUE) / sum(Nsamp_in, na.rm = TRUE),
-    Nsamp_in = sum(Obs * Nsamp_in, na.rm = TRUE)
+    Nsamp_in = sum(Obs * Nsamp_in, na.rm = TRUE),
+    Nsamp_adj = sum(Nsamp_adj, na.rm = TRUE)
   ), by = .(Fleet, Bin)]
   
   # Ensure Bin is numeric
@@ -398,15 +448,17 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
         obs_rebinned = rebin_composition(src_edges, obs_vec, target_bins)
         exp_rebinned = rebin_composition(src_edges, exp_vec, target_bins)
         
-        # Get sample size (use sum)
+        # Get sample sizes (use sum)
         Nsamp_in_val = sum(Nsamp_in, na.rm = TRUE)
+        Nsamp_adj_val = sum(Nsamp_adj, na.rm = TRUE)
         
         # Return rebinned data
         data.table::data.table(
           Bin = as.numeric(target_bins[-length(target_bins)]),
           Obs = obs_rebinned,
           Exp = exp_rebinned,
-          Nsamp_in = Nsamp_in_val
+          Nsamp_in = Nsamp_in_val,
+          Nsamp_adj = Nsamp_adj_val
         )
       }, by = .(Fleet)]
       
@@ -420,7 +472,7 @@ extract_mfcl_weight_comp = function(weight_fit_file, frq_file, model_id,
   wt_agg[, Kind := "SIZE"]  # Weight composition type (character)
   wt_agg[, Sex := 1L]      # Aggregated (integer)
   wt_agg[, effN := Nsamp_in]
-  wt_agg[, Nsamp_adj := Nsamp_in]
+  # Nsamp_adj already computed during aggregation
   
   # Step 7: Add fleet names
   if(!is.null(fishery_names) && length(fishery_names) >= max(wt_agg$Fleet)) {

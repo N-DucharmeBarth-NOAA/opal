@@ -16,8 +16,9 @@
 #'   as comp_size_time.csv instead of comp_size.csv.
 #' @param back_transform Logical. Undo SS3 internal mincomp and variance
 #'   adjustment transformations so that Obs/Exp are on the original input
-#'   proportion scale and Nsamp_in/Nsamp_adj reflect the original sample sizes?
-#'   Default TRUE. When TRUE, reads data.ss and control.ss via r4ss to obtain
+#'   proportion scale and Nsamp_in reflects the original sample size from
+#'   data.ss? Default TRUE. Nsamp_adj is left as SS3 reported it (the model's
+#'   intentional weighting). Reads data.ss and control.ss via r4ss to obtain
 #'   mincomp_per_method and Factor 7 (mult_by_generalized_sizecomp) per fleet.
 #' 
 #' @return data.table with columns: id, Fleet, Fleet_name, Used, Kind, Sex, Bin,
@@ -147,7 +148,9 @@ extract_ss3_weight_comp = function(model_dir, model_id,
       }
     }
     
-    # Undo variance adjustment on Nsamp
+    # Undo variance adjustment on Nsamp_in only
+    # Nsamp_adj is left as SS3 reported it — it reflects the model's
+    # intentional weighting and should not be back-transformed.
     if(!is.null(var_adj_dt) && nrow(var_adj_dt) > 0) {
       for(i in seq_len(nrow(var_adj_dt))) {
         flt = var_adj_dt$fleet[i]
@@ -156,7 +159,6 @@ extract_ss3_weight_comp = function(model_dir, model_id,
           idx = which(wt_dt$Fleet == flt)
           if(length(idx) > 0) {
             wt_dt$Nsamp_in[idx] = wt_dt$Nsamp_in[idx] / va
-            wt_dt$Nsamp_adj[idx] = wt_dt$Nsamp_adj[idx] / va
           }
         }
       }
