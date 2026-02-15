@@ -194,74 +194,95 @@ plot_selectivity <- function(data, object, posterior = NULL, probs = c(0.025, 0.
 #' Logistic selectivity as a function of length
 #'
 #' @param len Numeric vector of length-bin midpoints.
-#' @param a Inflection point (length at 50% selectivity).
-#' @param b The 95% width (distance between 50% and 95% selectivity).
+#' @param par Numeric vector of length 6 containing selectivity parameters.
+#'   Only the first two entries are used: par[1] (a) and par[2] (b).
+#'   `a` is the inflection point on the real line, transformed via
+#'   `mean(len) + a * sd(len)`, so `a = 0` gives inflection at `mean(len)`.
+#'   `b` is log-scale 95% width, transformed via `exp(b) * sd(len)`,
+#'   so `b = 0` gives a 95% width equal to `sd(len)`.
 #' @return Numeric vector of selectivity values in (0, 1].
 #' @export
 #'
-sel_logistic <- function(len, a, b) {
-  neglog19 <- -log(19)
-  sel <- 1 / (1 + exp(neglog19 * (len - a) / b))
+sel_logistic <- function(len, par) {
+  mu  <- mean(len)
+  sd  <- sd(len)
+  a   <- par[1]
+  b   <- par[2]
+  a50 <- mu + a * sd
+  w95 <- exp(b) * sd
+  sel <- 1 / (1 + exp(-log(19) * (len - a50) / w95))
   return(sel)
 }
 
 #' Double-normal selectivity as a function of length (SS3 pattern 24, full form)
 #'
+#' All parameters are on the real line, making this parameterization suitable
+#' for unconstrained optimization and AD. The length-bin vector `x` is used
+#' to define natural scales for position and width parameters.
+#'
 #' Only the full form is implemented (e and f both active). The simplified
 #' forms where e <= -999 or f <= -999 are not supported.
 #'
 #' @param x Numeric vector of length-bin midpoints.
-#' @param a Peak (length at which selectivity = 1.0 on ascending limb).
-#' @param b Top (controls plateau width via logistic transform).
-#' @param c Ascending width (log-space; actual width = exp(c)).
-#' @param d Descending width (log-space; actual width = exp(d)).
-#' @param e Initial selectivity value. If on (0,1), logit-transformed internally.
-#'   If negative, used directly as logit-space value.
-#' @param f Final selectivity value. Same transform behaviour as e.
+#' @param par Numeric vector of length 6 containing selectivity parameters:
+#'   par[1] (a): Peak location (real line). Transformed via
+#'     `mean(x) + a * sd(x)`, so `a = 0` places the peak at `mean(x)`.
+#'   par[2] (b): Plateau width (real line). Controls the distance from peak to the
+#'     start of the descending limb via logistic transform of the available
+#'     range: `peak + bin_width + (0.99 * max(x) - peak - bin_width) / (1 + exp(-b))`.
+#'   par[3] (c): Ascending width (real line, log-space). Actual width = `exp(c) * sd(x)`.
+#'     `c = 0` gives an ascending width equal to `sd(x)`.
+#'   par[4] (d): Descending width (real line, log-space). Actual width = `exp(d) * sd(x)`.
+#'     `d = 0` gives a descending width equal to `sd(x)`.
+#'   par[5] (e): Initial selectivity (real line, logit-space). Transformed via
+#'     `1 / (1 + exp(-e))`, so `e = 0` gives initial selectivity of 0.5,
+#'     large negative values give ~0, large positive values give ~1.
+#'   par[6] (f): Final selectivity (real line, logit-space). Same transform as `e`.
 #' @return Numeric vector of selectivity values in [0, 1].
 #' @export
 #'
-sel_double_normal <- function(x, a, b, c, d, e, f) {
-  # Logit-transform e (if on (0,1) scale, convert to logit)
-  if (e == 0) e <- 1 - 0.999955
-  if (e == 1) e <- 0.999955
-  if (e > 0)  e <- log(e / (1 - e))
+sel_double_normal <- function(x, par) {
+  mu <- mean(x)
+  sd <- sd(x)
+  # Extract parameters from vector
+  a <- par[1]
+  b <- par[2]
+  c <- par[3]
+  d <- par[4]
+  e <- par[5]
+  f <- par[6]
+  # --- Transform parameters from real line to natural scale ---
+  peak       <- mu + a * sd
+  upselex    <- exp(c) * sd
+  downselex  <- exp(d) * sd
+  point1     <- 1 / (1 + exp(-e))
+  point2     <- 1 / (1 + exp(-f))
 
-  # Logit-transform f (if on (0,1) scale, convert to logit)
-  if (f == 0) f <- 1 - 0.999955
-  if (f == 1) f <- 0.999955
-  if (f > 0)  f <- log(f / (1 - f))
-
-  sel <- rep(NA, length(x))
-  startbin <- 1
-  peak <- a
-  upselex <- exp(c)
-  downselex <- exp(d)
-  final <- f
-
-  j1 <- startbin - 1
-  point1 <- 1 / (1 + exp(-e))
-  t1min <- exp(-(x[startbin] - peak)^2 / upselex)
-
-  j2 <- length(x)
-
+  # --- Derived quantities ---
+  startbin  <- 1
+  j1        <- startbin - 1
+  j2        <- length(x)
   bin_width <- x[2] - x[1]
-  peak2 <- peak + bin_width + (0.99 * x[j2] - peak - bin_width) / (1 + exp(-b))
 
-  point2 <- 1 / (1 + exp(-final))
-  t2min <- exp(-(x[j2] - peak2)^2 / downselex)
+  peak2  <- peak + bin_width + (0.99 * x[j2] - peak - bin_width) / (1 + exp(-b))
 
+  t1min  <- exp(-(x[startbin] - peak)^2 / upselex)
+  t2min  <- exp(-(x[j2] - peak2)^2 / downselex)
+
+  # --- Compute selectivity ---
   t1 <- x - peak
   t2 <- x - peak2
+
   join1 <- 1 / (1 + exp(-(20 / (1 + abs(t1))) * t1))
   join2 <- 1 / (1 + exp(-(20 / (1 + abs(t2))) * t2))
 
   asc <- point1 + (1 - point1) * (exp(-t1^2 / upselex) - t1min) / (1 - t1min)
   dsc <- 1 + (point2 - 1) * (exp(-t2^2 / downselex) - 1) / (t2min - 1)
 
-  idx.seq <- (j1 + 1):j2
-  sel[idx.seq] <- asc[idx.seq] * (1 - join1[idx.seq]) +
-    join1[idx.seq] * (1 - join2[idx.seq] + dsc[idx.seq] * join2[idx.seq])
+  sel <- rep(NA_real_, length(x))
+  idx <- (j1 + 1):j2
+  sel[idx] <- asc[idx] * (1 - join1[idx]) +
+    join1[idx] * (1 - join2[idx] + dsc[idx] * join2[idx])
 
   if (startbin > 1) {
     sel[1:startbin] <- (x[1:startbin] / x[startbin])^2 * sel[startbin]
