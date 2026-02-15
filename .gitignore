@@ -61,7 +61,9 @@
 !*.csl
 !*.lua
 policy/README.txt
-
+# ignore txt and html files in 00-bet-base/plots
+recruit_fit_bias*.txt
+plotInfoTable_*.csv
 /.quarto/
 _site/*
 !*.yaml
