@@ -1,0 +1,443 @@
+---
+title: "The BET model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The BET model}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+bibliography: "references.bib"
+link-citations: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+The `sbt` software is an R package [@R2024] that contains the CCSBT operating 
+model (OM) coded using RTMB [@Kristensen2016, @Kristensen2024]. This page 
+provides examples using the `sbt` model.
+
+# Load inputs
+
+The `sbt` RTMB model is loaded along with several R functions using 
+`library(sbt)`. The `kableExtra` package is used for generating tables of 
+inputs. The `tidyverse` package is used for data manipulation and plotting. The 
+code `theme_set(theme_bw())` alters the plot aesthetics.
+
+```{r load-pkg, echo=TRUE, message=FALSE}
+# remotes::install_github("janoleko/RTMBdist")
+# remotes::install_github("andrjohns/StanEstimators")
+# remotes::install_github("noaa-afsc/SparseNUTS")
+library(kableExtra)
+library(tidyverse)
+library(reshape2)
+# library(bet)
+devtools::load_all()
+
+theme_set(theme_bw())
+```
+
+```{r get-biology, echo=TRUE, message=FALSE}
+# Length-weight
+a <- 0.0000198
+b <- 3.020
+
+# von Bertalanffy growth
+Linf <- 175      # cm FL
+K    <- 0.30
+t0   <- -0.80
+
+# Generate weight-at-age table
+max_age <- 20
+ages <- 0:20
+
+waa_df <- tibble(
+  age = ages + 0.5,
+  length_cm = Linf * (1 - exp(-K * (ages - t0))),
+  weight_kg = a * length_cm^b
+)
+
+ggplot(data = waa_df, aes(x = age, y = weight_kg)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Age (years)", y = "Mean weight (kg)")
+
+length_to_weight <- function(fl_cm, a = 0.0000198, b = 3.020) {
+  a * fl_cm^b
+}
+
+age_to_weight <- function(age, Linf = 175, K = 0.30, t0 = -0.80, a = 0.0000198, b = 3.020) {
+  length_cm <- Linf * (1 - exp(-K * (age - t0)))
+  a * length_cm^b
+}
+```
+The data list is defined below and then the `get_data` function is used to set 
+up some additional inputs that are required before the data list can be passed 
+to `MakeADFun`.
+
+```{r get-data, echo=TRUE, message=FALSE}
+df_catch <- read_csv("catch-data.csv") %>% mutate(season = (ts - 1) %% 4 + 1)
+df_cpue <- read_csv("cpue-data.csv") %>% mutate(season = (ts - 1) %% 4 + 1)
+
+table(df_catch$year)
+table(df_catch$month, df_catch$season)
+table(df_catch$fishery, df_catch$units)
+
+data <- list(
+  first_yr = 1945, last_yr = 2018, age_a = ages,
+  n_season = 4, n_fishery = 15,
+  first_yr_catch = min(df_catch$year), catch_units_f = c(rep(2, 7), rep(1, 7), 2),
+  cpue_switch = 1, cpue_data = df_cpue
+)
+data$years <- data$first_yr:data$last_yr
+data$n_year <- length(data$years)
+data$n_age <- length(data$age_a)
+
+maturity_a <- 1 / (1 + 19 ^ ((3.4 - data$age_a) / (4.4 - 3.5)))
+plot(maturity_a)
+maturity_a[maturity_a < 1e-4] <- 0
+lines(maturity_a)
+data$maturity_a <- maturity_a
+
+catch_obs_ysf <- array(0, 
+                       dim = c(data$n_year, data$n_season, data$n_fishery), 
+                       dimnames = list(year = data$years, season = 1:data$n_season, fishery = 1:data$n_fishery))
+for (i in 1:nrow(df_catch)) {
+  row <- df_catch[i, ]
+  y_idx <- which(years == row$year)
+  s_idx <- row$season
+  f_idx <- row$fishery
+  catch_obs_ysf[y_idx, s_idx, f_idx] <- row$value
+}
+data$catch_obs_ysf <- catch_obs_ysf
+
+data$weight_fya <- array(dim = c(data$n_fishery, data$n_year, data$n_age))
+for (f in 1:data$n_fishery) for (y in 1:data$n_year) data$weight_fya[f, y,] <- waa_df$weight_kg / 1000
+data$weight_fya[1,,]
+```
+
+# Model setup
+
+Define the parameter `list`:
+
+```{r get-pars, echo=TRUE, message=FALSE}
+# parameters <- get_parameters(data = data)
+# names(parameters)
+parameters <- list(
+  log_B0 = 13,
+  log_h = log(0.8),
+  log_sigma_r = log(0.6),
+  log_M = log(0.4),
+  log_cpue_q = log(1),
+  cpue_creep = 0,
+  log_cpue_tau = log(0.2),
+  log_cpue_omega = log(1),
+  rdev_y = rnorm(data$n_year, 0, 0.1)
+  # rdev_y = rep(0, data$n_year)
+)
+```
+
+There is a lot of flexibility in specifying priors now:
+
+```{r get-priors, echo=TRUE, message=FALSE}
+data$priors <- get_priors(parameters = parameters)
+evaluate_priors(parameters = parameters, priors = data$priors)
+```
+
+Use RTMB's `map` option to turn parameters on/off:
+
+```{r get-map, echo=TRUE, message=FALSE}
+# map <- get_map(parameters = parameters)
+map <- list(
+  # log_B0 = factor(NA),
+  log_M = factor(NA),
+  log_h = factor(NA),
+  log_sigma_r = factor(NA),
+  # log_cpue_q = factor(NA),
+  cpue_creep = factor(NA),
+  log_cpue_tau = factor(NA),
+  log_cpue_omega = factor(NA)
+)
+```
+
+Using the `data`, the `parameters`, the parameter `map`, and the model 
+(`bet_model`), the AD object is created using TMBs `MakeADFun` function:
+
+```{r make-adfun, echo=TRUE, message=FALSE}
+obj <- MakeADFun(func = cmb(bet_model, data), parameters = parameters, map = map)
+obj$fn()
+obj$gr()
+
+obj$simulate()$cpue_log_obs
+
+plot_catch(data = data, object = obj)
+plot_cpue(data = data, object = obj)
+plot_biomass_spawning(data_list = list(data), object_list = list(obj))
+```
+
+List of parameters that are on:
+
+```{r est-pars, echo=TRUE, message=FALSE}
+unique(names(obj$par))
+```
+
+The objective function value given the initial parameter values:
+
+```{r check-obj-fun, echo=TRUE, message=FALSE}
+obj$fn(obj$env$last.par.best)
+obj$gr(obj$env$last.par.best)
+```
+
+Load the default parameter bounds:
+
+```{r get-par-bounds, echo=TRUE, message=FALSE}
+bnd <- get_bounds(obj, parameters = parameters)
+```
+
+# Optimisation
+
+Optimise using the `nlminb` function:
+
+```{r run-nlminb, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt <- nlminb(start = obj$par, objective = obj$fn,
+              lower = bnd$lower, upper = bnd$upper, control = control)
+opt <- nlminb(start = opt$par, objective = obj$fn,
+              lower = bnd$lower, upper = bnd$upper, control = control)
+# opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
+#               lower = bnd$lower, upper = bnd$upper, control = control)
+# opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
+#               lower = bnd$lower, upper = bnd$upper, control = control)
+# save(opt, file = "opt.rda")
+# load("opt.rda")
+# opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
+#               lower = bnd$lower, upper = bnd$upper, control = control)
+```
+
+Check that all parameters are estimable using the `check_estimability` function.
+This function was taken from the `TMBhelper` package and added to the `sbt` 
+package because the `TMBhelper` package is not set up as a proper package (it 
+does not install properly on the GitHub servers).
+
+```{r check-estimability, echo=TRUE, message=FALSE}
+check_estimability(obj = obj)
+```
+
+Calculate standard deviations of all model parameters, including non linear 
+functions of random effects and parameters specified through the `ADREPORT()` 
+macro from the user template:
+
+```{r run-report, include=FALSE}
+Report <- sdreport(obj)
+```
+
+# Simulation
+
+Simulation can be done for any data set in the model that is passed through the
+`RTMB` function `OBS`. For example, the CPUE series is set up using:
+
+```
+cpue_log_obs <- log(cpue_obs)
+cpue_log_obs <- OBS(cpue_log_obs)
+lp <- -dnorm(x = cpue_log_obs, mean = cpue_log_pred, sd = cpue_sig, log = TRUE)
+```
+
+This allows a call to `obj$simulate()$cpue_log_obs`. For example:
+
+```{r sim-1, echo=TRUE, message=FALSE}
+# obj$simulate()$cpue_log_obs
+# obj$simulate()$troll_log_obs
+# obj$simulate()$aerial_log_obs
+# obj$simulate()$gt_nrec
+# obj$simulate()$hsp_nK
+# obj$simulate()$pop_nP
+plot(log(data$cpue_obs), col = 2)
+for (i in 1:10) lines(obj$simulate()$cpue_log_obs)
+```
+
+Data sets for which simulation is available include:
+
+* cpue_log_obs
+
+But not:
+
+* lf_obs
+* cpue_lfs
+
+Simulation is also required for calculating OSA residuals and to use the `RTMB` 
+function `checkConsistency`. Unfortunately, the `checkConsistency` does not work 
+yet because  not all data types are defined using densities that have simulation 
+support within the model (i.e., the AFs and LFs).
+
+```{r check-consistency, echo=TRUE}
+# chk <- checkConsistency(obj = obj, hessian = TRUE, estimate = TRUE, n = 100, observation.name	= "cpue_log_obs")
+# chk
+# s <- summary(chk)
+# s
+# s$marginal$p.value
+```
+
+# Plot outputs
+
+## Model fits
+
+Model fit to CPUE (Figure~\ref(fig:plot-cpue)) and the aerial surveys (Figure~\ref(fig:plot-aerial)).
+
+```{r plot-cpue, echo=TRUE, message=FALSE, fig.cap="Model fits to CPUE."}
+plot_cpue(data = data, object = obj, nsim = 10)
+```
+
+```{r plot-LL1, echo=TRUE, message=FALSE, fig.height=10, fig.cap="Model fits to LL1 length frequencies."}
+plot_lf(data = data, object = obj, fishery = "LL1")
+```
+
+```{r plot-LL2, echo=TRUE, message=FALSE, fig.height=10, fig.cap="Model fits to LL2 length frequencies."}
+plot_lf(data = data, object = obj, fishery = "LL2")
+```
+
+```{r plot-LL3, echo=TRUE, message=FALSE, fig.height=10, fig.cap="Model fits to LL3 length frequencies."}
+plot_lf(data = data, object = obj, fishery = "LL3")
+```
+
+```{r plot-LL4, echo=TRUE, message=FALSE, fig.height=10, fig.cap="Model fits to LL4 length frequencies."}
+plot_lf(data = data, object = obj, fishery = "LL4")
+```
+
+```{r plot-catch, echo=TRUE, message=FALSE}
+plot_catch(data = data, object = obj)
+```
+
+```{r plot-catch-resid, echo=TRUE, message=FALSE}
+plot_catch(data = data, object = obj, plot_resid = TRUE)
+```
+
+## One step ahead (OSA) residuals
+
+One step ahead (OSA) residuals are a replacement for Pearson residuals 
+(Figure~\ref(fig:osa1)).
+
+```{r osa1, echo=TRUE, message=FALSE, fig.cap="OSA residuals."}
+osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs", 
+                           method = "oneStepGeneric", trace = FALSE)
+qqnorm(osa_cpue$res); abline(0, 1)
+plot(osa_cpue$res); abline(-2, 0); abline(0, 0); abline(2, 0)
+# osa <- oneStepPredict(obj = obj, method = "fullGaussian", discrete = FALSE, trace = FALSE)
+# osa_troll <- oneStepPredict(obj = obj, observation.name = "troll_log_obs", method = "oneStepGeneric", trace = FALSE)
+# qqnorm(osa_troll$res); abline(0, 1)
+# plot(osa_troll$res); abline(0, 0)
+# osa_aerial <- oneStepPredict(obj = obj, observation.name = "aerial_log_obs", method = "oneStepGeneric", trace = FALSE)
+# qqnorm(osa$res); abline(0, 1)
+# osa_gt <- oneStepPredict(obj = obj, observation.name = "gt_nrec", method = "oneStepGeneric", discrete = TRUE, trace = FALSE)
+# qqnorm(osa_gt$res); abline(0, 1)
+# plot(osa_gt$res); abline(-2, 0); abline(0, 0); abline(2, 0)
+# osa_hsp <- oneStepPredict(obj = obj, observation.name = "hsp_nK", method = "oneStepGeneric", discrete = TRUE, trace = FALSE)
+# qqnorm(osa_hsp$res); abline(0, 1)
+# plot(osa_hsp$res); abline(0, 0)
+# osa_pop <- oneStepPredict(obj = obj, observation.name = "pop_nP", method = "oneStepGeneric", discrete = TRUE, trace = FALSE)
+# qqnorm(osa_pop$res); abline(0, 1)
+# plot(osa_pop$res); abline(0, 0)
+```
+
+## Derived quantities
+
+Recruitment deviates and recruitment (Figure~\ref(fig:plot-rec-dev), Figure~\ref(fig:plot-rec)).
+
+```{r plot-rec-dev, echo=TRUE, message=FALSE}
+plot_rec_devs(data = data, object = obj)
+```
+
+```{r plot-rec, echo=TRUE, message=FALSE}
+plot_recruitment(data = data, object = obj)
+```
+
+```{r plot-M, echo=TRUE, message=FALSE}
+plot_natural_mortality(data = data, object = obj)
+```
+
+```{r plot-init-n, echo=TRUE, message=FALSE}
+plot_initial_numbers(data = data, object = obj)
+```
+
+```{r plot-hrate, echo=TRUE, message=FALSE}
+plot_hrate(data = data, object = obj, years = 1990:2010)
+```
+
+```{r plot-sbio, echo=TRUE, message=FALSE, fig.cap="Spawning biomass by year."}
+plot_biomass_spawning(data_list = list(data), object_list = list(obj))
+```
+
+# Likelihood profiles
+
+Likelihood profiles can be done for any model parameter using the function 
+`sbtprofile`. The `ytol` argument defines the range of likelihood values to 
+explore. A profile can be run using either using `name` or `lincomb` arguments, 
+where the latter can be used if there are multiple parameters with the same name 
+(e.g., `par_log_sel_1`).
+
+```{r run-like-prof, echo=TRUE, results="hide"}
+# ytol <- 9
+# prof_B0 <- sbtprofile(obj = obj, name = "par_log_B0", ytol = ytol)
+# prof_m4 <- sbtprofile(obj = obj, name = "par_log_m4", ytol = ytol)
+# prof_m30 <- sbtprofile(obj = obj, name = "par_log_m30", ytol = ytol)
+# lincomb <- numeric(length(obj$par)); lincomb[6] <- 1
+# prof_sel1 <- sbtprofile(obj = obj, lincomb = lincomb, ytol = ytol)
+# save(prof_B0, prof_m4, prof_m30, prof_sel1, file = "profiles.rda")
+load("profiles.rda")
+```
+
+Note that the profile for B0 did not work very well, likelihood for LFs was zero 
+when B0 was too low. Need to look into this.
+
+```{r fig-prof1, echo=TRUE, results="hide", fig.cap="Likelihood profile for B0."}
+head(prof_B0)
+obj$env$last.par.best[names(obj$par) == "par_log_B0"]
+plot_profile(x = prof_B0 %>% filter(is.finite(value)), xlab = "B0")
+```
+
+```{r fig-prof2, echo=TRUE, results="hide", fig.cap="Likelihood profile for M4."}
+plot_profile(x = prof_m4, xlab = "M4")
+```
+
+```{r fig-prof3, echo=TRUE, results="hide", fig.cap="Likelihood profile for M30."}
+plot_profile(x = prof_m30, xlab = "M30")
+```
+
+```{r fig-prof4, echo=TRUE, results="hide", fig.cap="Likelihood profile for one of the selectivity parameters."}
+plot_profile(x = prof_sel1, xlab = "Sel1")
+```
+
+# Bayesian inference
+
+Bayesian inference can be done using the `SparseNUTS` package.
+
+```{r run-mcmc, echo=TRUE, results="hide"}
+library(SparseNUTS)
+
+# mcmc <- sample_snuts(
+#   obj = obj, metric = "auto", init = "last.par.best",
+#   # lower = bnd$lower, upper = bnd$upper, # these bounds dont seem to work
+#   # skip_optimization = TRUE, # Can skip for Jacobians
+#   num_samples = 100, num_warmup = 75, chains = 4, cores = 4,
+#   control = list(adapt_delta = 0.9), globals = sbt_globals()
+# )
+# save(mcmc, file = "mcmc.rda")
+
+load("mcmc.rda")
+```
+
+```{r fig-sampler-params, echo=TRUE, results="hide", fig.height=8, fig.cap="Sampler parameters."}
+plot_sampler_params(fit = mcmc, plot = TRUE)
+```
+
+```{r fig-uncertainties, echo=TRUE, results="hide", fig.cap="Comparison of Bayesian and frequentist uncertainty estimates."}
+# decamod::pairs_rtmb(fit = mcmc, order = "slow", pars = 1:5)
+# decamod::pairs_rtmb(fit = mcmc, order = "mismatch", pars = 1:5)
+# decamod::pairs_rtmb(fit = mcmc, order = "fast", pars = 1:5)
+plot_uncertainties(fit = mcmc, log = TRUE, plot = TRUE)
+```
+
+# References
