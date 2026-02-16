@@ -215,11 +215,12 @@
     }
     
 # Note: The selectivity type for each fishery (sel_type_f) must be specified when 
-# setting up the RTMB model. This determines whether each fishery uses:
+# setting up the RTMB model. This parameter determines whether each fishery uses:
 #   - Type 1: Logistic selectivity (2 parameters: inflection point, width)
+#             Asymptotic curve suitable for longline fisheries
 #   - Type 2: Double-normal selectivity (6 parameters: peak, top, ascent, descent, start, end)
+#             Dome-shaped curve suitable for purse seine fisheries
 # 
 # The choice depends on the shape of selectivity curves observed in the MFCL model
-# (see selex_l.csv). Typically:
-#   - Longline fisheries may use logistic (asymptotic) selectivity
-#   - Purse seine fisheries may use double-normal (dome-shaped) selectivity
+# (see selex_l.csv). Users should inspect the MFCL selectivity curves and choose
+# appropriate parameterizations for each fishery when initializing the RTMB model.
