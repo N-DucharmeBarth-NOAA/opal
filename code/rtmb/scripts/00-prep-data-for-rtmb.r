@@ -178,3 +178,46 @@
                         min(selex_dt$variable), 
                         max(selex_dt$variable)))
     }
+
+#_____________________________________________________________________________________________________________________________
+# Prepare selectivity configuration parameters for RTMB
+#
+# Define length bin structure for selectivity calculations:
+# - Length bins: 10-200 cm in 2 cm increments (95 bins)
+# - These bins are used to define selectivity curves that are then converted to selectivity-at-age
+# - Matches the length bin structure used for maturity-at-length and probability-of-length-at-age
+#
+# Output:
+# - sel-config.csv: Configuration parameters for selectivity
+#   Columns: parameter, value (for vectors, one row per value with index)
+#
+    # Define length bins matching RTMB model structure
+    sel_len_lower = seq(10, by = 2, length.out = 95)
+    sel_len_upper = sel_len_lower + 2
+    sel_len_mid = (sel_len_lower + sel_len_upper) / 2
+    
+    # Create configuration data table
+    sel_config_dt = rbindlist(list(
+        data.table(parameter = "sel_len_lower", index = 1:length(sel_len_lower), value = sel_len_lower),
+        data.table(parameter = "sel_len_upper", index = 1:length(sel_len_upper), value = sel_len_upper),
+        data.table(parameter = "sel_lengths", index = 1:length(sel_len_mid), value = sel_len_mid),
+        data.table(parameter = "n_sel_len", index = NA_integer_, value = length(sel_len_mid))
+    ))
+    
+    # Write configuration to CSV
+    fwrite(sel_config_dt, file.path(dir_base_rtmb, "sel-config.csv"))
+    
+    if(verbose) {
+        message(sprintf("Created selectivity configuration with %d length bins", length(sel_len_mid)))
+        message(sprintf("Length bin range: %.1f - %.1f cm", min(sel_len_lower), max(sel_len_upper)))
+    }
+    
+# Note: The selectivity type for each fishery (sel_type_f) must be specified when 
+# setting up the RTMB model. This determines whether each fishery uses:
+#   - Type 1: Logistic selectivity (2 parameters: inflection point, width)
+#   - Type 2: Double-normal selectivity (6 parameters: peak, top, ascent, descent, start, end)
+# 
+# The choice depends on the shape of selectivity curves observed in the MFCL model
+# (see selex_l.csv). Typically:
+#   - Longline fisheries may use logistic (asymptotic) selectivity
+#   - Purse seine fisheries may use double-normal (dome-shaped) selectivity
