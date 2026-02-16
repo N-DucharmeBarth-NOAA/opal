@@ -138,3 +138,43 @@
                    .[,.(year,month,ts,fishery,metric,units,value,se)] %>%
                    .[order(year,month)]
     fwrite(cpue_dt,file.path(dir_base_rtmb,"cpue-data.csv"))
+
+#_____________________________________________________________________________________________________________________________
+# Prepare selectivity data for RTMB
+#
+# Workflow:
+# 1. Extract selectivity-at-length from MFCL using extract_mfcl_selectivity()
+# 2. Define length bins for selectivity (matching RTMB model structure)
+# 3. Save selectivity data to CSV file for use in RTMB model
+#
+# Selectivity structure:
+# - RTMB uses length-based selectivity curves (logistic or double-normal)
+# - Length bins: 10-200 cm by 2 cm increments (95 bins total)
+# - Selectivity extracted for all 15 fisheries (1-14 plus index fleet 15)
+# - Selectivity is time-invariant (constant across years)
+#
+# Output:
+# - selex-data.csv: Selectivity-at-length for each fishery
+#   Columns: id, Fleet, Fleet_name, Yr, Sex, variable (length), value (selectivity)
+#
+    if(verbose <- TRUE) {
+        message("Extracting selectivity data from MFCL")
+    }
+    
+    # Extract selectivity using helper function
+    selex_dt = extract_mfcl_selectivity(
+        rep_file = file.path(dir_base_mfcl, "plot-10.par.rep"),
+        par_file = file.path(dir_base_mfcl, "10.par"),
+        model_id = "v11",
+        first_year = 1952,
+        output_dir = dir_base_rtmb,
+        write_csv = TRUE,
+        verbose = TRUE
+    )
+    
+    if(verbose) {
+        message(sprintf("Extracted selectivity for %d fisheries", length(unique(selex_dt$Fleet))))
+        message(sprintf("Length range: %.1f - %.1f cm", 
+                        min(selex_dt$variable), 
+                        max(selex_dt$variable)))
+    }
