@@ -36,20 +36,21 @@ library(kableExtra)
 library(tidyverse)
 library(reshape2)
 library(this.path)
-# library(bet)
-devtools::load_all()
-
-theme_set(theme_bw())
-```
-
-```{r get-biology, echo=TRUE, message=FALSE}
+library(RTMB)
 # Load MFCL files to extract biology
 library(FLR4MFCL)
 library(data.table)
 library(magrittr)
-
+# library(bet)
 proj_dir <- this.path::this.proj()
-dir_model <- file.path(proj_dir, "..", "..", "..", "model-files")
+# devtools::load_all(file.path(proj_dir, "code", "rtmb"))
+sapply(file.path(proj_dir, "code", "rtmb","R", list.files(file.path(proj_dir, "code", "rtmb","R"))), source)
+theme_set(theme_bw())
+```
+
+```{r get-biology, echo=TRUE, message=FALSE}
+
+dir_model <- file.path(proj_dir,"model-files")
 dir_base_mfcl <- file.path(dir_model, "mfcl", "v11")
 
 # Read MFCL files
@@ -88,24 +89,15 @@ ggplot(data = plot_data, aes(x = real_age, y = length_cm)) +
 
 # Maturity-at-length from MFCL
 # Define length bins for maturity conversion: 10 to 200 cm by 2 cm
-len_lower <- seq(10, 198, by = 2)
-len_upper <- seq(12, 200, by = 2)
+len_lower <- seq(10, by = 2, length.out = 95)
+len_upper <- len_lower + 2
 n_len <- length(len_lower)
 len_mid <- (len_lower + len_upper) / 2
 
 # Extract maturity-at-length from MFCL and interpolate to model length bins
-mfcl_bin_lower <- seq(2, 198, by = 2)
-mfcl_bin_mid <- mfcl_bin_lower + 1
-mat_at_length_mfcl <- as.vector(mat_at_length(base_par))
-
-# Interpolate maturity to our length bins
-maturity_at_length <- approx(
-  x = mfcl_bin_mid,
-  y = mat_at_length_mfcl,
-  xout = len_mid,
-  method = "linear",
-  rule = 2
-)$y
+mfcl_bin_lower <- len_lower
+mfcl_bin_mid <- len_mid
+mat_at_length_mfcl <- maturity_at_length <- as.vector(mat_at_length(base_par))
 
 # Plot maturity-at-length
 ggplot(data = data.frame(length = len_mid, maturity = maturity_at_length), 
@@ -131,8 +123,8 @@ up some additional inputs that are required before the data list can be passed
 to `MakeADFun`.
 
 ```{r get-data, echo=TRUE, message=FALSE}
-df_catch <- read_csv("catch-data.csv")
-df_cpue <- read_csv("cpue-data.csv")
+df_catch <- read_csv(file.path(proj_dir,"code","rtmb","catch-data.csv"))
+df_cpue <- read_csv(file.path(proj_dir,"code","rtmb","cpue-data.csv"))
 
 table(df_catch$year)
 table(df_catch$fishery, df_catch$units)
@@ -212,25 +204,18 @@ for (y in 1:data$n_year) {
 lw_a <- lw_params(base_ini)[1]
 lw_b <- lw_params(base_ini)[2]
 
-# Calculate weight-at-age for all fisheries using single L-W relationship
-# Weight is integrated over the length-at-age distribution
-data$weight_fya <- array(dim = c(data$n_fishery, data$n_year, data$n_age))
-for (f in 1:data$n_fishery) {
-  for (y in 1:data$n_year) {
-    # Integrate L-W over length-at-age distribution
-    for (a in 1:data$n_age) {
-      mu_len <- mean_length_at_age[a]
-      sd_len <- sd_length_at_age[a]
-      
-      # Integrate over ±4 SD
-      len_vals <- seq(max(1, mu_len - 4 * sd_len), mu_len + 4 * sd_len, length.out = 100)
-      dens_vals <- dnorm(len_vals, mean = mu_len, sd = sd_len)
-      dens_vals <- dens_vals / sum(dens_vals)  # normalize
-      wt_vals <- lw_a * len_vals^lw_b
-      data$weight_fya[f, y, a] <- sum(wt_vals * dens_vals) / 1000  # kg
-    }
-  }
-}
+# Calculate weight at each length bin
+wt_at_len <- lw_a * len_mid^lw_b
+
+# Weight-at-age for all fisheries using pla
+# weight_a = t(pla) %*% wt_at_len
+weight_a_pla <- as.vector(t(pla) %*% wt_at_len)
+
+# Replicate across fisheries and years (same for all fisheries and years)
+# Note: array() fills in column-major order, so we create with age first, then permute
+data$weight_fya <- array(weight_a_pla, dim = c(data$n_age, data$n_fishery, data$n_year))
+data$weight_fya <- aperm(data$weight_fya, c(2, 3, 1))
+
 
 # Plot weight-at-age for first fishery
 plot_data_wt <- data.frame(
