@@ -1,5 +1,5 @@
 utils::globalVariables(c(
-  "par_log_B0", "par_log_h", "par_log_sigma_r", "par_log_M", 
+  "par_log_B0", "par_log_h", "par_log_sigma_r", 
   "par_log_cpue_q", "par_cpue_creep", "par_log_cpue_sigma", "par_log_cpue_omega", 
   "par_rdev_y", 
   "n_age", "min_age", "max_age", 
@@ -8,7 +8,7 @@ utils::globalVariables(c(
   "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_lfs", "cpue_n", "cpue_a1", "cpue_a2", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
-  "priors"
+  "priors", "M_a"
 ))
 
 #' The globals
@@ -50,8 +50,9 @@ bet_model <- function(parameters, data) {
   getAll(data, parameters, warn = FALSE)
   
   # Natural mortality ----
-  
-  M_a <- rep(exp(log_M), n_age)
+  # M_a is now read from data (extracted from MFCL)
+  # M_a <- rep(exp(log_M), n_age)  # OLD: constant M
+  # M_a is already available from data via getAll()
 
   # Selectivity ----
   

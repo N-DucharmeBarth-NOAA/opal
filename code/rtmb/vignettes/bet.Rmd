@@ -35,89 +35,201 @@ code `theme_set(theme_bw())` alters the plot aesthetics.
 library(kableExtra)
 library(tidyverse)
 library(reshape2)
+library(this.path)
+library(RTMB)
+# Load MFCL files to extract biology
+library(FLR4MFCL)
+library(data.table)
+library(magrittr)
 # library(bet)
-devtools::load_all()
-
+proj_dir <- this.path::this.proj()
+# devtools::load_all(file.path(proj_dir, "code", "rtmb"))
+sapply(file.path(proj_dir, "code", "rtmb","R", list.files(file.path(proj_dir, "code", "rtmb","R"))), source)
 theme_set(theme_bw())
 ```
 
 ```{r get-biology, echo=TRUE, message=FALSE}
-# Length-weight
-a <- 0.0000198
-b <- 3.020
 
-# von Bertalanffy growth
-Linf <- 175      # cm FL
-K    <- 0.30
-t0   <- -0.80
+dir_model <- file.path(proj_dir,"model-files")
+dir_base_mfcl <- file.path(dir_model, "mfcl", "v11")
 
-# Generate weight-at-age table
-max_age <- 20
-ages <- 0:20
+# Read MFCL files
+base_par <- read.MFCLPar(file.path(dir_base_mfcl, "10.par"), first.yr = 1952)
+base_rep <- read.MFCLRep(file.path(dir_base_mfcl, "plot-10.par.rep"))
+base_ini <- read.MFCLIni(file.path(dir_base_mfcl, "bet.ini"), nseasons = 4)
 
-waa_df <- tibble(
-  age = ages + 0.5,
-  length_cm = Linf * (1 - exp(-K * (ages - t0))),
-  weight_kg = a * length_cm^b
+# Quarterly age classes matching MFCL/SS3: ages 1-40 represent 0.25-10.0 real years
+ages <- 1:40
+
+# Growth parameters from MFCL
+# Extract mean length-at-age and SD from MFCL report
+tmp_laa_dt <- as.data.table(mean_laa(base_rep))
+tmp_sdlaa_dt <- as.data.table(sd_laa(base_rep))
+
+# Mean length-at-age by quarter (40 quarterly ages)
+mean_length_at_age <- tmp_laa_dt$value
+
+# SD of length-at-age by quarter
+sd_length_at_age <- tmp_sdlaa_dt$value
+
+# Plot mean length-at-age
+plot_data <- data.frame(
+  age = ages,
+  real_age = ages / 4,  # convert to real years
+  length_cm = mean_length_at_age,
+  sd = sd_length_at_age
 )
 
-ggplot(data = waa_df, aes(x = age, y = weight_kg)) +
+ggplot(data = plot_data, aes(x = real_age, y = length_cm)) +
+  geom_ribbon(aes(ymin = length_cm - sd, ymax = length_cm + sd), alpha = 0.2) +
   geom_line() +
   geom_point() +
-  labs(x = "Age (years)", y = "Mean weight (kg)")
+  labs(x = "Age (years)", y = "Mean length (cm)", 
+       title = "Von Bertalanffy Growth Curve from MFCL")
 
-length_to_weight <- function(fl_cm, a = 0.0000198, b = 3.020) {
-  a * fl_cm^b
-}
+# Maturity-at-length from MFCL
+# Define length bins for maturity conversion: 10 to 200 cm by 2 cm
+len_lower <- seq(10, by = 2, length.out = 95)
+len_upper <- len_lower + 2
+n_len <- length(len_lower)
+len_mid <- (len_lower + len_upper) / 2
 
-age_to_weight <- function(age, Linf = 175, K = 0.30, t0 = -0.80, a = 0.0000198, b = 3.020) {
-  length_cm <- Linf * (1 - exp(-K * (age - t0)))
-  a * length_cm^b
-}
+# Extract maturity-at-length from MFCL and interpolate to model length bins
+mfcl_bin_lower <- len_lower
+mfcl_bin_mid <- len_mid
+mat_at_length_mfcl <- maturity_at_length <- as.vector(mat_at_length(base_par))
+
+# Plot maturity-at-length
+ggplot(data = data.frame(length = len_mid, maturity = maturity_at_length), 
+       aes(x = length, y = maturity)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Length (cm)", y = "Maturity", 
+       title = "Maturity-at-Length from MFCL")
+
+# Natural mortality from MFCL
+M_at_age <- as.vector(m_at_age(base_rep))
+
+# Plot M-at-age
+ggplot(data = data.frame(age = ages, real_age = ages / 4, M = M_at_age), 
+       aes(x = real_age, y = M)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Age (years)", y = "M (quarterly rate)", 
+       title = "Natural Mortality-at-Age from MFCL")
 ```
 The data list is defined below and then the `get_data` function is used to set 
 up some additional inputs that are required before the data list can be passed 
 to `MakeADFun`.
 
 ```{r get-data, echo=TRUE, message=FALSE}
-df_catch <- read_csv("catch-data.csv") %>% mutate(season = (ts - 1) %% 4 + 1)
-df_cpue <- read_csv("cpue-data.csv") %>% mutate(season = (ts - 1) %% 4 + 1)
+df_catch <- read_csv(file.path(proj_dir,"code","rtmb","catch-data.csv"))
+df_cpue <- read_csv(file.path(proj_dir,"code","rtmb","cpue-data.csv"))
 
 table(df_catch$year)
-table(df_catch$month, df_catch$season)
 table(df_catch$fishery, df_catch$units)
 
+# Quarterly age classes and time structure
 data <- list(
-  first_yr = 1945, last_yr = 2018, age_a = ages,
-  n_season = 4, n_fishery = 15,
-  first_yr_catch = min(df_catch$year), catch_units_f = c(rep(2, 7), rep(1, 7), 2),
-  cpue_switch = 1, cpue_data = df_cpue
+  age_a = ages,
+  n_age = length(ages),
+  n_season = 1,  # Each time step is one quarter, not seasons within years
+  n_fishery = 15,
+  len_lower = len_lower,
+  len_upper = len_upper,
+  n_len = n_len
 )
+
+# Use ts column as the year index (quarterly time steps)
+data$first_yr <- min(df_catch$ts)
+data$last_yr <- max(df_catch$ts)
 data$years <- data$first_yr:data$last_yr
 data$n_year <- length(data$years)
-data$n_age <- length(data$age_a)
+data$first_yr_catch <- data$first_yr
+data$catch_units_f <- c(rep(2, 7), rep(1, 7), 2)
+data$cpue_switch <- 1
+data$cpue_data <- df_cpue
 
-maturity_a <- 1 / (1 + 19 ^ ((3.4 - data$age_a) / (4.4 - 3.5)))
-plot(maturity_a)
-maturity_a[maturity_a < 1e-4] <- 0
-lines(maturity_a)
+# Convert maturity-at-length to maturity-at-age using get_pla()
+# get_pla() returns an L x A matrix (age-length key)
+pla <- get_pla(len_lower, len_upper, mu_a = mean_length_at_age, sd_a = sd_length_at_age)
+
+# mat_a[a] = sum_over_L[ mat(L) * P(L|a) ]
+# pla is L x A, maturity_at_length is length L vector
+# Result is an A-length vector
+maturity_a <- as.vector(t(pla) %*% maturity_at_length)
+
+# Plot maturity-at-age
+plot_data_mat <- data.frame(
+  age = ages,
+  real_age = ages / 4,
+  maturity = maturity_a
+)
+ggplot(data = plot_data_mat, aes(x = real_age, y = maturity)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Age (years)", y = "Maturity", 
+       title = "Maturity-at-Age from MFCL (converted from maturity-at-length)")
+
 data$maturity_a <- maturity_a
 
+# Store M-at-age as data (not a parameter)
+data$M_a <- M_at_age
+
+# Catch array: (n_year, 1, n_fishery) - map using ts directly
 catch_obs_ysf <- array(0, 
                        dim = c(data$n_year, data$n_season, data$n_fishery), 
-                       dimnames = list(year = data$years, season = 1:data$n_season, fishery = 1:data$n_fishery))
+                       dimnames = list(year = data$years, season = 1, fishery = 1:data$n_fishery))
 for (i in 1:nrow(df_catch)) {
   row <- df_catch[i, ]
-  y_idx <- which(years == row$year)
-  s_idx <- row$season
-  f_idx <- row$fishery
-  catch_obs_ysf[y_idx, s_idx, f_idx] <- row$value
+  y_idx <- which(data$years == row$ts)
+  catch_obs_ysf[y_idx, 1, row$fishery] <- row$value
 }
 data$catch_obs_ysf <- catch_obs_ysf
 
-data$weight_fya <- array(dim = c(data$n_fishery, data$n_year, data$n_age))
-for (f in 1:data$n_fishery) for (y in 1:data$n_year) data$weight_fya[f, y,] <- waa_df$weight_kg / 1000
-data$weight_fya[1,,]
+# Weight-at-age: Use get_weight_at_age() with MFCL growth parameters
+# First need to create a year x season x age array for length_mu_ysa
+# For simplicity, we'll use the same length-at-age for all years (MFCL quarterly averages)
+length_mu_ysa <- array(dim = c(data$n_year, 1, data$n_age))
+for (y in 1:data$n_year) {
+  length_mu_ysa[y, 1, ] <- mean_length_at_age
+}
+
+# Note: MFCL uses 4 fishery-type-specific L-W relationships, but SS3 uses a single
+# L-W relationship for all fisheries (extracted from base_ini). We follow the SS3 approach
+# here for consistency. The get_weight_at_age() function could be adapted for fishery-specific
+# L-W in the future if needed, with appropriate mapping from 15 BET fleets to L-W types.
+
+# Use MFCL length-weight parameters from ini file
+lw_a <- lw_params(base_ini)[1]
+lw_b <- lw_params(base_ini)[2]
+
+# Calculate weight at each length bin
+wt_at_len <- lw_a * len_mid^lw_b
+
+# Weight-at-age for all fisheries using pla
+# weight_a = t(pla) %*% wt_at_len
+weight_a_pla <- as.vector(t(pla) %*% wt_at_len)
+
+# Replicate across fisheries and years (same for all fisheries and years)
+# Note: array() fills in column-major order, so we create with age first, then permute
+data$weight_fya <- array(weight_a_pla, dim = c(data$n_age, data$n_fishery, data$n_year))
+data$weight_fya <- aperm(data$weight_fya, c(2, 3, 1))
+
+
+# Plot weight-at-age for first fishery
+plot_data_wt <- data.frame(
+  age = ages,
+  real_age = ages / 4,
+  weight_kg = data$weight_fya[1, 1, ]
+)
+ggplot(data = plot_data_wt, aes(x = real_age, y = weight_kg)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Age (years)", y = "Weight (kg)", 
+       title = "Weight-at-Age from MFCL (Fishery 1)")
+
+data$weight_fya[1, 1, ]
 ```
 
 # Model setup
@@ -127,11 +239,12 @@ Define the parameter `list`:
 ```{r get-pars, echo=TRUE, message=FALSE}
 # parameters <- get_parameters(data = data)
 # names(parameters)
+# Note: log_M removed - M-at-age now read from data
+# Note: rdev_y length now matches n_year (268 quarterly time steps)
 parameters <- list(
   log_B0 = 13,
   log_h = log(0.8),
   log_sigma_r = log(0.6),
-  log_M = log(0.4),
   log_cpue_q = log(1),
   cpue_creep = 0,
   log_cpue_tau = log(0.2),
@@ -152,9 +265,9 @@ Use RTMB's `map` option to turn parameters on/off:
 
 ```{r get-map, echo=TRUE, message=FALSE}
 # map <- get_map(parameters = parameters)
+# Note: log_M removed - M-at-age now read from data
 map <- list(
   # log_B0 = factor(NA),
-  log_M = factor(NA),
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
