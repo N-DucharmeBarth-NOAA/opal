@@ -379,9 +379,6 @@ get_selectivity <- function(data, par_sel, mu_a, sd_a) {
     # Convert to selectivity-at-age via PLA
     sel_at_age <- as.vector(t(pla) %*% sel_at_length)
 
-    # Normalize to max = 1
-    sel_at_age <- sel_at_age / max(sel_at_age)
-
     # Time-invariant: replicate across years
     for (y in seq_len(n_year)) {
       sel_fya[f, y, ] <- sel_at_age
