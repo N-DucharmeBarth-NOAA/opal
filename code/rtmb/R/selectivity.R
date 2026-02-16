@@ -1,6 +1,7 @@
-#' Compute selectivity-at-age by year
+#' Compute selectivity-at-age by year (legacy SBT version)
 #'
 #' Constructs the selectivity-at-age array by fishery and year, incorporating initial values and changes.
+#' This is the legacy version used for SBT model parameter loading in get_parameters().
 #'
 #' @param n_age Total number of ages.
 #' @param max_age Maximum model age.
@@ -12,7 +13,7 @@
 #' @return 3D array fishery, year, age of selectivity values.
 #' @export
 #' 
-get_selectivity <- function(n_age, max_age, first_yr, first_yr_catch, 
+get_selectivity_v1 <- function(n_age, max_age, first_yr, first_yr_catch, 
                             sel_min_age_f, sel_max_age_f, sel_end_f, sel_change_year_fy,
                             par_log_sel) {
   "[<-" <- ADoverload("[<-")
@@ -323,4 +324,169 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
     pla[, a] <- pla[, a] / (col_sum + 1e-12)
   }
   return(pla)
+}
+
+#' Compute selectivity-at-age from length-based selectivity curves
+#'
+#' Defines selectivity as a parametric function of length (logistic or
+#' double-normal), then converts to selectivity-at-age by matrix-multiplying
+#' with the probability-of-length-at-age (PLA/ALK).
+#'
+#' The PLA is computed internally from \code{mu_a} and \code{sd_a} so that
+#' AD gradients propagate correctly if growth parameters are estimated in
+#' the future.
+#'
+#' Selectivity is currently time-invariant within each fishery (constant
+#' across years).
+#'
+#' @param data A list containing model data. Required elements:
+#'   n_fishery, n_year, n_age, sel_type_f, sel_lengths, sel_len_lower,
+#'   sel_len_upper.
+#' @param par_sel Numeric matrix of dimensions [n_fishery, 6]. Each row is
+#'   a real-line parameter vector. For logistic (sel_type_f == 1), only
+#'   columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.
+#' @param mu_a Numeric vector (length n_age) of mean length at age.
+#'   May be AD if growth parameters are estimated.
+#' @param sd_a Numeric vector (length n_age) of SD of length at age.
+#'   May be AD if growth parameters are estimated.
+#' @return 3D array sel_fya of dimensions [n_fishery, n_year, n_age].
+#' @importFrom RTMB ADoverload
+#' @export
+#'
+get_selectivity <- function(data, par_sel, mu_a, sd_a) {
+  "[<-" <- ADoverload("[<-")
+  "c" <- ADoverload("c")
+
+  n_fishery <- data$n_fishery
+  n_year <- data$n_year
+  n_age <- data$n_age
+
+  # Compute PLA inside the function (AD-safe)
+  pla <- get_pla(data$sel_len_lower, data$sel_len_upper, mu_a, sd_a)
+
+  sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+
+  for (f in seq_len(n_fishery)) {
+    par_f <- par_sel[f, ]
+
+    # Branch on data value (not AD) — safe for AD
+    if (data$sel_type_f[f] == 1L) {
+      sel_at_length <- sel_logistic(data$sel_lengths, par_f)
+    } else {
+      sel_at_length <- sel_double_normal(data$sel_lengths, par_f)
+    }
+
+    # Convert to selectivity-at-age via PLA
+    sel_at_age <- as.vector(t(pla) %*% sel_at_length)
+
+    # Time-invariant: replicate across years
+    for (y in seq_len(n_year)) {
+      sel_fya[f, y, ] <- sel_at_age
+    }
+  }
+
+  return(sel_fya)
+}
+
+#' Convert SS3 selectivity parameters to RTMB real-line parameterization
+#'
+#' Takes SS3 natural-scale selectivity parameters and converts them to the
+#' centered real-line parameterization used by the RTMB \code{sel_logistic}
+#' and \code{sel_double_normal} functions.
+#'
+#' @param ss3_pars A data.frame or matrix with one row per fishery. For
+#'   double-normal (pattern 24): columns are peak, top_logit, ascend_se,
+#'   descend_se, start_logit, end_logit. For logistic (pattern 1): columns
+#'   are inflection, width.
+#' @param sel_type_f Integer vector (length n_fishery). 1 = logistic, 2 = double-normal.
+#' @param sel_lengths Numeric vector of selectivity length-bin midpoints
+#'   (same vector that will be passed to sel_logistic/sel_double_normal).
+#' @return Numeric matrix [n_fishery, 6] of RTMB real-line parameters.
+#' @export
+#'
+convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
+  mu_len <- mean(sel_lengths)
+  sd_len <- sd(sel_lengths)
+  n_fishery <- length(sel_type_f)
+  par_sel <- matrix(0, nrow = n_fishery, ncol = 6)
+
+  for (f in seq_len(n_fishery)) {
+    if (sel_type_f[f] == 1L) {
+      # Logistic (SS3 pattern 1): inflection (cm), width (cm)
+      ss3_inflection <- ss3_pars[f, 1]
+      ss3_width <- ss3_pars[f, 2]
+      par_sel[f, 1] <- (ss3_inflection - mu_len) / sd_len
+      par_sel[f, 2] <- log(ss3_width / sd_len)
+      # par_sel[f, 3:6] remain 0 (unused)
+    } else {
+      # Double-normal (SS3 pattern 24): peak, top_logit, ascend_se, descend_se, start_logit, end_logit
+      ss3_peak        <- ss3_pars[f, 1]
+      ss3_top_logit   <- ss3_pars[f, 2]
+      ss3_ascend_se   <- ss3_pars[f, 3]
+      ss3_descend_se  <- ss3_pars[f, 4]
+      ss3_start_logit <- ss3_pars[f, 5]
+      ss3_end_logit   <- ss3_pars[f, 6]
+
+      par_sel[f, 1] <- (ss3_peak - mu_len) / sd_len        # a: peak location
+      par_sel[f, 2] <- ss3_top_logit                         # b: plateau (same space)
+      par_sel[f, 3] <- ss3_ascend_se - log(sd_len)           # c: ascending width
+      par_sel[f, 4] <- ss3_descend_se - log(sd_len)          # d: descending width
+
+      # Handle start_logit = -999 (SS3 convention for "fix at 0")
+      if (ss3_start_logit <= -999) {
+        par_sel[f, 5] <- -9
+      } else {
+        par_sel[f, 5] <- ss3_start_logit                     # e: initial selectivity
+      }
+
+      # Handle end_logit = -999
+      if (ss3_end_logit <= -999) {
+        par_sel[f, 6] <- -9
+      } else {
+        par_sel[f, 6] <- ss3_end_logit                       # f: final selectivity
+      }
+    }
+  }
+  return(par_sel)
+}
+
+#' Convert RTMB real-line selectivity parameters back to SS3 natural scale
+#'
+#' Inverse of \code{convert_ss3_selex_to_rtmb}. Useful for verifying
+#' round-trip conversion and reporting parameter values in natural units.
+#'
+#' @param par_sel Numeric matrix [n_fishery, 6] of RTMB real-line parameters.
+#' @param sel_type_f Integer vector. 1 = logistic, 2 = double-normal.
+#' @param sel_lengths Numeric vector of selectivity length-bin midpoints.
+#' @return Data.frame with SS3-scale parameter values per fishery.
+#' @export
+#'
+convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
+  mu_len <- mean(sel_lengths)
+  sd_len <- sd(sel_lengths)
+  n_fishery <- nrow(par_sel)
+  result <- data.frame(
+    fleet = 1:n_fishery,
+    type = sel_type_f,
+    peak_or_inflection = NA_real_,
+    top_logit_or_width = NA_real_,
+    ascend_se = NA_real_,
+    descend_se = NA_real_,
+    start_logit = NA_real_,
+    end_logit = NA_real_
+  )
+  for (f in seq_len(n_fishery)) {
+    if (sel_type_f[f] == 1L) {
+      result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
+      result$top_logit_or_width[f] <- exp(par_sel[f, 2]) * sd_len
+    } else {
+      result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
+      result$top_logit_or_width[f] <- par_sel[f, 2]
+      result$ascend_se[f] <- par_sel[f, 3] + log(sd_len)
+      result$descend_se[f] <- par_sel[f, 4] + log(sd_len)
+      result$start_logit[f] <- par_sel[f, 5]
+      result$end_logit[f] <- par_sel[f, 6]
+    }
+  }
+  return(result)
 }
