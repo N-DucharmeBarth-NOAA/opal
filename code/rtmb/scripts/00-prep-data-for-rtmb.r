@@ -5,7 +5,9 @@
 #
 # OUTPUTS:
 # - catch-data.csv: Quarterly catch data by fleet with uncertainty (SE)
-# - Additional data formats prepared for RTMB model fitting (future development)
+# - cpue-data.csv: Normalized CPUE data for index fleet (fleet 15)
+# - selex_l.csv: Selectivity-at-length curves from MFCL for all fisheries
+# - sel-config.csv: Selectivity length bin configuration parameters
 #
 # DATA STRUCTURE:
 # All output data tables use a standardized format with year/month/timestep identifiers.
