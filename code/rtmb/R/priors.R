@@ -26,6 +26,15 @@ get_priors <- function(parameters) {
   # priors[["par_sel_rho_y"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_sel_rho_y" == names(parameters)))
   # priors[["par_sel_rho_a"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_sel_rho_a" == names(parameters)))
   # priors[["par_log_sel_sigma"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_sel_sigma" == names(parameters)))
+  
+  # Broad normal priors for selectivity parameters (all on real line)
+  # par_sel is a matrix [n_fishery, 6] — treat as a single block
+  # Normal(0, 2) is vague: allows peak to shift ~2 SD from mean length,
+  # widths to vary by exp(±2) ≈ 0.14x to 7.4x the length SD, etc.
+  if ("par_sel" %in% names(parameters)) {
+    priors[["par_sel"]] <- list(type = "normal", par1 = 0, par2 = 2, index = which("par_sel" == names(parameters)))
+  }
+  
   evaluate_priors(parameters, priors)
   return(priors)
 }

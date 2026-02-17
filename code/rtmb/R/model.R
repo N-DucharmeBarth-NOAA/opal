@@ -1,10 +1,11 @@
 utils::globalVariables(c(
   "par_log_B0", "par_log_h", "par_log_sigma_r", 
   "par_log_cpue_q", "par_cpue_creep", "par_log_cpue_sigma", "par_log_cpue_omega", 
-  "par_rdev_y", 
+  "par_rdev_y", "par_sel",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
+  "mean_length_at_age", "sd_length_at_age",
   "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_lfs", "cpue_n", "cpue_a1", "cpue_a2", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
@@ -21,8 +22,10 @@ bet_globals <- function() {
     posfun = posfun, 
     get_M = get_M, 
     get_rho = get_rho, 
-    get_selectivity = get_selectivity, 
-    get_selectivity_prior = get_selectivity_prior,
+    get_selectivity = get_selectivity,
+    sel_logistic = sel_logistic,
+    sel_double_normal = sel_double_normal,
+    get_pla = get_pla,
     get_initial_numbers = get_initial_numbers, 
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
@@ -56,14 +59,10 @@ bet_model <- function(parameters, data) {
 
   # Selectivity ----
   
-  # NOT CODED
-  #sel_fya <- get_selectivity(n_age, max_age, first_yr, first_yr_catch, sel_min_age_f, sel_max_age_f, sel_end_f, sel_change_year_fy, par_log_sel_fya)
-  sel_fya <- array(1, dim = c(n_fishery, n_year, n_age))
-  for (f in seq_len(n_fishery)) {
-    for (y in seq_len(n_year)) {
-      sel_fya[f, y,] <- maturity_a
-    }
-  }
+  # mu_a and sd_a passed explicitly so AD gradients propagate if growth is estimated
+  mu_a <- mean_length_at_age
+  sd_a <- sd_length_at_age
+  sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a)
   
   # Recruitment ----
   
