@@ -230,6 +230,25 @@ ggplot(data = plot_data_wt, aes(x = real_age, y = weight_kg)) +
        title = "Weight-at-Age from MFCL (Fishery 1)")
 
 data$weight_fya[1, 1, ]
+
+# Selectivity configuration ----
+
+# Selectivity type per fishery: 1 = logistic, 2 = double-normal
+# Fleets 11 (DOM.HL) and 15 (INDEX) use logistic; all others use double-normal
+# This matches the SS3 baseline model structure
+data$sel_type_f <- rep(2L, data$n_fishery)
+data$sel_type_f[c(11, 15)] <- 1L
+
+# Length bins for selectivity evaluation
+# Use the same bins already defined for maturity/PLA (10-200 cm by 2 cm)
+data$sel_len_lower <- len_lower
+data$sel_len_upper <- len_upper
+data$sel_lengths <- len_mid
+
+# Growth vectors for selectivity (stored as data, passed explicitly in bet_model)
+# These are used by get_selectivity() to compute the PLA internally
+data$mean_length_at_age <- mean_length_at_age
+data$sd_length_at_age <- sd_length_at_age
 ```
 
 # Model setup
@@ -241,6 +260,42 @@ Define the parameter `list`:
 # names(parameters)
 # Note: log_M removed - M-at-age now read from data
 # Note: rdev_y length now matches n_year (268 quarterly time steps)
+
+# SS3 initial parameter values per fleet (from 01-make-baseline-ss3-model.r)
+# Columns: peak, top_logit, ascend_se, descend_se, start_logit, end_logit
+ss3_selex_pars <- matrix(NA, nrow = 15, ncol = 6)
+
+# F01-F07: Longline fleets (double-normal, pattern 24)
+for (f in 1:7) {
+  ss3_selex_pars[f, ] <- c(100, -5, 0, 0, -999, 9)
+}
+
+# F08-F09: Purse seine fleets (double-normal)
+for (f in 8:9) {
+  ss3_selex_pars[f, ] <- c(40, -5, 0, 0, -999, -9)
+}
+
+# F10: Domestic misc fisheries (double-normal)
+ss3_selex_pars[10, ] <- c(40, -5, 0, 0, 0, -999)
+
+# F11: Domestic handline (logistic, pattern 1) — only first 2 cols used
+ss3_selex_pars[11, ] <- c(100, 10, NA, NA, NA, NA)
+
+# F12-F14: PL and JP PS (double-normal)
+for (f in 12:14) {
+  ss3_selex_pars[f, ] <- c(40, -5, 0, 0, -999, -9)
+}
+
+# F15: Index fishery (logistic, pattern 1) — only first 2 cols used
+ss3_selex_pars[15, ] <- c(100, 10, NA, NA, NA, NA)
+
+# Convert to RTMB parameterization
+par_sel <- convert_ss3_selex_to_rtmb(
+  ss3_pars = ss3_selex_pars,
+  sel_type_f = data$sel_type_f,
+  sel_lengths = data$sel_lengths
+)
+
 parameters <- list(
   log_B0 = 13,
   log_h = log(0.8),
@@ -249,8 +304,9 @@ parameters <- list(
   cpue_creep = 0,
   log_cpue_tau = log(0.2),
   log_cpue_omega = log(1),
-  rdev_y = rnorm(data$n_year, 0, 0.1)
+  rdev_y = rnorm(data$n_year, 0, 0.1),
   # rdev_y = rep(0, data$n_year)
+  par_sel = par_sel  # [n_fishery, 6] matrix
 )
 ```
 
@@ -273,7 +329,8 @@ map <- list(
   # log_cpue_q = factor(NA),
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
-  log_cpue_omega = factor(NA)
+  log_cpue_omega = factor(NA),
+  par_sel = factor(rep(NA, length(parameters$par_sel)))  # fix all selectivity parameters
 )
 ```
 
@@ -290,6 +347,39 @@ obj$simulate()$cpue_log_obs
 plot_catch(data = data, object = obj)
 plot_cpue(data = data, object = obj)
 plot_biomass_spawning(data_list = list(data), object_list = list(obj))
+```
+
+## Selectivity
+
+Visualize the selectivity curves by fleet:
+
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10}
+# Get selectivity from model report
+rep <- obj$report()
+sel_fya <- rep$sel_fya
+
+# Fleet names
+fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
+                 "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
+                 "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
+                 "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
+                 "S01_INDEX")
+
+# Create data frame for plotting
+sel_df <- expand.grid(
+  fishery = 1:data$n_fishery,
+  age = 1:data$n_age
+)
+sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) sel_fya[sel_df$fishery[i], 1, sel_df$age[i]])
+sel_df$real_age <- sel_df$age / 4
+sel_df$fleet_name <- fleet_names[sel_df$fishery]
+
+ggplot(sel_df, aes(x = real_age, y = selectivity)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 4) +
+  labs(x = "Age (years)", y = "Selectivity",
+       title = "Selectivity-at-Age by Fleet (from SS3 baseline parameters)") +
+  ylim(0, 1)
 ```
 
 List of parameters that are on:
