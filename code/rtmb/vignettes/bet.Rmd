@@ -261,33 +261,23 @@ Define the parameter `list`:
 # Note: log_M removed - M-at-age now read from data
 # Note: rdev_y length now matches n_year (268 quarterly time steps)
 
-# SS3 initial parameter values per fleet (from 01-make-baseline-ss3-model.r)
+# SS3 estimated selectivity parameters (from fitted model in 01-bet-base/)
+# Read directly from the SS3 control.ss_new output file
+dir_bet_ss3 <- file.path(dir_model, "ss3", "01-bet-base")
+est_ctl <- r4ss::SS_readctl(
+  file = file.path(dir_bet_ss3, "control.ss_new"),
+  datlist = file.path(dir_bet_ss3, "data_echo.ss_new"),
+  verbose = FALSE
+)
+
+# Build the ss3_selex_pars matrix from estimated parameters
 # Columns: peak, top_logit, ascend_se, descend_se, start_logit, end_logit
 ss3_selex_pars <- matrix(NA, nrow = 15, ncol = 6)
-
-# F01-F07: Longline fleets (double-normal, pattern 24)
-for (f in 1:7) {
-  ss3_selex_pars[f, ] <- c(100, -5, 0, 0, -999, 9)
+for (f in 1:15) {
+  param_rows <- grep(est_ctl$fleetnames[f], rownames(est_ctl$size_selex_parms), fixed = TRUE)
+  vals <- est_ctl$size_selex_parms[param_rows, "INIT"]
+  ss3_selex_pars[f, seq_along(vals)] <- vals
 }
-
-# F08-F09: Purse seine fleets (double-normal)
-for (f in 8:9) {
-  ss3_selex_pars[f, ] <- c(40, -5, 0, 0, -999, -9)
-}
-
-# F10: Domestic misc fisheries (double-normal)
-ss3_selex_pars[10, ] <- c(40, -5, 0, 0, 0, -999)
-
-# F11: Domestic handline (logistic, pattern 1) — only first 2 cols used
-ss3_selex_pars[11, ] <- c(100, 10, NA, NA, NA, NA)
-
-# F12-F14: PL and JP PS (double-normal)
-for (f in 12:14) {
-  ss3_selex_pars[f, ] <- c(40, -5, 0, 0, -999, -9)
-}
-
-# F15: Index fishery (logistic, pattern 1) — only first 2 cols used
-ss3_selex_pars[15, ] <- c(100, 10, NA, NA, NA, NA)
 
 # Convert to RTMB parameterization
 par_sel <- convert_ss3_selex_to_rtmb(

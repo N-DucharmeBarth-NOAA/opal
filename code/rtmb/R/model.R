@@ -26,7 +26,6 @@ bet_globals <- function() {
     sel_logistic = sel_logistic,
     sel_double_normal = sel_double_normal,
     get_pla = get_pla,
-    get_selectivity_prior = get_selectivity_prior,
     get_initial_numbers = get_initial_numbers, 
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
