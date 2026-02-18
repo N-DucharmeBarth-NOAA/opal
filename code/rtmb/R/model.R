@@ -3,11 +3,12 @@ utils::globalVariables(c(
   "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
   "rdev_y", 
   "par_sel",
+  "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "M_a",
+  "A1", "A2", "lw_a", "lw_b", "maturity_at_length",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
-  "mean_length_at_age", "sd_length_at_age",
   "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
@@ -24,6 +25,10 @@ bet_globals <- function() {
     posfun = posfun, 
     get_M = get_M, 
     get_rho = get_rho, 
+    get_growth = get_growth,
+    get_sd_at_age = get_sd_at_age,
+    get_weight_at_length = get_weight_at_length,
+    get_maturity_at_age = get_maturity_at_age,
     get_selectivity = get_selectivity,
     sel_logistic = sel_logistic,
     sel_double_normal = sel_double_normal,
@@ -54,15 +59,52 @@ bet_model <- function(parameters, data) {
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
 
+  # Growth module ----
+
+  # Back-transform growth/variability parameters
+  L1  <- exp(log_L1)
+  L2  <- exp(log_L2)
+  k   <- exp(log_k)
+  CV1 <- exp(log_CV1)
+  CV2 <- exp(log_CV2)
+
+  # Module 1: Mean length-at-age (Schnute VB)
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+
+  # Module 2: SD of length-at-age (linear CV interpolation)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+
+  # Shared PLA — computed once and reused for weight, maturity, selectivity
+  len_lower <- data$sel_len_lower
+  len_upper <- data$sel_len_upper
+  len_mid   <- data$sel_lengths
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+
+  # Module 3: Weight-at-length → weight-at-age
+  wt_at_len <- get_weight_at_length(len_mid, lw_a, lw_b)
+  weight_a  <- as.vector(t(pla) %*% wt_at_len)
+  # Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
+  weight_fya_mod <- array(0, dim = c(n_fishery, n_year, n_age))
+  for (f in seq_len(n_fishery)) {
+    for (y in seq_len(n_year)) {
+      weight_fya_mod[f, y, ] <- weight_a
+    }
+  }
+
+  # Module 4: Maturity-at-length → maturity-at-age
+  maturity_a <- get_maturity_at_age(pla, maturity_at_length)
+
   # Selectivity ----
-  
-  # mu_a and sd_a passed explicitly so AD gradients propagate if growth is estimated
-  mu_a <- mean_length_at_age
-  sd_a <- sd_length_at_age
+
+  # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
   sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a)
   
   # Main population loop ----
   
+  # Inject derived quantities so do_dynamics / get_initial_numbers can use them
+  data$maturity_a <- maturity_a
+  data$weight_fya <- weight_fya_mod
+
   B0 <- exp(log_B0)
   h <- exp(log_h)
   init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, maturity_a = maturity_a)
