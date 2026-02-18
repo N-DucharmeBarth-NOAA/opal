@@ -396,8 +396,8 @@ Optimise using the `nlminb` function:
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
-opt <- nlminb(start = obj$par, objective = obj$fn, lower = Lwr, upper = Upr, control = control)
-opt <- nlminb(start = opt$par, objective = obj$fn, lower = Lwr, upper = Upr, control = control)
+opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 obj$gr()
 
 data.frame(init = unlist(parameters), value = unlist(obj$env$parList())) %>% head()

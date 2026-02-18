@@ -70,9 +70,11 @@ get_recruitment_prior <- function(rdev, sigma_r, phi) {
 #' @return Recruitment value (numeric).
 #' @export
 #' 
-get_recruitment <- function(sbio, rdev, B0, alpha, beta, sigma_r = 0.6, sr_dep = 0) {
+get_recruitment <- function(sbio, rdev, B0, alpha, beta, sigma_r = 0.6, sr_dep = 1e-10) {
   "[<-" <- ADoverload("[<-")
-  rec <- (alpha * sbio) / (beta + sbio) * (1 - exp(log(0.5) * sbio / (sr_dep * B0))) * exp(rdev - 0.5 * sigma_r^2)
+  rec <- (alpha * sbio) / (beta + sbio) * 
+    # (1 - exp(log(0.5) * sbio / (sr_dep * B0))) * 
+    exp(rdev - 0.5 * sigma_r^2)
   # ADREPORT(sigma_r)
   return(rec)
 }

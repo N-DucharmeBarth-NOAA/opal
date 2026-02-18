@@ -64,10 +64,10 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
 #' 
-get_length_like <- function(lf_switch = 1, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, 
-                            lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal) {
+get_length_like <- function(data, parameters, log_lf_alpha, catch_pred_fya, alk_ysal) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
+  getAll(data, parameters, warn = FALSE)
   n_lf <- nrow(lf_obs)
   n_bins <- 25
   n_age <- dim(catch_pred_fya)[3]
