@@ -9,7 +9,7 @@ utils::globalVariables(c(
   "M",
   "A1", "A2", "lw_a", "lw_b", "maturity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
-  "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
+  "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
   "priors"
@@ -107,10 +107,6 @@ bet_model <- function(parameters, data) {
   sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
   
   # Main population loop ----
-  
-  # Inject derived quantities so do_dynamics / get_harvest_rate can use them
-  data$maturity_a <- maturity_a
-  data$weight_fya <- weight_fya_mod
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
@@ -127,7 +123,8 @@ bet_model <- function(parameters, data) {
   
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
-                     M_a = M_a, init_number_a = init$Ninit, sel_fya = sel_fya)
+                     M_a = M_a, maturity_a = maturity_a, weight_fya = weight_fya_mod,
+                     init_number_a = init$Ninit, sel_fya = sel_fya)
   
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
