@@ -68,7 +68,7 @@ base_ini <- read.MFCLIni(file.path(dir_base_mfcl, "bet.ini"), nseasons = 4)
 # Quarterly age classes matching MFCL/SS3: ages 1-40 represent 0.25-10.0 real years
 ages <- 1:40
 
-# Growth parameters from MFCL
+# Growth parameters from MFCL (used to initialise leading parameters)
 # Extract mean length-at-age and SD from MFCL report
 tmp_laa_dt <- as.data.table(mean_laa(base_rep))
 tmp_sdlaa_dt <- as.data.table(sd_laa(base_rep))
@@ -78,6 +78,17 @@ mean_length_at_age <- tmp_laa_dt$value
 
 # SD of length-at-age by quarter
 sd_length_at_age <- tmp_sdlaa_dt$value
+
+# Reference ages matching SS3: Growth_Age_for_L1 = 1, Growth_Age_for_L2 = 40
+A1 <- 1L
+A2 <- 40L
+
+# Default growth/variability parameter values from MFCL baseline
+L1_init  <- growth(base_par)[1, 1] # VB length at age 1 (0.25 years)
+L2_init  <- growth(base_par)[2, 1] # VB length at age 40 (10 years)
+k_init   <- growth(base_par)[3, 1]  # VB growth rate from MFCL
+CV1_init <- sd_length_at_age[A1] / mean_length_at_age[A1]
+CV2_init <- sd_length_at_age[A2] / mean_length_at_age[A2]
 
 # Plot mean length-at-age
 plot_data <- data.frame(
@@ -160,29 +171,20 @@ data$catch_units_f <- c(rep(2, 7), rep(1, 7), 2)
 data$cpue_switch <- 1
 data$cpue_data <- df_cpue
 
-# Convert maturity-at-length to maturity-at-age using get_pla()
-# get_pla() returns an L x A matrix (age-length key)
-pla <- get_pla(len_lower, len_upper, mu_a = mean_length_at_age, sd_a = sd_length_at_age)
+# Growth module data inputs ----
 
-# mat_a[a] = sum_over_L[ mat(L) * P(L|a) ]
-# pla is L x A, maturity_at_length is length L vector
-# Result is an A-length vector
-maturity_a <- as.vector(t(pla) %*% maturity_at_length)
-data$maturity_a <- maturity_a
+# Reference ages matching SS3: Growth_Age_for_L1 = 1, Growth_Age_for_L2 = 40
+data$A1 <- A1
+data$A2 <- A2
 
-# Plot maturity-at-age
-plot_data_mat <- data.frame(
-  age = ages,
-  real_age = ages / 4,
-  maturity = data$maturity_a
-)
-ggplot(data = plot_data_mat, aes(x = real_age, y = maturity)) +
-  geom_line() +
-  geom_point() +
-  labs(x = "Age (years)", y = "Maturity", 
-       title = "Maturity-at-Age from MFCL (converted from maturity-at-length)")
+# Length-weight parameters as data (not estimated)
+data$lw_a <- lw_params(base_ini)[1]
+data$lw_b <- lw_params(base_ini)[2]
 
-# Store M-at-age as data (not a parameter)
+# Maturity-at-length as data vector (converted to maturity-at-age inside model)
+data$maturity_at_length <- maturity_at_length
+
+# Natural mortality: direct age vector from MFCL (unchanged)
 data$M_a <- M_at_age
 
 # Catch array: (n_year, 1, n_fishery) - map using ts directly
@@ -195,50 +197,6 @@ for (i in 1:nrow(df_catch)) {
   catch_obs_ysf[y_idx, 1, row$fishery] <- row$value
 }
 data$catch_obs_ysf <- catch_obs_ysf
-
-# Weight-at-age: Use get_weight_at_age() with MFCL growth parameters
-# First need to create a year x season x age array for length_mu_ysa
-# For simplicity, we'll use the same length-at-age for all years (MFCL quarterly averages)
-length_mu_ysa <- array(dim = c(data$n_year, 1, data$n_age))
-for (y in 1:data$n_year) {
-  length_mu_ysa[y, 1, ] <- mean_length_at_age
-}
-
-# Note: MFCL uses 4 fishery-type-specific L-W relationships, but SS3 uses a single
-# L-W relationship for all fisheries (extracted from base_ini). We follow the SS3 approach
-# here for consistency. The get_weight_at_age() function could be adapted for fishery-specific
-# L-W in the future if needed, with appropriate mapping from 15 BET fleets to L-W types.
-
-# Use MFCL length-weight parameters from ini file
-lw_a <- lw_params(base_ini)[1]
-lw_b <- lw_params(base_ini)[2]
-
-# Calculate weight at each length bin
-wt_at_len <- lw_a * len_mid^lw_b
-
-# Weight-at-age for all fisheries using pla
-# weight_a = t(pla) %*% wt_at_len
-weight_a_pla <- as.vector(t(pla) %*% wt_at_len)
-
-# Replicate across fisheries and years (same for all fisheries and years)
-# Note: array() fills in column-major order, so we create with age first, then permute
-data$weight_fya <- array(weight_a_pla, dim = c(data$n_age, data$n_fishery, data$n_year))
-data$weight_fya <- aperm(data$weight_fya, c(2, 3, 1))
-
-
-# Plot weight-at-age for first fishery
-plot_data_wt <- data.frame(
-  age = ages,
-  real_age = ages / 4,
-  weight_kg = data$weight_fya[1, 1, ]
-)
-ggplot(data = plot_data_wt, aes(x = real_age, y = weight_kg)) +
-  geom_line() +
-  geom_point() +
-  labs(x = "Age (years)", y = "Weight (kg)", 
-       title = "Weight-at-Age from MFCL (Fishery 1)")
-
-data$weight_fya[1, 1, ]
 
 # Selectivity configuration ----
 
@@ -253,11 +211,6 @@ data$sel_type_f[c(11, 15)] <- 1L
 data$sel_len_lower <- len_lower
 data$sel_len_upper <- len_upper
 data$sel_lengths <- len_mid
-
-# Growth vectors for selectivity (stored as data, passed explicitly in bet_model)
-# These are used by get_selectivity() to compute the PLA internally
-data$mean_length_at_age <- mean_length_at_age
-data$sd_length_at_age <- sd_length_at_age
 ```
 
 # Model setup
@@ -305,14 +258,27 @@ parameters <- list(
   log_cpue_omega = log(1),
   rdev_y = rnorm(data$n_year, 0, 0.5),
   # rdev_y = rep(0, data$n_year)
-  par_sel = par_sel  # [n_fishery, 6] matrix
+  par_sel = par_sel,  # [n_fishery, 6] matrix
+  # Growth/variability leading parameters (all mapped off initially)
+  log_L1  = log(L1_init),
+  log_L2  = log(L2_init),
+  log_k   = log(k_init),
+  log_CV1 = log(CV1_init),
+  log_CV2 = log(CV2_init)
 )
+
+# Store prior center values in data so get_priors() can reference them
+data$prior_log_L1_mean  <- log(L1_init)
+data$prior_log_L2_mean  <- log(L2_init)
+data$prior_log_k_mean   <- log(k_init)
+data$prior_log_CV1_mean <- log(CV1_init)
+data$prior_log_CV2_mean <- log(CV2_init)
 ```
 
 There is a lot of flexibility in specifying priors now:
 
 ```{r get-priors, echo=TRUE, message=FALSE}
-data$priors <- get_priors(parameters = parameters)
+data$priors <- get_priors(parameters = parameters, data = data)
 evaluate_priors(parameters = parameters, priors = data$priors)
 ```
 
@@ -335,9 +301,15 @@ map <- list(
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
-  par_sel = as.factor(map_sel)
+  par_sel = as.factor(map_sel),
   # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
   # par_sel = factor(rep(NA, length(parameters$par_sel)))  # fix all selectivity parameters
+  # Growth/variability parameters mapped off (fixed at MFCL-derived defaults)
+  log_L1  = factor(NA),
+  log_L2  = factor(NA),
+  log_k   = factor(NA),
+  log_CV1 = factor(NA),
+  log_CV2 = factor(NA)
 )
 map$par_sel
 ```

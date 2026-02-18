@@ -5,10 +5,13 @@
 #' and [get_selectivity_prior] functions.
 #' 
 #' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the [get_parameters] function.
+#' @param data A \code{list} of data inputs (optional). Used to retrieve prior
+#'   center values for growth/variability parameters (e.g.,
+#'   \code{data$prior_log_L1_mean}).
 #' @return A \code{list} of priors.
 #' @export
 #' 
-get_priors <- function(parameters) {
+get_priors <- function(parameters, data = NULL) {
   priors <- list()
   priors[["log_B0"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("log_B0" == names(parameters)))
   # priors[["par_log_m0"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_m0" == names(parameters)))
@@ -34,7 +37,37 @@ get_priors <- function(parameters) {
   if ("par_sel" %in% names(parameters)) {
     priors[["par_sel"]] <- list(type = "normal", par1 = 0, par2 = 2, index = which("par_sel" == names(parameters)))
   }
-  
+
+  # Growth priors (on log scale — Normal priors on log-parameters are lognormal on natural scale)
+  # Prior centers are stored in data to match initialization values
+  if ("log_L1" %in% names(parameters)) {
+    log_L1_mean <- if (!is.null(data) && !is.null(data$prior_log_L1_mean)) data$prior_log_L1_mean else parameters$log_L1
+    priors[["log_L1"]] <- list(type = "normal", par1 = log_L1_mean, par2 = 0.1,
+                                index = which("log_L1" == names(parameters)))
+  }
+  if ("log_L2" %in% names(parameters)) {
+    log_L2_mean <- if (!is.null(data) && !is.null(data$prior_log_L2_mean)) data$prior_log_L2_mean else parameters$log_L2
+    priors[["log_L2"]] <- list(type = "normal", par1 = log_L2_mean, par2 = 0.2,
+                                index = which("log_L2" == names(parameters)))
+  }
+  if ("log_k" %in% names(parameters)) {
+    log_k_mean <- if (!is.null(data) && !is.null(data$prior_log_k_mean)) data$prior_log_k_mean else parameters$log_k
+    priors[["log_k"]] <- list(type = "normal", par1 = log_k_mean, par2 = 0.3,
+                               index = which("log_k" == names(parameters)))
+  }
+
+  # Variability priors
+  if ("log_CV1" %in% names(parameters)) {
+    log_CV1_mean <- if (!is.null(data) && !is.null(data$prior_log_CV1_mean)) data$prior_log_CV1_mean else parameters$log_CV1
+    priors[["log_CV1"]] <- list(type = "normal", par1 = log_CV1_mean, par2 = 0.3,
+                                 index = which("log_CV1" == names(parameters)))
+  }
+  if ("log_CV2" %in% names(parameters)) {
+    log_CV2_mean <- if (!is.null(data) && !is.null(data$prior_log_CV2_mean)) data$prior_log_CV2_mean else parameters$log_CV2
+    priors[["log_CV2"]] <- list(type = "normal", par1 = log_CV2_mean, par2 = 0.3,
+                                 index = which("log_CV2" == names(parameters)))
+  }
+
   evaluate_priors(parameters, priors)
   return(priors)
 }
