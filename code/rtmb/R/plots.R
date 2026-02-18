@@ -578,3 +578,87 @@ plot_hrate <- function(data, object, posterior = NULL, probs = c(0.025, 0.975), 
   
   return(p)
 }
+
+#' Plot recruitment deviates
+#' 
+#' Plot recruitment deviates by year.
+#' 
+#' @param data a \code{list} containing the data that was passed to \code{MakeADFun}.
+#' @param object a \code{list} specifying the AD object created using \code{MakeADFun}.
+#' @param proj a \code{list} containing the data that was passed to \code{MakeADFun}.
+#' @param posterior an \code{rstan} objected created using the \code{tmbstan} function.
+#' @param probs a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.
+#' @return a \code{ggplot2} object.
+#' @import ggplot2
+#' @importFrom stats median quantile
+#' @importFrom reshape2 melt
+#' @importFrom utils txtProgressBar
+#' @export
+#' 
+plot_rec_devs <- function(data, object, proj = NULL, posterior = NULL, probs = c(0.025, 0.975)) {
+  years <- data$first_yr:data$last_yr
+  # num <- object$report()$par_rdev_y
+  num <- object$env$last.par.best[names(object$par) %in% "par_rdev_y"]
+  df <- data.frame(year = years, value = num)
+  p <- ggplot(data = df, aes(x = .data$year, y = .data$value, color = "Reconstruction")) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_line() +
+    labs(x = "Year", y = "Recruitment deviate", color = NULL)
+  if (!is.null(proj)) {
+    sim <- melt(proj$rdev_y) %>% filter(!.data$year %in% years)
+    p <- p + geom_line(data = sim, aes(group = .data$iteration, color = "Projection"), alpha = 0.75)
+  }
+  return(p)
+}
+
+#' Plot recruitment
+#' 
+#' Plot recruitment by year.
+#' 
+#' @param data a \code{list} containing the data that was passed to \code{MakeADFun}.
+#' @param object a \code{list} specifying the AD object created using \code{MakeADFun}.
+#' @param posterior an \code{rstan} objected created using the \code{tmbstan} function.
+#' @param probs a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.
+#' @return a \code{ggplot2} object.
+#' @import ggplot2
+#' @importFrom stats median quantile
+#' @importFrom reshape2 melt
+#' @importFrom utils setTxtProgressBar txtProgressBar
+#' @export
+#' 
+plot_recruitment <- function(data, object, posterior = NULL, probs = c(0.025, 0.975)) {
+  
+  rep <- object$report(object$env$last.par.best)
+  years <- data$first_yr:(data$last_yr + 1)
+  num <- rep$number_ysa
+  N_rec1 <- data.frame(year = years, value = num[,1,1])
+  R0 <- rep$R0
+  
+  p <- ggplot(data = N_rec1, aes(x = .data$year, y = .data$value / 1e6)) +
+    geom_hline(yintercept = R0 / 1e6, linetype = "dashed") +
+    geom_line(data = N_rec1, linetype = "dashed") +
+    labs(x = "Year", y = "Recruitment (millions)") +
+    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05)))
+  
+  if (!is.null(posterior)) {
+    x <- extract_samples(fit = posterior)
+    niter <- nrow(x)
+    r1 <- obj$report(par = as.numeric(x[1,]))$recruitment_y
+    rec <- matrix(NA, nrow = niter, ncol = length(r1))
+    pb <- txtProgressBar(min = 1, max = niter, style = 3)
+    for (i in 1:niter) {
+      rec[i,] <- obj$report(par = as.numeric(x[i,]))$recruitment_y
+      setTxtProgressBar(pb, i)
+    }
+    dimnames(rec) <- list(iteration = 1:niter, year = years)
+    rec_mcmc <- melt(rec)
+    p <- p + 
+      stat_summary(data = rec_mcmc, geom = "ribbon", alpha = 0.5, 
+                   # aes(fill = factor(mc_grid)),
+                   fun.min = function(x) quantile(x, probs = probs[1]),
+                   fun.max = function(x) quantile(x, probs = probs[2])) +
+      stat_summary(data = rec_mcmc, geom = "line", fun = median)
+  }
+  
+  return(p)
+}

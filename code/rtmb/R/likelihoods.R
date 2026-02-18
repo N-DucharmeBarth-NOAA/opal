@@ -22,7 +22,6 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
   for (i in 2:n_cpue) cpue_adjust[i] <- cpue_adjust[i - 1] + cpue_creep
   cpue_sigma <- sqrt(cpue_data$se^2 + cpue_tau^2)
   for (i in seq_len(n_cpue)) {
-    # y <- cpue_data$year[i] - first_yr + 1
     y <- cpue_data$ts[i]
     # s <- cpue_data$season[i]
     f <- cpue_data$fishery[i]
@@ -31,7 +30,6 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
     sum_n <- sum(cpue_n) + 1e-6
     cpue_log_pred[i] <- log(cpue_adjust[i]) + cpue_omega * log(sum_n)
   }
-  unscaled_pred <- cpue_log_pred
   cpue_log_pred <- cpue_log_pred - log(mean(exp(cpue_log_pred))) + log_cpue_q
   cpue_log_obs <- log(cpue_data$value)
   cpue_log_obs <- OBS(cpue_log_obs)
@@ -41,9 +39,7 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
   cpue_pred <- exp(cpue_log_pred)
   REPORT(cpue_pred)
   REPORT(cpue_sigma)
-  return(list(cpue_adjust = cpue_adjust, 
-              cpue_unscaled = exp(unscaled_pred), 
-              lp = lp))
+  return(lp = lp)
 }
 
 #' Length Composition Likelihood
@@ -118,65 +114,6 @@ get_length_like <- function(data, parameters, log_lf_alpha, catch_pred_fya, alk_
       }
     }
   }
-  return(list(pred = lf_pred, lp = lp))
-}
-
-#' CPUE length composition likelihood
-#'
-#' Computes likelihood for observed length compositions using ALKs.
-#'
-#' @param lf_switch Vectors of indices for observations.
-#' @param cpue_years Vectors of indices for observations.
-#' @param cpue_lfs Matrix of observed length proportions.
-#' @param cpue_n Vector of effective sample sizes.
-#' @param par_log_lf_alpha Vectors of indices for observations.
-#' @param number_ysa 3D array of predicted catch.
-#' @param sel_fya 3D array of predicted catch.
-#' @param alk_ysal 4D array year, season, age, length_bin of ALKs.
-#' @return List with predicted compositions and likelihood contributions.
-#' @importFrom RTMB ADoverload dmultinom
-#' @importFrom RTMBdist ddirichlet ddirmult
-#' @export
-#' 
-get_cpue_length_like <- function(lf_switch = 1, cpue_years, cpue_lfs, cpue_n, par_log_lf_alpha, number_ysa, sel_fya, alk_ysal) {
-  "[<-" <- ADoverload("[<-")
-  "c" <- ADoverload("c")
-  n_lf <- nrow(cpue_lfs)
-  n_age <- dim(sel_fya)[3]
-  n_bins <- 25
-  lp <- numeric(n_lf)
-  lf_pred <- matrix(0, n_lf, n_bins)
-  for (i in seq_len(n_lf)) {
-    y <- cpue_years[i]
-    catch_a <- number_ysa[y, 2,] * sel_fya[7, y,]
-    pred <- catch_a %*% alk_ysal[y, 2,, 1:n_bins]
-    pred <- pred[1,] / sum(pred)
-    lf_pred[i,] <- pred
-    obs <- cpue_lfs[i,]
-    if (lf_switch == 1) {
-      obs <- obs * cpue_n[i]
-      pred <- pred + 1e-6
-      pred <- pred / sum(pred)
-      lp[i] <- -dmultinom(x = obs, prob = pred, log = TRUE)
-    }
-    if (lf_switch == 2) {
-      obs <- obs + 1e-6
-      obs <- obs / sum(obs)
-      pred <- pred + 1e-6
-      pred <- pred / sum(pred) * cpue_n[i] * exp(par_log_lf_alpha[5])
-      lp[i] <- -ddirichlet(x = obs, alpha = pred, log = TRUE)
-    }
-    if (lf_switch == 3) {
-      obs <- obs * cpue_n[i]
-      pred <- pred + 1e-6
-      pred <- pred / sum(pred) * exp(par_log_lf_alpha[5])
-      lp[i] <- -ddirmult(x = obs, size = cpue_n[i], alpha = pred, log = TRUE)
-    }
-    if (lf_switch == 9) {
-      lp[i] <- -cpue_n[i] * sum(obs * log(pred))
-      obs <- obs + 1e-6
-      lp[i] <- lp[i] + cpue_n[i] * sum(obs * log(obs))
-    }
-  }
-  return(list(pred = lf_pred, lp = lp))
+  REPORT(lf_pred)
+  return(lp)
 }

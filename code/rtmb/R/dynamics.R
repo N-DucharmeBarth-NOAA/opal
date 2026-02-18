@@ -68,7 +68,7 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #' @export
 #' 
 do_dynamics <- function(data, parameters,
-                        B0, R0, alpha, beta, h = 0.95, sigma_r,
+                        B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
                         init_number_a, sel_fya) {
   
   "[<-" <- ADoverload("[<-")

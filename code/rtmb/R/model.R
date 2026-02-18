@@ -1,15 +1,17 @@
 utils::globalVariables(c(
-  "par_log_B0", "par_log_h", "log_sigma_r", 
-  "par_log_cpue_q", "par_cpue_creep", "par_log_cpue_sigma", "par_log_cpue_omega", 
-  "par_rdev_y", "par_sel",
+  "log_B0", "log_h", "sigma_r", 
+  "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
+  "rdev_y", 
+  "par_sel",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
+  "M_a",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "mean_length_at_age", "sd_length_at_age",
   "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
-  "cpue_switch", "cpue_years", "cpue_lfs", "cpue_n", "cpue_a1", "cpue_a2", "cpue_obs", "cpue_sd",
+  "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
-  "priors", "M_a"
+  "priors"
 ))
 
 #' The globals
@@ -72,6 +74,7 @@ bet_model <- function(parameters, data) {
   REPORT(R0)
   REPORT(alpha)
   REPORT(beta)
+  REPORT(sigma_r)
   
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
@@ -93,36 +96,20 @@ bet_model <- function(parameters, data) {
   
   # Likelihoods ----
 
-  x <- get_cpue_like(data, parameters, number_ysa, sel_fya)
-  lp_cpue <- x$lp
+  lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
+  # lp_lf <- get_length_like(lf_switch, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal)
 
-  # x <- get_length_like(lf_switch, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal)
-  # lp_lf <- x$lp
-  # lf_pred <- x$pred
-  # 
-  # x <- get_cpue_length_like(lf_switch, cpue_years, cpue_lfs, cpue_n, par_log_lf_alpha, number_ysa, sel_fya, alk_ysal)
-  # lp_cpue_lf <- x$lp
-  # cpue_lf_pred <- x$pred
-  
-  # lp_rdev_sum <- 1000 * sum(rdev_y)^2  # Hard sum-to-zero constraint
-  
-  # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue_lf) + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue)# + lp_rdev_sum
+  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue)# + sum(lp_lf)
   
   # Reporting ----
   
-  # REPORT(par_rdev_y)
-  # REPORT(rec_dev_y)
-  # REPORT(rdev_y)
-  # REPORT(cpue_lf_pred)
-  # REPORT(lf_pred)
   REPORT(number_ysa)
   REPORT(sel_fya)
-  # REPORT(lp_prior)
-  # REPORT(lp_penalty)
-  # REPORT(lp_rec)
-  # REPORT(lp_cpue)
-  # REPORT(lp_cpue_lf)
+  
+  REPORT(lp_prior)
+  REPORT(lp_penalty)
+  REPORT(lp_rec)
+  REPORT(lp_cpue)
   # REPORT(lp_lf)
 
   return(nll)
