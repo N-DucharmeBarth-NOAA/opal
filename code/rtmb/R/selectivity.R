@@ -146,8 +146,7 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #' across years).
 #'
 #' @param data A list containing model data. Required elements:
-#'   n_fishery, n_year, n_age, sel_type_f, sel_lengths, sel_len_lower,
-#'   sel_len_upper.
+#'   n_fishery, n_year, n_age, sel_type_f.
 #' @param par_sel Numeric matrix of dimensions [n_fishery, 6]. Each row is
 #'   a real-line parameter vector. For logistic (sel_type_f == 1), only
 #'   columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.
@@ -155,11 +154,17 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #'   May be AD if growth parameters are estimated.
 #' @param sd_a Numeric vector (length n_age) of SD of length at age.
 #'   May be AD if growth parameters are estimated.
+#' @param len_lower Numeric vector (length n_len) of lower bounds of length
+#'   bins.  Derived internally from \code{len_bin_start}, \code{len_bin_width},
+#'   and \code{n_len} inside \code{bet_model()}.
+#' @param len_upper Numeric vector (length n_len) of upper bounds of length
+#'   bins.
+#' @param len_mid Numeric vector (length n_len) of length-bin midpoints.
 #' @return 3D array sel_fya of dimensions [n_fishery, n_year, n_age].
 #' @importFrom RTMB ADoverload
 #' @export
 #'
-get_selectivity <- function(data, par_sel, mu_a, sd_a) {
+get_selectivity <- function(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
 
@@ -168,7 +173,7 @@ get_selectivity <- function(data, par_sel, mu_a, sd_a) {
   n_age <- data$n_age
 
   # Compute PLA inside the function (AD-safe)
-  pla <- get_pla(data$sel_len_lower, data$sel_len_upper, mu_a, sd_a)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
 
   sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
 
@@ -177,9 +182,9 @@ get_selectivity <- function(data, par_sel, mu_a, sd_a) {
 
     # Branch on data value (not AD) — safe for AD
     if (data$sel_type_f[f] == 1L) {
-      sel_at_length <- sel_logistic(data$sel_lengths, par_f)
+      sel_at_length <- sel_logistic(len_mid, par_f)
     } else {
-      sel_at_length <- sel_double_normal(data$sel_lengths, par_f)
+      sel_at_length <- sel_double_normal(len_mid, par_f)
     }
 
     # Convert to selectivity-at-age via PLA
