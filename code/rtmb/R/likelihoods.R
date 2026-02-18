@@ -22,11 +22,12 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
   for (i in 2:n_cpue) cpue_adjust[i] <- cpue_adjust[i - 1] + cpue_creep
   cpue_sigma <- sqrt(cpue_data$se^2 + cpue_tau^2)
   for (i in seq_len(n_cpue)) {
-    y <- cpue_data$year[i] - first_yr + 1
-    s <- cpue_data$season[i]
+    # y <- cpue_data$year[i] - first_yr + 1
+    y <- cpue_data$ts[i]
+    # s <- cpue_data$season[i]
     f <- cpue_data$fishery[i]
-    cpue_n <- number_ysa[y, s,] * sel_fya[f, y,]
-    if (cpue_data$units[i] > 1) cpue_n <- cpue_n * weight_fya[f, y,]
+    cpue_n <- number_ysa[y, 1,] * sel_fya[f, y,]
+    if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y,] # 1=weight, 2=numbers
     sum_n <- sum(cpue_n) + 1e-6
     cpue_log_pred[i] <- log(cpue_adjust[i]) + cpue_omega * log(sum_n)
   }
@@ -40,9 +41,7 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
   cpue_pred <- exp(cpue_log_pred)
   REPORT(cpue_pred)
   REPORT(cpue_sigma)
-  return(list(#pred = exp(cpue_log_pred), 
-              # sigma = cpue_sig, 
-              cpue_adjust = cpue_adjust, 
+  return(list(cpue_adjust = cpue_adjust, 
               cpue_unscaled = exp(unscaled_pred), 
               lp = lp))
 }

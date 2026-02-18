@@ -68,14 +68,12 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #' @export
 #' 
 do_dynamics <- function(data, parameters,
-                        B0, R0, alpha, beta, h = 0.95,
-                        M_a, init_number_a, sel_fya) {
+                        B0, R0, alpha, beta, h = 0.95, sigma_r,
+                        init_number_a, sel_fya) {
   
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
-  sigma_r <- exp(par_log_sigma_r)
-  rdev_y <- par_rdev_y
   fy <- first_yr_catch - first_yr + 1
   n_age1 <- n_age - 1
   n_season1 <- n_season - 1
@@ -100,6 +98,7 @@ do_dynamics <- function(data, parameters,
       }
       number_ysa[y, s + 1,] <- number_ysa[y, s,] * (1 - hrate_ysa[y, s,]) * S_a
     }
+    # Last season
     if (y >= fy) {
       hr <- get_harvest_rate(data, y, n_season, number_ysa, sel_fya)
       hrate_ysfa[y, n_season,,] <- hr$h_rate_fa
@@ -115,25 +114,23 @@ do_dynamics <- function(data, parameters,
       for (s in seq_len(n_season)) {
         catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + hrate_ysfa[y, s, f,] * number_ysa[y, s,]
         for (a in seq_len(n_age)) {
-          if (catch_units_f[f] == 1) {
-            catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a]
-          } else {
+          if (catch_units_f[f] == 1) { # weight
             catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a] * weight_fya[f, y, a]
+          } else { # numbers 
+            catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a]
           }
         }
       }
     }
-    
   }
   
   REPORT(catch_pred_ysf)
   REPORT(catch_pred_fya)
   REPORT(hrate_ysa)
   REPORT(hrate_ysfa)
+  REPORT(spawning_biomass_y)
   
-  return(list(number_ysa = number_ysa, 
-              spawning_biomass_y = spawning_biomass_y, 
-              lp_penalty = lp_penalty))
+  return(list(number_ysa = number_ysa, lp_penalty = lp_penalty))
 }
 
 #' Harvest rate calculation
@@ -158,19 +155,17 @@ get_harvest_rate <- function(data, y, s, number_ysa, sel_fya) {
   h_rate_fa <- array(0, dim = c(n_fishery, n_age))
   for (f in seq_len(n_fishery)) {
     if (catch_obs_ysf[y, s, f] > 0) {
-      if (catch_units_f[f] == 2) { # weight
+      if (catch_units_f[f] == 1) { # weight
         Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,] * weight_fya[f, y,]) + 1e-6
-        F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
-        h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]
-      } else if (catch_units_f[f] == 1) { # numbers
+      } else if (catch_units_f[f] == 2) { # numbers
         Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,]) + 1e-6
-        F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
-        h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]
       }
+      F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
+      h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]
     }
   }
   sum_F <- sum(F_f)
-  tmp <- posfun(x = 1 - sum_F, eps = 0.001) # THIS PENALTY DOESNT APPLY FOR DIRECT REMOVALS
+  tmp <- posfun(x = 1 - sum_F, eps = 0.001)
   # F_f <- F_f / sum_F * tmp$new
   # for (f in seq_len(n_fishery)) {
   #   if (catch_obs_ysf[yy, s, f] > 0) {

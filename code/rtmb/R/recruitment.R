@@ -17,7 +17,7 @@
 get_rho <- function(first_yr = 1931, last_yr = 2022, rdev_y) {
   "[<-" <- ADoverload("[<-")
   # Model years: 1931-2022; Rec years: 1932-2023; n_years = n_recs: 92
-  i1 <- 1965 - first_yr # int i1 = 1965 but don't add 1 because years are offset (see above)
+  i1 <- 8 - first_yr # int i1 = 1965 but don't add 1 because years are offset (see above)
   i2 <- last_yr - first_yr - 5
   t1 <- rdev_y[i1:(i2 - 1)]
   t2 <- rdev_y[(i1 + 1):i2]
@@ -39,17 +39,21 @@ get_rho <- function(first_yr = 1931, last_yr = 2022, rdev_y) {
 #' @importFrom RTMB dnorm dautoreg
 #' @export
 #'
-get_recruitment_prior <- function(rdev, log_sigma, phi) {
+get_recruitment_prior <- function(rdev, sigma_r, phi) {
   "[<-" <- ADoverload("[<-")
   n_year <- length(rdev)
-  sigma <- exp(log_sigma)
-  r1 <- rdev[1:(n_year - 3)]
-  r2 <- rdev[(n_year - 2):n_year]
+  # tau_ac2 <- get_rho(first_yr, last_yr, rdev)
+  tau_ac2 <- 0.05
+  # r1 <- rdev[1:(n_year - 3)]
+  # r2 <- rdev[(n_year - 2):n_year]
+  lp1 <- -sum(dnorm(x = rdev, mean = 0, sd = sigma_r, log = TRUE))
+  lp2 <- 0
   # lp <- n_year * log(sigma) + 0.5 * sum(r1^2) / sigma^2 + 0.5 * sum(r2^2) / (sigma^2 * (1 - phi^2))
-  lp1 <- -sum(dnorm(x = r1, mean = 0, sd = sigma, log = TRUE))
-  lp2 <- -dautoreg(x = r2, phi = phi, log = TRUE, scale = sigma)
+  # lp1 <- -sum(dnorm(x = r1, mean = 0, sd = sigma, log = TRUE))
+  # lp2 <- -dautoreg(x = r2, phi = phi, log = TRUE, scale = sigma)
   # lp2 <- -dautoreg(x = r2, phi = phi, log = TRUE, scale = sigma / sqrt(1 - phi^2))
   lp <- lp1 + lp2
+  # REPORT(tau_ac2)
   return(lp)
 }
 
@@ -69,6 +73,7 @@ get_recruitment_prior <- function(rdev, log_sigma, phi) {
 get_recruitment <- function(sbio, rdev, B0, alpha, beta, sigma_r = 0.6, sr_dep = 0) {
   "[<-" <- ADoverload("[<-")
   rec <- (alpha * sbio) / (beta + sbio) * (1 - exp(log(0.5) * sbio / (sr_dep * B0))) * exp(rdev - 0.5 * sigma_r^2)
+  # ADREPORT(sigma_r)
   return(rec)
 }
 

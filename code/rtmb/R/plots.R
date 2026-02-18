@@ -3,7 +3,7 @@
 #' Plot catch (in thousands of tonnes) by year, season, and fishery.
 #' 
 #' @param data a \code{list} containing the data that was passed to \code{MakeADFun}.
-#' @param object a \code{list} specifying the AD object created using \code{MakeADFun}.
+#' @param obj a \code{list} specifying the AD object created using \code{MakeADFun}.
 #' @param posterior an \code{rstan} objected created using the \code{tmbstan} function.
 #' @param proj an \code{rstan} objected created using the \code{tmbstan} function.
 #' @param probs a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.
@@ -16,16 +16,16 @@
 #' @importFrom scales breaks_pretty
 #' @export
 #' 
-plot_catch <- function(data, object, posterior = NULL, proj = NULL, probs = c(0.05, 0.95), plot_resid = FALSE) {
+plot_catch <- function(data, obj, posterior = NULL, proj = NULL, probs = c(0.05, 0.95), plot_resid = FALSE) {
   
   yrs1 <- data$years
   # yrs2 <- data$first_yr_catch:data$last_yr
   # fsh <- c("LL1", "LL2", "LL3", "LL4", "Indonesia", "Australia")
   fsh <- paste0("Fishery: ", 1:data$n_fishery)
   
-  df_obs <- melt(data$catch_obs_ysf, value.name = "obs") %>%
+  df_obs <- reshape2::melt(data$catch_obs_ysf, value.name = "obs") %>%
     filter(.data$obs > 0) %>%
-    mutate(season = paste("Season:", .data$season), fishery = fsh[.data$fishery], Type = "Observed")
+    mutate(season = paste("Season:", 1), fishery = fsh[.data$fishery], Type = "Observed")
 
   # if (!is.null(proj)) {
   #   df_proj <- melt(proj, value.name = "obs") %>%
@@ -34,8 +34,8 @@ plot_catch <- function(data, object, posterior = NULL, proj = NULL, probs = c(0.
   #   df_obs <- bind_rows(df_obs, df_proj)
   # }
   
-  df_pred <- object$report()$catch_pred_ysf %>%
-    melt(value.name = "pred") %>%
+  df_pred <- obj$report()$catch_pred_ysf %>%
+    reshape2::melt(value.name = "pred") %>%
     mutate(year = yrs1[.data$Var1], season = paste("Season:", .data$Var2), fishery = fsh[.data$Var3]) %>%
     right_join(df_obs, by = join_by("year", "season", "fishery")) %>%
     mutate(Fishery = factor(.data$fishery, levels = fsh)) %>%
@@ -57,8 +57,8 @@ plot_catch <- function(data, object, posterior = NULL, proj = NULL, probs = c(0.
   }
   
   p <- p + 
-    facet_wrap(fishery ~ season, scales = "free_y") +
-    scale_x_continuous(breaks = breaks_pretty())
+    facet_wrap(fishery ~ season, scales = "free_y")
+    # scale_x_continuous(breaks = breaks_pretty())
   
   return(p)
 }

@@ -42,15 +42,20 @@ library(FLR4MFCL)
 library(data.table)
 library(magrittr)
 # library(bet)
-proj_dir <- this.path::this.proj()
-# devtools::load_all(file.path(proj_dir, "code", "rtmb"))
-sapply(file.path(proj_dir, "code", "rtmb","R", list.files(file.path(proj_dir, "code", "rtmb","R"))), source)
+
 theme_set(theme_bw())
+
+setwd("~/Projects/wcpfc-bet-single-region/code/rtmb")
+devtools::load_all()
+
+# proj_dir <- this.path::this.proj()
+# devtools::load_all(file.path(proj_dir, "code", "rtmb"))
+# sapply(file.path(proj_dir, "code", "rtmb","R", list.files(file.path(proj_dir, "code", "rtmb","R"))), source)
 ```
 
 ```{r get-biology, echo=TRUE, message=FALSE}
-
-dir_model <- file.path(proj_dir,"model-files")
+proj_dir <- "~/Projects/wcpfc-bet-single-region"
+dir_model <- file.path(proj_dir, "model-files")
 dir_base_mfcl <- file.path(dir_model, "mfcl", "v11")
 
 # Read MFCL files
@@ -118,13 +123,16 @@ ggplot(data = data.frame(age = ages, real_age = ages / 4, M = M_at_age),
   labs(x = "Age (years)", y = "M (quarterly rate)", 
        title = "Natural Mortality-at-Age from MFCL")
 ```
+
 The data list is defined below and then the `get_data` function is used to set 
 up some additional inputs that are required before the data list can be passed 
 to `MakeADFun`.
 
+Units 1=mt and 2=1000s of fish
+
 ```{r get-data, echo=TRUE, message=FALSE}
-df_catch <- read_csv(file.path(proj_dir,"code","rtmb","catch-data.csv"))
-df_cpue <- read_csv(file.path(proj_dir,"code","rtmb","cpue-data.csv"))
+df_catch <- read_csv(file.path(proj_dir, "code", "rtmb", "catch-data.csv"))
+df_cpue <- read_csv(file.path(proj_dir, "code", "rtmb", "cpue-data.csv"))
 
 table(df_catch$year)
 table(df_catch$fishery, df_catch$units)
@@ -133,7 +141,7 @@ table(df_catch$fishery, df_catch$units)
 data <- list(
   age_a = ages,
   n_age = length(ages),
-  n_season = 1,  # Each time step is one quarter, not seasons within years
+  n_season = 1, # Each time step is one quarter, not seasons within years
   n_fishery = 15,
   len_lower = len_lower,
   len_upper = len_upper,
@@ -158,20 +166,19 @@ pla <- get_pla(len_lower, len_upper, mu_a = mean_length_at_age, sd_a = sd_length
 # pla is L x A, maturity_at_length is length L vector
 # Result is an A-length vector
 maturity_a <- as.vector(t(pla) %*% maturity_at_length)
+data$maturity_a <- maturity_a
 
 # Plot maturity-at-age
 plot_data_mat <- data.frame(
   age = ages,
   real_age = ages / 4,
-  maturity = maturity_a
+  maturity = data$maturity_a
 )
 ggplot(data = plot_data_mat, aes(x = real_age, y = maturity)) +
   geom_line() +
   geom_point() +
   labs(x = "Age (years)", y = "Maturity", 
        title = "Maturity-at-Age from MFCL (converted from maturity-at-length)")
-
-data$maturity_a <- maturity_a
 
 # Store M-at-age as data (not a parameter)
 data$M_a <- M_at_age
@@ -287,14 +294,14 @@ par_sel <- convert_ss3_selex_to_rtmb(
 )
 
 parameters <- list(
-  log_B0 = 13,
-  log_h = log(0.8),
+  log_B0 = 12,
+  log_h = log(0.95),
   log_sigma_r = log(0.6),
   log_cpue_q = log(1),
   cpue_creep = 0,
-  log_cpue_tau = log(0.2),
+  log_cpue_tau = log(0),
   log_cpue_omega = log(1),
-  rdev_y = rnorm(data$n_year, 0, 0.1),
+  rdev_y = rnorm(data$n_year, 0, 0.5),
   # rdev_y = rep(0, data$n_year)
   par_sel = par_sel  # [n_fishery, 6] matrix
 )
@@ -312,6 +319,12 @@ Use RTMB's `map` option to turn parameters on/off:
 ```{r get-map, echo=TRUE, message=FALSE}
 # map <- get_map(parameters = parameters)
 # Note: log_M removed - M-at-age now read from data
+
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+# map_sel[,1] <- 1:nrow(parameters$par_sel)
+# map_sel[,2] <- 16:(15 + nrow(parameters$par_sel))
+# map_sel[,3] <- 31:(30 + nrow(parameters$par_sel))
+
 map <- list(
   # log_B0 = factor(NA),
   log_h = factor(NA),
@@ -320,24 +333,90 @@ map <- list(
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
-  par_sel = factor(rep(NA, length(parameters$par_sel)))  # fix all selectivity parameters
+  par_sel = as.factor(map_sel)
+  # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
+  # par_sel = factor(rep(NA, length(parameters$par_sel)))  # fix all selectivity parameters
 )
+map$par_sel
 ```
 
 Using the `data`, the `parameters`, the parameter `map`, and the model 
 (`bet_model`), the AD object is created using TMBs `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
+devtools::load_all()
+
 obj <- MakeADFun(func = cmb(bet_model, data), parameters = parameters, map = map)
+unique(names(obj$par))
 obj$fn()
 obj$gr()
 
 obj$simulate()$cpue_log_obs
+plot(obj$report()$spawning_biomass_y)
+sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
+plot(data$cpue_data$value, col = 2)
+lines(obj$report()$cpue_pred)
+plot_catch(data = data, obj = obj)
+plot_catch(data = data, obj = obj, plot_resid = TRUE)
+# plot_cpue(data = data, object = obj)
+# plot_biomass_spawning(data_list = list(data), object_list = list(obj))
 
-plot_catch(data = data, object = obj)
-plot_cpue(data = data, object = obj)
-plot_biomass_spawning(data_list = list(data), object_list = list(obj))
 ```
+
+List of parameters that are on:
+
+```{r est-pars, echo=TRUE, message=FALSE}
+unique(names(obj$par))
+```
+
+The objective function value given the initial parameter values:
+
+```{r check-obj-fun, echo=TRUE, message=FALSE}
+obj$fn(obj$env$last.par.best)
+obj$gr(obj$env$last.par.best)
+```
+
+Load the default parameter bounds:
+
+```{r get-par-bounds, echo=TRUE, message=FALSE}
+# bnd <- get_bounds(obj, parameters = parameters)
+Lwr <- rep(-Inf, length(obj$par))
+Upr <- rep(Inf, length(obj$par))
+Lwr[grep("log_B0", names(obj$par))] <- log(1)
+Upr[grep("log_B0", names(obj$par))] <- log(exp(20))
+Lwr[grep("log_q", names(obj$par))] <- log(0.1)
+Upr[grep("log_q", names(obj$par))] <- log(10)
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
+```
+
+# Optimisation
+
+Optimise using the `nlminb` function:
+
+```{r run-nlminb, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt <- nlminb(start = obj$par, objective = obj$fn, lower = Lwr, upper = Upr, control = control)
+opt <- nlminb(start = opt$par, objective = obj$fn, lower = Lwr, upper = Upr, control = control)
+obj$gr()
+
+data.frame(init = unlist(parameters), value = unlist(obj$env$parList())) %>% head()
+
+plot(data$cpue_data$value, col = 2)
+lines(obj$report()$cpue_pred)
+
+sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
+
+# opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
+#               lower = bnd$lower, upper = bnd$upper, control = control)
+# opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
+#               lower = bnd$lower, upper = bnd$upper, control = control)
+# save(opt, file = "opt.rda")
+# load("opt.rda")
+# opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
+#               lower = bnd$lower, upper = bnd$upper, control = control)
+```
+
 
 ## Selectivity
 
@@ -370,45 +449,6 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
   labs(x = "Age (years)", y = "Selectivity",
        title = "Selectivity-at-Age by Fleet (from SS3 baseline parameters)") +
   ylim(0, 1)
-```
-
-List of parameters that are on:
-
-```{r est-pars, echo=TRUE, message=FALSE}
-unique(names(obj$par))
-```
-
-The objective function value given the initial parameter values:
-
-```{r check-obj-fun, echo=TRUE, message=FALSE}
-obj$fn(obj$env$last.par.best)
-obj$gr(obj$env$last.par.best)
-```
-
-Load the default parameter bounds:
-
-```{r get-par-bounds, echo=TRUE, message=FALSE}
-bnd <- get_bounds(obj, parameters = parameters)
-```
-
-# Optimisation
-
-Optimise using the `nlminb` function:
-
-```{r run-nlminb, echo=TRUE, results="hide"}
-control <- list(eval.max = 10000, iter.max = 10000)
-opt <- nlminb(start = obj$par, objective = obj$fn,
-              lower = bnd$lower, upper = bnd$upper, control = control)
-opt <- nlminb(start = opt$par, objective = obj$fn,
-              lower = bnd$lower, upper = bnd$upper, control = control)
-# opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
-#               lower = bnd$lower, upper = bnd$upper, control = control)
-# opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
-#               lower = bnd$lower, upper = bnd$upper, control = control)
-# save(opt, file = "opt.rda")
-# load("opt.rda")
-# opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he,
-#               lower = bnd$lower, upper = bnd$upper, control = control)
 ```
 
 Check that all parameters are estimable using the `check_estimability` function.
@@ -445,11 +485,9 @@ This allows a call to `obj$simulate()$cpue_log_obs`. For example:
 # obj$simulate()$cpue_log_obs
 # obj$simulate()$troll_log_obs
 # obj$simulate()$aerial_log_obs
-# obj$simulate()$gt_nrec
-# obj$simulate()$hsp_nK
-# obj$simulate()$pop_nP
-plot(log(data$cpue_obs), col = 2)
-for (i in 1:10) lines(obj$simulate()$cpue_log_obs)
+plot(log(data$cpue_data$value), col = 2)
+lines(obj$report()$cpue_pred)
+for (i in 1:1) lines(obj$simulate()$cpue_log_obs)
 ```
 
 Data sets for which simulation is available include:
@@ -561,46 +599,6 @@ plot_hrate(data = data, object = obj, years = 1990:2010)
 
 ```{r plot-sbio, echo=TRUE, message=FALSE, fig.cap="Spawning biomass by year."}
 plot_biomass_spawning(data_list = list(data), object_list = list(obj))
-```
-
-# Likelihood profiles
-
-Likelihood profiles can be done for any model parameter using the function 
-`sbtprofile`. The `ytol` argument defines the range of likelihood values to 
-explore. A profile can be run using either using `name` or `lincomb` arguments, 
-where the latter can be used if there are multiple parameters with the same name 
-(e.g., `par_log_sel_1`).
-
-```{r run-like-prof, echo=TRUE, results="hide"}
-# ytol <- 9
-# prof_B0 <- sbtprofile(obj = obj, name = "par_log_B0", ytol = ytol)
-# prof_m4 <- sbtprofile(obj = obj, name = "par_log_m4", ytol = ytol)
-# prof_m30 <- sbtprofile(obj = obj, name = "par_log_m30", ytol = ytol)
-# lincomb <- numeric(length(obj$par)); lincomb[6] <- 1
-# prof_sel1 <- sbtprofile(obj = obj, lincomb = lincomb, ytol = ytol)
-# save(prof_B0, prof_m4, prof_m30, prof_sel1, file = "profiles.rda")
-load("profiles.rda")
-```
-
-Note that the profile for B0 did not work very well, likelihood for LFs was zero 
-when B0 was too low. Need to look into this.
-
-```{r fig-prof1, echo=TRUE, results="hide", fig.cap="Likelihood profile for B0."}
-head(prof_B0)
-obj$env$last.par.best[names(obj$par) == "par_log_B0"]
-plot_profile(x = prof_B0 %>% filter(is.finite(value)), xlab = "B0")
-```
-
-```{r fig-prof2, echo=TRUE, results="hide", fig.cap="Likelihood profile for M4."}
-plot_profile(x = prof_m4, xlab = "M4")
-```
-
-```{r fig-prof3, echo=TRUE, results="hide", fig.cap="Likelihood profile for M30."}
-plot_profile(x = prof_m30, xlab = "M30")
-```
-
-```{r fig-prof4, echo=TRUE, results="hide", fig.cap="Likelihood profile for one of the selectivity parameters."}
-plot_profile(x = prof_sel1, xlab = "Sel1")
 ```
 
 # Bayesian inference
