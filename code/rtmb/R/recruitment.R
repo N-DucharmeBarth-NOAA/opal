@@ -42,7 +42,7 @@ get_recruitment_prior <- function(rdev, sigma_r) {
   "[<-" <- ADoverload("[<-")
   n_year <- length(rdev)
   # tau_ac2 <- get_rho(first_yr, last_yr, rdev)
-  tau_ac2 <- 0.05 # phi
+  # tau_ac2 <- 0.05 # phi
   # r1 <- rdev[1:(n_year - 3)]
   # r2 <- rdev[(n_year - 2):n_year]
   lp1 <- -sum(dnorm(x = rdev, mean = 0, sd = sigma_r, log = TRUE))
