@@ -6,7 +6,7 @@ utils::globalVariables(c(
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
-  "M_a", "M",
+  "M",
   "A1", "A2", "lw_a", "lw_b", "maturity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
@@ -108,9 +108,8 @@ bet_model <- function(parameters, data) {
   
   # Main population loop ----
   
-  # Inject derived quantities so do_dynamics / get_initial_numbers can use them
+  # Inject derived quantities so do_dynamics / get_harvest_rate can use them
   data$maturity_a <- maturity_a
-  data$M_a <- M_a
   data$weight_fya <- weight_fya_mod
 
   B0 <- exp(log_B0)
@@ -128,7 +127,7 @@ bet_model <- function(parameters, data) {
   
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
-                     init_number_a = init$Ninit, sel_fya = sel_fya)
+                     M_a = M_a, init_number_a = init$Ninit, sel_fya = sel_fya)
   
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty

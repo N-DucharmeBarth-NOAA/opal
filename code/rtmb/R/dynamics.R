@@ -46,7 +46,10 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #' @param h Numeric (0.2–1). Steepness of the Beverton-Holt stock-recruitment relationship.
 #' @param sigma_r Numeric > 0. Standard deviation of log recruitment deviations.
 #' @param rdev_y Numeric vector of length n_year. Log-scale recruitment deviations (one per recruitment year).
-#' @param M_a Numeric vector of length n_age. Natural mortality at age (age 0 to max_age).
+#' @param M_a Numeric vector of length n_age. Natural mortality at age. Passed
+#'   explicitly (not pulled from \code{data}) so that AD gradients propagate
+#'   correctly if M is estimated in the future (e.g., via the Lorenzen
+#'   equation).
 #' @param phi_ya Numeric matrix (n_year + 1 rows, n_age columns). Spawning output (maturity × fecundity × weight) per recruit at age, by year (pre-computed via [get_phi]).
 #' @param init_number_a 3D numeric array (n_season = 2, n_age). Initial numbers-at-age by season. Input provides initial conditions (year 1, season 1).
 #' @param removal_switch_f Integer vector of length n_fishery (= 6). 0 = standard Baranov harvest rate, 1 = direct removal using sliced age frequencies (af_sliced_ysfa).
@@ -69,7 +72,7 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #' 
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
-                        init_number_a, sel_fya) {
+                        M_a, init_number_a, sel_fya) {
   
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
