@@ -44,9 +44,11 @@ library(magrittr)
 # library(bet)
 
 theme_set(theme_bw())
+proj_dir <- this.path::this.proj()
+sapply(file.path(proj_dir, "code", "rtmb","R", list.files(file.path(proj_dir, "code", "rtmb","R"))), source)
 
-setwd("~/Projects/wcpfc-bet-single-region/code/rtmb")
-devtools::load_all()
+# setwd("~/Projects/wcpfc-bet-single-region/code/rtmb")
+# devtools::load_all()
 
 # proj_dir <- this.path::this.proj()
 # devtools::load_all(file.path(proj_dir, "code", "rtmb"))
@@ -54,7 +56,7 @@ devtools::load_all()
 ```
 
 ```{r get-biology, echo=TRUE, message=FALSE}
-proj_dir <- "~/Projects/wcpfc-bet-single-region"
+# proj_dir <- "~/Projects/wcpfc-bet-single-region"
 dir_model <- file.path(proj_dir, "model-files")
 dir_base_mfcl <- file.path(dir_model, "mfcl", "v11")
 
@@ -486,8 +488,8 @@ This allows a call to `obj$simulate()$cpue_log_obs`. For example:
 # obj$simulate()$troll_log_obs
 # obj$simulate()$aerial_log_obs
 plot(log(data$cpue_data$value), col = 2)
-lines(obj$report()$cpue_pred)
-for (i in 1:1) lines(obj$simulate()$cpue_log_obs)
+lines(log(obj$report()$cpue_pred),lwd=2)
+for (i in 1:1) lines(obj$simulate()$cpue_log_obs,col="gray90")
 ```
 
 Data sets for which simulation is available include:
