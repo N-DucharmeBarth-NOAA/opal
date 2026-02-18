@@ -3,7 +3,7 @@
 #' Plot catch (in thousands of tonnes) by year, season, and fishery.
 #' 
 #' @param data a \code{list} containing the data that was passed to \code{MakeADFun}.
-#' @param object a \code{list} specifying the AD object created using \code{MakeADFun}.
+#' @param obj a \code{list} specifying the AD object created using \code{MakeADFun}.
 #' @param posterior an \code{rstan} objected created using the \code{tmbstan} function.
 #' @param proj an \code{rstan} objected created using the \code{tmbstan} function.
 #' @param probs a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.
@@ -16,16 +16,16 @@
 #' @importFrom scales breaks_pretty
 #' @export
 #' 
-plot_catch <- function(data, object, posterior = NULL, proj = NULL, probs = c(0.05, 0.95), plot_resid = FALSE) {
+plot_catch <- function(data, obj, posterior = NULL, proj = NULL, probs = c(0.05, 0.95), plot_resid = FALSE) {
   
   yrs1 <- data$years
   # yrs2 <- data$first_yr_catch:data$last_yr
   # fsh <- c("LL1", "LL2", "LL3", "LL4", "Indonesia", "Australia")
   fsh <- paste0("Fishery: ", 1:data$n_fishery)
   
-  df_obs <- melt(data$catch_obs_ysf, value.name = "obs") %>%
+  df_obs <- reshape2::melt(data$catch_obs_ysf, value.name = "obs") %>%
     filter(.data$obs > 0) %>%
-    mutate(season = paste("Season:", .data$season), fishery = fsh[.data$fishery], Type = "Observed")
+    mutate(season = paste("Season:", 1), fishery = fsh[.data$fishery], Type = "Observed")
 
   # if (!is.null(proj)) {
   #   df_proj <- melt(proj, value.name = "obs") %>%
@@ -34,8 +34,8 @@ plot_catch <- function(data, object, posterior = NULL, proj = NULL, probs = c(0.
   #   df_obs <- bind_rows(df_obs, df_proj)
   # }
   
-  df_pred <- object$report()$catch_pred_ysf %>%
-    melt(value.name = "pred") %>%
+  df_pred <- obj$report()$catch_pred_ysf %>%
+    reshape2::melt(value.name = "pred") %>%
     mutate(year = yrs1[.data$Var1], season = paste("Season:", .data$Var2), fishery = fsh[.data$Var3]) %>%
     right_join(df_obs, by = join_by("year", "season", "fishery")) %>%
     mutate(Fishery = factor(.data$fishery, levels = fsh)) %>%
@@ -57,8 +57,8 @@ plot_catch <- function(data, object, posterior = NULL, proj = NULL, probs = c(0.
   }
   
   p <- p + 
-    facet_wrap(fishery ~ season, scales = "free_y") +
-    scale_x_continuous(breaks = breaks_pretty())
+    facet_wrap(fishery ~ season, scales = "free_y")
+    # scale_x_continuous(breaks = breaks_pretty())
   
   return(p)
 }
@@ -575,6 +575,90 @@ plot_hrate <- function(data, object, posterior = NULL, probs = c(0.025, 0.975), 
     labs(x = "Age", y = "Year") +
     scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
     scale_y_reverse(breaks = pretty_breaks())
+  
+  return(p)
+}
+
+#' Plot recruitment deviates
+#' 
+#' Plot recruitment deviates by year.
+#' 
+#' @param data a \code{list} containing the data that was passed to \code{MakeADFun}.
+#' @param object a \code{list} specifying the AD object created using \code{MakeADFun}.
+#' @param proj a \code{list} containing the data that was passed to \code{MakeADFun}.
+#' @param posterior an \code{rstan} objected created using the \code{tmbstan} function.
+#' @param probs a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.
+#' @return a \code{ggplot2} object.
+#' @import ggplot2
+#' @importFrom stats median quantile
+#' @importFrom reshape2 melt
+#' @importFrom utils txtProgressBar
+#' @export
+#' 
+plot_rec_devs <- function(data, object, proj = NULL, posterior = NULL, probs = c(0.025, 0.975)) {
+  years <- data$first_yr:data$last_yr
+  # num <- object$report()$par_rdev_y
+  num <- object$env$last.par.best[names(object$par) %in% "par_rdev_y"]
+  df <- data.frame(year = years, value = num)
+  p <- ggplot(data = df, aes(x = .data$year, y = .data$value, color = "Reconstruction")) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_line() +
+    labs(x = "Year", y = "Recruitment deviate", color = NULL)
+  if (!is.null(proj)) {
+    sim <- melt(proj$rdev_y) %>% filter(!.data$year %in% years)
+    p <- p + geom_line(data = sim, aes(group = .data$iteration, color = "Projection"), alpha = 0.75)
+  }
+  return(p)
+}
+
+#' Plot recruitment
+#' 
+#' Plot recruitment by year.
+#' 
+#' @param data a \code{list} containing the data that was passed to \code{MakeADFun}.
+#' @param object a \code{list} specifying the AD object created using \code{MakeADFun}.
+#' @param posterior an \code{rstan} objected created using the \code{tmbstan} function.
+#' @param probs a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.
+#' @return a \code{ggplot2} object.
+#' @import ggplot2
+#' @importFrom stats median quantile
+#' @importFrom reshape2 melt
+#' @importFrom utils setTxtProgressBar txtProgressBar
+#' @export
+#' 
+plot_recruitment <- function(data, object, posterior = NULL, probs = c(0.025, 0.975)) {
+  
+  rep <- object$report(object$env$last.par.best)
+  years <- data$first_yr:(data$last_yr + 1)
+  num <- rep$number_ysa
+  N_rec1 <- data.frame(year = years, value = num[,1,1])
+  R0 <- rep$R0
+  
+  p <- ggplot(data = N_rec1, aes(x = .data$year, y = .data$value / 1e6)) +
+    geom_hline(yintercept = R0 / 1e6, linetype = "dashed") +
+    geom_line(data = N_rec1, linetype = "dashed") +
+    labs(x = "Year", y = "Recruitment (millions)") +
+    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05)))
+  
+  if (!is.null(posterior)) {
+    x <- extract_samples(fit = posterior)
+    niter <- nrow(x)
+    r1 <- obj$report(par = as.numeric(x[1,]))$recruitment_y
+    rec <- matrix(NA, nrow = niter, ncol = length(r1))
+    pb <- txtProgressBar(min = 1, max = niter, style = 3)
+    for (i in 1:niter) {
+      rec[i,] <- obj$report(par = as.numeric(x[i,]))$recruitment_y
+      setTxtProgressBar(pb, i)
+    }
+    dimnames(rec) <- list(iteration = 1:niter, year = years)
+    rec_mcmc <- melt(rec)
+    p <- p + 
+      stat_summary(data = rec_mcmc, geom = "ribbon", alpha = 0.5, 
+                   # aes(fill = factor(mc_grid)),
+                   fun.min = function(x) quantile(x, probs = probs[1]),
+                   fun.max = function(x) quantile(x, probs = probs[2])) +
+      stat_summary(data = rec_mcmc, geom = "line", fun = median)
+  }
   
   return(p)
 }

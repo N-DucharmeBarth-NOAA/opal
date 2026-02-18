@@ -1,15 +1,17 @@
 utils::globalVariables(c(
-  "par_log_B0", "par_log_h", "par_log_sigma_r", 
-  "par_log_cpue_q", "par_cpue_creep", "par_log_cpue_sigma", "par_log_cpue_omega", 
-  "par_rdev_y", "par_sel",
+  "log_B0", "log_h", "sigma_r", 
+  "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
+  "rdev_y", 
+  "par_sel",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
+  "M_a",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "mean_length_at_age", "sd_length_at_age",
   "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
-  "cpue_switch", "cpue_years", "cpue_lfs", "cpue_n", "cpue_a1", "cpue_a2", "cpue_obs", "cpue_sd",
+  "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
-  "priors", "M_a"
+  "priors"
 ))
 
 #' The globals
@@ -51,11 +53,6 @@ bet_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
-  
-  # Natural mortality ----
-  # M_a is now read from data (extracted from MFCL)
-  # M_a <- rep(exp(log_M), n_age)  # OLD: constant M
-  # M_a is already available from data via getAll()
 
   # Selectivity ----
   
@@ -63,12 +60,6 @@ bet_model <- function(parameters, data) {
   mu_a <- mean_length_at_age
   sd_a <- sd_length_at_age
   sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a)
-  
-  # Recruitment ----
-  
-  # tau_ac2 <- get_rho(first_yr, last_yr, rdev_y)
-  tau_ac2 <- 0.6
-  lp_rec <- get_recruitment_prior(rdev_y, log_sigma_r, tau_ac2)
   
   # Main population loop ----
   
@@ -78,60 +69,47 @@ bet_model <- function(parameters, data) {
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta
-  
-  dyn <- do_dynamics(data, parameters,
-                     B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h,
-                     M_a = M_a, init_number_a = init$Ninit, sel_fya = sel_fya)
-  
-  number_ysa <- dyn$number_ysa
-  spawning_biomass_y <- dyn$spawning_biomass_y
-  lp_penalty <- dyn$lp_penalty
-  
-  # plot(dyn$spawning_biomass_y)
-  # plot(rowSums(dyn$number_ysa[,1,]))
-  # plot(catch_obs_ysf - catch_pred_ysf[1:n_year,,])
-  # points(catch_pred_ysf, pch = 2, col = 2)
-
-  # Likelihoods and priors ----
-
-  x <- get_cpue_like(data, parameters, number_ysa, sel_fya)
-  lp_cpue <- x$lp
-  # cpue_pred <- x$pred
-
-  # x <- get_length_like(lf_switch, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal)
-  # lp_lf <- x$lp
-  # lf_pred <- x$pred
-  # 
-  # x <- get_cpue_length_like(lf_switch, cpue_years, cpue_lfs, cpue_n, par_log_lf_alpha, number_ysa, sel_fya, alk_ysal)
-  # lp_cpue_lf <- x$lp
-  # cpue_lf_pred <- x$pred
-  # 
-  lp_prior <- evaluate_priors(parameters, priors)
-
-  # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue_lf) + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue)
-  
-  # Reporting ----
-  
+  sigma_r <- exp(log_sigma_r)
   REPORT(B0)
   REPORT(R0)
   REPORT(alpha)
   REPORT(beta)
-  # ADREPORT(sigma_r)
-  # REPORT(tau_ac2)
-  # REPORT(par_rdev_y)
-  # REPORT(rec_dev_y)
-  # REPORT(rdev_y)
-  # REPORT(cpue_lf_pred)
-  # REPORT(lf_pred)
-  REPORT(spawning_biomass_y)
+  REPORT(sigma_r)
+  
+  dyn <- do_dynamics(data, parameters,
+                     B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
+                     init_number_a = init$Ninit, sel_fya = sel_fya)
+  
+  number_ysa <- dyn$number_ysa
+  lp_penalty <- dyn$lp_penalty
+  
+  # plot(spawning_biomass_y)
+  # plot(rowSums(dyn$number_ysa[,1,]))
+  # plot(catch_obs_ysf - catch_pred_ysf)
+  # points(catch_pred_ysf, pch = 2, col = 2)
+
+  # Priors ----
+  
+  # lp_prior <- evaluate_priors(parameters, priors)
+  lp_rec <- get_recruitment_prior(rdev_y, sigma_r, tau_ac2)
+  lp_prior <- 0
+  
+  # Likelihoods ----
+
+  lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
+  # lp_lf <- get_length_like(lf_switch, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal)
+
+  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue)# + sum(lp_lf)
+  
+  # Reporting ----
+  
   REPORT(number_ysa)
   REPORT(sel_fya)
-  # REPORT(lp_prior)
-  # REPORT(lp_penalty)
-  # REPORT(lp_rec)
-  # REPORT(lp_cpue)
-  # REPORT(lp_cpue_lf)
+  
+  REPORT(lp_prior)
+  REPORT(lp_penalty)
+  REPORT(lp_rec)
+  REPORT(lp_cpue)
   # REPORT(lp_lf)
 
   return(nll)
