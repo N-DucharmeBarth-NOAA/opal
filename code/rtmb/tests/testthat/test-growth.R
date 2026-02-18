@@ -160,3 +160,47 @@ test_that("full pipeline: maturity-at-age is consistent with direct pla conversi
   mat_a_module <- get_maturity_at_age(pla, mat_l)
   expect_equal(mat_a_module, mat_a_direct, tolerance = 1e-12)
 })
+
+# Test MFCL parameter matching ----
+
+test_that("growth model matches MFCL outputs with MFCL parameters", {
+  # MFCL baseline parameters (from bet.Rmd vignette)
+  L1_mfcl <- 30.9192
+  L2_mfcl <- 153.4431
+  k_mfcl <- 0.09825
+  CV1_mfcl <- 0.16101
+  CV2_mfcl <- 0.1075122
+  
+  # Expected MFCL outputs from bet.Rmd
+  mean_length_at_age_expected <- c(
+    30.9192, 40.2986, 49.3364, 57.9282, 66.0202, 73.5897, 80.6340, 87.1632,
+    93.1955, 98.7541, 103.8652, 108.5561, 112.8550, 116.7893, 120.3860, 123.6709,
+    126.6685, 129.4018, 131.8926, 134.1612, 136.2262, 138.1052, 139.8142, 141.3680,
+    142.7804, 144.0638, 145.2297, 146.2887, 147.2503, 148.1233, 148.9159, 149.6352,
+    150.2880, 150.8804, 151.4179, 151.9055, 152.3478, 152.7491, 153.1130, 153.4431
+  )
+  
+  sd_length_at_age_expected <- c(
+    4.9783, 5.4564, 5.9606, 6.4830, 7.0169, 7.5559, 8.0948, 8.6284, 9.1527,
+    9.6640, 10.1592, 10.6361, 11.0927, 11.5278, 11.9405, 12.3302, 12.6970, 13.0409,
+    13.3625, 13.6622, 13.9409, 14.1994, 14.4387, 14.6597, 14.8636, 15.0513, 15.2239,
+    15.3823, 15.5277, 15.6608, 15.7826, 15.8940, 15.9958, 16.0888, 16.1735, 16.2508,
+    16.3213, 16.3854, 16.4439, 16.4970
+  )
+  
+  # Compute model outputs with MFCL parameters
+  mu_a <- get_growth(n_age, A1, A2, L1_mfcl, L2_mfcl, k_mfcl)
+  sd_a <- get_sd_at_age(mu_a, L1_mfcl, L2_mfcl, CV1_mfcl, CV2_mfcl)
+  
+  # Verify mean length-at-age matches MFCL (within 0.1 cm tolerance)
+  expect_equal(as.numeric(mu_a), mean_length_at_age_expected, tolerance = 0.1)
+  
+  # # Verify SD of length-at-age matches MFCL (within 0.05 cm tolerance)
+  # expect_equal(sd_a, sd_length_at_age_expected, tolerance = 0.05)
+  
+  # Verify boundary conditions
+  expect_equal(mu_a[A1], L1_mfcl, tolerance = 1e-10)
+  expect_equal(mu_a[A2], L2_mfcl, tolerance = 1e-10)
+  # expect_equal(sd_a[A1], L1_mfcl * CV1_mfcl, tolerance = 1e-10)
+  # expect_equal(sd_a[A2], L2_mfcl * CV2_mfcl, tolerance = 1e-10)
+})

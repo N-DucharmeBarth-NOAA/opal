@@ -84,8 +84,8 @@ A1 <- 1L
 A2 <- 40L
 
 # Default growth/variability parameter values from MFCL baseline
-L1_init  <- mean_length_at_age[A1]
-L2_init  <- mean_length_at_age[A2]
+L1_init  <- growth(base_par)[1, 1] # VB length at age 1 (0.25 years)
+L2_init  <- growth(base_par)[2, 1] # VB length at age 40 (10 years)
 k_init   <- growth(base_par)[3, 1]  # VB growth rate from MFCL
 CV1_init <- sd_length_at_age[A1] / mean_length_at_age[A1]
 CV2_init <- sd_length_at_age[A2] / mean_length_at_age[A2]
