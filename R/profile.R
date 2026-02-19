@@ -20,7 +20,7 @@
 #' @importFrom Matrix Diagonal
 #' @export
 #'
-sbtprofile <- function(obj, name, lincomb, h = 1e-04, ytol = 2, ystep = 0.1,
+opalprofile <- function(obj, name, lincomb, h = 1e-04, ytol = 2, ystep = 0.1,
                        maxit = ceiling(5 * ytol / ystep), parm.range = c(-Inf, Inf),
                        slice = FALSE, adaptive = TRUE, trace = TRUE) {
   

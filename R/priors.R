@@ -1,10 +1,10 @@
 #' Get priors
 #' 
 #' Don't include priors for recruitment deviates (par_rdev_y) or selectivity 
-#' (e.g., par_log_sel_1) here because they are dealt in the [get_recruitment_prior] 
-#' and [get_selectivity_prior] functions.
+#' (e.g., par_log_sel_1) here because they are dealt with in the `get_recruitment_prior()` 
+#' and `get_selectivity_prior()` functions.
 #' 
-#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the [get_parameters] function.
+#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function.
 #' @param data A \code{list} of data inputs (optional). Used to retrieve prior
 #'   center values for growth/variability parameters (e.g.,
 #'   \code{data$prior_log_L1_mean}).
@@ -74,8 +74,8 @@ get_priors <- function(parameters, data = NULL) {
 
 #' Evaluate priors
 #' 
-#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the [get_parameters] function.
-#' @param priors A \code{list} of named \code{list}s specifying priors for the parameters. Can be generated using the [get_priors] function.
+#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function.
+#' @param priors A \code{list} of named \code{list}s specifying priors for the parameters. Can be generated using the `get_priors()` function.
 #' @return A \code{numeric} value.
 #' @importFrom RTMB dnorm dlnorm
 #' @importFrom RTMBdist dbeta2 dt2

@@ -181,12 +181,12 @@ get_posterior3 <- function(object, posterior, pars = "par_B0", iters = NULL, opt
       n_cores <- detectCores() - 1
     }
     
-    sbt_cluster <- makeCluster(n_cores, type = "PSOCK") # create the cluster
-    registerDoParallel(cl = sbt_cluster) # register it to be used by %dopar%
+    opal_cluster <- makeCluster(n_cores, type = "PSOCK") # create the cluster
+    registerDoParallel(cl = opal_cluster) # register it to be used by %dopar%
     
     # Option 2 - parallel chains
     if (option == 2) {
-      output <- foreach(j = 1:chains, .packages = c("sbt", "dplyr"), .combine = rbind) %dopar% {
+      output <- foreach(j = 1:chains, .packages = c("opal", "dplyr"), .combine = rbind) %dopar% {
         df <- NULL
         for (i in 1:iters) {
           r1 <- object$report(par = post[i, j, ]) # Generate a report for each iteration
@@ -200,7 +200,7 @@ get_posterior3 <- function(object, posterior, pars = "par_B0", iters = NULL, opt
     
     # Option 3 - parallel chains and iterations
     if (option == 3) {
-      output <- foreach(j = 1:chains, .packages = c("sbt", "dplyr"), .combine = rbind) %:%
+      output <- foreach(j = 1:chains, .packages = c("opal", "dplyr"), .combine = rbind) %:%
         foreach(i = 1:iters, .combine = rbind) %dopar% {
           r1 <- object$report(par = post[i, j, ]) # Generate a report for each iteration
           df <- data.frame(chain = j, iteration = i, output = pars, value = r1[[pars]]) %>%
@@ -209,7 +209,7 @@ get_posterior3 <- function(object, posterior, pars = "par_B0", iters = NULL, opt
         }
     }    
     
-    stopCluster(cl = sbt_cluster)
+    stopCluster(cl = opal_cluster)
   }
   
   df <- output %>% 
