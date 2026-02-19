@@ -29,6 +29,6 @@ into the columns \code{Year}, \code{Season}, and ages 0 to 30:\tabular{lllllll}{
 }
 }
 \examples{
-length_mu_ysa <- get_length_at_age(length_mean = sbt::length_mean)
+length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
 
 }

@@ -20,7 +20,7 @@
 #' @import dplyr
 #' @export
 #' @examples
-#' length_mu_ysa <- get_length_at_age(length_mean = sbt::length_mean)
+#' length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
 #' 
 get_length_at_age <- function(length_mean) {
   
@@ -58,9 +58,9 @@ get_length_at_age <- function(length_mean) {
 #' @importFrom RTMB pnorm
 #' @export
 #' @examples
-#' length_mu_ysa <- get_length_at_age(length_mean = sbt::length_mean)
+#' length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
 #' weight_fya <- get_weight_at_age(length_mu_ysa = length_mu_ysa, 
-#'                                 length_sd_a = sbt::length_sd$SD)
+#'                                 length_sd_a = opal::length_sd$SD)
 #' 
 get_weight_at_age <- function(length_mu_ysa, length_sd_a) {
 
@@ -128,7 +128,7 @@ get_weight_at_age <- function(length_mu_ysa, length_sd_a) {
 #' the `get_data()` function so it is generally not needed directly.
 #' 
 #' Obtain dl for use later in calculating phi(a, y). From the 
-#' PRELIMINARY_CALCS_SECTION of \code{sbtmod.tpl}. More fine-scale than 
+#' PRELIMINARY_CALCS_SECTION of \code{opalmod.tpl}. More fine-scale than 
 #' lenage_dist_syal. Needs a bit more detail to get it right.
 #' Integrates over length-at-age distribution to get phi(age,year).
 #' 
@@ -137,8 +137,8 @@ get_weight_at_age <- function(length_mu_ysa, length_sd_a) {
 #' @return an \code{array}.
 #' @export
 #' @examples
-#' length_mu_ysa <- get_length_at_age(length_mean = sbt::length_mean)
-#' dl_yal <- get_dl(length_mu_ysa = length_mu_ysa, length_sd_a = sbt::length_sd$SD)
+#' length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
+#' dl_yal <- get_dl(length_mu_ysa = length_mu_ysa, length_sd_a = opal::length_sd$SD)
 #' 
 get_dl <- function(length_mu_ysa, length_sd_a) {
   

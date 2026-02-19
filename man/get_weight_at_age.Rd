@@ -19,8 +19,8 @@ Obtain the mean weight (kg) at age for each fishery each year. This function
 is used within \code{get_data} so is generally not needed directly.
 }
 \examples{
-length_mu_ysa <- get_length_at_age(length_mean = sbt::length_mean)
+length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
 weight_fya <- get_weight_at_age(length_mu_ysa = length_mu_ysa, 
-                                length_sd_a = sbt::length_sd$SD)
+                                length_sd_a = opal::length_sd$SD)
 
 }

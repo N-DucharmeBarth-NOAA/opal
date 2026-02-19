@@ -24,7 +24,7 @@
 
 # RStudio files
 .Rproj.user/
-sbt.Rproj
+opal.Rproj
 
 # produced vignettes
 vignettes/*.html

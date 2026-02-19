@@ -52,16 +52,16 @@ run_grid <- function(data, grid_parameters, bounds, map = list(), random = c(), 
   
   n_grid <- length(grid_parameters)
   # n_cores <- detectCores() - 1
-  # sbt_cluster <- makeCluster(n_cores, type = "PSOCK") # create the cluster
-  # registerDoParallel(cl = sbt_cluster) # register it to be used by %dopar%
-  # # print(sbt_cluster) # check cluster definition (optional)
+  # opal_cluster <- makeCluster(n_cores, type = "PSOCK") # create the cluster
+  # registerDoParallel(cl = opal_cluster) # register it to be used by %dopar%
+  # # print(opal_cluster) # check cluster definition (optional)
   # # getDoParRegistered() # check if it is registered (optional)
   # # getDoParWorkers() # how many workers are available? (optional)
   grid_obj <- vector("list", length = n_grid)
   
-  # grid_obj <- foreach(i = 1:n_grid, .packages = "sbt") %dopar% {
+  # grid_obj <- foreach(i = 1:n_grid, .packages = "opal") %dopar% {
   for (i in 1:n_grid) {
-    obj <- MakeADFun(func = cmb(sbt_model, data), parameters = grid_parameters[[i]], map = map)
+    obj <- MakeADFun(func = cmb(opal_model, data), parameters = grid_parameters[[i]], map = map)
     opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he, lower = bounds$lower, upper = bounds$upper, control = control)
     opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he, lower = bounds$lower, upper = bounds$upper, control = control)
     opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr, hessian = obj$he, lower = bounds$lower, upper = bounds$upper, control = control)
@@ -116,7 +116,7 @@ run_grid <- function(data, grid_parameters, bounds, map = list(), random = c(), 
     grid_obj[[i]] <- obj
   }
   names(grid_obj) <- names(grid_parameters)
-  # stopCluster(cl = sbt_cluster)
+  # stopCluster(cl = opal_cluster)
   return(grid_obj)
 }
 
@@ -206,7 +206,7 @@ grid_to_snutsfit <- function(data, parameters, grid, grid_parameters, grid_cells
   map$par_log_m0 <- NULL
   map$par_log_m10 <- NULL
   map$par_log_h <- NULL
-  obj <- MakeADFun(func = cmb(sbt_model, data), parameters = parameters, map = map)
+  obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
   parnames <- names(obj$par)
   n_samples <- length(grid_cells$grid_cells)
   samples <- array(NA, dim = c(n_samples, 1, length(obj$par)), dimnames = list(NULL, NULL, parnames))
