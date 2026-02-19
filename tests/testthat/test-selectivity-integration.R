@@ -1,29 +1,11 @@
 # Tests for selectivity integration into bet_model
 library(RTMB)
 
-# Define project paths
-proj_dir <- this.path::this.proj()
-r_dir <- file.path(proj_dir, "code", "rtmb", "R")
-data_dir <- file.path(proj_dir, "code", "rtmb")
-
-# Source helper functions
-suppressMessages({
-  source(file.path(r_dir, "selectivity.R"))
-  source(file.path(r_dir, "functions.R"))
-  source(file.path(r_dir, "natural-mortality.R"))
-  source(file.path(r_dir, "recruitment.R"))
-  source(file.path(r_dir, "dynamics.R"))
-  source(file.path(r_dir, "length-weight.R"))
-  source(file.path(r_dir, "likelihoods.R"))
-  source(file.path(r_dir, "model.R"))
-  source(file.path(r_dir, "priors.R"))
-})
-
 # Test selectivity configuration in data ----
 
 test_that("data includes all required selectivity elements", {
-  skip_if_not(file.exists(file.path(data_dir, "catch-data.csv")), 
-              "Catch data file not found")
+  # Load catch data from package
+  data(catch_data)
   
   # Create minimal data structure matching the new scalar-based interface
   data <- list(

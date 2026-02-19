@@ -1,17 +1,6 @@
 # Tests for get_selectivity and SS3 parameter conversion
 library(RTMB)
 
-# Define project paths
-proj_dir <- this.path::this.proj()
-r_dir <- file.path(proj_dir, "code", "rtmb", "R")
-
-# Source helper functions
-suppressMessages({
-  source(file.path(r_dir, "selectivity.R"))
-  source(file.path(r_dir, "functions.R"))
-  source(file.path(r_dir, "length-weight.R"))
-})
-
 # Test get_selectivity ----
 
 test_that("get_selectivity returns correct dimensions", {

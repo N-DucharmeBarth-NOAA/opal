@@ -1,17 +1,6 @@
 # Tests for growth module functions
 library(RTMB)
 
-# Define project paths
-proj_dir <- this.path::this.proj()
-r_dir <- file.path(proj_dir, "code", "rtmb", "R")
-
-# Source helper functions
-suppressMessages({
-  source(file.path(r_dir, "growth.R"))
-  source(file.path(r_dir, "selectivity.R"))
-  source(file.path(r_dir, "functions.R"))
-})
-
 # Shared test fixtures
 len_lower <- seq(10, by = 2, length.out = 95)
 len_upper <- len_lower + 2
