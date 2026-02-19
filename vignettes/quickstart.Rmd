@@ -25,6 +25,6 @@ The core workflow involves:
 
 See `vignette("bet")` for a detailed worked example.
 
-```{r setup}
+```{r setup, eval = FALSE}
 library(opal)
 ```
