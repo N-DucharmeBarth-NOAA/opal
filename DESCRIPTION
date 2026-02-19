@@ -1,10 +1,11 @@
 Package: opal
 Title: The open population assessment library
 Version: 0.0.1
-Authors@R: 
+Authors@R: c(
     person("Darcy", "Webber", , "darcy@quantifish.co.nz", role = "aut"),
     person("Philipp", "Neubauer", , "philipp@dragonfly.co.nz", role = "aut"),
     person("Nicholas", "Ducharme-Barth", , "nicholas.ducharme-barth@noaa.gov", role = c("aut", "cre"))
+)
 Description: A fast, flexible, and modern R package for fisheries stock assessment. 
     Built on RTMB, opal provides a powerful framework for conducting quantitative 
     population dynamics modeling and stock assessment analyses. Designed for fisheries 
