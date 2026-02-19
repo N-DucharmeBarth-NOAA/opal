@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(sbt)
+library(opal)
 
-test_check("sbt")
+test_check("opal")
