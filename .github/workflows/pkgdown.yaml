@@ -40,8 +40,8 @@ jobs:
         with:
           cache-version: 1
 
-      - name: Install pkgdown
-        run: renv::install("pkgdown")
+      - name: Install pkgdown and testthat
+        run: renv::install(c("pkgdown", "testthat"))
         shell: Rscript {0}
 
       - name: Install opal package
