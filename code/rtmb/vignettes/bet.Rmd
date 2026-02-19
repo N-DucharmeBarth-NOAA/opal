@@ -184,6 +184,10 @@ data$lw_b <- lw_params(base_ini)[2]
 # Maturity-at-length as data vector (converted to maturity-at-age inside model)
 data$maturity <- maturity_at_length
 
+# Fecundity at length: initially equal to weight at length
+# This matches SS3's fecundity_option = 3 with Eggs_alpha = 1, Eggs_beta = 1
+data$fecundity_at_length <- get_weight_at_length(len_mid, data$lw_a, data$lw_b)
+
 # Natural mortality: direct age vector from MFCL (unchanged)
 data$M <- M_at_age
 

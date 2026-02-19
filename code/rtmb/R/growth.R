@@ -65,3 +65,21 @@ get_maturity_at_age <- function(pla, maturity_at_length) {
   maturity_a <- as.vector(t(pla) %*% maturity_at_length)
   return(maturity_a)
 }
+
+#' Compute spawning potential at age
+#'
+#' Spawning potential is defined as maturity × fecundity at each age.
+#' Both maturity-at-age and fecundity-at-age are derived from their
+#' respective length-based vectors via the PLA (age-length key).
+#'
+#' @param pla Matrix (n_len x n_age). Probability of length at age (from \code{\link{get_pla}}).
+#' @param maturity_at_length Numeric vector (length n_len). Maturity at each length bin (data).
+#' @param fecundity_at_length Numeric vector (length n_len). Fecundity at each length bin (data).
+#' @return Numeric vector (length n_age). Spawning potential at each age.
+#' @export
+get_spawning_potential <- function(pla, maturity_at_length, fecundity_at_length) {
+  maturity_a <- as.vector(t(pla) %*% maturity_at_length)
+  fecundity_a <- as.vector(t(pla) %*% fecundity_at_length)
+  spawning_potential_a <- maturity_a * fecundity_a
+  return(spawning_potential_a)
+}

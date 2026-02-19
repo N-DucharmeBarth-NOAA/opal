@@ -7,7 +7,7 @@ utils::globalVariables(c(
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "M",
-  "A1", "A2", "lw_a", "lw_b", "maturity", "len_bin_start", "len_bin_width",
+  "A1", "A2", "lw_a", "lw_b", "maturity", "fecundity_at_length", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
@@ -29,6 +29,7 @@ bet_globals <- function() {
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
     get_maturity_at_age = get_maturity_at_age,
+    get_spawning_potential = get_spawning_potential,
     resolve_bio_vector = resolve_bio_vector,
     get_selectivity = get_selectivity,
     sel_logistic = sel_logistic,
@@ -100,6 +101,14 @@ bet_model <- function(parameters, data) {
   maturity_a <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
   M_a        <- resolve_bio_vector(M, n_age, n_len, pla, "M")
 
+  # Module 5: Spawning potential at age (maturity × fecundity) ----
+  # fecundity_at_length is a data input (initially equal to weight-at-length,
+  # matching SS3's fecundity_option = 3 with Eggs_alpha = 1, Eggs_beta = 1).
+  # spawning_potential_a is computed here (not stored in data) because it depends
+  # on the PLA which may carry estimated growth parameters.
+  fecundity_a <- as.vector(t(pla) %*% fecundity_at_length)
+  spawning_potential_a <- maturity_a * fecundity_a
+
   # Selectivity ----
 
   # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
@@ -109,7 +118,7 @@ bet_model <- function(parameters, data) {
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
-  init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, maturity_a = maturity_a)
+  init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a)
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta
@@ -119,10 +128,13 @@ bet_model <- function(parameters, data) {
   REPORT(alpha)
   REPORT(beta)
   REPORT(sigma_r)
+  REPORT(maturity_a)
+  REPORT(fecundity_a)
+  REPORT(spawning_potential_a)
   
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
-                     M_a = M_a, maturity_a = maturity_a, weight_fya = weight_fya_mod,
+                     M_a = M_a, spawning_potential_a = spawning_potential_a, weight_fya = weight_fya_mod,
                      init_number_a = init$Ninit, sel_fya = sel_fya)
   
   number_ysa <- dyn$number_ysa

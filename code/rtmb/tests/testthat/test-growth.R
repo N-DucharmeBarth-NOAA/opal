@@ -161,6 +161,54 @@ test_that("full pipeline: maturity-at-age is consistent with direct pla conversi
   expect_equal(mat_a_module, mat_a_direct, tolerance = 1e-12)
 })
 
+# Test get_spawning_potential ----
+
+test_that("get_spawning_potential returns vector of length n_age", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  pla  <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  mat_l <- pmin(pmax(len_mid / 150, 0), 1)
+  fec_l <- get_weight_at_length(len_mid, 1.15 * 2.942e-06, 3.13088)
+  sp_a <- get_spawning_potential(pla, mat_l, fec_l)
+  expect_equal(length(sp_a), n_age)
+})
+
+test_that("get_spawning_potential returns non-negative values", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  pla  <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  mat_l <- pmin(pmax(len_mid / 150, 0), 1)
+  fec_l <- get_weight_at_length(len_mid, 1.15 * 2.942e-06, 3.13088)
+  sp_a <- get_spawning_potential(pla, mat_l, fec_l)
+  expect_true(all(sp_a >= 0))
+})
+
+test_that("get_spawning_potential equals maturity_a * fecundity_a element-wise", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  pla  <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  mat_l <- pmin(pmax(len_mid / 150, 0), 1)
+  fec_l <- get_weight_at_length(len_mid, 1.15 * 2.942e-06, 3.13088)
+  mat_a <- get_maturity_at_age(pla, mat_l)
+  fec_a <- as.vector(t(pla) %*% fec_l)
+  sp_a  <- get_spawning_potential(pla, mat_l, fec_l)
+  expect_equal(sp_a, mat_a * fec_a, tolerance = 1e-12)
+})
+
+test_that("get_spawning_potential with fecundity=weight equals maturity_a * weight_a", {
+  lw_a_par <- 1.15 * 2.942e-06
+  lw_b_par <- 3.13088
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  pla  <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  mat_l <- pmin(pmax(len_mid / 150, 0), 1)
+  wt_l  <- get_weight_at_length(len_mid, lw_a_par, lw_b_par)
+  mat_a    <- as.vector(t(pla) %*% mat_l)
+  weight_a <- as.vector(t(pla) %*% wt_l)
+  sp_a <- get_spawning_potential(pla, mat_l, wt_l)
+  expect_equal(sp_a, mat_a * weight_a, tolerance = 1e-12)
+})
+
 # Test MFCL parameter matching ----
 
 test_that("growth model matches MFCL outputs with MFCL parameters", {
