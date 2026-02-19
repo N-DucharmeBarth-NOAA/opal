@@ -2,7 +2,7 @@
 #'
 #' @param len Numeric vector of length-bin midpoints.
 #' @param par Numeric vector of length 6 containing selectivity parameters.
-#'   Only the first two entries are used: par[1] (a) and par[2] (b).
+#'   Only the first two entries are used: `par[1]` (a) and `par[2]` (b).
 #'   `a` is the inflection point on the real line, transformed via
 #'   `mean(len) + a * sd(len)`, so `a = 0` gives inflection at `mean(len)`.
 #'   `b` is log-scale 95% width, transformed via `exp(b) * sd(len)`,
@@ -31,21 +31,23 @@ sel_logistic <- function(len, par) {
 #' forms where e <= -999 or f <= -999 are not supported.
 #'
 #' @param x Numeric vector of length-bin midpoints.
-#' @param par Numeric vector of length 6 containing selectivity parameters:
-#'   par[1] (a): Peak location (real line). Transformed via
-#'     `mean(x) + a * sd(x)`, so `a = 0` places the peak at `mean(x)`.
-#'   par[2] (b): Plateau width (real line). Controls the distance from peak to the
-#'     start of the descending limb via logistic transform of the available
-#'     range: `peak + bin_width + (0.99 * max(x) - peak - bin_width) / (1 + exp(-b))`.
-#'   par[3] (c): Ascending width (real line, log-space). Actual width = `exp(c) * sd(x)`.
-#'     `c = 0` gives an ascending width equal to `sd(x)`.
-#'   par[4] (d): Descending width (real line, log-space). Actual width = `exp(d) * sd(x)`.
-#'     `d = 0` gives a descending width equal to `sd(x)`.
-#'   par[5] (e): Initial selectivity (real line, logit-space). Transformed via
-#'     `1 / (1 + exp(-e))`, so `e = 0` gives initial selectivity of 0.5,
-#'     large negative values give ~0, large positive values give ~1.
-#'   par[6] (f): Final selectivity (real line, logit-space). Same transform as `e`.
-#' @return Numeric vector of selectivity values in [0, 1].
+#' @param par Numeric vector of length 6 containing selectivity parameters.
+#'   \describe{
+#'     \item{`par[1]` (a)}{Peak location (real line). Transformed via
+#'       `mean(x) + a * sd(x)`, so `a = 0` places the peak at `mean(x)`.}
+#'     \item{`par[2]` (b)}{Plateau width (real line). Controls the distance from peak to the
+#'       start of the descending limb via logistic transform of the available
+#'       range: `peak + bin_width + (0.99 * max(x) - peak - bin_width) / (1 + exp(-b))`.}
+#'     \item{`par[3]` (c)}{Ascending width (real line, log-space). Actual width = `exp(c) * sd(x)`.
+#'       `c = 0` gives an ascending width equal to `sd(x)`.}
+#'     \item{`par[4]` (d)}{Descending width (real line, log-space). Actual width = `exp(d) * sd(x)`.
+#'       `d = 0` gives a descending width equal to `sd(x)`.}
+#'     \item{`par[5]` (e)}{Initial selectivity (real line, logit-space). Transformed via
+#'       `1 / (1 + exp(-e))`, so `e = 0` gives initial selectivity of 0.5,
+#'       large negative values give ~0, large positive values give ~1.}
+#'     \item{`par[6]` (f)}{Final selectivity (real line, logit-space). Same transform as `e`.}
+#'   }
+#' @return Numeric vector of selectivity values in \[0, 1\].
 #' @export
 #'
 sel_double_normal <- function(x, par) {
@@ -147,7 +149,7 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #'
 #' @param data A list containing model data. Required elements:
 #'   n_fishery, n_year, n_age, sel_type_f.
-#' @param par_sel Numeric matrix of dimensions [n_fishery, 6]. Each row is
+#' @param par_sel Numeric matrix of dimensions `[n_fishery, 6]`. Each row is
 #'   a real-line parameter vector. For logistic (sel_type_f == 1), only
 #'   columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.
 #' @param mu_a Numeric vector (length n_age) of mean length at age.
@@ -160,7 +162,7 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #' @param len_upper Numeric vector (length n_len) of upper bounds of length
 #'   bins.
 #' @param len_mid Numeric vector (length n_len) of length-bin midpoints.
-#' @return 3D array sel_fya of dimensions [n_fishery, n_year, n_age].
+#' @return 3D array `sel_fya` of dimensions `[n_fishery, n_year, n_age]`.
 #' @importFrom RTMB ADoverload
 #' @export
 #'
@@ -212,7 +214,7 @@ get_selectivity <- function(data, par_sel, mu_a, sd_a, len_lower, len_upper, len
 #' @param sel_type_f Integer vector (length n_fishery). 1 = logistic, 2 = double-normal.
 #' @param sel_lengths Numeric vector of selectivity length-bin midpoints
 #'   (same vector that will be passed to sel_logistic/sel_double_normal).
-#' @return Numeric matrix [n_fishery, 6] of RTMB real-line parameters.
+#' @return Numeric matrix `[n_fishery, 6]` of RTMB real-line parameters.
 #' @export
 #'
 convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
@@ -266,8 +268,8 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
 #' Inverse of \code{convert_ss3_selex_to_rtmb}. Useful for verifying
 #' round-trip conversion and reporting parameter values in natural units.
 #'
-#' @param par_sel Numeric matrix [n_fishery, 6] of RTMB real-line parameters.
-#' @param sel_type_f Integer vector. 1 = logistic, 2 = double-normal.
+#' @param par_sel Numeric matrix `[n_fishery, 6]` of RTMB real-line parameters.
+#' @param sel_type_f Integer vector (1 = logistic, 2 = double-normal).
 #' @param sel_lengths Numeric vector of selectivity length-bin midpoints.
 #' @return Data.frame with SS3-scale parameter values per fishery.
 #' @export

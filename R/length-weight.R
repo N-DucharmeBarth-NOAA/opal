@@ -125,7 +125,7 @@ get_weight_at_age <- function(length_mu_ysa, length_sd_a) {
 #' Obtain dl
 #' 
 #' Obtain dl for use later in calculating phi. This function is used within 
-#' the [get_data] function so it is generally not needed directly.
+#' the `get_data()` function so it is generally not needed directly.
 #' 
 #' Obtain dl for use later in calculating phi(a, y). From the 
 #' PRELIMINARY_CALCS_SECTION of \code{sbtmod.tpl}. More fine-scale than 

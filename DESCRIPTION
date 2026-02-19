@@ -14,3 +14,24 @@ License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+Imports:
+    doParallel,
+    dplyr,
+    forecast,
+    foreach,
+    ggplot2,
+    ggridges,
+    loo,
+    Matrix,
+    mgcv,
+    parallel,
+    reshape2,
+    rlang,
+    rstan,
+    RTMB,
+    RTMBdist,
+    scales,
+    SparseNUTS,
+    tidyr
+Suggests:
+    testthat (>= 3.0.0)
