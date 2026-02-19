@@ -30,45 +30,57 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 }
 
 #' Population dynamics
-#' 
-#' Runs the core age- and season-structured population dynamics loop for Southern Bluefin Tuna.
-#' Starts from initial equilibrium numbers (derived from B0 and h), applies seasonal harvest,
-#' natural mortality, spawning, recruitment (Beverton-Holt + log-normal deviates), and
-#' computes predicted catches and harvest rates. Handles both standard Baranov harvest
-#' (removal_switch_f == 0) and direct age-sliced removals (removal_switch_f == 1).
 #'
-#' @param first_yr Integer. First model year (e.g. 1931).
-#' @param first_yr_catch Integer. First year with catch data (determines when fishing begins).
+#' Runs the core age- and season-structured population dynamics loop for bigeye
+#' tuna. Starts from initial equilibrium numbers (derived from B0 and h),
+#' applies seasonal harvest, natural mortality, spawning, and recruitment
+#' (Beverton-Holt with log-normal deviates), and computes predicted catches and
+#' harvest rates.
+#'
+#' All derived biology arrays (\code{M_a}, \code{maturity_a},
+#' \code{weight_fya}) are passed as explicit arguments rather than read from
+#' \code{data}. This ensures that AD gradients propagate correctly if any of
+#' these quantities carry estimated parameters in the future (e.g., growth
+#' parameters estimated via the PLA, or natural mortality via the Lorenzen
+#' equation).
+#'
+#' @param data A \code{list} of model data.  Must contain at minimum:
+#'   \code{first_yr}, \code{first_yr_catch}, \code{n_year}, \code{n_season},
+#'   \code{n_fishery}, \code{n_age}, \code{catch_obs_ysf},
+#'   \code{catch_units_f}.
+#' @param parameters A \code{list} of model parameters.  Must contain at
+#'   minimum: \code{rdev_y}.
 #' @param B0 Numeric. Unfished equilibrium spawning biomass.
-#' @param R0 Numeric. Unfished equilibrium recruitment (usually computed inside; kept for backward compatibility).
+#' @param R0 Numeric. Unfished equilibrium recruitment.
 #' @param alpha Numeric. Beverton-Holt stock-recruitment alpha parameter.
 #' @param beta Numeric. Beverton-Holt stock-recruitment beta parameter.
-#' @param h Numeric (0.2–1). Steepness of the Beverton-Holt stock-recruitment relationship.
-#' @param sigma_r Numeric > 0. Standard deviation of log recruitment deviations.
-#' @param rdev_y Numeric vector of length n_year. Log-scale recruitment deviations (one per recruitment year).
-#' @param M_a Numeric vector of length n_age. Natural mortality at age (age 0 to max_age).
-#' @param phi_ya Numeric matrix (n_year + 1 rows, n_age columns). Spawning output (maturity × fecundity × weight) per recruit at age, by year (pre-computed via [get_phi]).
-#' @param init_number_a 3D numeric array (n_season = 2, n_age). Initial numbers-at-age by season. Input provides initial conditions (year 1, season 1).
-#' @param removal_switch_f Integer vector of length n_fishery (= 6). 0 = standard Baranov harvest rate, 1 = direct removal using sliced age frequencies (af_sliced_ysfa).
-#' @param catch_obs_ysf 3D numeric array (n_catch_years, n_season = 2, n_fishery). Observed catch (weight) by year, season, and fishery.
-#' @param sel_fya 3D numeric array (n_fishery, n_year, n_age). Fishery-specific selectivity at age by year (pre-computed via [get_selectivity]).
-#' @param weight_fya 3D numeric array (n_fishery, n_year, n_age). Mean weight at age by fishery and year.
-#' @return A named list containing:
-#' \itemize{
-#'   \item number_ysa – updated numbers-at-age array
-#'   \item spawning_biomass_y – spawning biomass by year (length n_year + 1)
-#'   \item hrate_ysfa – harvest rates by year, season, fishery, age
-#'   \item hrate_ysa – total harvest rate by year, season, age
-#'   \item catch_pred_fya – predicted catch numbers by fishery, year, age
-#'   \item catch_pred_ysf – predicted catch weight by year, season, fishery
-#'   \item lp_penalty – total penalty from posfun() (harvest rate constraints)
-#'   \item (R0, alpha, beta also returned in some versions)
+#' @param h Numeric (0.2–1). Steepness of the Beverton-Holt
+#'   stock-recruitment relationship.
+#' @param sigma_r Numeric > 0. Standard deviation of log recruitment
+#'   deviations.
+#' @param M_a Numeric vector of length \code{n_age}. Natural mortality at age.
+#'   Passed explicitly so AD gradients propagate if M is ever estimated.
+#' @param maturity_a Numeric vector of length \code{n_age}. Maturity at age.
+#'   Passed explicitly so AD gradients propagate if growth is ever estimated.
+#' @param weight_fya Numeric array \code{[n_fishery, n_year, n_age]}. Mean
+#'   weight at age by fishery and year.  Passed explicitly so AD gradients
+#'   propagate if growth is ever estimated.
+#' @param init_number_a Numeric vector of length \code{n_age}. Initial
+#'   equilibrium numbers-at-age (from \code{\link{get_initial_numbers}}).
+#' @param sel_fya Numeric array \code{[n_fishery, n_year, n_age]}.
+#'   Fishery-specific selectivity at age by year (from
+#'   \code{\link{get_selectivity}}).
+#' @return A named list with:
+#' \describe{
+#'   \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
+#'   \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
 #' }
 #' @importFrom RTMB ADoverload
 #' @export
-#' 
+#'
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
+                        M_a, maturity_a, weight_fya,
                         init_number_a, sel_fya) {
   
   "[<-" <- ADoverload("[<-")
@@ -91,7 +103,7 @@ do_dynamics <- function(data, parameters,
   for (y in seq_len(n_year)) {
     for (s in seq_len(n_season1)) {
       if (y >= fy) {
-        hr <- get_harvest_rate(data, y, s, number_ysa, sel_fya)
+        hr <- get_harvest_rate(data, y, s, number_ysa, sel_fya, weight_fya)
         hrate_ysfa[y, s,,] <- hr$h_rate_fa
         hrate_ysa[y, s,] <- hr$h_rate_a
         lp_penalty <- lp_penalty + hr$penalty
@@ -100,7 +112,7 @@ do_dynamics <- function(data, parameters,
     }
     # Last season
     if (y >= fy) {
-      hr <- get_harvest_rate(data, y, n_season, number_ysa, sel_fya)
+      hr <- get_harvest_rate(data, y, n_season, number_ysa, sel_fya, weight_fya)
       hrate_ysfa[y, n_season,,] <- hr$h_rate_fa
       hrate_ysa[y, n_season,] <- hr$h_rate_a
       lp_penalty <- lp_penalty + hr$penalty
@@ -135,20 +147,34 @@ do_dynamics <- function(data, parameters,
 
 #' Harvest rate calculation
 #'
-#' Computes age-specific harvest rates by fishery.
+#' Computes age-specific harvest rates by fishery for a single year-season
+#' combination, using the Baranov catch equation.
 #'
-#' @param y,s Year and season index.
-#' @param first_yr,first_yr_catch Model and catch start years.
-#' @param removal_switch_f Vector of slice-switch flags.
-#' @param catch_obs_ysf Observed catch by year-season-fishery.
-#' @param number_ysa 3D array of numbers-at-age.
-#' @param sel_fya Selectivity array.
-#' @param weight_fya Weight-at-age.
-#' @return a \code{list} with age-specific harvest rates, fishery, and penalty term.
+#' \code{weight_fya} is passed as an explicit argument (not read from
+#' \code{data}) so that AD gradients propagate correctly if growth parameters
+#' are estimated in the future.
+#'
+#' @param data A \code{list} of model data.  Must contain: \code{n_fishery},
+#'   \code{n_age}, \code{catch_obs_ysf}, \code{catch_units_f}.
+#' @param y Integer. Year index (1-based).
+#' @param s Integer. Season index (1-based).
+#' @param number_ysa Numeric array \code{[n_year+1, n_season, n_age]}.
+#'   Current numbers-at-age.
+#' @param sel_fya Numeric array \code{[n_fishery, n_year, n_age]}.
+#'   Selectivity at age by fishery and year.
+#' @param weight_fya Numeric array \code{[n_fishery, n_year, n_age]}. Mean
+#'   weight at age by fishery and year.  Passed explicitly so AD gradients
+#'   propagate if growth is ever estimated.
+#' @return A named list with:
+#' \describe{
+#'   \item{h_rate_fa}{Harvest rate array \code{[n_fishery, n_age]}.}
+#'   \item{h_rate_a}{Total harvest rate vector (length \code{n_age}).}
+#'   \item{penalty}{Penalty from \code{\link{posfun}} for harvest-rate constraint.}
+#' }
 #' @importFrom RTMB ADoverload colSums
 #' @export
-#' 
-get_harvest_rate <- function(data, y, s, number_ysa, sel_fya) {
+#'
+get_harvest_rate <- function(data, y, s, number_ysa, sel_fya, weight_fya) {
   "[<-" <- ADoverload("[<-")
   getAll(data, warn = FALSE)
   F_f <- numeric(n_fishery)
@@ -166,14 +192,6 @@ get_harvest_rate <- function(data, y, s, number_ysa, sel_fya) {
   }
   sum_F <- sum(F_f)
   tmp <- posfun(x = 1 - sum_F, eps = 0.001)
-  # F_f <- F_f / sum_F * tmp$new
-  # for (f in seq_len(n_fishery)) {
-  #   if (catch_obs_ysf[yy, s, f] > 0) {
-  #     if (removal_switch_f[f] == 0) {
-  #       h_rate_fa[f,] <- F_f[f] * sel_fya[f,y,] # what about direct removals
-  #     }
-  #   }
-  # }
   h_rate_a <- colSums(h_rate_fa)
   return(list(h_rate_fa = h_rate_fa, h_rate_a = h_rate_a, penalty = tmp$penalty))
 }

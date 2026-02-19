@@ -25,24 +25,20 @@ test_that("data includes all required selectivity elements", {
   skip_if_not(file.exists(file.path(data_dir, "catch-data.csv")), 
               "Catch data file not found")
   
-  # Create minimal data structure for testing
+  # Create minimal data structure matching the new scalar-based interface
   data <- list(
     n_fishery = 15,
     n_year = 268,
     n_age = 40,
-    n_season = 1
+    n_season = 1,
+    len_bin_start = 10,
+    len_bin_width = 2,
+    n_len = 95
   )
   
   # Add selectivity configuration elements
-  len_lower <- seq(10, by = 2, length.out = 95)
-  len_upper <- len_lower + 2
-  len_mid <- (len_lower + len_upper) / 2
-  
   data$sel_type_f <- rep(2L, data$n_fishery)
   data$sel_type_f[c(11, 15)] <- 1L
-  data$sel_len_lower <- len_lower
-  data$sel_len_upper <- len_upper
-  data$sel_lengths <- len_mid
   
   # Verify sel_type_f
   expect_true("sel_type_f" %in% names(data))
@@ -53,20 +49,22 @@ test_that("data includes all required selectivity elements", {
   expect_equal(sum(data$sel_type_f == 1L), 2)
   expect_equal(sum(data$sel_type_f == 2L), 13)
   
-  # Verify length bins
-  expect_true("sel_lengths" %in% names(data))
-  expect_true("sel_len_lower" %in% names(data))
-  expect_true("sel_len_upper" %in% names(data))
-  expect_equal(length(data$sel_len_lower), length(data$sel_lengths))
-  expect_true(all(data$sel_len_upper > data$sel_len_lower))
+  # Verify scalar length-bin fields
+  expect_true("len_bin_start" %in% names(data))
+  expect_true("len_bin_width" %in% names(data))
+  expect_true("n_len" %in% names(data))
   
-  # Midpoints should match
-  expected_mid <- (data$sel_len_lower + data$sel_len_upper) / 2
-  expect_equal(data$sel_lengths, expected_mid)
+  # Derived bin vectors should match expected values
+  len_lower <- seq(data$len_bin_start, by = data$len_bin_width, length.out = data$n_len)
+  len_upper <- len_lower + data$len_bin_width
+  len_mid   <- len_lower + data$len_bin_width / 2
+  
+  expect_equal(length(len_lower), data$n_len)
+  expect_true(all(len_upper > len_lower))
   
   # Bins should cover bigeye tuna size range
-  expect_true(min(data$sel_len_lower) <= 20)
-  expect_true(max(data$sel_len_upper) >= 200)
+  expect_true(min(len_lower) <= 20)
+  expect_true(max(len_upper) >= 200)
 })
 
 # Test par_sel parameter structure ----

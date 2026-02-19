@@ -156,9 +156,9 @@ data <- list(
   n_age = length(ages),
   n_season = 1, # Each time step is one quarter, not seasons within years
   n_fishery = 15,
-  len_lower = len_lower,
-  len_upper = len_upper,
-  n_len = n_len
+  len_bin_start = 10,  # lower edge of first length bin (cm)
+  len_bin_width = 2,   # bin width (cm)
+  n_len = 95           # number of length bins
 )
 
 # Use ts column as the year index (quarterly time steps)
@@ -182,10 +182,10 @@ data$lw_a <- lw_params(base_ini)[1]
 data$lw_b <- lw_params(base_ini)[2]
 
 # Maturity-at-length as data vector (converted to maturity-at-age inside model)
-data$maturity_at_length <- maturity_at_length
+data$maturity <- maturity_at_length
 
 # Natural mortality: direct age vector from MFCL (unchanged)
-data$M_a <- M_at_age
+data$M <- M_at_age
 
 # Catch array: (n_year, 1, n_fishery) - map using ts directly
 catch_obs_ysf <- array(0, 
@@ -205,12 +205,6 @@ data$catch_obs_ysf <- catch_obs_ysf
 # This matches the SS3 baseline model structure
 data$sel_type_f <- rep(2L, data$n_fishery)
 data$sel_type_f[c(11, 15)] <- 1L
-
-# Length bins for selectivity evaluation
-# Use the same bins already defined for maturity/PLA (10-200 cm by 2 cm)
-data$sel_len_lower <- len_lower
-data$sel_len_upper <- len_upper
-data$sel_lengths <- len_mid
 ```
 
 # Model setup
@@ -245,7 +239,8 @@ for (f in 1:15) {
 par_sel <- convert_ss3_selex_to_rtmb(
   ss3_pars = ss3_selex_pars,
   sel_type_f = data$sel_type_f,
-  sel_lengths = data$sel_lengths
+  sel_lengths = seq(data$len_bin_start + data$len_bin_width / 2,
+                    by = data$len_bin_width, length.out = data$n_len)
 )
 
 parameters <- list(

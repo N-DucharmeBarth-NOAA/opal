@@ -6,10 +6,10 @@ utils::globalVariables(c(
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
-  "M_a",
-  "A1", "A2", "lw_a", "lw_b", "maturity_at_length",
+  "M",
+  "A1", "A2", "lw_a", "lw_b", "maturity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
-  "removal_switch_f", "weight_fya", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
+  "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_obs", "lf_n",
   "priors"
@@ -29,6 +29,7 @@ bet_globals <- function() {
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
     get_maturity_at_age = get_maturity_at_age,
+    resolve_bio_vector = resolve_bio_vector,
     get_selectivity = get_selectivity,
     sel_logistic = sel_logistic,
     sel_double_normal = sel_double_normal,
@@ -37,7 +38,6 @@ bet_globals <- function() {
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
     get_length_like = get_length_like, 
-    get_cpue_length_like = get_cpue_length_like, 
     get_cpue_like = get_cpue_like, 
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors)
@@ -59,6 +59,12 @@ bet_model <- function(parameters, data) {
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
 
+  # Derive length bins from scalars (single source of truth) ----
+
+  len_lower <- seq(from = len_bin_start, by = len_bin_width, length.out = n_len)
+  len_upper <- len_lower + len_bin_width
+  len_mid   <- len_lower + len_bin_width / 2
+
   # Growth module ----
 
   # Back-transform growth/variability parameters
@@ -75,9 +81,6 @@ bet_model <- function(parameters, data) {
   sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
 
   # Shared PLA — computed once and reused for weight, maturity, selectivity
-  len_lower <- data$sel_len_lower
-  len_upper <- data$sel_len_upper
-  len_mid   <- data$sel_lengths
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
 
   # Module 3: Weight-at-length → weight-at-age
@@ -91,19 +94,18 @@ bet_model <- function(parameters, data) {
     }
   }
 
-  # Module 4: Maturity-at-length → maturity-at-age
-  maturity_a <- get_maturity_at_age(pla, maturity_at_length)
+  # Module 4: Resolve biology vectors to age-basis via PLA ----
+  # Accepts either age-basis (length n_age) or length-basis (length n_len) vectors.
+  # Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
+  maturity_a <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
+  M_a        <- resolve_bio_vector(M, n_age, n_len, pla, "M")
 
   # Selectivity ----
 
   # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
-  sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a)
+  sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
   
   # Main population loop ----
-  
-  # Inject derived quantities so do_dynamics / get_initial_numbers can use them
-  data$maturity_a <- maturity_a
-  data$weight_fya <- weight_fya_mod
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
@@ -120,6 +122,7 @@ bet_model <- function(parameters, data) {
   
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
+                     M_a = M_a, maturity_a = maturity_a, weight_fya = weight_fya_mod,
                      init_number_a = init$Ninit, sel_fya = sel_fya)
   
   number_ysa <- dyn$number_ysa
