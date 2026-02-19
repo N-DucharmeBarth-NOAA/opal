@@ -1,3 +1,5 @@
+^renv$
+^renv\.lock$
 ^opal\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
