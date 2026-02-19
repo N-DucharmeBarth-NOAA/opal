@@ -1,0 +1,138 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# opal
+
+<!-- badges: start -->
+
+[![R-CMD-check](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+## Overview
+
+**opal** the **o**pen **p**opulation **a**ssessment **l**ibrary — is a
+fast, flexible, and modern R package for fisheries stock assessment.
+Built on [RTMB](https://github.com/kaskr/RTMB), opal provides a powerful
+framework for conducting quantitative population dynamics modeling and
+stock assessment analyses.
+
+### Key Features
+
+- **Fast**: Leverages RTMB’s efficient automatic differentiation and
+  optimization engine for rapid model fitting and sensitivity analyses
+- **Flexible**: Modular design allows users to construct custom
+  population models by combining readily available or custom process
+  components
+- **Modern**: Built with contemporary R programming patterns, extensive
+  testing, and well-documented functions for reproducible, transparent
+  science
+- **Open & Accessible**: Released under open-source license with clear
+  documentation; transforms complex stock assessment workflows into
+  intuitive R functions, reducing barriers to entry and enabling
+  collaborative development
+
+### Purpose
+
+opal is designed for fisheries scientists, stock assessment analysts,
+and population modeling researchers who need a transparent,
+reproducible, and collaborative framework for quantitative population
+assessment. Whether you’re building novel models, conducting sensitivity
+analyses, or sharing transparent workflows with colleagues, opal
+provides the tools and infrastructure to make rigorous stock assessment
+accessible and reproducible.
+
+## Installation
+
+You can install the development version of opal from GitHub:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("N-DucharmeBarth-NOAA/opal")
+```
+
+Ensure you have RTMB installed:
+
+``` r
+install.packages("RTMB")
+```
+
+## Quick Start
+
+``` r
+library(opal)
+
+# Build a basic population model
+# (Example code will depend on your API—update with actual function calls)
+```
+
+## Core Functionality
+
+opal provides tools for:
+
+- **Population dynamics**: Model age/size structure, vital rates, and
+  stock-recruitment relationships
+- **Parameter estimation**: Fit models to fisheries data (catch,
+  surveys, length compositions, etc.)
+- **Inference**: Conduct Bayesian and frequentist analyses with
+  uncertainty quantification
+- **Diagnostics**: Evaluate model fit through residuals, retrospective
+  analyses, and likelihood profiling
+- **Projections**: Forecast population dynamics under different
+  management scenarios
+
+## Documentation
+
+For detailed examples and function reference, see the
+[vignettes](vignettes/) and inline function documentation (`?opal`).
+
+## Contributing
+
+Contributions are welcome. Please open an issue or submit a pull request
+with enhancements or bug fixes.
+
+### Branch Structure
+
+opal uses a standard development workflow:
+
+- **`main`**: Stable release branch. Code here represents tested,
+  production-ready versions of the package.
+- **`dev`**: Active development branch. New features, bug fixes, and
+  improvements are developed and tested here before being merged into
+  `main`.
+
+**Workflow**: Submit pull requests against the `dev` branch. Once
+features are tested and validated, they are incorporated into `main` for
+release.
+
+## License
+
+See [LICENSE](LICENSE) for terms and conditions.
+
+## Citation
+
+If you use opal in your research, please cite it appropriately. Details
+will be provided as the package matures.
+
+## Disclaimer
+
+“The United States Department of Commerce (DOC) GitHub project code is
+provided on an ‘as is’ basis and the user assumes responsibility for its
+use. DOC has relinquished control of the information and no longer has
+responsibility to protect the integrity, confidentiality, or
+availability of the information. Any claims against the Department of
+Commerce stemming from the use of its GitHub project will be governed by
+all applicable Federal law. Any reference to specific commercial
+products, processes, or services by service mark, trademark,
+manufacturer, or otherwise, does not constitute or imply their
+endorsement, recommendation or favoring by the Department of Commerce.
+The Department of Commerce seal and logo, or the seal and logo of a DOC
+bureau, shall not be used in any manner to imply endorsement of any
+commercial product or activity by DOC or the United States Government.”
+
+------------------------------------------------------------------------
+
+<a href="https://www.fisheries.noaa.gov/"><img src="man/figures/noaa-fisheries-rgb-2line-horizontal-small.png" alt="NOAA Fisheries" height="75"/>
+
+[U.S. Department of Commerce](https://www.commerce.gov/) \| [National
+Oceanographic and Atmospheric Administration](https://www.noaa.gov) \|
+[NOAA Fisheries](https://www.fisheries.noaa.gov/)
