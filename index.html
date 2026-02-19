@@ -50,8 +50,113 @@
   </div>
 </nav><div class="container template-home">
 <div class="row">
-  <main id="main" class="col-md-9">
-A fast, flexible, and modern R package for fisheries stock assessment. Built on RTMB, opal provides a powerful framework for conducting quantitative population dynamics modeling and stock assessment analyses. Designed for fisheries scientists and stock assessment analysts who need transparent, reproducible, and collaborative tools for population assessment.
+  <main id="main" class="col-md-9"><div class="section level1">
+<div class="page-header"><h1 id="opal">opal<a class="anchor" aria-label="anchor" href="#opal"></a>
+</h1></div>
+<!-- badges: start -->
+
+<div class="section level2">
+<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
+</h2>
+<p><strong>opal</strong> the <strong>o</strong>pen <strong>p</strong>opulation <strong>a</strong>ssessment <strong>l</strong>ibrary — is a fast, flexible, and modern R package for fisheries stock assessment. Built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a>, opal provides a powerful framework for conducting quantitative population dynamics modeling and stock assessment analyses.</p>
+<div class="section level3">
+<h3 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
+</h3>
+<ul>
+<li>
+<strong>Fast</strong>: Leverages RTMB’s efficient automatic differentiation and optimization engine for rapid model fitting and sensitivity analyses</li>
+<li>
+<strong>Flexible</strong>: Modular design allows users to construct custom population models by combining readily available or custom process components</li>
+<li>
+<strong>Modern</strong>: Built with contemporary R programming patterns, extensive testing, and well-documented functions for reproducible, transparent science</li>
+<li>
+<strong>Open &amp; Accessible</strong>: Released under open-source license with clear documentation; transforms complex stock assessment workflows into intuitive R functions, reducing barriers to entry and enabling collaborative development</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="purpose">Purpose<a class="anchor" aria-label="anchor" href="#purpose"></a>
+</h3>
+<p>opal is designed for fisheries scientists, stock assessment analysts, and population modeling researchers who need a transparent, reproducible, and collaborative framework for quantitative population assessment. Whether you’re building novel models, conducting sensitivity analyses, or sharing transparent workflows with colleagues, opal provides the tools and infrastructure to make rigorous stock assessment accessible and reproducible.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<p>You can install the development version of opal from GitHub:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"N-DucharmeBarth-NOAA/opal"</span><span class="op">)</span></span></code></pre></div>
+<p>Ensure you have RTMB installed:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"RTMB"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h2>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Build a basic population model</span></span>
+<span><span class="co"># (Example code will depend on your API—update with actual function calls)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="core-functionality">Core Functionality<a class="anchor" aria-label="anchor" href="#core-functionality"></a>
+</h2>
+<p>opal provides tools for:</p>
+<ul>
+<li>
+<strong>Population dynamics</strong>: Model age/size structure, vital rates, and stock-recruitment relationships</li>
+<li>
+<strong>Parameter estimation</strong>: Fit models to fisheries data (catch, surveys, length compositions, etc.)</li>
+<li>
+<strong>Inference</strong>: Conduct Bayesian and frequentist analyses with uncertainty quantification</li>
+<li>
+<strong>Diagnostics</strong>: Evaluate model fit through residuals, retrospective analyses, and likelihood profiling</li>
+<li>
+<strong>Projections</strong>: Forecast population dynamics under different management scenarios</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
+</h2>
+<p>For detailed examples and function reference, see the <a href="vignettes/">vignettes</a> and inline function documentation (<code>?opal</code>).</p>
+</div>
+<div class="section level2">
+<h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>
+</h2>
+<p>Contributions are welcome. Please open an issue or submit a pull request with enhancements or bug fixes.</p>
+<div class="section level3">
+<h3 id="branch-structure">Branch Structure<a class="anchor" aria-label="anchor" href="#branch-structure"></a>
+</h3>
+<p>opal uses a standard development workflow:</p>
+<ul>
+<li>
+<strong><code>main</code></strong>: Stable release branch. Code here represents tested, production-ready versions of the package.</li>
+<li>
+<strong><code>dev</code></strong>: Active development branch. New features, bug fixes, and improvements are developed and tested here before being merged into <code>main</code>.</li>
+</ul>
+<p><strong>Workflow</strong>: Submit pull requests against the <code>dev</code> branch. Once features are tested and validated, they are incorporated into <code>main</code> for release.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
+</h2>
+<p>See <a href="LICENSE">LICENSE</a> for terms and conditions.</p>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
+<p>If you use opal in your research, please cite it appropriately. Details will be provided as the package matures.</p>
+</div>
+<div class="section level2">
+<h2 id="disclaimer">Disclaimer<a class="anchor" aria-label="anchor" href="#disclaimer"></a>
+</h2>
+<p>“The United States Department of Commerce (DOC) GitHub project code is provided on an ‘as is’ basis and the user assumes responsibility for its use. DOC has relinquished control of the information and no longer has responsibility to protect the integrity, confidentiality, or availability of the information. Any claims against the Department of Commerce stemming from the use of its GitHub project will be governed by all applicable Federal law. Any reference to specific commercial products, processes, or services by service mark, trademark, manufacturer, or otherwise, does not constitute or imply their endorsement, recommendation or favoring by the Department of Commerce. The Department of Commerce seal and logo, or the seal and logo of a DOC bureau, shall not be used in any manner to imply endorsement of any commercial product or activity by DOC or the United States Government.”</p>
+<hr>
+<p><a href="https://www.fisheries.noaa.gov/" class="external-link"><img src="reference/figures/noaa-fisheries-rgb-2line-horizontal-small.png" alt="NOAA Fisheries" height="75"></a></p>
+<p><a href="https://www.commerce.gov/" class="external-link">U.S. Department of Commerce</a> | <a href="https://www.noaa.gov" class="external-link">National Oceanographic and Atmospheric Administration</a> | <a href="https://www.fisheries.noaa.gov/" class="external-link">NOAA Fisheries</a></p>
+</div>
+</div>
   </main><aside class="col-md-3"><div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
@@ -77,7 +182,12 @@ A fast, flexible, and modern R package for fisheries stock assessment. Built on 
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
