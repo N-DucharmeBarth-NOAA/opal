@@ -38,7 +38,6 @@ bet_globals <- function() {
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
     get_length_like = get_length_like, 
-    get_cpue_length_like = get_cpue_length_like, 
     get_cpue_like = get_cpue_like, 
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors)
