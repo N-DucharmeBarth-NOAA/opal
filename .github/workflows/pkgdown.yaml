@@ -35,10 +35,9 @@ jobs:
         with:
           cache-version: 1
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::pkgdown
-          needs: website
+      - name: Install pkgdown
+        run: renv::install("pkgdown")
+        shell: Rscript {0}
 
       - name: Build site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
