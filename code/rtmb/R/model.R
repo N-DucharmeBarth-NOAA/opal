@@ -7,7 +7,7 @@ utils::globalVariables(c(
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "M",
-  "A1", "A2", "lw_a", "lw_b", "maturity", "fecundity_at_length", "len_bin_start", "len_bin_width",
+  "A1", "A2", "lw_a", "lw_b", "maturity", "fecundity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
@@ -102,11 +102,12 @@ bet_model <- function(parameters, data) {
   M_a        <- resolve_bio_vector(M, n_age, n_len, pla, "M")
 
   # Module 5: Spawning potential at age (maturity × fecundity) ----
-  # fecundity_at_length is a data input (initially equal to weight-at-length,
+  # fecundity is a data input (initially equal to weight-at-length,
   # matching SS3's fecundity_option = 3 with Eggs_alpha = 1, Eggs_beta = 1).
+  # Like maturity and M, it is resolved to age-basis via resolve_bio_vector.
   # spawning_potential_a is computed here (not stored in data) because it depends
   # on the PLA which may carry estimated growth parameters.
-  fecundity_a <- as.vector(t(pla) %*% fecundity_at_length)
+  fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
   spawning_potential_a <- maturity_a * fecundity_a
 
   # Selectivity ----
