@@ -1,4 +1,47 @@
 url: https://n-ducharmebarth-noaa.github.io/opal/
+
 template:
   bootstrap: 5
+  
+  bslib:
+    # NOAA Fisheries color scheme
+    primary: "#002364"        # Twilight Sky - links and accents
+    bg: "#E9F3F6"             # Sky Tint 3 - background
+    fg: "#323C46"             # Whale Gray - primary text
+    border-color: "#A5AAAF"   # Dove Gray - borders
+    
+    # Additional NOAA colors for specific elements
+    success: "#4B8320"        # Seagrass - success states
+    info: "#00797F"           # Fisheries Teal - info states
+    warning: "#DB6015"        # Crustacean - warnings
+    danger: "#B71300"         # Coral/Red - errors
+    
+    # Fonts
+    base_font: {google: "Roboto"}
+    heading_font: {google: "Montserrat"}
+    code_font: {google: "Fira Code"}
+    font-weight-base: 300  # Light weight for Roboto
+  
+  # Syntax highlighting
+  theme: github-light
 
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github, issues]
+  
+  components:
+    github:
+      icon: fab fa-github
+      href: https://github.com/N-DucharmeBarth-NOAA/opal
+      aria-label: GitHub
+    
+    issues:
+      icon: fas fa-bug
+      href: https://github.com/N-DucharmeBarth-NOAA/opal/issues
+      aria-label: Report an issue
+
+footer:
+  structure:
+    left: developed_by
+    right: built_with
