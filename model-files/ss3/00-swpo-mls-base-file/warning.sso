@@ -1,8 +1,0 @@
-Note 1 Information: Max data length bin: 330  < max pop len bins: 335; so will accumulate larger pop len bins
-Warning 1 : Forecast=0 or -1, so rest of forecast file will not be read and can be omitted;
-Warning 2 : A one year forecast using recent F will be done automatically
-Warning 3 : Setting in starter does not request all priors, and 5 parameters have priors and are not estimated, so their prior not included in obj_fun.
-Warning 4 : Final gradient: 0.00138172 is larger than final_conv: 1e-05
-Note 2 Information: A revised protocol for the Fcast_yr specification is available and recommended.
-Note 3 Information:  N parameters that are on or within 1% of min-max bound: 6; check results, variance may be suspect
- 4 warnings  and 3 notes 

@@ -1,70 +1,59 @@
-# ignore everything
-*
-# except sub-directories
-!*/
-!executables/mfcl/2.0.7.0/mfclo64
-!executables/stock-synthesis/3.30.23.1/ss3_linux
-!executables/stock-synthesis/3.30.23.1/ss3_win.exe
-!executables/stock-synthesis/3.30.22.1/ss3_linux
-!executables/stock-synthesis/3.30.22.1/ss3_win.exe
-!executables/stock-synthesis/3.30.24.1/ss3_linux
-!executables/stock-synthesis/3.30.24.1/ss3_win.exe
-# and certain files/file types
-# mfcl
-!*.frq
-!*.ini
-!mfcl.cfg
-!doitall.mls
-!model-files/mfcl/v11/plot-10.par.rep
-!model-files/mfcl/v11/10.par
-!model-files/mfcl/v11/length.fit
-!model-files/mfcl/v11/weight.fit
-!condor_doitall.bet
-!doitall.condor
-# r files
-!*.r
-!*.R
-!.Rprofile
-# git files
-!.gitignore
-!DISCLAIMER.md
-!./LICENSE
-# renv files
-!renv.lock
-!settings.json
-!.renvignore
-# markdown
-!README.md
-!*.qmd
-# stock synthesis
-!control.ss
-!data.ss
-!forecast.ss
-!starter.ss
-!control.ss_new
-!data_echo.ss_new
-!forecast.ss_new
-!starter.ss_new
-!ss3.par
-!warning.sso
-!Report.sso
-# devcontainer
-!devcontainer.json
-# csv files
-!*.csv
-!*.txt
-!*.qmd
-!*.cls
-!*.tex
-!*.pdf
-!*.bib
-!*.csl
-!*.lua
-policy/README.txt
-# ignore txt and html files in 00-bet-base/plots
-recruit_fit_bias*.txt
-plotInfoTable_*.csv
-/.quarto/
-_site/*
-!*.yaml
-!*.yml
+# Compiled code
+*.o
+*.so
+
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
+
+# User-specific files
+.Ruserdata
+
+# Example code in package build process
+*-Ex.R
+
+# Output files from R CMD build
+/*.tar.gz
+
+# Output files from R CMD check
+/*.Rcheck/
+
+# RStudio files
+.Rproj.user/
+sbt.Rproj
+
+# produced vignettes
+vignettes/*.html
+vignettes/*.pdf
+vignettes/*.R
+
+# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+.httr-oauth
+
+# knitr and R markdown default cache directories
+*_cache/
+/cache/
+
+# Temporary files created by R markdown
+*.utf8.md
+*.knit.md
+
+# R Environment Variables
+.Renviron
+
+# pkgdown site
+docs/
+
+# translation temp files
+po/*~
+
+# RStudio Connect folder
+rsconnect/
+docs
+
+# copilot-instructions
+.github/copilot-instructions.md
