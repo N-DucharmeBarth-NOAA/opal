@@ -25,7 +25,8 @@ Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
 ```{r load-pkg, echo=TRUE, message=FALSE}
-library(tidyverse)
+library(ggplot2)
+library(dplyr)
 library(opal)
 library(RTMB)
 
