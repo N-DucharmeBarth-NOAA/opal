@@ -121,7 +121,7 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
   "[<-" <- ADoverload("[<-")
   n_len <- length(len_lower)
   n_age <- length(mu_a)
-  pla <- matrix(0, nrow = n_len, ncol = n_age)
+  pla <- array(0, dim = c(n_len, n_age))
   for (a in seq_len(n_age)) {
     for (z in seq_len(n_len)) {
       pla[z, a] <- pnorm((len_upper[z] - mu_a[a]) / sd_a[a]) -
