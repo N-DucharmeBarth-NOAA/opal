@@ -8,11 +8,13 @@
 #' @return Estimated autocorrelation.
 #' @export
 #' @examples
-#' first_yr <- 1931
-#' last_yr <- 2022
-#' N <- length(first_yr:last_yr)
-#' rdev <- arima.sim(list(order = c(1, 0, 0), ar = 0.5), n = N)
-#' get_rho(first_yr, last_yr, rdev)
+#' \dontrun{
+#'   first_yr <- 1931
+#'   last_yr <- 2022
+#'   N <- length(first_yr:last_yr)
+#'   rdev <- arima.sim(list(order = c(1, 0, 0), ar = 0.5), n = N)
+#'   get_rho(first_yr, last_yr, rdev)
+#' }
 #' 
 get_rho <- function(first_yr = 1931, last_yr = 2022, rdev) {
   "[<-" <- ADoverload("[<-")

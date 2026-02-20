@@ -1,16 +1,6 @@
 # Tests for resolve_bio_vector
 library(RTMB)
 
-# Define project paths
-proj_dir <- this.path::this.proj()
-r_dir <- file.path(proj_dir, "code", "rtmb", "R")
-
-# Source helper functions
-suppressMessages({
-  source(file.path(r_dir, "selectivity.R"))
-  source(file.path(r_dir, "utils.R"))
-})
-
 # Shared test fixtures ----
 
 make_pla <- function(n_len = 10, n_age = 5) {
