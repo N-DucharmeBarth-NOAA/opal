@@ -4,7 +4,7 @@
 \alias{get_initial_numbers}
 \title{Initial numbers and Beverton-Holt parameters}
 \usage{
-get_initial_numbers(B0, h, M_a, spawning_potential_a)
+get_initial_numbers(B0, h, M_a, maturity_a)
 }
 \arguments{
 \item{B0}{Unfished spawning biomass.}
@@ -13,8 +13,7 @@ get_initial_numbers(B0, h, M_a, spawning_potential_a)
 
 \item{M_a}{a \code{vector} of natural mortality at age.}
 
-\item{spawning_potential_a}{a \code{vector} of spawning potential at age
-(maturity × fecundity).}
+\item{maturity_a}{a \code{vector} of maturity at age.}
 }
 \value{
 A list containing:

@@ -14,7 +14,7 @@ do_dynamics(
   h = 0.95,
   sigma_r = 0.6,
   M_a,
-  spawning_potential_a,
+  maturity_a,
   weight_fya,
   init_number_a,
   sel_fya
@@ -46,8 +46,7 @@ deviations.}
 \item{M_a}{Numeric vector of length \code{n_age}. Natural mortality at age.
 Passed explicitly so AD gradients propagate if M is ever estimated.}
 
-\item{spawning_potential_a}{Numeric vector of length \code{n_age}. Spawning
-potential at age (maturity × fecundity).
+\item{maturity_a}{Numeric vector of length \code{n_age}. Maturity at age.
 Passed explicitly so AD gradients propagate if growth is ever estimated.}
 
 \item{weight_fya}{Numeric array \code{[n_fishery, n_year, n_age]}. Mean
@@ -76,7 +75,7 @@ applies seasonal harvest, natural mortality, spawning, and recruitment
 harvest rates.
 }
 \details{
-All derived biology arrays (\code{M_a}, \code{spawning_potential_a},
+All derived biology arrays (\code{M_a}, \code{maturity_a},
 \code{weight_fya}) are passed as explicit arguments rather than read from
 \code{data}. This ensures that AD gradients propagate correctly if any of
 these quantities carry estimated parameters in the future (e.g., growth
