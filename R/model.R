@@ -7,7 +7,7 @@ utils::globalVariables(c(
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "M",
-  "A1", "A2", "lw_a", "lw_b", "maturity", "len_bin_start", "len_bin_width",
+  "A1", "A2", "lw_a", "lw_b", "maturity", "fecundity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
@@ -97,8 +97,10 @@ bet_model <- function(parameters, data) {
   # Module 4: Resolve biology vectors to age-basis via PLA ----
   # Accepts either age-basis (length n_age) or length-basis (length n_len) vectors.
   # Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
-  maturity_a <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
-  M_a        <- resolve_bio_vector(M, n_age, n_len, pla, "M")
+  maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
+  M_a         <- resolve_bio_vector(M, n_age, n_len, pla, "M")
+  fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
+  spawning_potential_a <- maturity_a * fecundity_a
 
   # Selectivity ----
 
@@ -109,7 +111,7 @@ bet_model <- function(parameters, data) {
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
-  init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, maturity_a = maturity_a)
+  init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a)
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta
@@ -119,10 +121,13 @@ bet_model <- function(parameters, data) {
   REPORT(alpha)
   REPORT(beta)
   REPORT(sigma_r)
+  REPORT(maturity_a)
+  REPORT(fecundity_a)
+  REPORT(spawning_potential_a)
 
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
-                     M_a = M_a, maturity_a = maturity_a, weight_fya = weight_fya_mod,
+                     M_a = M_a, spawning_potential_a = spawning_potential_a, weight_fya = weight_fya_mod,
                      init_number_a = init$Ninit, sel_fya = sel_fya)
 
   number_ysa <- dyn$number_ysa
