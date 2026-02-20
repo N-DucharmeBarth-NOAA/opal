@@ -126,14 +126,14 @@ map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map <- list(
-  log_B0 = factor(NA),
+  # log_B0 = factor(NA),
   log_h = factor(NA),
   log_sigma_r = factor(NA),
-  log_cpue_q = factor(NA),
+  # log_cpue_q = factor(NA),
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
-  rdev_y = as.factor(map_rdev),
+  # rdev_y = as.factor(map_rdev),
   par_sel = as.factor(map_sel),
   log_L1  = factor(NA),
   log_L2  = factor(NA),
@@ -180,7 +180,7 @@ Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
 
 # Optimisation
 
-Optimise using the `nlminb` function:
+Optimise using the `nlminb` function, do it twice to be sure to be sure (said with Irish accent):
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
@@ -188,6 +188,7 @@ opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+max(obj$gr())
 ```
 
 Compare initial and estimated parameter values:
@@ -206,6 +207,7 @@ lines(obj$report()$cpue_pred, lwd = 2)
 
 # Catch residuals
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
+plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
 ```
 

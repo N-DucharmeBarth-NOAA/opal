@@ -121,14 +121,14 @@ do_dynamics <- function(data, parameters,
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
     spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * maturity_a)
     number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r)
-    
+
     for (f in seq_len(n_fishery)) {
       for (s in seq_len(n_season)) {
         catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + hrate_ysfa[y, s, f,] * number_ysa[y, s,]
         for (a in seq_len(n_age)) {
           if (catch_units_f[f] == 1) { # weight
             catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a] * weight_fya[f, y, a]
-          } else { # numbers 
+          } else { # numbers
             catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a]
           }
         }

@@ -166,38 +166,30 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #' @importFrom RTMB ADoverload
 #' @export
 #'
-get_selectivity <- function(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid) {
+get_selectivity <- function(data, par_sel, pla, len_mid) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-
   n_fishery <- data$n_fishery
   n_year <- data$n_year
   n_age <- data$n_age
-
   # Compute PLA inside the function (AD-safe)
-  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
-
+  # pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
   sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
-
   for (f in seq_len(n_fishery)) {
     par_f <- par_sel[f, ]
-
     # Branch on data value (not AD) — safe for AD
     if (data$sel_type_f[f] == 1L) {
       sel_at_length <- sel_logistic(len_mid, par_f)
     } else {
       sel_at_length <- sel_double_normal(len_mid, par_f)
     }
-
     # Convert to selectivity-at-age via PLA
     sel_at_age <- as.vector(t(pla) %*% sel_at_length)
-
     # Time-invariant: replicate across years
     for (y in seq_len(n_year)) {
       sel_fya[f, y, ] <- sel_at_age
     }
   }
-
   return(sel_fya)
 }
 

@@ -103,8 +103,8 @@ bet_model <- function(parameters, data) {
   # Selectivity ----
 
   # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
-  sel_fya <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
-  
+  sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+
   # Main population loop ----
 
   B0 <- exp(log_B0)
@@ -119,38 +119,38 @@ bet_model <- function(parameters, data) {
   REPORT(alpha)
   REPORT(beta)
   REPORT(sigma_r)
-  
+
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
                      M_a = M_a, maturity_a = maturity_a, weight_fya = weight_fya_mod,
                      init_number_a = init$Ninit, sel_fya = sel_fya)
-  
+
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
-  
+
   # plot(spawning_biomass_y)
   # plot(rowSums(dyn$number_ysa[,1,]))
   # plot(catch_obs_ysf - catch_pred_ysf)
   # points(catch_pred_ysf, pch = 2, col = 2)
 
   # Priors ----
-  
+
   # lp_prior <- evaluate_priors(parameters, priors)
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
   lp_prior <- 0
-  
+
   # Likelihoods ----
 
   lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
   # lp_lf <- get_length_like(lf_switch, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal)
 
   nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue)# + sum(lp_lf)
-  
+
   # Reporting ----
-  
+
   REPORT(number_ysa)
   REPORT(sel_fya)
-  
+
   REPORT(lp_prior)
   REPORT(lp_penalty)
   REPORT(lp_rec)
