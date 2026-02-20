@@ -15,9 +15,8 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Introduction
 
-The `opal` package is an R package that contains the WCPO bigeye tuna (BET)
-operating model coded using RTMB. This page provides examples using the `opal`
-BET model.
+The `opal` package is an R package that contains example fisheries data from western and central pacific
+bigeye tuna (BET). This page provides examples using the `opal` BET model.
 
 # Load inputs
 
