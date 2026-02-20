@@ -38,6 +38,7 @@ into the columns `Year`, `Season`, and ages 0 to 30:
 ## Examples
 
 ``` r
-length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
-#> Error: 'length_mean' is not an exported object from 'namespace:opal'
+if (FALSE) { # \dontrun{
+  length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
+} # }
 ```

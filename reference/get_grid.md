@@ -43,6 +43,8 @@ a `list` of parameter inputs ready to be passed to `MakeADFun`.
 ## Examples
 
 ``` r
-#parameters <- get_parameters(data = data)
-#grid_parameters <- get_grid(parameters = parameters)
+if (FALSE) { # \dontrun{
+  #parameters <- get_parameters(data = data)
+  #grid_parameters <- get_grid(parameters = parameters)
+} # }
 ```

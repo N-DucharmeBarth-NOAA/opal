@@ -6,6 +6,8 @@
   : The globals
 - [`bet_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/bet_model.md)
   : The BET model
+- [`catch_data`](https://n-ducharmebarth-noaa.github.io/opal/reference/catch_data.md)
+  : Catch data prepared for RTMB modeling
 - [`check_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.md)
   : Check if parameters are up against the bounds
 - [`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.md)

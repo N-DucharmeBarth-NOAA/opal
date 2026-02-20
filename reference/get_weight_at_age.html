@@ -67,11 +67,11 @@ is used within <code>get_data</code> so is generally not needed directly.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">length_mu_ysa</span> <span class="op">&lt;-</span> <span class="fu"><a href="get_length_at_age.html">get_length_at_age</a></span><span class="op">(</span>length_mean <span class="op">=</span> <span class="fu">opal</span><span class="fu">::</span><span class="va">length_mean</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> 'length_mean' is not an exported object from 'namespace:opal'</span>
-<span class="r-in"><span><span class="va">weight_fya</span> <span class="op">&lt;-</span> <span class="fu">get_weight_at_age</span><span class="op">(</span>length_mu_ysa <span class="op">=</span> <span class="va">length_mu_ysa</span>, </span></span>
-<span class="r-in"><span>                                length_sd_a <span class="op">=</span> <span class="fu">opal</span><span class="fu">::</span><span class="va">length_sd</span><span class="op">$</span><span class="va">SD</span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error:</span> object 'length_mu_ysa' not found</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span>  <span class="va">length_mu_ysa</span> <span class="op">&lt;-</span> <span class="fu"><a href="get_length_at_age.html">get_length_at_age</a></span><span class="op">(</span>length_mean <span class="op">=</span> <span class="fu">opal</span><span class="fu">::</span><span class="va">length_mean</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">weight_fya</span> <span class="op">&lt;-</span> <span class="fu">get_weight_at_age</span><span class="op">(</span>length_mu_ysa <span class="op">=</span> <span class="va">length_mu_ysa</span>, </span></span>
+<span class="r-in"><span>                                  length_sd_a <span class="op">=</span> <span class="fu">opal</span><span class="fu">::</span><span class="va">length_sd</span><span class="op">$</span><span class="va">SD</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

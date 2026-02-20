@@ -31,11 +31,12 @@ A `numeric` value.
 ## Examples
 
 ``` r
-parameters <- list(par_log_m4 = log(0.167))
-priors <- list(
-  par_log_m4 = list(type = "normal", par1 = log(0.12), par2 = 0.4, 
-                    index = which("par_log_m4" == names(parameters)))
-)
-evaluate_priors(parameters, priors)
-#> [1] 0.3439966
+if (FALSE) { # \dontrun{
+  parameters <- list(par_log_m4 = log(0.167))
+  priors <- list(
+    par_log_m4 = list(type = "normal", par1 = log(0.12), par2 = 0.4, 
+                      index = which("par_log_m4" == names(parameters)))
+  )
+  evaluate_priors(parameters, priors)
+} # }
 ```

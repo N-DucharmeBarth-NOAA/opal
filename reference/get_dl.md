@@ -37,8 +37,8 @@ over length-at-age distribution to get phi(age,year).
 ## Examples
 
 ``` r
-length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
-#> Error: 'length_mean' is not an exported object from 'namespace:opal'
-dl_yal <- get_dl(length_mu_ysa = length_mu_ysa, length_sd_a = opal::length_sd$SD)
-#> Error: object 'length_mu_ysa' not found
+if (FALSE) { # \dontrun{
+  length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
+  dl_yal <- get_dl(length_mu_ysa = length_mu_ysa, length_sd_a = opal::length_sd$SD)
+} # }
 ```
