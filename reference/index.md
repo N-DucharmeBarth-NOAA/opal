@@ -6,8 +6,6 @@
   : The globals
 - [`bet_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/bet_model.md)
   : The BET model
-- [`catch_data`](https://n-ducharmebarth-noaa.github.io/opal/reference/catch_data.md)
-  : Catch data prepared for RTMB modeling
 - [`check_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.md)
   : Check if parameters are up against the bounds
 - [`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.md)
@@ -149,3 +147,8 @@
   full form)
 - [`sel_logistic()`](https://n-ducharmebarth-noaa.github.io/opal/reference/sel_logistic.md)
   : Logistic selectivity as a function of length
+- [`wcpo_bet_data`](https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_data.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Assessment Data
+- [`wcpo_bet_parameters`](https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_parameters.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Assessment
+  Parameters

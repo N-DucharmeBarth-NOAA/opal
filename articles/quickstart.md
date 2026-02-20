@@ -15,7 +15,9 @@ The core workflow involves:
 2.  **Running an optimization** — Fit the model to data and estimate key
     parameters
 
-See `vignette("bet")` for a detailed worked example.
+See
+[`vignette("bet")`](https://n-ducharmebarth-noaa.github.io/opal/articles/bet.md)
+for a detailed worked example.
 
 ``` r
 library(opal)

@@ -2,13 +2,13 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/404.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/DISCLAIMER.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/LICENSE.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/bet.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/quickstart.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/authors.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/bet_globals.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/bet_model.html</loc></url>
-<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/catch_data.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_grid.html</loc></url>
@@ -77,5 +77,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/sample_grid.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/sel_double_normal.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/sel_logistic.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_data.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_parameters.html</loc></url>
 </urlset>
 
