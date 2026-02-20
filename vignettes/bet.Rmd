@@ -259,7 +259,7 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r check-estimability, echo=TRUE, message=FALSE}
+```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
 check_estimability(obj = obj)
 ```
 
