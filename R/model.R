@@ -135,8 +135,8 @@ bet_model <- function(parameters, data) {
 
   # Priors ----
 
-  # lp_prior <- evaluate_priors(parameters, priors)
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
+  # lp_prior <- evaluate_priors(parameters, priors)
   lp_prior <- 0
 
   # Likelihoods ----

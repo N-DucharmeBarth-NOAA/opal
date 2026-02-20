@@ -25,9 +25,8 @@ Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
 ```{r load-pkg, echo=TRUE, message=FALSE}
+library(tidyverse)
 library(opal)
-library(RTMB)
-library(ggplot2)
 
 theme_set(theme_bw())
 ```
@@ -88,21 +87,23 @@ data object:
 
 ```{r get-pars, echo=TRUE, message=FALSE}
 data(wcpo_bet_parameters)
+
 parameters <- list(
   log_B0 = as.numeric(wcpo_bet_parameters$log_B0),
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
   cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
-  log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
+  # log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
+  log_cpue_tau = log(0.1),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
-  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y),
-  par_sel = as.matrix(wcpo_bet_parameters$par_sel),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
   log_k = as.numeric(wcpo_bet_parameters$log_k),
   log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
-  log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2)
+  log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
+  par_sel = as.matrix(wcpo_bet_parameters$par_sel),
+  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
 )
 ```
 
@@ -172,10 +173,11 @@ Lwr <- rep(-Inf, length(obj$par))
 Upr <- rep(Inf, length(obj$par))
 Lwr[grep("log_B0", names(obj$par))] <- log(1)
 Upr[grep("log_B0", names(obj$par))] <- log(exp(20))
-Lwr[grep("log_q", names(obj$par))] <- log(0.1)
-Upr[grep("log_q", names(obj$par))] <- log(10)
+Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
+Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
+bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
 # Optimisation
@@ -194,18 +196,23 @@ max(obj$gr())
 Compare initial and estimated parameter values:
 
 ```{r opt-results, echo=TRUE, message=FALSE}
-data.frame(init = unlist(parameters), value = unlist(obj$env$parList())) |> head()
+data.frame(init = unlist(parameters), 
+           value = unlist(obj$env$parList(obj$env$last.par.best))) %>%
+  mutate(par = rownames(.)) %>%
+  left_join(bounds) %>%
+  head()
 ```
 
 Inspect fitted CPUE and catch:
 
-```{r opt-plots, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-# CPUE fit
+```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot(data$cpue_data$value, col = 2, pch = 16,
      xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
+lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
 lines(obj$report()$cpue_pred, lwd = 2)
+```
 
-# Catch residuals
+```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
@@ -215,7 +222,7 @@ plot_catch(data = data, obj = obj, plot_resid = TRUE)
 
 Visualise the selectivity curves by fleet:
 
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10}
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
@@ -235,8 +242,7 @@ sel_df$fleet_name <- fleet_names[sel_df$fishery]
 ggplot(sel_df, aes(x = real_age, y = selectivity)) +
   geom_line() +
   facet_wrap(~fleet_name, ncol = 4) +
-  labs(x = "Age (years)", y = "Selectivity",
-       title = "Selectivity-at-Age by Fleet") +
+  labs(x = "Age (years)", y = "Selectivity") +
   ylim(0, 1)
 ```
 
@@ -273,7 +279,8 @@ OSA residuals are a replacement for Pearson residuals:
 ```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
                            method = "oneStepGeneric", trace = FALSE)
-qqnorm(osa_cpue$res); abline(0, 1)
+qqnorm(osa_cpue$res)
+abline(0, 1)
 plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
 abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
 ```
