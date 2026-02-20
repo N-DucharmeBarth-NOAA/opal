@@ -11,6 +11,7 @@
 #' @export
 #'
 sel_logistic <- function(len, par) {
+  "[<-" <- ADoverload("[<-")
   mu <- mean(len)
   sd <- sd(len)
   a <- par[1]
@@ -51,6 +52,7 @@ sel_logistic <- function(len, par) {
 #' @export
 #'
 sel_double_normal <- function(x, par) {
+  "[<-" <- ADoverload("[<-")
   mu <- mean(x)
   sd <- sd(x)
   # Extract parameters from vector
