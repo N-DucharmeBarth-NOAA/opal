@@ -24,6 +24,7 @@ Imports:
     ggridges,
     loo,
     Matrix,
+    methods,
     mgcv,
     parallel,
     reshape2,
@@ -33,11 +34,11 @@ Imports:
     RTMBdist,
     scales,
     SparseNUTS,
+    testthat,
     tidyr
 Suggests:
     knitr,
-    rmarkdown,
-    testthat (>= 3.0.0)
+    rmarkdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://n-ducharmebarth-noaa.github.io/opal/
