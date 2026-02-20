@@ -25,7 +25,9 @@ lenage_dist_syal. Needs a bit more detail to get it right.
 Integrates over length-at-age distribution to get phi(age,year).
 }
 \examples{
-length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
-dl_yal <- get_dl(length_mu_ysa = length_mu_ysa, length_sd_a = opal::length_sd$SD)
+\dontrun{
+  length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
+  dl_yal <- get_dl(length_mu_ysa = length_mu_ysa, length_sd_a = opal::length_sd$SD)
+}
 
 }

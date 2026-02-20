@@ -8,8 +8,10 @@
 #' @return a \code{list} of parameter inputs ready to be passed to \code{MakeADFun}.
 #' @export
 #' @examples
-#' #parameters <- get_parameters(data = data)
-#' #grid_parameters <- get_grid(parameters = parameters)
+#' \dontrun{
+#'   #parameters <- get_parameters(data = data)
+#'   #grid_parameters <- get_grid(parameters = parameters)
+#' }
 #' 
 get_grid <- function(parameters,
                      m0 = c(0.5, 0.4, 0.45), 

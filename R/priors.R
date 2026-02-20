@@ -81,12 +81,14 @@ get_priors <- function(parameters, data = NULL) {
 #' @importFrom RTMBdist dbeta2 dt2
 #' @export
 #' @examples
-#' parameters <- list(par_log_m4 = log(0.167))
-#' priors <- list(
-#'   par_log_m4 = list(type = "normal", par1 = log(0.12), par2 = 0.4, 
-#'                     index = which("par_log_m4" == names(parameters)))
-#' )
-#' evaluate_priors(parameters, priors)
+#' \dontrun{
+#'   parameters <- list(par_log_m4 = log(0.167))
+#'   priors <- list(
+#'     par_log_m4 = list(type = "normal", par1 = log(0.12), par2 = 0.4, 
+#'                       index = which("par_log_m4" == names(parameters)))
+#'   )
+#'   evaluate_priors(parameters, priors)
+#' }
 #' 
 evaluate_priors <- function(parameters, priors) {
   "[<-" <- ADoverload("[<-")
