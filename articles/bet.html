@@ -71,9 +71,9 @@
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>The <code>opal</code> package is an R package that contains the WCPO
-bigeye tuna (BET) operating model coded using RTMB. This page provides
-examples using the <code>opal</code> BET model.</p>
+<p>The <code>opal</code> package is an R package that contains example
+fisheries data from western and central pacific bigeye tuna (BET). This
+page provides examples using the <code>opal</code> BET model.</p>
 </div>
 <div class="section level2">
 <h2 id="load-inputs">Load inputs<a class="anchor" aria-label="anchor" href="#load-inputs"></a>
@@ -304,7 +304,7 @@ AD object is created using RTMB’s <code>MakeADFun</code> function:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="fu"><a href="../reference/plot_catch.html">plot_catch</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">data</span>, obj <span class="op">=</span> <span class="va">obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "The maximum catch difference was: 6.55189069220796e-07"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "The maximum catch difference was: 6.55189978715498e-07"</span></span></code></pre></div>
 <p><img src="bet_files/figure-html/init-checks-2.png" class="r-plt" alt="" width="672"></p>
 </div>
 <div class="section level3">
@@ -414,7 +414,7 @@ Selectivity-at-Age by Fleet
 <code>check_estimability</code> function:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/check_estimability.html">check_estimability</a></span><span class="op">(</span>obj <span class="op">=</span> <span class="va">obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt; outer mgc:  4.039265e-12 </span></span>
+<span><span class="co">#&gt; outer mgc:  3.595992e-12 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.794049 </span></span>
 <span><span class="co">#&gt; outer mgc:  5.160031 </span></span>
 <span><span class="co">#&gt; outer mgc:  5.741698 </span></span>
@@ -1229,7 +1229,7 @@ Selectivity-at-Age by Fleet
 <p>Calculate standard deviations of all model parameters:</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Report</span> <span class="op">&lt;-</span> <span class="fu">sdreport</span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt; outer mgc:  4.039265e-12 </span></span>
+<span><span class="co">#&gt; outer mgc:  3.595992e-12 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.794049 </span></span>
 <span><span class="co">#&gt; outer mgc:  5.160031 </span></span>
 <span><span class="co">#&gt; outer mgc:  5.741698 </span></span>

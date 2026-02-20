@@ -2,9 +2,9 @@
 
 ## Introduction
 
-The `opal` package is an R package that contains the WCPO bigeye tuna
-(BET) operating model coded using RTMB. This page provides examples
-using the `opal` BET model.
+The `opal` package is an R package that contains example fisheries data
+from western and central pacific bigeye tuna (BET). This page provides
+examples using the `opal` BET model.
 
 ## Load inputs
 
@@ -254,7 +254,7 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 ``` r
 
 plot_catch(data = data, obj = obj)
-#> [1] "The maximum catch difference was: 6.55189069220796e-07"
+#> [1] "The maximum catch difference was: 6.55189978715498e-07"
 ```
 
 ![](bet_files/figure-html/init-checks-2.png)
@@ -381,7 +381,7 @@ function:
 
 ``` r
 check_estimability(obj = obj)
-#> outer mgc:  4.039265e-12 
+#> outer mgc:  3.595992e-12 
 #> outer mgc:  7.794049 
 #> outer mgc:  5.160031 
 #> outer mgc:  5.741698 
@@ -1199,7 +1199,7 @@ Calculate standard deviations of all model parameters:
 
 ``` r
 Report <- sdreport(obj)
-#> outer mgc:  4.039265e-12 
+#> outer mgc:  3.595992e-12 
 #> outer mgc:  7.794049 
 #> outer mgc:  5.160031 
 #> outer mgc:  5.741698 
