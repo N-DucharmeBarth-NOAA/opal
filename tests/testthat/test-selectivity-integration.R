@@ -5,7 +5,7 @@ library(RTMB)
 
 test_that("data includes all required selectivity elements", {
   # Load catch data from package
-  data(catch_data)
+  data(wcpo_bet_catch_data)
   
   # Create minimal data structure matching the new scalar-based interface
   data <- list(
