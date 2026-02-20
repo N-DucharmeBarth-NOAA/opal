@@ -83,27 +83,26 @@ ggplot(data.frame(length = len_mid, maturity = data$maturity),
 
 Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
 `log_k`, `log_CV1`, `log_CV2`) and selectivity (`par_sel`) are initialised at
-reasonable starting values:
+reasonable starting values. Load these from the bundled `wcpo_bet_parameters` 
+data object:
 
 ```{r get-pars, echo=TRUE, message=FALSE}
-# Selectivity initial values: zero matrix (all on real-line scale)
-par_sel <- matrix(0, nrow = data$n_fishery, ncol = 6)
-
+data(wcpo_bet_parameters)
 parameters <- list(
-  log_B0 = 12,
-  log_h = log(0.95),
-  log_sigma_r = log(0.6),
-  log_cpue_q = log(1),
-  cpue_creep = 0,
-  log_cpue_tau = log(0),
-  log_cpue_omega = log(1),
-  rdev_y = rnorm(data$n_year, 0, 0.5),
-  par_sel = par_sel,
-  log_L1  = log(30),
-  log_L2  = log(170),
-  log_k   = log(0.2),
-  log_CV1 = log(0.10),
-  log_CV2 = log(0.05)
+  log_B0 = as.numeric(wcpo_bet_parameters$log_B0),
+  log_h = as.numeric(wcpo_bet_parameters$log_h),
+  log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
+  log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
+  cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
+  log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
+  log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y),
+  par_sel = as.matrix(wcpo_bet_parameters$par_sel),
+  log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
+  log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
+  log_k = as.numeric(wcpo_bet_parameters$log_k),
+  log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
+  log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2)
 )
 ```
 
@@ -124,13 +123,17 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map <- list(
+  log_B0 = factor(NA),
   log_h = factor(NA),
   log_sigma_r = factor(NA),
+  log_cpue_q = factor(NA),
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
+  rdev_y = as.factor(map_rdev),
   par_sel = as.factor(map_sel),
   log_L1  = factor(NA),
   log_L2  = factor(NA),
