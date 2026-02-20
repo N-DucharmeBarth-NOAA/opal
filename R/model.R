@@ -43,9 +43,9 @@ bet_globals <- function() {
     evaluate_priors = evaluate_priors)
 }
 
-#' The BET model
+#' The opal model
 #' 
-#' Obtain the negative log-likelihood (NLL) value from the sbt model.
+#' Obtain the negative log-likelihood (NLL) value from the opal model.
 #' 
 #' @param parameters a \code{list} of parameter values.
 #' @param data a \code{list} of data inputs.
@@ -53,7 +53,7 @@ bet_globals <- function() {
 #' @importFrom RTMB ADoverload getAll REPORT ADREPORT
 #' @export
 #' 
-bet_model <- function(parameters, data) {
+opal_model <- function(parameters, data) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")

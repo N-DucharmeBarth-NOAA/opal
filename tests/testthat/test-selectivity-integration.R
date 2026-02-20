@@ -1,4 +1,4 @@
-# Tests for selectivity integration into bet_model
+# Tests for selectivity integration into opal_model
 library(RTMB)
 
 # Test selectivity configuration in data ----

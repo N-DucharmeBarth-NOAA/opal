@@ -147,10 +147,10 @@ map <- list(
 ## Build the AD object
 
 Using the `data`, the `parameters`, the parameter `map`, and the model
-(`bet_model`), the AD object is created using RTMB's `MakeADFun` function:
+(`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-obj <- MakeADFun(func = cmb(bet_model, data), parameters = parameters, map = map)
+obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))
 obj$fn()
 obj$gr()
