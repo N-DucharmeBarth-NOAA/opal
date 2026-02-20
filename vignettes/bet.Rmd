@@ -1,0 +1,274 @@
+---
+title: "The BET model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The BET model}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+The `opal` package is an R package that contains the WCPO bigeye tuna (BET)
+operating model coded using RTMB. This page provides examples using the `opal`
+BET model.
+
+# Load inputs
+
+Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
+used for plotting.
+
+```{r load-pkg, echo=TRUE, message=FALSE}
+library(opal)
+library(RTMB)
+library(ggplot2)
+
+theme_set(theme_bw())
+```
+
+The bundled data object `wcpo_bet_data` contains all biological parameters,
+catch and CPUE observations, length structure, and prior specifications needed
+for the BET assessment model:
+
+```{r load-data, echo=TRUE, message=FALSE}
+data(wcpo_bet_data)
+data <- wcpo_bet_data
+
+names(data)
+```
+
+Key dimensions of the data:
+
+```{r data-dims, echo=TRUE}
+cat("Number of ages:", data$n_age, "\n")
+cat("Number of years:", data$n_year, "\n")
+cat("Number of fisheries:", data$n_fishery, "\n")
+cat("Number of length bins:", data$n_len, "\n")
+```
+
+## Biological inputs
+
+Natural mortality at age, maturity at length, and length-weight parameters are
+all contained in the data object.
+
+```{r plot-biology, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+ages <- data$age_a
+real_age <- ages / 4
+
+# Natural mortality
+ggplot(data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
+  geom_line() + geom_point() +
+  labs(x = "Age (years)", y = "M (quarterly rate)",
+       title = "Natural Mortality-at-Age")
+
+# Maturity at length
+len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
+               by = data$len_bin_width, length.out = data$n_len)
+ggplot(data.frame(length = len_mid, maturity = data$maturity),
+       aes(x = length, y = maturity)) +
+  geom_line() + geom_point() +
+  labs(x = "Length (cm)", y = "Maturity",
+       title = "Maturity-at-Length")
+```
+
+# Model setup
+
+## Parameters
+
+Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
+`log_k`, `log_CV1`, `log_CV2`) and selectivity (`par_sel`) are initialised at
+reasonable starting values:
+
+```{r get-pars, echo=TRUE, message=FALSE}
+# Selectivity initial values: zero matrix (all on real-line scale)
+par_sel <- matrix(0, nrow = data$n_fishery, ncol = 6)
+
+parameters <- list(
+  log_B0 = 12,
+  log_h = log(0.95),
+  log_sigma_r = log(0.6),
+  log_cpue_q = log(1),
+  cpue_creep = 0,
+  log_cpue_tau = log(0),
+  log_cpue_omega = log(1),
+  rdev_y = rnorm(data$n_year, 0, 0.5),
+  par_sel = par_sel,
+  log_L1  = log(30),
+  log_L2  = log(170),
+  log_k   = log(0.2),
+  log_CV1 = log(0.10),
+  log_CV2 = log(0.05)
+)
+```
+
+## Priors
+
+Priors are specified using `get_priors()`. The data object already contains
+prior center values for growth parameters:
+
+```{r get-priors, echo=TRUE, message=FALSE}
+data$priors <- get_priors(parameters = parameters, data = data)
+evaluate_priors(parameters = parameters, priors = data$priors)
+```
+
+## Parameter map
+
+Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
+`factor(NA)` are fixed at their initial values:
+
+```{r get-map, echo=TRUE, message=FALSE}
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+
+map <- list(
+  log_h = factor(NA),
+  log_sigma_r = factor(NA),
+  cpue_creep = factor(NA),
+  log_cpue_tau = factor(NA),
+  log_cpue_omega = factor(NA),
+  par_sel = as.factor(map_sel),
+  log_L1  = factor(NA),
+  log_L2  = factor(NA),
+  log_k   = factor(NA),
+  log_CV1 = factor(NA),
+  log_CV2 = factor(NA)
+)
+```
+
+## Build the AD object
+
+Using the `data`, the `parameters`, the parameter `map`, and the model
+(`bet_model`), the AD object is created using RTMB's `MakeADFun` function:
+
+```{r make-adfun, echo=TRUE, message=FALSE}
+obj <- MakeADFun(func = cmb(bet_model, data), parameters = parameters, map = map)
+unique(names(obj$par))
+obj$fn()
+obj$gr()
+```
+
+Inspect initial model outputs:
+
+```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+plot(obj$report()$spawning_biomass_y, type = "l",
+     xlab = "Time step", ylab = "Spawning biomass",
+     main = "Initial spawning biomass trajectory")
+
+plot_catch(data = data, obj = obj)
+```
+
+## Parameter bounds
+
+```{r get-par-bounds, echo=TRUE, message=FALSE}
+Lwr <- rep(-Inf, length(obj$par))
+Upr <- rep(Inf, length(obj$par))
+Lwr[grep("log_B0", names(obj$par))] <- log(1)
+Upr[grep("log_B0", names(obj$par))] <- log(exp(20))
+Lwr[grep("log_q", names(obj$par))] <- log(0.1)
+Upr[grep("log_q", names(obj$par))] <- log(10)
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
+```
+
+# Optimisation
+
+Optimise using the `nlminb` function:
+
+```{r run-nlminb, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
+              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
+              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+```
+
+Compare initial and estimated parameter values:
+
+```{r opt-results, echo=TRUE, message=FALSE}
+data.frame(init = unlist(parameters), value = unlist(obj$env$parList())) |> head()
+```
+
+Inspect fitted CPUE and catch:
+
+```{r opt-plots, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+# CPUE fit
+plot(data$cpue_data$value, col = 2, pch = 16,
+     xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
+lines(obj$report()$cpue_pred, lwd = 2)
+
+# Catch residuals
+sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
+plot_catch(data = data, obj = obj, plot_resid = TRUE)
+```
+
+## Selectivity
+
+Visualise the selectivity curves by fleet:
+
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10}
+rep <- obj$report()
+sel_fya <- rep$sel_fya
+
+fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
+                 "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
+                 "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
+                 "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
+                 "S01_INDEX")
+
+sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
+sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
+  sel_fya[sel_df$fishery[i], 1, sel_df$age[i]]
+})
+sel_df$real_age <- sel_df$age / 4
+sel_df$fleet_name <- fleet_names[sel_df$fishery]
+
+ggplot(sel_df, aes(x = real_age, y = selectivity)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 4) +
+  labs(x = "Age (years)", y = "Selectivity",
+       title = "Selectivity-at-Age by Fleet") +
+  ylim(0, 1)
+```
+
+## Diagnostics
+
+Check that all parameters are estimable using the `check_estimability` function:
+
+```{r check-estimability, echo=TRUE, message=FALSE}
+check_estimability(obj = obj)
+```
+
+Calculate standard deviations of all model parameters:
+
+```{r run-sdreport, echo=TRUE, message=FALSE}
+Report <- sdreport(obj)
+```
+
+# Simulation
+
+The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
+allows simulation via `obj$simulate()`. For example:
+
+```{r sim-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+plot(log(data$cpue_data$value), col = 2, pch = 16,
+     xlab = "Time step", ylab = "log(CPUE)", main = "Observed vs simulated CPUE")
+lines(log(obj$report()$cpue_pred), lwd = 2)
+for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
+```
+
+## One step ahead (OSA) residuals
+
+OSA residuals are a replacement for Pearson residuals:
+
+```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
+                           method = "oneStepGeneric", trace = FALSE)
+qqnorm(osa_cpue$res); abline(0, 1)
+plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
+abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
+```
