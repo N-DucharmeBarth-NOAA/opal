@@ -27,6 +27,7 @@ used for plotting.
 ```{r load-pkg, echo=TRUE, message=FALSE}
 library(tidyverse)
 library(opal)
+library(RTMB)
 
 theme_set(theme_bw())
 ```
@@ -94,7 +95,6 @@ parameters <- list(
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
   cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
-  # log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
   log_cpue_tau = log(0.1),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),

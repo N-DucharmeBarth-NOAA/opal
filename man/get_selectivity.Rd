@@ -4,7 +4,7 @@
 \alias{get_selectivity}
 \title{Compute selectivity-at-age from length-based selectivity curves}
 \usage{
-get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
+get_selectivity(data, par_sel, pla, len_mid)
 }
 \arguments{
 \item{data}{A list containing model data. Required elements:
@@ -14,18 +14,8 @@ n_fishery, n_year, n_age, sel_type_f.}
 a real-line parameter vector. For logistic (sel_type_f == 1), only
 columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.}
 
-\item{mu_a}{Numeric vector (length n_age) of mean length at age.
-May be AD if growth parameters are estimated.}
-
-\item{sd_a}{Numeric vector (length n_age) of SD of length at age.
-May be AD if growth parameters are estimated.}
-
-\item{len_lower}{Numeric vector (length n_len) of lower bounds of length
-bins.  Derived internally from \code{len_bin_start}, \code{len_bin_width},
-and \code{n_len} inside \code{bet_model()}.}
-
-\item{len_upper}{Numeric vector (length n_len) of upper bounds of length
-bins.}
+\item{pla}{Numeric matrix of dimensions \verb{[n_len, n_age]} containing
+probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.}
 
 \item{len_mid}{Numeric vector (length n_len) of length-bin midpoints.}
 }
@@ -38,10 +28,6 @@ double-normal), then converts to selectivity-at-age by matrix-multiplying
 with the probability-of-length-at-age (PLA/ALK).
 }
 \details{
-The PLA is computed internally from \code{mu_a} and \code{sd_a} so that
-AD gradients propagate correctly if growth parameters are estimated in
-the future.
-
 Selectivity is currently time-invariant within each fishery (constant
 across years).
 }

@@ -85,7 +85,7 @@ bet_model <- function(parameters, data) {
 
   # Module 3: Weight-at-length → weight-at-age
   wt_at_len <- get_weight_at_length(len_mid, lw_a, lw_b)
-  weight_a  <- as.vector(t(pla) %*% wt_at_len)
+  weight_a  <- c(t(pla) %*% wt_at_len)
   # Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
   weight_fya_mod <- array(0, dim = c(n_fishery, n_year, n_age))
   for (f in seq_len(n_fishery)) {

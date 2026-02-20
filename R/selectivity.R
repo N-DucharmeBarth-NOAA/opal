@@ -140,10 +140,6 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #' double-normal), then converts to selectivity-at-age by matrix-multiplying
 #' with the probability-of-length-at-age (PLA/ALK).
 #'
-#' The PLA is computed internally from \code{mu_a} and \code{sd_a} so that
-#' AD gradients propagate correctly if growth parameters are estimated in
-#' the future.
-#'
 #' Selectivity is currently time-invariant within each fishery (constant
 #' across years).
 #'
@@ -152,15 +148,8 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #' @param par_sel Numeric matrix of dimensions `[n_fishery, 6]`. Each row is
 #'   a real-line parameter vector. For logistic (sel_type_f == 1), only
 #'   columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.
-#' @param mu_a Numeric vector (length n_age) of mean length at age.
-#'   May be AD if growth parameters are estimated.
-#' @param sd_a Numeric vector (length n_age) of SD of length at age.
-#'   May be AD if growth parameters are estimated.
-#' @param len_lower Numeric vector (length n_len) of lower bounds of length
-#'   bins.  Derived internally from \code{len_bin_start}, \code{len_bin_width},
-#'   and \code{n_len} inside \code{bet_model()}.
-#' @param len_upper Numeric vector (length n_len) of upper bounds of length
-#'   bins.
+#' @param pla Numeric matrix of dimensions `[n_len, n_age]` containing
+#'   probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.
 #' @param len_mid Numeric vector (length n_len) of length-bin midpoints.
 #' @return 3D array `sel_fya` of dimensions `[n_fishery, n_year, n_age]`.
 #' @importFrom RTMB ADoverload
@@ -184,7 +173,7 @@ get_selectivity <- function(data, par_sel, pla, len_mid) {
       sel_at_length <- sel_double_normal(len_mid, par_f)
     }
     # Convert to selectivity-at-age via PLA
-    sel_at_age <- as.vector(t(pla) %*% sel_at_length)
+    sel_at_age <- c(t(pla) %*% sel_at_length)
     # Time-invariant: replicate across years
     for (y in seq_len(n_year)) {
       sel_fya[f, y, ] <- sel_at_age
