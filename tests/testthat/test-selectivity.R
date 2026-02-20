@@ -17,7 +17,8 @@ test_that("get_selectivity returns correct dimensions", {
   par_sel[1, ] <- c(0, 0, 0, 0, 0, 0)           # logistic
   par_sel[2, ] <- c(0, 0, 0, 0, -9, -9)          # double-normal
   par_sel[3, ] <- c(-0.5, 0.5, 0, 0, 0, 0)       # logistic
-  sel <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel <- get_selectivity(data, par_sel, pla, len_mid)
   expect_equal(dim(sel), c(3, 10, 40))
 })
 
@@ -34,7 +35,8 @@ test_that("get_selectivity values are in [0, 1]", {
   par_sel <- matrix(0, nrow = 2, ncol = 6)
   par_sel[1, ] <- c(0, 0, 0, 0, 0, 0)
   par_sel[2, ] <- c(0, 0, 1, 1, -9, -9)
-  sel <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel <- get_selectivity(data, par_sel, pla, len_mid)
   expect_true(all(sel >= 0 & sel <= 1))
 })
 
@@ -52,7 +54,8 @@ test_that("get_selectivity produces valid selectivity values", {
   par_sel[1, ] <- c(0, 0, 0, 0, 0, 0)
   par_sel[2, ] <- c(0, 0, 1, 1, -9, -9)
   par_sel[3, ] <- c(0.5, -2, 0.5, 0.5, -5, -5)
-  sel <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel <- get_selectivity(data, par_sel, pla, len_mid)
   # Values should be in [0, 1]
   expect_true(all(sel >= 0 & sel <= 1))
 })
@@ -70,7 +73,8 @@ test_that("get_selectivity is time-invariant", {
   par_sel <- matrix(0, nrow = 2, ncol = 6)
   par_sel[1, ] <- c(0, 0, 0, 0, 0, 0)
   par_sel[2, ] <- c(0, 0, 1, 1, -9, -9)
-  sel <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel <- get_selectivity(data, par_sel, pla, len_mid)
   for (f in 1:2) {
     expect_equal(sel[f, 1, ], sel[f, 5, ])
     expect_equal(sel[f, 1, ], sel[f, 10, ])
@@ -88,7 +92,8 @@ test_that("logistic selectivity-at-age is monotonically increasing", {
     sel_type_f = c(1L)
   )
   par_sel <- matrix(c(0, 0, 0, 0, 0, 0), nrow = 1)
-  sel <- get_selectivity(data, par_sel, mu_a, sd_a, len_lower, len_upper, len_mid)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel <- get_selectivity(data, par_sel, pla, len_mid)
   sel_a <- sel[1, 1, ]
   expect_true(all(diff(sel_a) >= -1e-10))
 })
@@ -156,7 +161,8 @@ test_that("Converted SS3 parameters produce valid selectivity curves", {
     n_fishery = 1, n_year = 5, n_age = 40,
     sel_type_f = sel_type_f
   )
-  sel <- get_selectivity(data, rtmb_pars, mu_a, sd_a, len_lower, len_upper, sel_lengths)
+  pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel <- get_selectivity(data, rtmb_pars, pla, sel_lengths)
   # Values should be in [0, 1] (no longer normalized to max=1 for AD compatibility)
   expect_true(all(sel >= 0 & sel <= 1))
 })

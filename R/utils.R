@@ -18,9 +18,11 @@
 #'   age (columns sum to 1), as returned by \code{\link{get_pla}}.
 #' @param name Character.  Name of the vector used in warning/error messages.
 #' @return Numeric vector of length \code{n_age} on an age basis.
+#' @importFrom RTMB ADoverload
 #' @export
 #'
 resolve_bio_vector <- function(vec, n_age, n_len, pla, name = "vector") {
+  "c" <- ADoverload("c")
   if (length(vec) == n_age) {
     if (n_age == n_len) {
       warning(sprintf(
@@ -32,7 +34,7 @@ resolve_bio_vector <- function(vec, n_age, n_len, pla, name = "vector") {
     }
     return(vec)
   } else if (length(vec) == n_len) {
-    return(as.vector(t(pla) %*% vec))
+    return(c(t(pla) %*% vec))
   } else {
     stop(sprintf(
       "%s has length %d, which matches neither n_age (%d) nor n_len (%d)",

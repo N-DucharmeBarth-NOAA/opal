@@ -4,44 +4,26 @@ library(RTMB)
 # Test selectivity configuration in data ----
 
 test_that("data includes all required selectivity elements", {
-  # Load catch data from package
-  data(catch_data)
+  # Load the complete assessment data object
+  data(wcpo_bet_data)
   
-  # Create minimal data structure matching the new scalar-based interface
-  data <- list(
-    n_fishery = 15,
-    n_year = 268,
-    n_age = 40,
-    n_season = 1,
-    len_bin_start = 10,
-    len_bin_width = 2,
-    n_len = 95
-  )
-  
-  # Add selectivity configuration elements
-  data$sel_type_f <- rep(2L, data$n_fishery)
-  data$sel_type_f[c(11, 15)] <- 1L
-  
-  # Verify sel_type_f
-  expect_true("sel_type_f" %in% names(data))
-  expect_equal(length(data$sel_type_f), data$n_fishery)
-  expect_true(all(data$sel_type_f %in% c(1L, 2L)))
-  expect_equal(data$sel_type_f[11], 1L)
-  expect_equal(data$sel_type_f[15], 1L)
-  expect_equal(sum(data$sel_type_f == 1L), 2)
-  expect_equal(sum(data$sel_type_f == 2L), 13)
+  # Verify selectivity type configuration
+  expect_true("sel_type_f" %in% names(wcpo_bet_data))
+  expect_equal(length(wcpo_bet_data$sel_type_f), wcpo_bet_data$n_fishery)
+  expect_true(all(wcpo_bet_data$sel_type_f %in% c(1L, 2L)))
   
   # Verify scalar length-bin fields
-  expect_true("len_bin_start" %in% names(data))
-  expect_true("len_bin_width" %in% names(data))
-  expect_true("n_len" %in% names(data))
+  expect_true("len_bin_start" %in% names(wcpo_bet_data))
+  expect_true("len_bin_width" %in% names(wcpo_bet_data))
+  expect_true("n_len" %in% names(wcpo_bet_data))
   
   # Derived bin vectors should match expected values
-  len_lower <- seq(data$len_bin_start, by = data$len_bin_width, length.out = data$n_len)
-  len_upper <- len_lower + data$len_bin_width
-  len_mid   <- len_lower + data$len_bin_width / 2
+  len_lower <- seq(wcpo_bet_data$len_bin_start, by = wcpo_bet_data$len_bin_width, 
+                   length.out = wcpo_bet_data$n_len)
+  len_upper <- len_lower + wcpo_bet_data$len_bin_width
+  len_mid   <- len_lower + wcpo_bet_data$len_bin_width / 2
   
-  expect_equal(length(len_lower), data$n_len)
+  expect_equal(length(len_lower), wcpo_bet_data$n_len)
   expect_true(all(len_upper > len_lower))
   
   # Bins should cover bigeye tuna size range
