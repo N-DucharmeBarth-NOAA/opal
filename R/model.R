@@ -116,14 +116,7 @@ bet_model <- function(parameters, data) {
   alpha <- init$alpha
   beta <- init$beta
   sigma_r <- exp(log_sigma_r)
-  REPORT(B0)
-  REPORT(R0)
-  REPORT(alpha)
-  REPORT(beta)
-  REPORT(sigma_r)
-  REPORT(maturity_a)
-  REPORT(fecundity_a)
-  REPORT(spawning_potential_a)
+
 
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
@@ -161,6 +154,15 @@ bet_model <- function(parameters, data) {
   REPORT(lp_rec)
   REPORT(lp_cpue)
   # REPORT(lp_lf)
+
+  REPORT(B0)
+  REPORT(R0)
+  REPORT(alpha)
+  REPORT(beta)
+  REPORT(sigma_r)
+  REPORT(maturity_a)
+  REPORT(fecundity_a)
+  REPORT(spawning_potential_a)
 
   return(nll)
 }

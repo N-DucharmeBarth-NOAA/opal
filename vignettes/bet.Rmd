@@ -90,7 +90,7 @@ data object:
 data(wcpo_bet_parameters)
 
 parameters <- list(
-  log_B0 = as.numeric(wcpo_bet_parameters$log_B0),
+  log_B0 = 20,
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
@@ -160,7 +160,7 @@ Inspect initial model outputs:
 
 ```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot(obj$report()$spawning_biomass_y, type = "l",
-     xlab = "Time step", ylab = "Spawning biomass",
+     xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Initial spawning biomass trajectory")
 
 plot_catch(data = data, obj = obj)
@@ -172,7 +172,7 @@ plot_catch(data = data, obj = obj)
 Lwr <- rep(-Inf, length(obj$par))
 Upr <- rep(Inf, length(obj$par))
 Lwr[grep("log_B0", names(obj$par))] <- log(1)
-Upr[grep("log_B0", names(obj$par))] <- log(exp(20))
+Upr[grep("log_B0", names(obj$par))] <- log(exp(22))
 Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
@@ -216,6 +216,15 @@ lines(obj$report()$cpue_pred, lwd = 2)
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
+```
+
+Inspect estimated spawning biomass trajectory:
+
+```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+plot(obj$report()$spawning_biomass_y, type = "l",
+     xlab = "Time step", ylab = "Spawning biomass (mt)",
+     main = "Estimated spawning biomass trajectory",
+     ylim = c(0, max(obj$report()$spawning_biomass_y) * 1.2))
 ```
 
 ## Selectivity
