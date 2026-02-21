@@ -4,30 +4,23 @@
 \alias{get_length_like}
 \title{Length Composition Likelihood}
 \usage{
-get_length_like(data, parameters, log_lf_alpha, catch_pred_fya, alk_ysal)
+get_length_like(data, parameters, catch_pred_fya, pla)
 }
 \arguments{
-\item{catch_pred_fya}{3D array of predicted catch.}
+\item{data}{a \code{list} of data inputs.}
 
-\item{alk_ysal}{4D array year, season, age, length_bin of ALKs.}
+\item{parameters}{a \code{list} of parameter values.}
 
-\item{lf_switch}{Vectors of indices for observations.}
+\item{catch_pred_fya}{3D \code{array} \code{[n_fishery, n_year, n_age]} of predicted
+catch-at-age from \code{do_dynamics()}.}
 
-\item{removal_switch_f}{Vectors of indices for observations.}
-
-\item{lf_year, lf_season, lf_fishery}{Vectors of indices for observations.}
-
-\item{lf_minbin}{Minimum size bin to be aggregated.}
-
-\item{lf_obs}{Matrix of observed length proportions.}
-
-\item{lf_n}{Vector of effective sample sizes.}
-
-\item{par_log_lf_alpha}{Vector of effective sample sizes.}
+\item{pla}{Matrix \code{[n_len, n_age]} probability-of-length-at-age from
+\code{get_pla()}. On the AD tape when growth parameters are estimated.}
 }
 \value{
-List with predicted compositions and likelihood contributions.
+a \code{vector} of negative log-likelihood contributions, one per observation.
 }
 \description{
-Computes likelihood for observed length compositions using ALKs.
+Computes likelihood for observed length compositions using a probability-of-length-at-age
+(PLA) matrix. Gradients propagate through to growth parameters when they are estimated.
 }
