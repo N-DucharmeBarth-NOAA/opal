@@ -266,6 +266,36 @@ data.frame(init = unlist(parameters),
   head()
 ```
 
+## Length composition fits
+
+Inspect predicted vs observed length compositions:
+
+```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+lf_rep <- obj$report()
+lf_pred <- lf_rep$lf_pred
+len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
+               by = data$len_bin_width, length.out = data$n_len)
+
+# Summary: total NLL contribution by fishery
+lf_nll_by_fishery <- tapply(lf_rep$lp_lf, data$lf_fishery, sum)
+cat("Length composition NLL by fishery:\n")
+print(round(lf_nll_by_fishery, 1))
+
+# Example: overlay observed and predicted for a single observation
+obs_i <- 1
+plot_df <- data.frame(
+  length = rep(len_mid, 2),
+  proportion = c(data$lf_obs[obs_i, ], lf_pred[obs_i, ]),
+  type = rep(c("Observed", "Predicted"), each = data$n_len)
+)
+
+ggplot(plot_df, aes(x = length, y = proportion, colour = type)) +
+  geom_line() +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = paste("Fishery", data$lf_fishery[obs_i],
+                     "- Year", data$lf_year[obs_i]))
+```
+
 Inspect fitted CPUE and catch:
 
 ```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
