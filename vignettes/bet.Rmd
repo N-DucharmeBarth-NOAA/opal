@@ -113,6 +113,14 @@ lf_obs <- lf_obs_counts / lf_n
 expected_bins <- seq(data$len_bin_start, by = data$len_bin_width, length.out = data$n_len)
 stopifnot(all(bin_cols == expected_bins))
 
+# Note: LF data exist for fisheries 8-14, but we initially use only fisheries 8 & 9
+lf_keep_fisheries <- c(8, 9)
+lf_use <- lf_wide$fishery %in% lf_keep_fisheries
+lf_wide <- lf_wide[lf_use, ]
+lf_obs_counts <- lf_obs_counts[lf_use, ]
+lf_obs <- lf_obs[lf_use, ]
+lf_n <- lf_n[lf_use]
+
 # Attach to data list
 data$lf_switch         <- 9L  # multinomial offset form (recommended default)
 data$lf_obs            <- lf_obs
@@ -122,7 +130,8 @@ data$lf_year           <- as.integer(lf_wide$ts)  # model timestep index (1-268)
 data$lf_season         <- rep(1L, nrow(lf_wide))
 data$lf_minbin         <- rep(1L, data$n_fishery)
 data$removal_switch_f  <- rep(0L, data$n_fishery)
-data$lf_var_adj        <- rep(1.0, data$n_fishery)
+data$lf_var_adj        <- 1 / rep(20000, data$n_fishery)
+data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
 data$n_lf              <- nrow(lf_obs)
 
 # Summary diagnostics
