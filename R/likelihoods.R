@@ -48,6 +48,11 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
 #' (PLA) matrix. Gradients propagate through to growth parameters when they are estimated.
 #'
 #' @param data a \code{list} of data inputs.
+#'   \describe{
+#'     \item{lf_maxbin}{Integer vector [n_fishery]. Per-fishery maximum bin index.
+#'       Bins from lf_maxbin[f] to n_len are aggregated into bin lf_maxbin[f].
+#'       Default n_len (no upper aggregation).}
+#'   }
 #' @param parameters a \code{list} of parameter values.
 #' @param catch_pred_fya 3D \code{array} \code{[n_fishery, n_year, n_age]} of predicted
 #'   catch-at-age from \code{do_dynamics()}.
@@ -81,21 +86,32 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
     # Observed proportions for this row
     obs <- lf_obs[i, ]
 
-    # Handle minimum bin aggregation
+    # Handle bin aggregation
     mbin <- lf_minbin[f]
+    xbin <- lf_maxbin[f]
+
+    # Lower-tail aggregation: collapse bins 1:mbin into bin mbin
     if (mbin > 1) {
       pred[mbin] <- sum(pred[1:mbin])
       obs[mbin] <- sum(obs[1:mbin])
-      pred <- pred[mbin:n_len_local]
-      obs <- obs[mbin:n_len_local]
     }
+
+    # Upper-tail aggregation: collapse bins xbin:n_len into bin xbin
+    if (xbin < n_len_local) {
+      pred[xbin] <- sum(pred[xbin:n_len_local])
+      obs[xbin] <- sum(obs[xbin:n_len_local])
+    }
+
+    # Subset to active bins
+    pred <- pred[mbin:xbin]
+    obs <- obs[mbin:xbin]
 
     # Normalize predicted to proportions (epsilon for AD safety)
     pred <- pred + 1e-8
     pred <- pred / sum(pred)
 
     # Store predicted proportions for diagnostics
-    lf_pred[i, mbin:n_len_local] <- pred
+    lf_pred[i, mbin:xbin] <- pred
 
     # Evaluate likelihood
     if (removal_switch_f[f] == 0 & lf_n[i] > 0) {
