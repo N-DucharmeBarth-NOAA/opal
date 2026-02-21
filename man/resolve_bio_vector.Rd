@@ -8,7 +8,7 @@ resolve_bio_vector(vec, n_age, n_len, pla, name = "vector")
 }
 \arguments{
 \item{vec}{Numeric vector (length \code{n_age} or \code{n_len}).
-May be an AD type inside \code{bet_model()}.}
+May be an AD type inside \code{opal_model()}.}
 
 \item{n_age}{Integer.  Number of age classes.}
 

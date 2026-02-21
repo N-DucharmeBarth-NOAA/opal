@@ -152,6 +152,19 @@ test_that("full pipeline: maturity-at-age is consistent with direct pla conversi
 
 # Test MFCL parameter matching ----
 
+test_that("maturity_a * fecundity_a equals maturity_a * weight_a when fecundity = weight", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  pla  <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  lw_a_coef <- 6.48e-05
+  lw_b_coef <- 2.78
+  wt_l  <- get_weight_at_length(len_mid, lw_a_coef, lw_b_coef)
+  mat_a <- get_maturity_at_age(pla, as.numeric(len_mid >= 100))
+  wt_a  <- as.vector(t(pla) %*% wt_l)
+  fec_a <- as.vector(t(pla) %*% wt_l)  # fecundity = weight
+  expect_equal(mat_a * fec_a, mat_a * wt_a)
+})
+
 test_that("growth model matches MFCL outputs with MFCL parameters", {
   # MFCL baseline parameters (from bet.Rmd vignette)
   L1_mfcl <- 30.9192

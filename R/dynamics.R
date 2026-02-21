@@ -5,7 +5,8 @@
 #' @param B0 Unfished spawning biomass.
 #' @param h Beverton-Holt steepness parameter.
 #' @param M_a a \code{vector} of natural mortality at age.
-#' @param maturity_a a \code{vector} of maturity at age.
+#' @param spawning_potential_a a \code{vector} of spawning potential at age
+#'   (maturity × fecundity).
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
@@ -16,14 +17,14 @@
 #' @importFrom RTMB ADoverload
 #' @export
 #'
-get_initial_numbers <- function(B0, h, M_a, maturity_a) {
+get_initial_numbers <- function(B0, h, M_a, spawning_potential_a) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
   rel_N <- numeric(n_age)
   rel_N[1] <- 1
   for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-M_a[a - 1])
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-M_a[n_age]))
-  R0 <- B0 / sum(maturity_a * rel_N)
+  R0 <- B0 / sum(spawning_potential_a * rel_N)
   alpha <- (4 * h * R0) / (5 * h - 1)
   beta  <- (B0 * (1 - h)) / (5 * h - 1)
   return(list(Ninit = R0 * rel_N, R0 = R0, alpha = alpha, beta = beta))
@@ -37,7 +38,7 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #' (Beverton-Holt with log-normal deviates), and computes predicted catches and
 #' harvest rates.
 #'
-#' All derived biology arrays (\code{M_a}, \code{maturity_a},
+#' All derived biology arrays (\code{M_a}, \code{spawning_potential_a},
 #' \code{weight_fya}) are passed as explicit arguments rather than read from
 #' \code{data}. This ensures that AD gradients propagate correctly if any of
 #' these quantities carry estimated parameters in the future (e.g., growth
@@ -60,8 +61,9 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #'   deviations.
 #' @param M_a Numeric vector of length \code{n_age}. Natural mortality at age.
 #'   Passed explicitly so AD gradients propagate if M is ever estimated.
-#' @param maturity_a Numeric vector of length \code{n_age}. Maturity at age.
-#'   Passed explicitly so AD gradients propagate if growth is ever estimated.
+#' @param spawning_potential_a Numeric vector of length \code{n_age}. Spawning
+#'   potential at age (maturity × fecundity). Passed explicitly so AD gradients
+#'   propagate if growth is ever estimated.
 #' @param weight_fya Numeric array \code{[n_fishery, n_year, n_age]}. Mean
 #'   weight at age by fishery and year.  Passed explicitly so AD gradients
 #'   propagate if growth is ever estimated.
@@ -80,7 +82,7 @@ get_initial_numbers <- function(B0, h, M_a, maturity_a) {
 #'
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
-                        M_a, maturity_a, weight_fya,
+                        M_a, spawning_potential_a, weight_fya,
                         init_number_a, sel_fya) {
   
   "[<-" <- ADoverload("[<-")
@@ -93,7 +95,7 @@ do_dynamics <- function(data, parameters,
   number_ysa <- array(0, dim = c(n_year + 1, n_season, n_age))
   number_ysa[1, 1,] <- init_number_a
   spawning_biomass_y <- numeric(n_year + 1)
-  spawning_biomass_y[1] <- sum(number_ysa[1, 1,] * maturity_a)
+  spawning_biomass_y[1] <- sum(number_ysa[1, 1,] * spawning_potential_a)
   hrate_ysa  <- array(0, dim = c(n_year + 1, n_season, n_age))
   hrate_ysfa  <- array(0, dim = c(n_year + 1, n_season, n_fishery, n_age))
   catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
@@ -119,7 +121,7 @@ do_dynamics <- function(data, parameters,
     }
     number_ysa[y + 1, 1, 2:n_age] <- number_ysa[y, n_season, 1:n_age1] * (1 - hrate_ysa[y, n_season, 1:n_age1]) * S_a[1:n_age1]
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
-    spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * maturity_a)
+    spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * spawning_potential_a)
     number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r)
 
     for (f in seq_len(n_fishery)) {

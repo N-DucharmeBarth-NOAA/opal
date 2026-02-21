@@ -11,7 +11,7 @@
 #' must convert it to age externally before calling the model.
 #'
 #' @param vec Numeric vector (length \code{n_age} or \code{n_len}).
-#'   May be an AD type inside \code{bet_model()}.
+#'   May be an AD type inside \code{opal_model()}.
 #' @param n_age Integer.  Number of age classes.
 #' @param n_len Integer.  Number of length bins.
 #' @param pla Matrix (\code{n_len} x \code{n_age}).  Probability of length at
