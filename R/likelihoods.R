@@ -112,12 +112,11 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
       if (lf_switch == 9) {
         # Multinomial offset form:
         #   -n_eff * sum(obs * log(pred)) + n_eff * sum(obs * log(obs))
-        # Second term is constant; minimum NLL = 0 when pred == obs.
-        # Equivalent to lf_switch == 1 up to a constant but avoids
-        # integer-count requirements and gives a cleaner zero baseline.
-        lp[i] <- -n_eff * sum(obs * log(pred))
-        obs_safe <- obs + 1e-8
-        lp[i] <- lp[i] + n_eff * sum(obs_safe * log(obs_safe))
+        # Equivalent to n_eff * KL(obs || pred); minimum NLL = 0 when pred == obs.
+        # Small constant added to both terms for numerical safety and exact
+        # cancellation at perfect fit.
+        lp[i] <- -n_eff * sum(obs * log(pred + 1e-8))
+        lp[i] <- lp[i] + n_eff * sum(obs * log(obs + 1e-8))
       }
 
       # --- Alternative likelihoods (inactive, retained for future use) ---
