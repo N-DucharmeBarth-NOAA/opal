@@ -77,6 +77,69 @@ ggplot(data.frame(length = len_mid, maturity = data$maturity),
        title = "Maturity-at-Length")
 ```
 
+## Length composition data
+
+Length composition observations are loaded from the bundled `wcpo_bet_lf`
+long-format data object and transformed into model-ready arrays.
+
+```{r prep-lf, echo=TRUE, message=FALSE}
+data(wcpo_bet_lf)
+
+# Pivot to wide format: one row per fishery x timestep, bins as columns
+lf_wide <- wcpo_bet_lf %>%
+  tidyr::pivot_wider(
+    id_cols = c(fishery, year, month, ts),
+    names_from = bin,
+    values_from = value,
+    values_fill = 0
+  ) %>%
+  arrange(fishery, ts)
+
+# Extract bin columns (sorted ascending) and observation count matrix
+bin_cols <- sort(as.numeric(setdiff(names(lf_wide), c("fishery", "year", "month", "ts"))))
+lf_obs_counts <- as.matrix(lf_wide[, as.character(bin_cols)])
+
+# Compute sample sizes and drop rows with zero total sample size
+lf_n <- rowSums(lf_obs_counts)
+keep <- lf_n > 0
+lf_wide <- lf_wide[keep, ]
+lf_obs_counts <- lf_obs_counts[keep, ]
+lf_n <- lf_n[keep]
+
+# Convert counts to proportions
+lf_obs <- lf_obs_counts / lf_n
+
+# Validate bin alignment with model length structure
+expected_bins <- seq(data$len_bin_start, by = data$len_bin_width, length.out = data$n_len)
+stopifnot(all(bin_cols == expected_bins))
+
+# Note: LF data exist for fisheries 8-14, but we initially use only fisheries 8 & 9
+lf_keep_fisheries <- c(8, 9)
+lf_use <- lf_wide$fishery %in% lf_keep_fisheries
+lf_wide <- lf_wide[lf_use, ]
+lf_obs_counts <- lf_obs_counts[lf_use, ]
+lf_obs <- lf_obs[lf_use, ]
+lf_n <- lf_n[lf_use]
+
+# Attach to data list
+data$lf_switch         <- 9L  # multinomial offset form (recommended default)
+data$lf_obs            <- lf_obs
+data$lf_n              <- lf_n
+data$lf_fishery        <- as.integer(lf_wide$fishery)
+data$lf_year           <- as.integer(lf_wide$ts)  # model timestep index (1-268), not calendar year
+data$lf_season         <- rep(1L, nrow(lf_wide))
+data$lf_minbin         <- rep(1L, data$n_fishery)
+data$removal_switch_f  <- rep(0L, data$n_fishery)
+data$lf_var_adj        <- 1 / rep(20000, data$n_fishery)
+data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
+data$n_lf              <- nrow(lf_obs)
+
+# Summary diagnostics
+cat("Number of LF observations:", data$n_lf, "\n")
+cat("Fisheries with LF data:", sort(unique(data$lf_fishery)), "\n")
+cat("Timestep range:", range(data$lf_year), "\n")
+```
+
 # Model setup
 
 ## Parameters
