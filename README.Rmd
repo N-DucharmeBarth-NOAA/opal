@@ -87,6 +87,10 @@ opal uses a standard development workflow:
 
 **Workflow**: Submit pull requests against the `dev` branch. Once features are tested and validated, they are incorporated into `main` for release.
 
+### Using GitHub Copilot
+
+If you use GitHub Copilot to assist with development, please select `dev` as the base branch from the dropdown menu when assigning work to Copilot (the default is `main`). This ensures your feature branches and pull requests follow our development workflow.
+
 ## License
 
 See [LICENSE](LICENSE) for terms and conditions.
