@@ -4,8 +4,6 @@
 
 - [`bet_globals()`](https://n-ducharmebarth-noaa.github.io/opal/reference/bet_globals.md)
   : The globals
-- [`bet_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/bet_model.md)
-  : The BET model
 - [`check_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.md)
   : Check if parameters are up against the bounds
 - [`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.md)
@@ -90,6 +88,8 @@
   : Compute weight at each length bin midpoint
 - [`grid_to_snutsfit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/grid_to_snutsfit.md)
   : Convert grid to an snutsfit object
+- [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md)
+  : The opal model
 - [`opalprofile()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opalprofile.md)
   : Adaptive likelihood profiling
 - [`plot_af()`](https://n-ducharmebarth-noaa.github.io/opal/reference/plot_af.md)

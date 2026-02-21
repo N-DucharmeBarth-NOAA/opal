@@ -8,7 +8,6 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/authors.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/bet_globals.html</loc></url>
-<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/bet_model.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_grid.html</loc></url>
@@ -49,6 +48,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_at_length.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/grid_to_snutsfit.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/index.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opalprofile.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/plot_af.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/plot_biomass_spawning.html</loc></url>

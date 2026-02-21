@@ -6,7 +6,7 @@ Computes the initial equilibrium numbers-at-age, unfished recruitment
 ## Usage
 
 ``` r
-get_initial_numbers(B0, h, M_a, maturity_a)
+get_initial_numbers(B0, h, M_a, spawning_potential_a)
 ```
 
 ## Arguments
@@ -23,9 +23,9 @@ get_initial_numbers(B0, h, M_a, maturity_a)
 
   a `vector` of natural mortality at age.
 
-- maturity_a:
+- spawning_potential_a:
 
-  a `vector` of maturity at age.
+  a `vector` of spawning potential at age (maturity × fecundity).
 
 ## Value
 

@@ -19,7 +19,7 @@ do_dynamics(
   h = 0.95,
   sigma_r = 0.6,
   M_a,
-  maturity_a,
+  spawning_potential_a,
   weight_fya,
   init_number_a,
   sel_fya
@@ -68,10 +68,11 @@ do_dynamics(
   Numeric vector of length `n_age`. Natural mortality at age. Passed
   explicitly so AD gradients propagate if M is ever estimated.
 
-- maturity_a:
+- spawning_potential_a:
 
-  Numeric vector of length `n_age`. Maturity at age. Passed explicitly
-  so AD gradients propagate if growth is ever estimated.
+  Numeric vector of length `n_age`. Spawning potential at age (maturity
+  × fecundity). Passed explicitly so AD gradients propagate if growth is
+  ever estimated.
 
 - weight_fya:
 
@@ -107,8 +108,8 @@ A named list with:
 
 ## Details
 
-All derived biology arrays (`M_a`, `maturity_a`, `weight_fya`) are
-passed as explicit arguments rather than read from `data`. This ensures
-that AD gradients propagate correctly if any of these quantities carry
-estimated parameters in the future (e.g., growth parameters estimated
-via the PLA, or natural mortality via the Lorenzen equation).
+All derived biology arrays (`M_a`, `spawning_potential_a`, `weight_fya`)
+are passed as explicit arguments rather than read from `data`. This
+ensures that AD gradients propagate correctly if any of these quantities
+carry estimated parameters in the future (e.g., growth parameters
+estimated via the PLA, or natural mortality via the Lorenzen equation).

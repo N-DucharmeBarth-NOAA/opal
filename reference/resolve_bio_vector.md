@@ -17,7 +17,7 @@ resolve_bio_vector(vec, n_age, n_len, pla, name = "vector")
 - vec:
 
   Numeric vector (length `n_age` or `n_len`). May be an AD type inside
-  [`bet_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/bet_model.md).
+  [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md).
 
 - n_age:
 

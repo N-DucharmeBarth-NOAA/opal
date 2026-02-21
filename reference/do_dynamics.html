@@ -65,7 +65,7 @@ harvest rates.</p>
 <span>  h <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  sigma_r <span class="op">=</span> <span class="fl">0.6</span>,</span>
 <span>  <span class="va">M_a</span>,</span>
-<span>  <span class="va">maturity_a</span>,</span>
+<span>  <span class="va">spawning_potential_a</span>,</span>
 <span>  <span class="va">weight_fya</span>,</span>
 <span>  <span class="va">init_number_a</span>,</span>
 <span>  <span class="va">sel_fya</span></span>
@@ -119,9 +119,10 @@ deviations.</p></dd>
 Passed explicitly so AD gradients propagate if M is ever estimated.</p></dd>
 
 
-<dt id="arg-maturity-a">maturity_a<a class="anchor" aria-label="anchor" href="#arg-maturity-a"></a></dt>
-<dd><p>Numeric vector of length <code>n_age</code>. Maturity at age.
-Passed explicitly so AD gradients propagate if growth is ever estimated.</p></dd>
+<dt id="arg-spawning-potential-a">spawning_potential_a<a class="anchor" aria-label="anchor" href="#arg-spawning-potential-a"></a></dt>
+<dd><p>Numeric vector of length <code>n_age</code>. Spawning
+potential at age (maturity × fecundity). Passed explicitly so AD gradients
+propagate if growth is ever estimated.</p></dd>
 
 
 <dt id="arg-weight-fya">weight_fya<a class="anchor" aria-label="anchor" href="#arg-weight-fya"></a></dt>
@@ -153,7 +154,7 @@ Fishery-specific selectivity at age by year (from
 </dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>All derived biology arrays (<code>M_a</code>, <code>maturity_a</code>,
+    <p>All derived biology arrays (<code>M_a</code>, <code>spawning_potential_a</code>,
 <code>weight_fya</code>) are passed as explicit arguments rather than read from
 <code>data</code>. This ensures that AD gradients propagate correctly if any of
 these quantities carry estimated parameters in the future (e.g., growth
