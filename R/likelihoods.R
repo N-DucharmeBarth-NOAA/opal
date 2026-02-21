@@ -44,76 +44,99 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
 
 #' Length Composition Likelihood
 #'
-#' Computes likelihood for observed length compositions using ALKs.
+#' Computes likelihood for observed length compositions using a probability-of-length-at-age
+#' (PLA) matrix. Gradients propagate through to growth parameters when they are estimated.
 #'
-#' @param lf_switch Vectors of indices for observations.
-#' @param removal_switch_f Vectors of indices for observations.
-#' @param lf_year,lf_season,lf_fishery Vectors of indices for observations.
-#' @param lf_minbin Minimum size bin to be aggregated.
-#' @param lf_obs Matrix of observed length proportions.
-#' @param lf_n Vector of effective sample sizes.
-#' @param par_log_lf_alpha Vector of effective sample sizes.
-#' @param catch_pred_fya 3D array of predicted catch.
-#' @param alk_ysal 4D array year, season, age, length_bin of ALKs.
-#' @return List with predicted compositions and likelihood contributions.
-#' @importFrom RTMB dmultinom
-#' @importFrom RTMBdist ddirichlet ddirmult
+#' @param data a \code{list} of data inputs.
+#' @param parameters a \code{list} of parameter values.
+#' @param catch_pred_fya 3D \code{array} \code{[n_fishery, n_year, n_age]} of predicted
+#'   catch-at-age from \code{do_dynamics()}.
+#' @param pla Matrix \code{[n_len, n_age]} probability-of-length-at-age from
+#'   \code{get_pla()}. On the AD tape when growth parameters are estimated.
+#' @return a \code{vector} of negative log-likelihood contributions, one per observation.
+#' @importFrom RTMB ADoverload REPORT dmultinom
 #' @export
 #' 
-get_length_like <- function(data, parameters, log_lf_alpha, catch_pred_fya, alk_ysal) {
+get_length_like <- function(data, parameters, catch_pred_fya, pla) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
+
   n_lf <- nrow(lf_obs)
-  n_bins <- 25
-  n_age <- dim(catch_pred_fya)[3]
+  n_len_local <- ncol(lf_obs)
   lp <- numeric(n_lf)
-  lf_pred <- matrix(0, n_lf, n_bins)
+  lf_pred <- matrix(0, n_lf, n_len_local)
+
   for (i in seq_len(n_lf)) {
-    y <- lf_year[i]
-    s <- lf_season[i]
     f <- lf_fishery[i]
-    catch_a <- catch_pred_fya[f, y,]
-    pred <- catch_a %*% alk_ysal[y, s,, 1:n_bins]
-    pred <- pred[1,] / sum(pred)
-    obs <- lf_obs[i,]
+    y <- lf_year[i]
+
+    # Predicted catch-at-age for this fishery and timestep
+    catch_a <- catch_pred_fya[f, y, ]
+
+    # Convert to predicted numbers-at-length via PLA
+    # pla is [n_len, n_age], catch_a is [n_age] -> result is [n_len]
+    pred <- c(pla %*% catch_a)
+
+    # Observed proportions for this row
+    obs <- lf_obs[i, ]
+
+    # Handle minimum bin aggregation
     mbin <- lf_minbin[f]
     if (mbin > 1) {
       pred[mbin] <- sum(pred[1:mbin])
       obs[mbin] <- sum(obs[1:mbin])
-      obs <- obs[mbin:n_bins]
-      pred <- pred[mbin:n_bins]
+      pred <- pred[mbin:n_len_local]
+      obs <- obs[mbin:n_len_local]
     }
-    lf_pred[i, mbin:n_bins] <- pred
+
+    # Normalize predicted to proportions (epsilon for AD safety)
+    pred <- pred + 1e-8
+    pred <- pred / sum(pred)
+
+    # Store predicted proportions for diagnostics
+    lf_pred[i, mbin:n_len_local] <- pred
+
+    # Evaluate likelihood
     if (removal_switch_f[f] == 0 & lf_n[i] > 0) {
+
+      # Effective sample size = raw sample size * variance adjustment factor
+      n_eff <- lf_n[i] * lf_var_adj[f]
+
       if (lf_switch == 1) {
-        # obs <- obs + 1e-6
-        obs <- obs * lf_n[i]
-        pred <- pred + 1e-6
-        pred <- pred / sum(pred)
-        lp[i] <- -dmultinom(x = obs, prob = pred, log = TRUE)
+        # Multinomial via dmultinom
+        obs_counts <- obs * n_eff
+        lp[i] <- -dmultinom(x = obs_counts, prob = pred, log = TRUE)
       }
-      if (lf_switch == 2) {
-        obs <- obs + 1e-6
-        obs <- obs / sum(obs)
-        pred <- pred + 1e-6
-        pred <- pred / sum(pred) * lf_n[i] * exp(par_log_lf_alpha[f])
-        lp[i] <- -ddirichlet(x = obs, alpha = pred, log = TRUE)
-      }
-      if (lf_switch == 3) {
-        obs <- obs * lf_n[i]
-        pred <- pred + 1e-6
-        pred <- pred / sum(pred) * exp(par_log_lf_alpha[f])
-        lp[i] <- -ddirmult(x = obs, size = lf_n[i], alpha = pred, log = TRUE)
-      }
+
       if (lf_switch == 9) {
-        pred <- pred + 1e-6 # I added this is as I was having Inf issues with pred
-        lp[i] <- -lf_n[i] * sum(obs * log(pred))
-        obs <- obs + 1e-6
-        lp[i] <- lp[i] + lf_n[i] * sum(obs * log(obs))
+        # Multinomial offset form:
+        #   -n_eff * sum(obs * log(pred)) + n_eff * sum(obs * log(obs))
+        # Second term is constant; minimum NLL = 0 when pred == obs.
+        # Equivalent to lf_switch == 1 up to a constant but avoids
+        # integer-count requirements and gives a cleaner zero baseline.
+        lp[i] <- -n_eff * sum(obs * log(pred))
+        obs_safe <- obs + 1e-8
+        lp[i] <- lp[i] + n_eff * sum(obs_safe * log(obs_safe))
       }
+
+      # --- Alternative likelihoods (inactive, retained for future use) ---
+      # if (lf_switch == 2) {
+      #   # Dirichlet
+      #   obs <- obs + 1e-8
+      #   obs <- obs / sum(obs)
+      #   alpha <- pred * n_eff * exp(par_log_lf_alpha[f])
+      #   lp[i] <- -ddirichlet(x = obs, alpha = alpha, log = TRUE)
+      # }
+      # if (lf_switch == 3) {
+      #   # Dirichlet-multinomial
+      #   obs_counts <- obs * n_eff
+      #   alpha <- pred * exp(par_log_lf_alpha[f])
+      #   lp[i] <- -ddirmult(x = obs_counts, size = n_eff, alpha = alpha, log = TRUE)
+      # }
     }
   }
+
   REPORT(lf_pred)
   return(lp)
 }
