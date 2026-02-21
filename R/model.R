@@ -126,6 +126,7 @@ opal_model <- function(parameters, data) {
 
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
+  catch_pred_fya <- dyn$catch_pred_fya
 
   # plot(spawning_biomass_y)
   # plot(rowSums(dyn$number_ysa[,1,]))
@@ -141,9 +142,9 @@ opal_model <- function(parameters, data) {
   # Likelihoods ----
 
   lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
-  # lp_lf <- get_length_like(lf_switch, removal_switch_f, lf_year, lf_season, lf_fishery, lf_minbin, lf_obs, lf_n, par_log_lf_alpha, catch_pred_fya, alk_ysal)
+  lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
 
-  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue)# + sum(lp_lf)
+  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
 
   # Reporting ----
 
@@ -154,7 +155,7 @@ opal_model <- function(parameters, data) {
   REPORT(lp_penalty)
   REPORT(lp_rec)
   REPORT(lp_cpue)
-  # REPORT(lp_lf)
+  REPORT(lp_lf)
 
   REPORT(B0)
   REPORT(R0)
