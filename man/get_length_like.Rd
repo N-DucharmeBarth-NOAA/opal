@@ -7,7 +7,12 @@
 get_length_like(data, parameters, catch_pred_fya, pla)
 }
 \arguments{
-\item{data}{a \code{list} of data inputs.}
+\item{data}{a \code{list} of data inputs.
+\describe{
+\item{lf_maxbin}{Integer vector \link{n_fishery}. Per-fishery maximum bin index.
+Bins from lf_maxbin\link{f} to n_len are aggregated into bin lf_maxbin\link{f}.
+Default n_len (no upper aggregation).}
+}}
 
 \item{parameters}{a \code{list} of parameter values.}
 

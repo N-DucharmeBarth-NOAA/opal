@@ -88,6 +88,16 @@
 #'   }
 #' }
 #'
+#' **Length composition data:**
+#' \describe{
+#'   \item{lf_minbin}{Integer vector (n_fishery). Per-fishery minimum bin index
+#'     for lower-tail aggregation. Bins from 1 to lf_minbin[f] are summed
+#'     into bin lf_minbin[f]. Default is 1 (no aggregation).}
+#'   \item{lf_maxbin}{Integer vector (n_fishery). Per-fishery maximum bin index
+#'     for upper-tail aggregation. Bins from lf_maxbin[f] to n_len are summed
+#'     into bin lf_maxbin[f]. Default is n_len (no aggregation).}
+#' }
+#'
 #' @format A list with 25 named elements combining dimensions, biological parameters,
 #' observed data (catch and CPUE), and Bayesian priors for RTMB model initialization.
 #'

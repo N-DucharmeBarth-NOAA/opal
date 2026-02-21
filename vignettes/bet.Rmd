@@ -129,6 +129,7 @@ data$lf_fishery        <- as.integer(lf_wide$fishery)
 data$lf_year           <- as.integer(lf_wide$ts)  # model timestep index (1-268), not calendar year
 data$lf_season         <- rep(1L, nrow(lf_wide))
 data$lf_minbin         <- rep(1L, data$n_fishery)
+data$lf_maxbin         <- rep(data$n_len, data$n_fishery)
 data$removal_switch_f  <- rep(0L, data$n_fishery)
 data$lf_var_adj        <- 1 / rep(20000, data$n_fishery)
 data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
