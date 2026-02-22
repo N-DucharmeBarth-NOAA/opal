@@ -9,8 +9,8 @@ get_length_like(data, parameters, catch_pred_fya, pla)
 \arguments{
 \item{data}{a \code{list} of data inputs.
 \describe{
-\item{lf_maxbin}{Integer vector \link{n_fishery}. Per-fishery maximum bin index.
-Bins from lf_maxbin\link{f} to n_len are aggregated into bin lf_maxbin\link{f}.
+\item{lf_maxbin}{Integer vector [n_fishery]. Per-fishery maximum bin index.
+Bins from lf_maxbin[f] to n_len are aggregated into bin lf_maxbin[f].
 Default n_len (no upper aggregation).}
 }}
 

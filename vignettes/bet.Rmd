@@ -112,6 +112,10 @@ lf_obs <- lf_obs_counts / lf_n
 # Validate bin alignment with model length structure
 expected_bins <- seq(data$len_bin_start, by = data$len_bin_width, length.out = data$n_len)
 stopifnot(all(bin_cols == expected_bins))
+  # Derive length bins from scalars (single source of truth) ----
+data$len_lower <- seq(from = data$len_bin_start, by = data$len_bin_width, length.out = data$n_len)
+data$len_upper <- data$len_lower + data$len_bin_width
+data$len_mid   <- data$len_lower + data$len_bin_width / 2
 
 # Note: LF data exist for fisheries 8-14, but we initially use only fisheries 8 & 9
 lf_keep_fisheries <- c(8, 9)
@@ -122,17 +126,19 @@ lf_obs <- lf_obs[lf_use, ]
 lf_n <- lf_n[lf_use]
 
 # Attach to data list
-data$lf_switch         <- 9L  # multinomial offset form (recommended default)
-data$lf_obs            <- lf_obs
+data$lf_switch         <- 9L  # multinomial offset form (recommended default) - no way
+data$lf_obs_in            <- lf_obs
 data$lf_n              <- lf_n
 data$lf_fishery        <- as.integer(lf_wide$fishery)
+data$lf_fishery_f <- unique(data$lf_fishery)
+data$lf_n_f <- as.integer(table(data$lf_fishery))
 data$lf_year           <- as.integer(lf_wide$ts)  # model timestep index (1-268), not calendar year
 data$lf_season         <- rep(1L, nrow(lf_wide))
 data$lf_minbin         <- rep(1L, data$n_fishery)
 data$lf_maxbin         <- rep(data$n_len, data$n_fishery)
 data$removal_switch_f  <- rep(0L, data$n_fishery)
-data$lf_var_adj        <- 1 / rep(20000, data$n_fishery)
-data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
+# data$lf_var_adj        <- 1 / rep(20000, data$n_fishery)
+# data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
 data$n_lf              <- nrow(lf_obs)
 
 # Summary diagnostics
@@ -159,8 +165,9 @@ parameters <- list(
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
   cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
-  log_cpue_tau = log(0.1),
+  log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_lf_tau = log(1 / rep(20000, data$n_fishery)),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
   log_k = as.numeric(wcpo_bet_parameters$log_k),
@@ -169,6 +176,7 @@ parameters <- list(
   par_sel = as.matrix(wcpo_bet_parameters$par_sel),
   rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
 )
+parameters$log_lf_tau[c(1, 4:6, 15)] <- log(1 / 40000)
 ```
 
 ## Priors
@@ -188,6 +196,7 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+# map_sel[,1] <- 1:15
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map <- list(
@@ -198,13 +207,14 @@ map <- list(
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
-  # rdev_y = as.factor(map_rdev),
-  par_sel = as.factor(map_sel),
+  log_lf_tau = factor(rep(NA, data$n_fishery)),
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
   log_CV1 = factor(NA),
-  log_CV2 = factor(NA)
+  log_CV2 = factor(NA),
+  par_sel = factor(map_sel)
+  # rdev_y = as.factor(map_rdev),
 )
 ```
 
@@ -214,6 +224,7 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
+data$lf_switch <- 1
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))
 obj$fn()
@@ -241,6 +252,8 @@ Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
+# Lwr[grep("par_sel", names(obj$par))] <- rep(-5, length(parameters$par_sel))
+# Upr[grep("par_sel", names(obj$par))] <- rep(5, length(parameters$par_sel))
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
@@ -255,6 +268,13 @@ opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 max(obj$gr())
+obj$report()$lp_prior
+obj$report()$lp_penalty
+obj$report()$lp_rec
+sum(obj$report()$lp_cpue)
+sum(obj$report()$lp_lf)
+x <- seq(0, 0.003, 0.0000001)
+plot(x, posfun(x = x, eps = 0.001)$penalty)
 ```
 
 Compare initial and estimated parameter values:
@@ -263,8 +283,8 @@ Compare initial and estimated parameter values:
 data.frame(init = unlist(parameters), 
            value = unlist(obj$env$parList(obj$env$last.par.best))) %>%
   mutate(par = rownames(.)) %>%
-  left_join(bounds) %>%
-  head()
+  left_join(bounds, by = join_by(par)) %>%
+  head(10)
 ```
 
 ## Length composition fits
@@ -283,7 +303,7 @@ cat("Length composition NLL by fishery:\n")
 print(round(lf_nll_by_fishery, 1))
 
 # Example: overlay observed and predicted for a single observation
-obs_i <- 1
+obs_i <- 3
 plot_df <- data.frame(
   length = rep(len_mid, 2),
   proportion = c(data$lf_obs[obs_i, ], lf_pred[obs_i, ]),

@@ -4,7 +4,7 @@
 \alias{get_growth}
 \title{Compute mean length-at-age using the Schnute parameterization of VB growth}
 \usage{
-get_growth(n_age, A1, A2, L1, L2, k)
+get_growth(n_age, A1, A2, L1, L2, log_k)
 }
 \arguments{
 \item{n_age}{Integer. Number of age classes.}
@@ -17,7 +17,7 @@ get_growth(n_age, A1, A2, L1, L2, k)
 
 \item{L2}{Numeric. Length at age A2 (may be AD).}
 
-\item{k}{Numeric. VB growth coefficient (may be AD).}
+\item{log_k}{Numeric. VB growth coefficient (may be AD).}
 }
 \value{
 Numeric vector of length \code{n_age}: mean length at each age

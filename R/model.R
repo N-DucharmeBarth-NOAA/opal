@@ -60,26 +60,17 @@ opal_model <- function(parameters, data) {
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
 
-  # Derive length bins from scalars (single source of truth) ----
-
-  len_lower <- seq(from = len_bin_start, by = len_bin_width, length.out = n_len)
-  len_upper <- len_lower + len_bin_width
-  len_mid   <- len_lower + len_bin_width / 2
-
   # Growth module ----
 
   # Back-transform growth/variability parameters
   L1  <- exp(log_L1)
   L2  <- exp(log_L2)
-  k   <- exp(log_k)
-  CV1 <- exp(log_CV1)
-  CV2 <- exp(log_CV2)
 
   # Module 1: Mean length-at-age (Schnute VB)
-  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, log_k)
 
   # Module 2: SD of length-at-age (linear CV interpolation)
-  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
 
   # Shared PLA — computed once and reused for weight, maturity, selectivity
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
@@ -99,7 +90,7 @@ opal_model <- function(parameters, data) {
   # Accepts either age-basis (length n_age) or length-basis (length n_len) vectors.
   # Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
   maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
-  M_a         <- resolve_bio_vector(M, n_age, n_len, pla, "M")
+  M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
   fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
   spawning_potential_a <- maturity_a * fecundity_a
 
@@ -143,9 +134,10 @@ opal_model <- function(parameters, data) {
 
   lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
   lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
-
-  nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-
+  # lp_lf <- 0
+  # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
+  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(unlist(lp_lf))
+  
   # Reporting ----
 
   REPORT(number_ysa)
