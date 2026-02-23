@@ -229,9 +229,11 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
     lp[[j]] <- numeric(lf_n_f[j])
     for (i in seq_len(lf_n_f[j])) {
       obs_i <- lf_obs_vec[(idx + 1):(idx + nbins)]
+      pred_i <- lf_pred[[j]][i, ]
       if (removal_switch_f[f] == 0 & lf_n_fi[[j]][i] > 0) {
         if (lf_switch == 1) {
-          lp[[j]][i] <- -RTMB::dmultinom(x = obs_i, prob = lf_pred[[j]][i, ], log = TRUE)
+          lp[[j]][i] <- -RTMB::dmultinom(x = obs_i, prob = pred_i, log = TRUE)
+          # lp[[j]][i] <- -RTMB::dmultinom(x = obs_i, prob = obs_i/sum(obs_i), log = TRUE)
         }
       }
       idx <- idx + nbins

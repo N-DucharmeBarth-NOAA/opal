@@ -176,7 +176,7 @@ for (j in seq_len(n_f)) {
   lf_obs[[j]] <- m
 }
 data$lf_obs <- lf_obs
-  
+
 # Flatten lf_obs list-of-matrices into a single vector for OBS
 # Each matrix row is one observation's counts across bins
 lf_obs_vec <- unlist(lapply(data$lf_obs, function(m) as.numeric(t(m))))
