@@ -151,7 +151,10 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
         if (lf_switch == 1) { # Multinomial
           # obs <- obs * lf_n[i] * exp(log_lf_tau[f])
           # lp[i] <- -RTMB::dmultinom(x = obs, prob = pred, log = TRUE) # REMOVE LATER, if you source this files then reverts to stats::dmultinom which return zero as log like
-          lp[[j]][i] <- -RTMB::dmultinom(x = lf_obs[[j]][i, ], prob = lf_pred[[j]][i, ], log = TRUE) # REMOVE LATER, if you source this files then reverts to stats::dmultinom which return zero as log like
+          # lp[[j]][i] <- -RTMB::dmultinom(x = lf_obs[[j]][i, ], prob = lf_pred[[j]][i, ], log = TRUE) # REMOVE LATER, if you source this files then reverts to stats::dmultinom which return zero as log like
+          obs_i <- as.numeric(data$lf_obs[[j]][i, ])
+          obs_i <- OBS(obs_i)
+          lp[[j]][i] <- -RTMB::dmultinom(x = obs_i, prob = lf_pred[[j]][i, ], log = TRUE)
         }
         # if (lf_switch == 2) { # Dirichlet
         #   obs <- obs + 1e-8
