@@ -190,7 +190,7 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
   "c" <- ADoverload("c")
   
   # Mark the flat obs vector with OBS before getAll
-  data$lf_obs_vec <- OBS(data$lf_obs_vec)
+  # data$lf_obs_vec <- OBS(data$lf_obs_vec)
   
   getAll(data, parameters, warn = FALSE)
   
