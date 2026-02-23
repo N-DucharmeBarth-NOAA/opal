@@ -142,25 +142,39 @@ data$removal_switch_f  <- rep(0L, data$n_fishery)
 # data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
 data$n_lf              <- nrow(lf_obs)
 
-  # ---- Build lf_obs OUTSIDE the AD tape ----
-  # Use base R assignment (not the AD-overloaded [<-) so lf_obs stays plain numeric
-  lf_n_fi <- split(lf_n, lf_fishery)
+# ---- Build lf_obs OUTSIDE the AD tape ----
+# All plain R, no AD contamination
+lf_fishery_f  <- data$lf_fishery_f
+lf_n_f        <- data$lf_n_f
+n_f           <- length(lf_fishery_f)
+lf_minbin     <- data$lf_minbin
+lf_maxbin     <- data$lf_maxbin
+n_len_local   <- ncol(data$lf_obs_in)
+lf_n_fi       <- split(data$lf_n, data$lf_fishery)
 
-  lf_obs <- vector("list", n_f)
-    for (j in seq_len(n_f)) {
-      f <- lf_fishery_f[j]
-      bmin <- lf_minbin[f]
-      bmax <- lf_maxbin[f]
-      m <- matrix(0, lf_n_f[j], bmax - bmin + 1)
-      for (i in seq_len(lf_n_f[j])) {
-        obs <- data$lf_obs_in[i, ]
-        if (bmin > 1) obs[bmin] <- sum(obs[1:bmin])
-        if (bmax < n_len_local) obs[bmax] <- sum(obs[bmax:n_len_local])
-        obs <- obs[bmin:bmax]
-        m[i, ] <- obs * lf_n_fi[[j]][i]
-      }
-      lf_obs[[j]] <- m
+# Split row indices by fishery so we index lf_obs_in correctly
+lf_row_fi <- split(seq_len(nrow(data$lf_obs_in)), data$lf_fishery)
+
+lf_obs <- vector("list", n_f)
+for (j in seq_len(n_f)) {
+  f    <- lf_fishery_f[j]
+  bmin <- lf_minbin[f]
+  bmax <- lf_maxbin[f]
+  rows <- lf_row_fi[[j]]
+  m    <- matrix(0, lf_n_f[j], bmax - bmin + 1)
+  for (i in seq_len(lf_n_f[j])) {
+    obs <- data$lf_obs_in[rows[i], ]   # correct row in the global matrix
+    if (bmin > 1) {
+      obs[bmin] <- sum(obs[1:bmin])
     }
+    if (bmax < n_len_local) {
+      obs[bmax] <- sum(obs[bmax:n_len_local])
+    }
+    obs <- obs[bmin:bmax]
+    m[i, ] <- obs * lf_n_fi[[j]][i]
+  }
+  lf_obs[[j]] <- m
+}
 data$lf_obs <- lf_obs
   
 # Summary diagnostics
