@@ -177,6 +177,13 @@ for (j in seq_len(n_f)) {
 }
 data$lf_obs <- lf_obs
   
+# Flatten lf_obs list-of-matrices into a single vector for OBS
+# Each matrix row is one observation's counts across bins
+lf_obs_vec <- unlist(lapply(data$lf_obs, function(m) as.numeric(t(m))))
+data$lf_obs_vec <- lf_obs_vec
+# Store the number of bins per fishery for indexing
+data$lf_nbins_f <- sapply(data$lf_obs, ncol)
+
 # Summary diagnostics
 cat("Number of LF observations:", data$n_lf, "\n")
 cat("Fisheries with LF data:", sort(unique(data$lf_fishery)), "\n")
