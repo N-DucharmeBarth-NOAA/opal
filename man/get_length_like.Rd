@@ -4,9 +4,30 @@
 \alias{get_length_like}
 \title{Length Composition Likelihood}
 \usage{
-get_length_like(data, parameters, catch_pred_fya, pla)
+get_length_like(
+  lf_obs_flat,
+  catch_pred_fya,
+  pla,
+  lf_n_f,
+  lf_fishery_f,
+  lf_year_fi,
+  lf_n_fi,
+  lf_minbin,
+  lf_maxbin,
+  removal_switch_f,
+  lf_switch,
+  n_len,
+  n_lf,
+  log_lf_tau
+)
 }
 \arguments{
+\item{catch_pred_fya}{3D \code{array} \code{[n_fishery, n_year, n_age]} of predicted
+catch-at-age from \code{do_dynamics()}.}
+
+\item{pla}{Matrix \code{[n_len, n_age]} probability-of-length-at-age from
+\code{get_pla()}. On the AD tape when growth parameters are estimated.}
+
 \item{data}{a \code{list} of data inputs.
 \describe{
 \item{lf_maxbin}{Integer vector [n_fishery]. Per-fishery maximum bin index.
@@ -15,12 +36,6 @@ Default n_len (no upper aggregation).}
 }}
 
 \item{parameters}{a \code{list} of parameter values.}
-
-\item{catch_pred_fya}{3D \code{array} \code{[n_fishery, n_year, n_age]} of predicted
-catch-at-age from \code{do_dynamics()}.}
-
-\item{pla}{Matrix \code{[n_len, n_age]} probability-of-length-at-age from
-\code{get_pla()}. On the AD tape when growth parameters are estimated.}
 }
 \value{
 a \code{vector} of negative log-likelihood contributions, one per observation.

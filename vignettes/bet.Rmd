@@ -127,7 +127,7 @@ lf_obs <- lf_obs[lf_use, ]
 lf_n <- lf_n[lf_use]
 
 # Attach to data list
-data$lf_switch         <- 9L  # multinomial offset form (recommended default) - no way
+data$lf_switch         <- 1L  # multinomial offset form (recommended default)
 data$lf_obs_in            <- lf_obs
 data$lf_n              <- lf_n
 data$lf_fishery        <- as.integer(lf_wide$fishery)
@@ -140,7 +140,7 @@ data$lf_maxbin         <- rep(data$n_len, data$n_fishery)
 data$removal_switch_f  <- rep(0L, data$n_fishery)
 # data$lf_var_adj        <- 1 / rep(20000, data$n_fishery)
 # data$lf_var_adj[c(1, 4, 5, 6, 15)] <- 1 / 40000
-data$n_lf              <- nrow(lf_obs)
+data$n_lf <- nrow(lf_obs)
 
 # ---- Build lf_obs OUTSIDE the AD tape ----
 # All plain R, no AD contamination
@@ -153,41 +153,67 @@ n_len_local   <- ncol(data$lf_obs_in)
 lf_n_fi       <- split(data$lf_n, data$lf_fishery)
 
 # Split row indices by fishery so we index lf_obs_in correctly
-lf_row_fi <- split(seq_len(nrow(data$lf_obs_in)), data$lf_fishery)
+# lf_row_fi <- split(seq_len(nrow(data$lf_obs_in)), data$lf_fishery)
+# lf_obs <- vector("list", n_f)
+# for (j in seq_len(n_f)) {
+#   f    <- lf_fishery_f[j]
+#   bmin <- lf_minbin[f]
+#   bmax <- lf_maxbin[f]
+#   rows <- lf_row_fi[[j]]
+#   m    <- matrix(0, lf_n_f[j], bmax - bmin + 1)
+#   for (i in seq_len(lf_n_f[j])) {
+#     obs <- data$lf_obs_in[rows[i], ]   # correct row in the global matrix
+#     if (bmin > 1) {
+#       obs[bmin] <- sum(obs[1:bmin])
+#     }
+#     if (bmax < n_len_local) {
+#       obs[bmax] <- sum(obs[bmax:n_len_local])
+#     }
+#     obs <- obs[bmin:bmax]
+#     m[i, ] <- obs * lf_n_fi[[j]][i]
+#   }
+#   lf_obs[[j]] <- m
+# }
+# data$lf_obs <- lf_obs
 
-lf_obs <- vector("list", n_f)
+# Build lf_obs_list as before for reporting...
+lf_obs_list <- vector("list", n_f)
 for (j in seq_len(n_f)) {
-  f    <- lf_fishery_f[j]
+  f <- lf_fishery_f[j]
   bmin <- lf_minbin[f]
   bmax <- lf_maxbin[f]
   rows <- lf_row_fi[[j]]
-  m    <- matrix(0, lf_n_f[j], bmax - bmin + 1)
+  m <- matrix(0, lf_n_f[j], bmax - bmin + 1)
   for (i in seq_len(lf_n_f[j])) {
-    obs <- data$lf_obs_in[rows[i], ]   # correct row in the global matrix
-    if (bmin > 1) {
-      obs[bmin] <- sum(obs[1:bmin])
-    }
-    if (bmax < n_len_local) {
-      obs[bmax] <- sum(obs[bmax:n_len_local])
-    }
+    obs <- data$lf_obs_in[rows[i], ]
+    if (bmin > 1) obs[bmin] <- sum(obs[1:bmin])
+    if (bmax < n_len_local) obs[bmax] <- sum(obs[bmax:n_len_local])
     obs <- obs[bmin:bmax]
     m[i, ] <- obs * lf_n_fi[[j]][i]
   }
-  lf_obs[[j]] <- m
+  lf_obs_list[[j]] <- m
 }
-data$lf_obs <- lf_obs
 
-# Flatten lf_obs list-of-matrices into a single vector for OBS
-# Each matrix row is one observation's counts across bins
-lf_obs_vec <- unlist(lapply(data$lf_obs, function(m) as.numeric(t(m))))
-data$lf_obs_vec <- lf_obs_vec
-# Store the number of bins per fishery for indexing
-data$lf_nbins_f <- sapply(data$lf_obs, ncol)
+# Keep in nested sub-list for plain-R access in get_length_like
+data$lf_obs_data <- list(obs = lf_obs_list)
+
+# ALSO store as a flat vector — this is what OBS will mark
+# Same order: fishery 1 row 1 bins, fishery 1 row 2 bins, ..., fishery 2 row 1 bins, ...
+data$lf_obs_flat <- unlist(lapply(lf_obs_list, function(m) as.numeric(t(m))))
+
+# Number of bins per observation (same for all obs when bmin=1, bmax=n_len)
+data$lf_nbins <- ncol(lf_obs_list[[1]])
+
+# Clean up
+data$lf_obs <- NULL
+data$lf_obs_vec <- NULL
+data$lf_nbins_f <- NULL
 
 # Summary diagnostics
-cat("Number of LF observations:", data$n_lf, "\n")
-cat("Fisheries with LF data:", sort(unique(data$lf_fishery)), "\n")
-cat("Timestep range:", range(data$lf_year), "\n")
+# cat("Number of LF observations:", data$n_lf, "\n")
+# cat("Fisheries with LF data:", sort(unique(data$lf_fishery)), "\n")
+# cat("Timestep range:", range(data$lf_year), "\n")
+
 ```
 
 # Model setup
@@ -210,7 +236,8 @@ parameters <- list(
   cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
   log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
-  log_lf_tau = log(1 / rep(20000, data$n_fishery)),
+  # log_lf_tau = log(1 / rep(20000, data$n_fishery)),
+  log_lf_tau = log(rep(1, data$n_fishery)),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
   log_k = as.numeric(wcpo_bet_parameters$log_k),
@@ -219,7 +246,7 @@ parameters <- list(
   par_sel = as.matrix(wcpo_bet_parameters$par_sel),
   rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
 )
-parameters$log_lf_tau[c(1, 4:6, 15)] <- log(1 / 40000)
+# parameters$log_lf_tau[c(1, 4:6, 15)] <- log(1 / 40000)
 ```
 
 ## Priors
@@ -273,7 +300,10 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
 data$lf_switch <- 1
+data$lf_switch <- 2 # fails - need to normalise LFs (sum to 1) before passing to data
+data$lf_switch <- 3
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+obj$simulate()$lf_obs_flat
 unique(names(obj$par))
 obj$fn()
 obj$gr()

@@ -185,62 +185,58 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
 #   return(unlist(lp))
 # }
 
-get_length_like <- function(data, parameters, catch_pred_fya, pla) {
+get_length_like <- function(lf_obs_flat, catch_pred_fya, pla,
+                            lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,
+                            lf_minbin, lf_maxbin, removal_switch_f,
+                            lf_switch, n_len, n_lf, log_lf_tau) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   
-  # Mark the flat obs vector with OBS before getAll
-  # data$lf_obs_vec <- OBS(data$lf_obs_vec)
-  
-  getAll(data, parameters, warn = FALSE)
-  
   n_f <- length(lf_n_f)
-  lf_year_fi <- split(lf_year, lf_fishery)
-  lf_n_fi <- split(lf_n, lf_fishery)
-  n_lf <- nrow(lf_obs_in)
-  n_len_local <- ncol(lf_obs_in)
-  lp <- lf_pred <- vector("list", n_f)
+  lf_pred <- vector("list", n_f)
+  lp <- numeric(n_lf)
+  lf_obs_flat <- OBS(lf_obs_flat)
   
-  # ---- Build lf_pred on the AD tape ----
+  idx <- 0L
+  obs_offset <- 0L
   for (j in seq_len(n_f)) {
     f <- lf_fishery_f[j]
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]
-    lf_pred[[j]] <- matrix(0, lf_n_f[j], bmax - bmin + 1)
+    nbins <- bmax - bmin + 1L
+    lf_pred[[j]] <- matrix(0, lf_n_f[j], nbins)
     for (i in seq_len(lf_n_f[j])) {
+      idx <- idx + 1L
       y <- lf_year_fi[[j]][i]
       catch_a <- catch_pred_fya[f, y, ]
       pred <- c(pla %*% catch_a)
       if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
-      if (bmax < n_len_local) pred[bmax] <- sum(pred[bmax:n_len_local])
+      if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
       pred <- pred[bmin:bmax]
       pred <- pred + 1e-8
       pred <- pred / sum(pred)
       lf_pred[[j]][i, ] <- pred
-    }
-  }
-  
-  # ---- Evaluate likelihood ----
-  # Index into the flat OBS vector
-  idx <- 0L
-  for (j in seq_len(n_f)) {
-    f <- lf_fishery_f[j]
-    nbins <- lf_nbins_f[j]
-    lp[[j]] <- numeric(lf_n_f[j])
-    for (i in seq_len(lf_n_f[j])) {
-      obs_i <- lf_obs_vec[(idx + 1):(idx + nbins)]
-      pred_i <- lf_pred[[j]][i, ]
       if (removal_switch_f[f] == 0 & lf_n_fi[[j]][i] > 0) {
         if (lf_switch == 1) {
-          lp[[j]][i] <- -RTMB::dmultinom(x = obs_i, prob = pred_i, log = TRUE)
-          # lp[[j]][i] <- -RTMB::dmultinom(x = obs_i, prob = obs_i/sum(obs_i), log = TRUE)
+          obs_i <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
+          lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
+        }
+        if (lf_switch == 2) {
+          obs_i <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
+          alpha_i <- pred * sum(obs_i) * exp(log_lf_tau[f])
+          obs_i <- obs_i / sum(obs_i)
+          lp[idx] <- -RTMBdist::ddirichlet(x = obs_i, alpha = alpha_i, log = TRUE)
+        }
+        if (lf_switch == 3) {
+          obs_i <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
+          alpha_i <- pred * exp(log_lf_tau[f])
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = sum(obs_i), alpha = alpha_i, log = TRUE)
         }
       }
-      idx <- idx + nbins
+      obs_offset <- obs_offset + nbins
     }
   }
   
   REPORT(lf_pred)
-  return(unlist(lp))
+  return(lp)
 }
-

@@ -133,7 +133,22 @@ opal_model <- function(parameters, data) {
   # Likelihoods ----
 
   lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
-  lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
+  # lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
+  lp_lf <- get_length_like(
+    lf_obs_flat = lf_obs_flat,
+    catch_pred_fya = catch_pred_fya,
+    pla = pla,
+    lf_n_f = lf_n_f,
+    lf_fishery_f = lf_fishery_f,
+    lf_year_fi = split(lf_year, lf_fishery),
+    lf_n_fi = split(lf_n, lf_fishery),
+    lf_minbin = lf_minbin,
+    lf_maxbin = lf_maxbin,
+    removal_switch_f = removal_switch_f,
+    lf_switch = lf_switch,
+    n_len = n_len,
+    n_lf = n_lf, log_lf_tau = log_lf_tau
+  )
   # lp_lf <- 0
   # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
   nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf)
