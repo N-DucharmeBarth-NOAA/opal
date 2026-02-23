@@ -69,55 +69,72 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
   getAll(data, parameters, warn = FALSE)
   
   n_f <- length(lf_n_f)
-  
   lf_year_fi <- split(lf_year, lf_fishery)
   lf_n_fi <- split(lf_n, lf_fishery)
-  
   n_lf <- nrow(lf_obs_in)
   n_len_local <- ncol(lf_obs_in)
   # lp <- numeric(n_lf)
   # lf_pred <- matrix(0, n_lf, n_len_local)
-  lp <- lf_obs <- lf_pred <- vector("list", n_f)
+  lp <- lf_pred <- vector("list", n_f)
   
+  # ---- Build lf_pred on the AD tape (gradients flow through pla & catch_pred_fya) ----
   for (j in seq_len(n_f)) {
     f <- lf_fishery_f[j]
-    # Handle bin aggregation
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]
-    # lf_obs[[f]] <- matrix(0, lf_n_f[j], bmax - bmin + 1)
-    lf_obs[[j]] <- lf_pred[[j]] <- matrix(0, lf_n_f[j], bmax - bmin + 1)
-    # f <- lf_fishery[i]
+    lf_pred[[j]] <- matrix(0, lf_n_f[j], bmax - bmin + 1)
     for (i in seq_len(lf_n_f[j])) {
       y <- lf_year_fi[[j]][i]
-      # Predicted catch-at-age for this fishery and timestep
       catch_a <- catch_pred_fya[f, y, ]
-      # Convert to predicted numbers-at-length via PLA
-      # pla is [n_len, n_age], catch_a is [n_age] -> result is [n_len]
       pred <- c(pla %*% catch_a)
-      # Observed proportions for this row
-      obs <- lf_obs_in[i, ]
-      # Lower-tail aggregation: collapse bins 1:bmin into bin bmin
-      if (bmin > 1) {
-        pred[bmin] <- sum(pred[1:bmin])
-        obs[bmin] <- sum(obs[1:bmin])
-      }
-      # Upper-tail aggregation: collapse bins bmax:n_len into bin bmax
-      if (bmax < n_len_local) {
-        pred[bmax] <- sum(pred[bmax:n_len_local])
-        obs[bmax] <- sum(obs[bmax:n_len_local])
-      }
-      # Subset to active bins
+      if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
+      if (bmax < n_len_local) pred[bmax] <- sum(pred[bmax:n_len_local])
       pred <- pred[bmin:bmax]
-      obs <- obs[bmin:bmax]
-      # Normalize predicted to proportions (epsilon for AD safety)
       pred <- pred + 1e-8
       pred <- pred / sum(pred)
-      lf_obs[[j]][i, ] <- obs * lf_n_fi[[j]][i]# * exp(log_lf_tau[f])
       lf_pred[[j]][i, ] <- pred
-      # if (lf_switch == 1) lf_obs[i, bmin:bmax] <- obs * lf_n[i] * exp(log_lf_tau[f])
-      # lf_pred[i, bmin:bmax] <- pred # Store predicted proportions for diagnostics
     }
   }
+  
+  # for (j in seq_len(n_f)) {
+  #   f <- lf_fishery_f[j]
+  #   # Handle bin aggregation
+  #   bmin <- lf_minbin[f]
+  #   bmax <- lf_maxbin[f]
+  #   # lf_obs[[f]] <- matrix(0, lf_n_f[j], bmax - bmin + 1)
+  #   lf_obs[[j]] <- lf_pred[[j]] <- matrix(0, lf_n_f[j], bmax - bmin + 1)
+  #   # f <- lf_fishery[i]
+  #   for (i in seq_len(lf_n_f[j])) {
+  #     y <- lf_year_fi[[j]][i]
+  #     # Predicted catch-at-age for this fishery and timestep
+  #     catch_a <- catch_pred_fya[f, y, ]
+  #     # Convert to predicted numbers-at-length via PLA
+  #     # pla is [n_len, n_age], catch_a is [n_age] -> result is [n_len]
+  #     pred <- c(pla %*% catch_a)
+  #     # Observed proportions for this row
+  #     obs <- lf_obs_in[i, ]
+  #     # Lower-tail aggregation: collapse bins 1:bmin into bin bmin
+  #     if (bmin > 1) {
+  #       pred[bmin] <- sum(pred[1:bmin])
+  #       obs[bmin] <- sum(obs[1:bmin])
+  #     }
+  #     # Upper-tail aggregation: collapse bins bmax:n_len into bin bmax
+  #     if (bmax < n_len_local) {
+  #       pred[bmax] <- sum(pred[bmax:n_len_local])
+  #       obs[bmax] <- sum(obs[bmax:n_len_local])
+  #     }
+  #     # Subset to active bins
+  #     pred <- pred[bmin:bmax]
+  #     obs <- obs[bmin:bmax]
+  #     # Normalize predicted to proportions (epsilon for AD safety)
+  #     pred <- pred + 1e-8
+  #     pred <- pred / sum(pred)
+  #     lf_obs[[j]][i, ] <- obs * lf_n_fi[[j]][i]# * exp(log_lf_tau[f])
+  #     lf_pred[[j]][i, ] <- pred
+  #     # if (lf_switch == 1) lf_obs[i, bmin:bmax] <- obs * lf_n[i] * exp(log_lf_tau[f])
+  #     # lf_pred[i, bmin:bmax] <- pred # Store predicted proportions for diagnostics
+  #   }
+  # }
   
   # lf_obs <- OBS(lf_obs)
   
