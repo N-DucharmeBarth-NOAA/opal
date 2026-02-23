@@ -6,6 +6,8 @@
 \usage{
 get_length_like(
   lf_obs_flat,
+  lf_obs_ints,
+  lf_obs_prop,
   catch_pred_fya,
   pla,
   lf_n_f,

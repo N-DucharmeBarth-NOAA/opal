@@ -136,6 +136,8 @@ opal_model <- function(parameters, data) {
   # lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
   lp_lf <- get_length_like(
     lf_obs_flat = lf_obs_flat,
+    lf_obs_ints = lf_obs_ints,
+    lf_obs_prop = lf_obs_prop,
     catch_pred_fya = catch_pred_fya,
     pla = pla,
     lf_n_f = lf_n_f,
