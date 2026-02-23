@@ -136,7 +136,7 @@ opal_model <- function(parameters, data) {
   lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
   # lp_lf <- 0
   # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(unlist(lp_lf))
+  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf)
   
   # Reporting ----
 

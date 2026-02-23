@@ -24,8 +24,9 @@ Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
 ```{r load-pkg, echo=TRUE, message=FALSE}
-library(ggplot2)
-library(dplyr)
+# library(ggplot2)
+# library(dplyr)
+library(tidyverse)
 library(opal)
 library(RTMB)
 
@@ -196,7 +197,12 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-# map_sel[,1] <- 1:15
+map_sel[8, 1] <- 1
+map_sel[9, 1] <- 2
+map_sel[8, 3] <- 3
+map_sel[9, 3] <- 4
+map_sel[8, 4] <- 5
+map_sel[9, 4] <- 6
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map <- list(
@@ -262,6 +268,7 @@ bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 Optimise using the `nlminb` function, do it twice to be sure to be sure (said with Irish accent):
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
+obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 control <- list(eval.max = 10000, iter.max = 10000)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
@@ -275,6 +282,9 @@ sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
 x <- seq(0, 0.003, 0.0000001)
 plot(x, posfun(x = x, eps = 0.001)$penalty)
+
+check_estimability(obj = obj)
+
 ```
 
 Compare initial and estimated parameter values:
@@ -294,27 +304,80 @@ Inspect predicted vs observed length compositions:
 ```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 lf_rep <- obj$report()
 lf_pred <- lf_rep$lf_pred
-len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
-               by = data$len_bin_width, length.out = data$n_len)
+names(lf_pred) <- data$lf_fishery_f
+colnames(lf_pred[[1]]) <- data$len_mid
+colnames(lf_pred[[2]]) <- data$len_mid
 
-# Summary: total NLL contribution by fishery
-lf_nll_by_fishery <- tapply(lf_rep$lp_lf, data$lf_fishery, sum)
-cat("Length composition NLL by fishery:\n")
-print(round(lf_nll_by_fishery, 1))
+lf_year_list <- split(data$lf_year, data$lf_fishery_f)
 
-# Example: overlay observed and predicted for a single observation
-obs_i <- 3
-plot_df <- data.frame(
-  length = rep(len_mid, 2),
-  proportion = c(data$lf_obs[obs_i, ], lf_pred[obs_i, ]),
-  type = rep(c("Observed", "Predicted"), each = data$n_len)
-)
+# Predicted: long data frame with obs id
+df_pred <- map_dfr(seq_along(lf_pred), function(i) {
+  m <- lf_pred[[i]]
+  yrs <- lf_year_list[[i]]
+  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+    rename(id = Var1, length = Var2) %>%
+    mutate(fishery = names(lf_pred)[i],
+           id = as.integer(factor(id, levels = unique(id))),
+           year = yrs[id],
+           length = as.numeric(length))
+})
 
-ggplot(plot_df, aes(x = length, y = proportion, colour = type)) +
-  geom_line() +
+# Observed: long data frame with obs id
+df_obs <- data.frame(data$lf_obs_in)
+names(df_obs) <- data$len_mid
+df_obs <- df_obs %>%
+  mutate(year = data$lf_year, fishery = as.character(data$lf_fishery)) %>%
+  group_by(fishery) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+  mutate(length = as.numeric(length))
+
+# Join on id + fishery + length (unique key)
+df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
+  select(-year.y) %>%
+  rename(year = year.x)
+
+# Plot fishery 8
+ggplot(df %>% filter(fishery == "8", year %in% 146:188), aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+  facet_wrap(~ year, scales = "free_y", ncol = 6) +
   labs(x = "Length (cm)", y = "Proportion",
-       title = paste("Fishery", data$lf_fishery[obs_i],
-                     "- Year", data$lf_year[obs_i]))
+       title = "Length composition: Fishery 8",
+       subtitle = "Grey bars = observed, red line = predicted") +
+  theme(strip.text = element_text(size = 7),
+        axis.text = element_text(size = 6))
+
+# Plot fishery 9
+ggplot(df %>% filter(fishery == "9", year %in% 146:188), aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+  facet_wrap(~ year, scales = "free_y", ncol = 6) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Length composition: Fishery 9",
+       subtitle = "Grey bars = observed, red line = predicted") +
+  theme(strip.text = element_text(size = 7),
+        axis.text = element_text(size = 6))
+# # Summary: total NLL contribution by fishery
+# lf_nll_by_fishery <- tapply(lf_rep$lp_lf, data$lf_fishery, sum)
+# cat("Length composition NLL by fishery:\n")
+# print(round(lf_nll_by_fishery, 1))
+# 
+# # Example: overlay observed and predicted for a single observation
+# obs_i <- 3
+# plot_df <- data.frame(
+#   length = rep(len_mid, 2),
+#   proportion = c(data$lf_obs[obs_i, ], lf_pred[obs_i, ]),
+#   type = rep(c("Observed", "Predicted"), each = data$n_len)
+# )
+# 
+# ggplot(plot_df, aes(x = length, y = proportion, colour = type)) +
+#   geom_line() +
+#   labs(x = "Length (cm)", y = "Proportion",
+#        title = paste("Fishery", data$lf_fishery[obs_i],
+#                      "- Year", data$lf_year[obs_i]))
+
 ```
 
 Inspect fitted CPUE and catch:

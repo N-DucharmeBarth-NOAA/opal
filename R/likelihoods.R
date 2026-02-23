@@ -162,5 +162,5 @@ get_length_like <- function(data, parameters, catch_pred_fya, pla) {
   }
   
   REPORT(lf_pred)
-  return(lp)
+  return(unlist(lp))
 }
