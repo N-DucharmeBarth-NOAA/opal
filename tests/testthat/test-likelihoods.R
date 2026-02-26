@@ -3,49 +3,69 @@ library(RTMB)
 
 # Shared test helpers ----
 
-# Build minimal data and parameters for get_length_like() tests
-make_lf_data <- function(n_fishery = 2, n_year = 3, n_age = 10, n_len = 20,
-                         lf_switch = 9, lf_var_adj = NULL,
+# Build arguments for get_length_like() with a single observation: fishery 1, year 1.
+# Returns a named list that can be called with do.call(get_length_like, .).
+# lf_obs_flat / lf_obs_prop / lf_obs_ints are pre-aggregated to [bmin:bmax] for
+# fishery 1, matching the aggregation applied internally to the predicted vector.
+make_lf_args <- function(n_fishery = 2, n_year = 3, n_age = 10, n_len = 20,
+                         lf_switch = 1, log_lf_tau = NULL,
                          removal_switch_f = NULL, lf_minbin = NULL,
-                         lf_maxbin = NULL,
-                         obs_row = NULL) {
-  if (is.null(lf_var_adj)) lf_var_adj <- rep(1, n_fishery)
-  if (is.null(removal_switch_f)) removal_switch_f <- rep(0, n_fishery)
-  if (is.null(lf_minbin)) lf_minbin <- rep(1, n_fishery)
-  if (is.null(lf_maxbin)) lf_maxbin <- rep(n_len, n_fishery)
+                         lf_maxbin = NULL, obs_row = NULL, lf_n = 100L) {
+  if (is.null(log_lf_tau))       log_lf_tau       <- rep(0.0, n_fishery)
+  if (is.null(removal_switch_f)) removal_switch_f <- rep(0L,  n_fishery)
+  if (is.null(lf_minbin))        lf_minbin        <- rep(1L,  n_fishery)
+  if (is.null(lf_maxbin))        lf_maxbin        <- rep(n_len, n_fishery)
+  if (is.null(obs_row))          obs_row          <- rep(1 / n_len, n_len)
 
-  # Single observation: fishery 1, year 1
-  lf_obs_row <- if (!is.null(obs_row)) obs_row else {
-    x <- rep(1, n_len)
-    x / sum(x)
-  }
-  lf_obs <- matrix(lf_obs_row, nrow = 1, ncol = n_len)
+  # One observation group: fishery 1, year 1
+  lf_n_f       <- 1L
+  lf_fishery_f <- 1L
+  lf_year_fi   <- list(1L)
+  lf_n_fi      <- list(lf_n)
 
-  data <- list(
-    lf_obs = lf_obs,
-    lf_fishery = 1L,
-    lf_year = 1L,
-    lf_n = 100,
-    lf_switch = lf_switch,
-    lf_var_adj = lf_var_adj,
-    lf_minbin = lf_minbin,
-    lf_maxbin = lf_maxbin,
-    removal_switch_f = removal_switch_f
-  )
-  parameters <- list()
+  # Pre-aggregate observed counts to the active [bmin, bmax] window for fishery 1,
+  # matching the aggregation applied to pred inside get_length_like():
+  #   pred[bmin] <- sum(pred[1:bmin])     (lower tail rolled into bmin)
+  #   pred[bmax] <- sum(pred[bmax:n_len]) (upper tail rolled into bmax)
+  f1    <- 1L
+  bmin  <- lf_minbin[f1]
+  bmax  <- lf_maxbin[f1]
+  nbins <- bmax - bmin + 1L
+
+  obs_counts <- obs_row * lf_n
+  obs_agg    <- obs_counts[bmin:bmax]
+  if (bmin > 1L)    obs_agg[1L]    <- sum(obs_counts[1:bmin])
+  if (bmax < n_len) obs_agg[nbins] <- sum(obs_counts[bmax:n_len])
+
+  lf_obs_flat <- obs_agg                      # unrounded counts  (switch 1)
+  lf_obs_prop <- obs_agg / sum(obs_agg)       # proportions       (switch 2)
+  lf_obs_ints <- as.integer(round(obs_agg))   # integer counts    (switch 3)
 
   # Uniform catch-at-age
   catch_pred_fya <- array(1, dim = c(n_fishery, n_year, n_age))
 
-  # Simple diagonal-ish PLA: each age maps to one length bin
+  # PLA: each age maps exactly to one length bin
   pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) {
-    l <- min(a * 2, n_len)
-    pla[l, a] <- 1
-  }
+  for (a in seq_len(n_age)) pla[min(a * 2L, n_len), a] <- 1
 
-  list(data = data, parameters = parameters,
-       catch_pred_fya = catch_pred_fya, pla = pla)
+  list(
+    lf_obs_flat    = lf_obs_flat,
+    lf_obs_ints    = lf_obs_ints,
+    lf_obs_prop    = lf_obs_prop,
+    catch_pred_fya = catch_pred_fya,
+    pla            = pla,
+    lf_n_f         = lf_n_f,
+    lf_fishery_f   = lf_fishery_f,
+    lf_year_fi     = lf_year_fi,
+    lf_n_fi        = lf_n_fi,
+    lf_minbin      = lf_minbin,
+    lf_maxbin      = lf_maxbin,
+    removal_switch_f = removal_switch_f,
+    lf_switch      = lf_switch,
+    n_len          = n_len,
+    n_lf           = 1L,
+    log_lf_tau     = log_lf_tau
+  )
 }
 
 # Tests ----
@@ -62,244 +82,151 @@ test_that("predicted proportions at length sum to 1", {
   expect_equal(sum(pred), 1.0, tolerance = 1e-10)
 })
 
-test_that("multinomial offset NLL is finite and non-negative", {
-  s <- make_lf_data(lf_switch = 9)
-  lp <- get_length_like(s$data, s$parameters, s$catch_pred_fya, s$pla)
+test_that("multinomial NLL is finite and non-negative", {
+  s  <- make_lf_args(lf_switch = 1)
+  lp <- do.call(get_length_like, s)
   expect_true(all(is.finite(lp)))
   expect_true(all(lp >= 0))
 })
 
-test_that("perfect fit gives NLL near zero for offset form", {
+test_that("perfect fit gives finite, non-negative NLL for multinomial", {
   n_age <- 10
   n_len <- 20
 
-  # Build PLA where each age maps to one length bin (column sums = 1)
   pla <- matrix(0, n_len, n_age)
   for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
 
-  # Uniform catch-at-age produces a predictable predicted proportion vector
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
-  pred_raw <- c(pla %*% rep(1, n_age))
-  pred_raw <- (pred_raw + 1e-8) / sum(pred_raw + 1e-8)
+  # Build obs proportions equal to the normalised predicted proportions
+  pred_raw  <- c(pla %*% rep(1, n_age))
+  pred_norm <- (pred_raw + 1e-8) / sum(pred_raw + 1e-8)
 
-  # Observed exactly equals predicted (no epsilon issues needed here)
-  data <- list(
-    lf_obs = matrix(pred_raw, nrow = 1),
-    lf_fishery = 1L,
-    lf_year = 1L,
-    lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = rep(1, 2),
-    lf_maxbin = rep(n_len, 2),
-    removal_switch_f = rep(0, 2)
-  )
-  lp <- get_length_like(data, list(), catch_pred_fya, pla)
-  expect_equal(lp[1], 0, tolerance = 1e-6)
+  s  <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                     obs_row = pred_norm, lf_n = 100L)
+  lp <- do.call(get_length_like, s)
+  expect_true(is.finite(lp[1]))
+  expect_true(lp[1] >= 0)
 })
 
-test_that("variance adjustment scales NLL linearly", {
-  n_age <- 10
-  n_len <- 20
-  pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
-
+test_that("log_lf_tau affects NLL magnitude for lf_switch = 2 (Dirichlet)", {
+  n_age    <- 10
+  n_len    <- 20
   base_obs <- rep(1 / n_len, n_len)
-  data_base <- list(
-    lf_obs = matrix(base_obs, nrow = 1),
-    lf_fishery = 1L, lf_year = 1L, lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = rep(1, 2),
-    lf_maxbin = rep(n_len, 2),
-    removal_switch_f = rep(0, 2)
-  )
-  data_half <- data_base
-  data_half$lf_var_adj <- rep(0.5, 2)
 
-  lp_full <- get_length_like(data_base, list(), catch_pred_fya, pla)
-  lp_half <- get_length_like(data_half, list(), catch_pred_fya, pla)
+  s_low  <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 2,
+                         obs_row = base_obs, log_lf_tau = rep(0.0, 2))
+  s_high <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 2,
+                         obs_row = base_obs, log_lf_tau = rep(2.0, 2))
 
-  expect_equal(lp_half[1], lp_full[1] * 0.5, tolerance = 1e-10)
+  lp_low  <- do.call(get_length_like, s_low)
+  lp_high <- do.call(get_length_like, s_high)
+
+  expect_true(is.finite(lp_low[1]))
+  expect_true(is.finite(lp_high[1]))
+  expect_true(lp_low[1]  >= 0)
+  expect_true(lp_high[1] >= 0)
+  # Higher concentration (larger log_lf_tau) should produce a different NLL
+  expect_false(isTRUE(all.equal(lp_low[1], lp_high[1])))
 })
 
 test_that("zero catch-at-age does not produce NaN or Inf", {
-  s <- make_lf_data()
-  s$catch_pred_fya[1, 1, ] <- 0  # All zeros for the observed fishery/year
-  lp <- get_length_like(s$data, s$parameters, s$catch_pred_fya, s$pla)
+  s <- make_lf_args(lf_switch = 1)
+  s$catch_pred_fya[1, 1, ] <- 0  # all zeros for the observed fishery/year
+  lp <- do.call(get_length_like, s)
   expect_true(all(is.finite(lp)))
 })
 
 test_that("lf_minbin aggregation is correct", {
   n_age <- 10
   n_len <- 20
-  mbin <- 5L
+  mbin  <- 5L
 
-  # All catch goes to bins 2,4,6,...,20 (one per age)
-  pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
+  s_no_agg <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                            lf_minbin = c(1L, 1L), lf_maxbin = c(n_len, n_len))
+  s_agg    <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                            lf_minbin = c(mbin, 1L), lf_maxbin = c(n_len, n_len))
 
-  obs_row <- rep(1 / n_len, n_len)
+  lp_no_agg <- do.call(get_length_like, s_no_agg)
+  lp_agg    <- do.call(get_length_like, s_agg)
 
-  data_no_agg <- list(
-    lf_obs = matrix(obs_row, nrow = 1),
-    lf_fishery = 1L, lf_year = 1L, lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = c(1L, 1L),   # no aggregation
-    lf_maxbin = c(n_len, n_len),  # no upper aggregation
-    removal_switch_f = rep(0, 2)
-  )
-  data_agg <- data_no_agg
-  data_agg$lf_minbin <- c(mbin, 1L)   # aggregate bins 1:5 into bin 5
-
-  lp_no_agg <- get_length_like(data_no_agg, list(), catch_pred_fya, pla)
-  lp_agg    <- get_length_like(data_agg,    list(), catch_pred_fya, pla)
-
-  # Both should be finite
   expect_true(is.finite(lp_no_agg[1]))
   expect_true(is.finite(lp_agg[1]))
-
-  # Aggregating bins always loses information, so NLL should differ
-  # (equal only in degenerate cases where aggregation has no effect)
-  # Here the uniform obs and pred after eps-normalization should differ
-  # in the aggregated case, so just check they are both non-negative numbers
   expect_true(lp_no_agg[1] >= 0)
-  expect_true(lp_agg[1] >= 0)
+  expect_true(lp_agg[1]    >= 0)
 })
 
 test_that("removal_switch_f = 1 gives zero NLL contribution", {
-  s <- make_lf_data(removal_switch_f = c(1L, 0L))
-  lp <- get_length_like(s$data, s$parameters, s$catch_pred_fya, s$pla)
+  s  <- make_lf_args(lf_switch = 1, removal_switch_f = c(1L, 0L))
+  lp <- do.call(get_length_like, s)
   expect_equal(lp[1], 0)
 })
 
-test_that("lf_switch = 1 and lf_switch = 9 both produce finite results", {
-  s1 <- make_lf_data(lf_switch = 1)
-  s9 <- make_lf_data(lf_switch = 9)
+test_that("lf_switch = 1 and lf_switch = 2 both produce finite results", {
+  s1 <- make_lf_args(lf_switch = 1)
+  s2 <- make_lf_args(lf_switch = 2)
 
-  lp1 <- get_length_like(s1$data, s1$parameters, s1$catch_pred_fya, s1$pla)
-  lp9 <- get_length_like(s9$data, s9$parameters, s9$catch_pred_fya, s9$pla)
+  lp1 <- do.call(get_length_like, s1)
+  lp2 <- do.call(get_length_like, s2)
 
   expect_true(all(is.finite(lp1)))
-  expect_true(all(is.finite(lp9)))
+  expect_true(all(is.finite(lp2)))
   expect_true(all(lp1 >= 0))
-  expect_true(all(lp9 >= 0))
+  expect_true(all(lp2 >= 0))
 })
 
 test_that("lf_maxbin aggregation collapses upper-tail bins", {
   n_age <- 10
   n_len <- 20
-  xbin <- 15L
+  xbin  <- 15L
 
-  pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
+  s_agg <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                         lf_minbin = c(1L, 1L), lf_maxbin = c(xbin, n_len))
 
-  # Compute raw predicted proportions manually
-  pred_raw <- c(pla %*% rep(1, n_age))
-
-  obs_row <- rep(1 / n_len, n_len)
-
-  data_agg <- list(
-    lf_obs = matrix(obs_row, nrow = 1),
-    lf_fishery = 1L, lf_year = 1L, lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = c(1L, 1L),
-    lf_maxbin = c(xbin, n_len),
-    removal_switch_f = rep(0, 2)
-  )
-
-  lp <- get_length_like(data_agg, list(), catch_pred_fya, pla)
+  lp <- do.call(get_length_like, s_agg)
   expect_true(is.finite(lp[1]))
   expect_true(lp[1] >= 0)
 
-  # Verify upper-tail collapse: pred[xbin] == sum(pred_raw[xbin:n_len])
-  pred_xbin_expected <- sum(pred_raw[xbin:n_len])
-  pred_xbin_raw <- pred_raw[xbin]
-  expect_true(pred_xbin_expected >= pred_xbin_raw)
+  # The raw predicted mass at or above xbin is >= the individual bin value
+  pred_raw <- c(s_agg$pla %*% rep(1, n_age))
+  expect_true(sum(pred_raw[xbin:n_len]) >= pred_raw[xbin])
 })
 
 test_that("lf_minbin and lf_maxbin work together", {
   n_age <- 10
   n_len <- 20
-  mbin <- 3L
-  xbin <- 15L
+  mbin  <- 3L
+  xbin  <- 15L
 
-  pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
+  s_both <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                          lf_minbin = c(mbin, 1L), lf_maxbin = c(xbin, n_len))
 
-  obs_row <- rep(1 / n_len, n_len)
-
-  data_both <- list(
-    lf_obs = matrix(obs_row, nrow = 1),
-    lf_fishery = 1L, lf_year = 1L, lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = c(mbin, 1L),
-    lf_maxbin = c(xbin, n_len),
-    removal_switch_f = rep(0, 2)
-  )
-
-  lp <- get_length_like(data_both, list(), catch_pred_fya, pla)
+  lp <- do.call(get_length_like, s_both)
   expect_true(is.finite(lp[1]))
   expect_true(lp[1] >= 0)
-  # Active vector length should be xbin - mbin + 1 = 13
+  # Active bin count: xbin - mbin + 1 = 13
   expect_equal(xbin - mbin + 1L, 13L)
 })
 
-test_that("lf_maxbin = n_len gives same result as no upper aggregation", {
+test_that("lf_maxbin = n_len gives finite result (no upper aggregation)", {
   n_age <- 10
   n_len <- 20
 
-  pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
-  obs_row <- rep(1 / n_len, n_len)
-
-  data_default <- list(
-    lf_obs = matrix(obs_row, nrow = 1),
-    lf_fishery = 1L, lf_year = 1L, lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = c(1L, 1L),
-    lf_maxbin = c(n_len, n_len),
-    removal_switch_f = rep(0, 2)
-  )
-
-  lp <- get_length_like(data_default, list(), catch_pred_fya, pla)
+  s  <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                     lf_minbin = c(1L, 1L), lf_maxbin = c(n_len, n_len))
+  lp <- do.call(get_length_like, s)
   expect_true(is.finite(lp[1]))
   expect_true(lp[1] >= 0)
 })
 
-test_that("lf_maxbin = lf_minbin gives single-bin result with NLL near zero", {
+test_that("lf_maxbin = lf_minbin collapses to single bin and NLL is near zero", {
   n_age <- 10
   n_len <- 20
-  bin <- 10L
+  bin   <- 10L
 
-  pla <- matrix(0, n_len, n_age)
-  for (a in seq_len(n_age)) pla[min(a * 2, n_len), a] <- 1
-  catch_pred_fya <- array(1, dim = c(2, 3, n_age))
-
-  # When mbin == xbin, every bin collapses into a single bin.
-  # obs for that single bin = sum of all obs = 1.0 (proportions sum to 1).
-  obs_row <- rep(1 / n_len, n_len)
-
-  data_single <- list(
-    lf_obs = matrix(obs_row, nrow = 1),
-    lf_fishery = 1L, lf_year = 1L, lf_n = 100,
-    lf_switch = 9,
-    lf_var_adj = rep(1, 2),
-    lf_minbin = c(bin, 1L),
-    lf_maxbin = c(bin, n_len),
-    removal_switch_f = rep(0, 2)
-  )
-
-  lp <- get_length_like(data_single, list(), catch_pred_fya, pla)
-  # Both pred and obs collapse to a single bin == 1.0; NLL offset form = 0
+  # With a single active bin, pred normalises to 1.0 and obs sums to lf_n.
+  # dmultinom(lf_n, prob = 1.0) = 1  =>  NLL = 0.
+  s  <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                     lf_minbin = c(bin, 1L), lf_maxbin = c(bin, n_len),
+                     lf_n = 100L)
+  lp <- do.call(get_length_like, s)
   expect_equal(lp[1], 0, tolerance = 1e-6)
 })
