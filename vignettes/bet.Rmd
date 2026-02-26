@@ -247,24 +247,29 @@ obj$report()$lp_penalty
 obj$report()$lp_rec
 sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
-
-
-check_estimability(obj = obj)
-
 ```
 
 Compare initial and estimated parameter values:
 
 ```{r opt-results, echo=TRUE, message=FALSE}
-data.frame(init = unlist(parameters), 
-           value = unlist(obj$env$parList(obj$env$last.par.best))) %>%
-  mutate(par = rownames(.)) %>%
-  left_join(bounds, by = join_by(par)) %>%
-  filter(init != value)
+get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
 
 ```
+## Diagnostics
 
-## Length composition fits
+Check that all parameters are estimable using the `check_estimability` function:
+
+```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+check_estimability(obj = obj)
+```
+
+Calculate standard deviations of all model parameters:
+
+```{r run-sdreport, echo=TRUE, message=FALSE}
+Report <- sdreport(obj)
+```
+
+## Data fits
 
 Inspect predicted vs observed length compositions:
 
@@ -381,14 +386,14 @@ ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
 
 Inspect fitted CPUE and catch:
 
-```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot(data$cpue_data$value, col = 2, pch = 16,
      xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
 lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
 lines(obj$report()$cpue_pred, lwd = 2)
 ```
 
-```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
@@ -405,7 +410,7 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 
 ## Selectivity
 
-Visualise the selectivity curves by fleet:
+Visualise the selectivity curves by fleet (at age):
 
 ```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
 rep <- obj$report()
@@ -431,20 +436,6 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
   ylim(0, 1)
 ```
 
-## Diagnostics
-
-Check that all parameters are estimable using the `check_estimability` function:
-
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
-check_estimability(obj = obj)
-```
-
-Calculate standard deviations of all model parameters:
-
-```{r run-sdreport, echo=TRUE, message=FALSE}
-Report <- sdreport(obj)
-```
-
 # Simulation
 
 The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
@@ -457,7 +448,7 @@ lines(log(obj$report()$cpue_pred), lwd = 2)
 for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
 ```
 
-## One step ahead (OSA) residuals
+# One step ahead (OSA) residuals
 
 OSA residuals are a replacement for Pearson residuals:
 
