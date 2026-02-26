@@ -38,6 +38,10 @@ get_priors <- function(parameters, data = NULL) {
     priors[["par_sel"]] <- list(type = "normal", par1 = 0, par2 = 2, index = which("par_sel" == names(parameters)))
   }
 
+  if ("log_lf_tau" %in% names(parameters)) {
+    priors[["log_lf_tau"]] <- list(type = "normal", par1 = 0, par2 = 2, index = which("log_lf_tau" == names(parameters)))
+  }
+
   # Growth priors (on log scale — Normal priors on log-parameters are lognormal on natural scale)
   # Prior centers are stored in data to match initialization values
   if ("log_L1" %in% names(parameters)) {

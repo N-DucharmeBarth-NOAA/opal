@@ -97,7 +97,13 @@ lf_wide <- wcpo_bet_lf %>%
   ) %>%
   arrange(fishery, ts)
 
-data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9))
+# define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
+var_adjust_scalars <- 1/rep(1,data$n_fishery)
+# var_adjust_scalars <- 1/rep(20000,data$n_fishery)
+# var_adjust_scalars[c(1,4,5,6,15)] <- 1/40000
+
+data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
+                     lf_var_adjust = var_adjust_scalars)
 
 ```
 
@@ -121,8 +127,7 @@ parameters <- list(
   cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
   log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
-  # log_lf_tau = log(1 / rep(20000, data$n_fishery)),
-  log_lf_tau = log(rep(0.1, data$n_fishery)),
+  log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
   log_k = as.numeric(wcpo_bet_parameters$log_k),
@@ -131,7 +136,6 @@ parameters <- list(
   par_sel = as.matrix(wcpo_bet_parameters$par_sel),
   rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
 )
-# parameters$log_lf_tau[c(1, 4:6, 15)] <- log(1 / 40000)
 ```
 
 ## Priors
@@ -159,6 +163,9 @@ map_sel[8, 4] <- 5
 map_sel[9, 4] <- 6
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
+map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
+map_lf_tau[c(8, 9)] <- NA
+
 map <- list(
   # log_B0 = factor(NA),
   log_h = factor(NA),
@@ -167,7 +174,7 @@ map <- list(
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
-  log_lf_tau = factor(rep(NA, data$n_fishery)),
+  log_lf_tau = factor(map_lf_tau),
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
@@ -184,13 +191,12 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-data$lf_switch <- 1
+data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
+
+# Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
-obj$simulate()$lf_obs_flat
-obj$simulate()$lf_obs_prop
-obj$simulate()$lf_obs_ints
 unique(names(obj$par))
 obj$fn()
 obj$gr()
@@ -215,10 +221,12 @@ Lwr[grep("log_B0", names(obj$par))] <- log(1)
 Upr[grep("log_B0", names(obj$par))] <- log(exp(22))
 Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
-Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
-Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
-# Lwr[grep("par_sel", names(obj$par))] <- rep(-5, length(parameters$par_sel))
-# Upr[grep("par_sel", names(obj$par))] <- rep(5, length(parameters$par_sel))
+Lwr[grep("log_lf_tau", names(obj$par))] <- rep(-9, length(grep("log_lf_tau", names(obj$par))))
+Upr[grep("log_lf_tau", names(obj$par))] <- rep(9, length(grep("log_lf_tau", names(obj$par))))
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
+# Lwr[grep("par_sel", names(obj$par))] <- rep(-7, length(grep("par_sel", names(obj$par))))
+# Upr[grep("par_sel", names(obj$par))] <- rep(7, length(grep("par_sel", names(obj$par))))
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
@@ -252,7 +260,8 @@ data.frame(init = unlist(parameters),
            value = unlist(obj$env$parList(obj$env$last.par.best))) %>%
   mutate(par = rownames(.)) %>%
   left_join(bounds, by = join_by(par)) %>%
-  head(10)
+  filter(init != value)
+
 ```
 
 ## Length composition fits
