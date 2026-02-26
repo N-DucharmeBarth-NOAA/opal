@@ -230,3 +230,96 @@ test_that("lf_maxbin = lf_minbin collapses to single bin and NLL is near zero", 
   lp <- do.call(get_length_like, s)
   expect_equal(lp[1], 0, tolerance = 1e-6)
 })
+
+test_that("lf_switch = 3 (Dirichlet-multinomial) produces finite non-negative NLL", {
+  s  <- make_lf_args(lf_switch = 3)
+  lp <- do.call(get_length_like, s)
+  expect_true(all(is.finite(lp)))
+  expect_true(all(lp >= 0))
+})
+
+test_that("n_i = 0 observation is skipped and contributes zero NLL", {
+  s <- make_lf_args(lf_switch = 1)
+  s$lf_n_fi <- list(0L)   # override sample size to zero
+  lp <- do.call(get_length_like, s)
+  expect_equal(lp[1], 0)
+})
+
+test_that("multinomial NLL matches dmultinom reference value", {
+  # Construct a case where pred is known: 2 ages, 4 length bins
+  # pla: age 1 -> bin 2, age 2 -> bin 4 (min(a*2, n_len))
+  n_age <- 2L
+  n_len <- 4L
+  pla <- matrix(0, n_len, n_age)
+  for (a in seq_len(n_age)) pla[min(a * 2L, n_len), a] <- 1
+
+  # Non-uniform catch so pred is non-trivial
+  catch_pred_fya <- array(0, dim = c(2L, 1L, n_age))
+  catch_pred_fya[1, 1, ] <- c(3, 1)  # bin 2 gets 3x weight of bin 4
+
+  pred_raw <- c(pla %*% catch_pred_fya[1, 1, ])
+  pred     <- (pred_raw + 1e-8) / sum(pred_raw + 1e-8)
+  obs      <- c(0, 60, 0, 40)
+  expected_nll <- -dmultinom(obs, prob = pred, log = TRUE)
+
+  s <- make_lf_args(n_age = n_age, n_len = n_len, lf_switch = 1,
+                    lf_n = 100L)
+  s$catch_pred_fya <- catch_pred_fya
+  s$pla            <- pla
+  s$lf_obs_flat    <- obs   # matches active window [1:n_len], no aggregation
+
+  lp <- do.call(get_length_like, s)
+  expect_equal(lp[1], expected_nll, tolerance = 1e-10)
+})
+
+test_that("multiple observations: obs_offset advances correctly across observations", {
+  # Two observations for fishery 1, years 1 and 2, with different catch patterns
+  # so each year's pred is distinct — a bug in obs_offset would mix them up.
+  n_age  <- 4L
+  n_len  <- 8L
+  n_fishery <- 1L
+  n_year    <- 2L
+
+  # pla: age a -> bin min(a*2, n_len)  (1->2, 2->4, 3->6, 4->8)
+  pla <- matrix(0, n_len, n_age)
+  for (a in seq_len(n_age)) pla[min(a * 2L, n_len), a] <- 1
+
+  # Year 1: all catch at age 1 (-> bin 2); Year 2: all catch at age 4 (-> bin 8)
+  catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+  catch_pred_fya[1, 1, ] <- c(1, 0, 0, 0)
+  catch_pred_fya[1, 2, ] <- c(0, 0, 0, 1)
+
+  # Build expected preds
+  pred_y1 <- c(pla %*% catch_pred_fya[1, 1, ]); pred_y1 <- (pred_y1 + 1e-8) / sum(pred_y1 + 1e-8)
+  pred_y2 <- c(pla %*% catch_pred_fya[1, 2, ]); pred_y2 <- (pred_y2 + 1e-8) / sum(pred_y2 + 1e-8)
+
+  # Obs: year 1 concentrated in bin 2; year 2 concentrated in bin 8
+  obs_y1 <- c(0, 100, 0, 0, 0, 0, 0, 0)
+  obs_y2 <- c(0, 0, 0, 0, 0, 0, 0, 100)
+
+  expected_nll1 <- -dmultinom(obs_y1, prob = pred_y1, log = TRUE)
+  expected_nll2 <- -dmultinom(obs_y2, prob = pred_y2, log = TRUE)
+
+  lf_args <- list(
+    lf_obs_flat      = c(obs_y1, obs_y2),   # concatenated flat vector
+    lf_obs_ints      = as.integer(c(obs_y1, obs_y2)),
+    lf_obs_prop      = c(obs_y1 / sum(obs_y1), obs_y2 / sum(obs_y2)),
+    catch_pred_fya   = catch_pred_fya,
+    pla              = pla,
+    lf_n_f           = 2L,                  # 2 obs for fishery 1
+    lf_fishery_f     = 1L,                  # single fishery group
+    lf_year_fi       = list(c(1L, 2L)),
+    lf_n_fi          = list(c(100L, 100L)),
+    lf_minbin        = 1L,
+    lf_maxbin        = n_len,
+    removal_switch_f = 0L,
+    lf_switch        = 1L,
+    n_len            = n_len,
+    n_lf             = 2L,
+    log_lf_tau       = 0.0
+  )
+
+  lp <- do.call(get_length_like, lf_args)
+  expect_equal(lp[1], expected_nll1, tolerance = 1e-10)
+  expect_equal(lp[2], expected_nll2, tolerance = 1e-10)
+})
