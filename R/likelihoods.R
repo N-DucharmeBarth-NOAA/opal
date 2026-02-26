@@ -2,11 +2,12 @@
 #'
 #' Computes the likelihood for a standardized CPUE index using a log-linear model.
 #'
-#' @param data Integer switch to activate the likelihood.
-#' @param parameters a \code{vector} of year indices for CPUE observations.
-#' @param number_ysa a 3D \code{array} year, season, age of numbers-at-age.
-#' @param sel_fya a 3D \code{array} of selectivity by fishery, year, and age.
-#' @return a \code{list} with predicted CPUE, residuals, and likelihood vector.
+#' @param data a \code{list} of data inputs (cpue_data, cpue_switch, etc.).
+#' @param parameters a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, weight_fya, etc.).
+#' @param number_ysa a 3D \code{array} `[n_year, n_season, n_age]` of numbers-at-age.
+#' @param sel_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of selectivity by fishery, year, and age.
+#' @param creep_init scalar initialization value for creeping adjustment (default 1).
+#' @return a \code{numeric} vector of negative log-likelihood contributions.
 #' @importFrom RTMB ADoverload dnorm
 #' @export
 #' 
@@ -47,18 +48,25 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1)
 #' Computes likelihood for observed length compositions using a probability-of-length-at-age
 #' (PLA) matrix. Gradients propagate through to growth parameters when they are estimated.
 #'
-#' @param data a \code{list} of data inputs.
-#'   \describe{
-#'     \item{lf_maxbin}{Integer vector \[n_fishery\]. Per-fishery maximum bin index.
-#'       Bins from lf_maxbin\[f\] to n_len are aggregated into bin lf_maxbin\[f\].
-#'       Default n_len (no upper aggregation).}
-#'   }
-#' @param parameters a \code{list} of parameter values.
-#' @param catch_pred_fya 3D \code{array} \code{[n_fishery, n_year, n_age]} of predicted
+#' @param lf_obs_flat numeric vector of unrounded length composition counts (used when lf_switch=1).
+#' @param lf_obs_ints integer vector of integer length composition counts (used when lf_switch=3).
+#' @param lf_obs_prop numeric vector of length composition proportions (used when lf_switch=2).
+#' @param catch_pred_fya 3D \code{array} `[n_fishery, n_year, n_age]` of predicted
 #'   catch-at-age from \code{do_dynamics()}.
-#' @param pla Matrix \code{[n_len, n_age]} probability-of-length-at-age from
+#' @param pla matrix `[n_len, n_age]` probability-of-length-at-age from
 #'   \code{get_pla()}. On the AD tape when growth parameters are estimated.
-#' @return a \code{vector} of negative log-likelihood contributions, one per observation.
+#' @param lf_n_f integer vector `[n_fishery]` of number of observations per fishery.
+#' @param lf_fishery_f integer vector of fishery indices for each observation group.
+#' @param lf_year_fi list of integer vectors of year indices for each observation.
+#' @param lf_n_fi list of integer vectors of sample sizes for each observation.
+#' @param lf_minbin integer vector `[n_fishery]` of minimum bin index per fishery.
+#' @param lf_maxbin integer vector `[n_fishery]` of maximum bin index per fishery.
+#' @param removal_switch_f integer vector `[n_fishery]` indicating if fishery is removed (0=included, 1=removed).
+#' @param lf_switch integer likelihood type selector (1=multinomial, 2=dirichlet, 3=dirichlet-multinomial).
+#' @param n_len integer number of length bins.
+#' @param n_lf integer total number of length composition observations.
+#' @param log_lf_tau numeric vector `[n_fishery]` of log-scale variance adjustment parameters.
+#' @return a \code{numeric} vector of negative log-likelihood contributions, one per observation.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
