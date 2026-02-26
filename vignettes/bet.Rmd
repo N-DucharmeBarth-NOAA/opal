@@ -263,6 +263,11 @@ Check that all parameters are estimable using the `check_estimability` function:
 check_estimability(obj = obj)
 ```
 
+Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
+```{r check-cor, echo=TRUE, message=FALSE}
+get_cor_pairs(obj = obj, threshold = 0.95)
+```
+
 Calculate standard deviations of all model parameters:
 
 ```{r run-sdreport, echo=TRUE, message=FALSE}

@@ -46,8 +46,8 @@ Use \code{NULL} to suppress rounding.}
 \item{show_map}{Logical. Include \code{map} and \code{fixed} columns. Default \code{FALSE}.}
 }
 \value{
-A data.frame with columns \code{par}, \code{group}, \code{init}, \code{est}, \code{lower},
-\code{upper}, \code{gradient}, \code{grad_check}, \code{bnds_check}, and optionally \code{map}
+A data.frame with columns \code{par}, \code{init}, \code{est}, \code{lwr},
+\code{upr}, \code{grd}, \code{gr_chk}, \code{bd_chk}, and optionally \code{group}, \code{map}
 and \code{fixed} (when \code{show_map = TRUE}).
 }
 \description{
