@@ -410,17 +410,44 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 
 ## Selectivity
 
-Visualise the selectivity curves by fleet (at age):
+Visualise the selectivity curves by fleet (at length):
 
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
-rep <- obj$report()
-sel_fya <- rep$sel_fya
+```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
+par_sel_est <- obj$env$parList()$par_sel
 
 fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
                  "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
                  "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
                  "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
                  "S01_INDEX")
+
+sel_len_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
+  par_f <- par_sel_est[f, ]
+  sel_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(len_mid, par_f)
+  } else {
+    sel_double_normal(len_mid, par_f)
+  }
+  data.frame(
+    fishery    = f,
+    fleet_name = fleet_names[f],
+    length     = len_mid,
+    selectivity = as.numeric(sel_l)
+  )
+}))
+
+ggplot(sel_len_df, aes(x = length, y = selectivity)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 4) +
+  labs(x = "Length (cm)", y = "Selectivity") +
+  ylim(0, 1)
+```
+
+Visualise the selectivity curves by fleet (at age):
+
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+rep <- obj$report()
+sel_fya <- rep$sel_fya
 
 sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
 sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
