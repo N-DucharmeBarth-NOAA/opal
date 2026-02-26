@@ -10,7 +10,8 @@ prep_lf_data(
   lf_keep_fisheries = NULL,
   lf_switch = 1L,
   lf_minbin = NULL,
-  lf_maxbin = NULL
+  lf_maxbin = NULL,
+  lf_var_adjust = NULL
 )
 }
 \arguments{
@@ -37,6 +38,13 @@ bin index (1-based) used for each fishery.  Defaults to
 \item{lf_maxbin}{integer vector length \code{n_fishery} giving the maximum
 bin index (1-based) used for each fishery.  Defaults to
 \code{rep(n_len, n_fishery)}.}
+
+\item{lf_var_adjust}{numeric vector of length \code{n_fishery} used to
+scale the effective sample size for each fishery.  For observation row
+\eqn{i} belonging to fishery \eqn{f}, the sample size is adjusted as
+\eqn{n_i / \text{lf\_var\_adjust}_f}.  Values greater than 1 downweight
+(reduce effective \eqn{N}) and values less than 1 upweight the fishery.
+Defaults to \code{rep(1, n_fishery)} (no adjustment).}
 }
 \value{
 The input \code{data} list with the following elements appended or
@@ -57,6 +65,9 @@ LF data.}
 per observation row.}
 \item{\code{lf_season}}{Integer vector of season index (all 1).}
 \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
+\item{\code{lf_var_adjust}}{Passed through from argument; numeric vector
+\code{[n_fishery]} of variance-adjustment divisors applied to
+\code{lf_n}.}
 \item{\code{removal_switch_f}}{Integer vector \code{[n_fishery]} of
 removal flags (all 0).}
 \item{\code{n_lf}}{Total number of observation rows.}

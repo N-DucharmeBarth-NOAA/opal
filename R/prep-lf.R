@@ -25,6 +25,12 @@
 #' @param lf_maxbin integer vector length \code{n_fishery} giving the maximum
 #'   bin index (1-based) used for each fishery.  Defaults to
 #'   \code{rep(n_len, n_fishery)}.
+#' @param lf_var_adjust numeric vector of length \code{n_fishery} used to
+#'   scale the effective sample size for each fishery.  For observation row
+#'   \eqn{i} belonging to fishery \eqn{f}, the sample size is adjusted as
+#'   \eqn{n_i / \text{lf\_var\_adjust}_f}.  Values greater than 1 downweight
+#'   (reduce effective \eqn{N}) and values less than 1 upweight the fishery.
+#'   Defaults to \code{rep(1, n_fishery)} (no adjustment).
 #'
 #' @return The input \code{data} list with the following elements appended or
 #'   updated:
@@ -44,6 +50,9 @@
 #'       per observation row.}
 #'     \item{\code{lf_season}}{Integer vector of season index (all 1).}
 #'     \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
+#'     \item{\code{lf_var_adjust}}{Passed through from argument; numeric vector
+#'       \code{[n_fishery]} of variance-adjustment divisors applied to
+#'       \code{lf_n}.}
 #'     \item{\code{removal_switch_f}}{Integer vector \code{[n_fishery]} of
 #'       removal flags (all 0).}
 #'     \item{\code{n_lf}}{Total number of observation rows.}
@@ -72,7 +81,8 @@ prep_lf_data <- function(data,
                          lf_keep_fisheries = NULL,
                          lf_switch         = 1L,
                          lf_minbin         = NULL,
-                         lf_maxbin         = NULL) {
+                         lf_maxbin         = NULL,
+                         lf_var_adjust     = NULL) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -110,9 +120,13 @@ prep_lf_data <- function(data,
     lf_n          <- lf_n[lf_use]
   }
 
-  # ---- 7. Default min/max bin arguments ----
-  if (is.null(lf_minbin)) lf_minbin <- rep(1L, data$n_fishery)
-  if (is.null(lf_maxbin)) lf_maxbin <- rep(as.integer(data$n_len), data$n_fishery)
+  # ---- 7. Default min/max bin arguments and variance adjustment ----
+  if (is.null(lf_minbin))     lf_minbin     <- rep(1L, data$n_fishery)
+  if (is.null(lf_maxbin))     lf_maxbin     <- rep(as.integer(data$n_len), data$n_fishery)
+  if (is.null(lf_var_adjust)) lf_var_adjust <- rep(1, data$n_fishery)
+
+  # Apply per-fishery variance adjustment to effective sample sizes
+  lf_n <- lf_n / lf_var_adjust[lf_wide$fishery]
 
   # ---- 8. Attach index vectors and scalars to data ----
   data$lf_switch       <- as.integer(lf_switch)
@@ -123,8 +137,9 @@ prep_lf_data <- function(data,
   data$lf_n_f          <- as.integer(table(data$lf_fishery))
   data$lf_year         <- as.integer(lf_wide$ts)  # model timestep (1-based)
   data$lf_season       <- rep(1L, nrow(lf_wide))
-  data$lf_minbin       <- lf_minbin
-  data$lf_maxbin       <- lf_maxbin
+  data$lf_minbin        <- lf_minbin
+  data$lf_maxbin        <- lf_maxbin
+  data$lf_var_adjust    <- lf_var_adjust
   data$removal_switch_f <- rep(0L, data$n_fishery)
   data$n_lf            <- nrow(lf_obs)
 
@@ -163,7 +178,7 @@ prep_lf_data <- function(data,
 
   # For Dirichlet-multinomial (lf_switch = 3): rounded integer counts
   data$lf_obs_ints <- unlist(lapply(lf_obs_list,
-                                    function(m) as.numeric(t(round(m)))))
+                                    function(m) as.integer(t(round(m)))))
 
   # For Dirichlet (lf_switch = 2): row-normalised proportions
   data$lf_obs_prop <- unlist(lapply(lf_obs_list, function(m) {
