@@ -10,36 +10,36 @@
 
 ## Overview
 
-**opal** the **o**pen **p**opulation **a**ssessment **l**ibrary — is a
-fast, flexible, and modern R package for fisheries stock assessment.
-Built on [RTMB](https://github.com/kaskr/RTMB), opal provides a powerful
-framework for conducting quantitative population dynamics modeling and
-stock assessment analyses.
+**opal** — the **o**pen **p**opulation **a**ssessment **l**ibrary — is
+an open, modular R package for fisheries stock assessment built on
+[RTMB](https://github.com/kaskr/RTMB) for automatic differentiation and
+gradient-based optimization.
 
-### Key Features
+### Features
 
-- **Fast**: Leverages RTMB’s efficient automatic differentiation and
-  optimization engine for rapid model fitting and sensitivity analyses
-- **Flexible**: Modular design allows users to construct custom
-  population models by combining readily available or custom process
-  components
-- **Modern**: Built with contemporary R programming patterns, extensive
-  testing, and well-documented functions for reproducible, transparent
-  science
-- **Open & Accessible**: Released under open-source license with clear
-  documentation; transforms complex stock assessment workflows into
-  intuitive R functions, reducing barriers to entry and enabling
-  collaborative development
+- **Age-structured population dynamics with length-based processes**:
+  Forward simulation using the Baranov catch equation with flexible
+  natural mortality, growth, and selectivity options
+- **Modular design**: Population model components (growth, selectivity,
+  recruitment, likelihoods) are implemented as standalone functions that
+  can be combined as needed
+- **Multiple likelihood options**: Supports log-normal CPUE, and
+  multinomial, Dirichlet, and Dirichlet-multinomial length & weight
+  composition likelihoods
+- **Parameter estimation and diagnostics**: Gradient-based optimization
+  via `nlminb`, OSA residuals, likelihood profiling, estimability
+  checks, and parameter correlation summaries
+- **Uncertainty quantification and projections (*planned*)**: MCMC
+  sampling via `SparseNUTS`, and forward projections from estimated or
+  sampled parameter sets
+- **Open source**: Released under an open-source license with documented
+  functions and reproducible workflows
 
 ### Purpose
 
-opal is designed for fisheries scientists, stock assessment analysts,
-and population modeling researchers who need a transparent,
-reproducible, and collaborative framework for quantitative population
-assessment. Whether you’re building novel models, conducting sensitivity
-analyses, or sharing transparent workflows with colleagues, opal
-provides the tools and infrastructure to make rigorous stock assessment
-accessible and reproducible.
+opal is designed for fisheries stock assessment analysts and population
+modelling researchers who need a transparent, reproducible framework for
+quantitative population assessment.
 
 ## Installation
 
@@ -65,21 +65,6 @@ library(opal)
 # (Example code will depend on your API—update with actual function calls)
 ```
 
-## Core Functionality
-
-opal provides tools for:
-
-- **Population dynamics**: Model age/size structure, vital rates, and
-  stock-recruitment relationships
-- **Parameter estimation**: Fit models to fisheries data (catch,
-  surveys, length compositions, etc.)
-- **Inference**: Conduct Bayesian and frequentist analyses with
-  uncertainty quantification
-- **Diagnostics**: Evaluate model fit through residuals, retrospective
-  analyses, and likelihood profiling
-- **Projections**: Forecast population dynamics under different
-  management scenarios
-
 ## Documentation
 
 For detailed examples and function reference, see the
@@ -103,6 +88,13 @@ opal uses a standard development workflow:
 **Workflow**: Submit pull requests against the `dev` branch. Once
 features are tested and validated, they are incorporated into `main` for
 release.
+
+### Using GitHub Copilot
+
+If you use GitHub Copilot to assist with development, please select
+`dev` as the base branch from the dropdown menu when assigning work to
+Copilot (the default is `main`). This ensures your feature branches and
+pull requests follow our development workflow.
 
 ## License
 
