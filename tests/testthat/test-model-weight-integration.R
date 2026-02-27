@@ -88,7 +88,7 @@ make_parameters <- function(d) {
 }
 
 # Build the parameter map (everything fixed except log_B0).
-# log_wf_tau is only included when present in parameters.
+# log_lf_tau and log_wf_tau are only included when present in parameters.
 make_map <- function(parameters) {
   m <- list(
     log_h          = factor(NA),
@@ -97,7 +97,6 @@ make_map <- function(parameters) {
     cpue_creep     = factor(NA),
     log_cpue_tau   = factor(NA),
     log_cpue_omega = factor(NA),
-    log_lf_tau     = factor(rep(NA, length(parameters$log_lf_tau))),
     log_L1         = factor(NA),
     log_L2         = factor(NA),
     log_k          = factor(NA),
@@ -107,6 +106,9 @@ make_map <- function(parameters) {
                                    ncol(parameters$par_sel))),
     rdev_y         = factor(rep(NA, length(parameters$rdev_y)))
   )
+  if (!is.null(parameters$log_lf_tau)) {
+    m$log_lf_tau <- factor(rep(NA, length(parameters$log_lf_tau)))
+  }
   if (!is.null(parameters$log_wf_tau)) {
     m$log_wf_tau <- factor(rep(NA, length(parameters$log_wf_tau)))
   }
@@ -202,6 +204,36 @@ test_that("lp_wf is 0 when no WF data prepared (backward-compat default)", {
   obj$fn()
   rpt <- obj$report()
   expect_equal(sum(rpt$lp_wf), 0)
+})
+
+test_that("lp_lf is 0 when no LF data prepared (backward-compat default)", {
+  # Build data without any LF fields (wcpo_bet_data has no lf_* fields)
+  data(wcpo_bet_data, package = "opal", envir = environment())
+  d <- wcpo_bet_data
+  parameters <- make_parameters(d)
+  # Remove log_lf_tau since there is no LF data
+  parameters$log_lf_tau <- NULL
+  map        <- make_map(parameters)
+  obj        <- make_obj(d, parameters, map)
+  obj$fn()
+  rpt <- obj$report()
+  expect_equal(sum(rpt$lp_lf), 0)
+})
+
+test_that("lp_cpue is 0 when cpue_switch absent (backward-compat default)", {
+  data(wcpo_bet_data, package = "opal", envir = environment())
+  d <- wcpo_bet_data
+  d$lf_switch <- 0L
+  d$n_lf      <- 0L
+  # Remove cpue_switch to exercise the backward-compat guard
+  d$cpue_switch <- NULL
+  parameters <- make_parameters(d)
+  parameters$log_lf_tau <- NULL
+  map        <- make_map(parameters)
+  obj        <- make_obj(d, parameters, map)
+  obj$fn()
+  rpt <- obj$report()
+  expect_equal(sum(rpt$lp_cpue), 0)
 })
 
 # Tests: REPORT(lp_wf) ---------------------------------------------------------

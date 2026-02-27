@@ -67,8 +67,11 @@ opal_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
-  if (!exists("wf_switch", inherits = FALSE)) wf_switch <- 0L
-  if (!exists("n_wf", inherits = FALSE)) n_wf <- 0L
+  if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
+  if (!exists("lf_switch",  inherits = FALSE)) lf_switch   <- 0L
+  if (!exists("n_lf",       inherits = FALSE)) n_lf        <- 0L
+  if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
+  if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
 
   # Growth module ----
 
@@ -142,26 +145,34 @@ opal_model <- function(parameters, data) {
 
   # Likelihoods ----
 
-  lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
-  # lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
-  lp_lf <- get_length_like(
-    lf_obs_flat = lf_obs_flat,
-    lf_obs_ints = lf_obs_ints,
-    lf_obs_prop = lf_obs_prop,
-    catch_pred_fya = catch_pred_fya,
-    pla = pla,
-    lf_n_f = lf_n_f,
-    lf_fishery_f = lf_fishery_f,
-    lf_year_fi = split(lf_year, lf_fishery),
-    lf_n_fi = split(lf_n, lf_fishery),
-    lf_minbin = lf_minbin,
-    lf_maxbin = lf_maxbin,
-    removal_switch_f = removal_switch_f,
-    lf_switch = lf_switch,
-    n_len = n_len,
-    n_lf = n_lf, log_lf_tau = log_lf_tau
-  )
-  # lp_lf <- 0
+  # CPUE likelihood ----
+  if (cpue_switch > 0) {
+    lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
+  } else {
+    lp_cpue <- 0
+  }
+  # Length composition likelihood ----
+  if (lf_switch > 0 && n_lf > 0) {
+    lp_lf <- get_length_like(
+      lf_obs_flat = lf_obs_flat,
+      lf_obs_ints = lf_obs_ints,
+      lf_obs_prop = lf_obs_prop,
+      catch_pred_fya = catch_pred_fya,
+      pla = pla,
+      lf_n_f = lf_n_f,
+      lf_fishery_f = lf_fishery_f,
+      lf_year_fi = split(lf_year, lf_fishery),
+      lf_n_fi = split(lf_n, lf_fishery),
+      lf_minbin = lf_minbin,
+      lf_maxbin = lf_maxbin,
+      removal_switch_f = removal_switch_f,
+      lf_switch = lf_switch,
+      n_len = n_len,
+      n_lf = n_lf, log_lf_tau = log_lf_tau
+    )
+  } else {
+    lp_lf <- 0
+  }
   # Weight composition likelihood ----
   if (wf_switch > 0 && n_wf > 0) {
     lp_wf <- get_weight_like(
