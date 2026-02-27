@@ -139,3 +139,96 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
   REPORT(lf_pred)
   return(lp)
 }
+
+#' Weight Composition Likelihood
+#'
+#' Computes likelihood for observed weight compositions using the PLA
+#' matrix and a precomputed rebinning matrix. The prediction pipeline is:
+#' catch_at_age -> PLA -> pred_at_length -> rebin_matrix -> pred_at_weight.
+#' Gradients propagate through PLA to growth parameters when estimated.
+#'
+#' @param wf_obs_flat numeric vector of unrounded weight comp counts (wf_switch=1).
+#' @param wf_obs_ints integer vector of integer weight comp counts (wf_switch=3).
+#' @param wf_obs_prop numeric vector of weight comp proportions (wf_switch=2).
+#' @param catch_pred_fya 3D array [n_fishery, n_year, n_age] of predicted
+#'   catch-at-age from do_dynamics().
+#' @param pla matrix [n_len, n_age] probability-of-length-at-age from
+#'   get_pla(). On the AD tape when growth parameters are estimated.
+#' @param wf_rebin_matrix matrix [n_wt, n_len] precomputed rebinning weights
+#'   from prep_wf_data().
+#' @param wf_n_f integer vector [n_fishery] of observation counts per fishery.
+#' @param wf_fishery_f integer vector of fishery indices with WF data.
+#' @param wf_year_fi list of integer vectors of year indices per fishery.
+#' @param wf_n_fi list of integer vectors of sample sizes per fishery.
+#' @param wf_minbin integer vector [n_fishery] minimum weight bin index.
+#' @param wf_maxbin integer vector [n_fishery] maximum weight bin index.
+#' @param removal_switch_f integer vector [n_fishery] removal flags.
+#' @param wf_switch integer likelihood type (1=multinomial, 2=Dirichlet, 3=DM).
+#' @param n_wt integer number of weight bins.
+#' @param n_wf integer total number of WF observations.
+#' @param log_wf_tau numeric vector [n_fishery] log-scale variance adjustment.
+#' @return numeric vector of negative log-likelihood contributions, one per observation.
+#' @importFrom RTMB ADoverload dmultinom OBS REPORT
+#' @importFrom RTMBdist ddirichlet ddirmult
+#' @export
+get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
+                            catch_pred_fya, pla, wf_rebin_matrix,
+                            wf_n_f, wf_fishery_f, wf_year_fi, wf_n_fi,
+                            wf_minbin, wf_maxbin, removal_switch_f,
+                            wf_switch, n_wt, n_wf, log_wf_tau) {
+  "[<-" <- ADoverload("[<-")
+  "c" <- ADoverload("c")
+
+  n_f <- length(wf_n_f)
+  wf_pred <- vector("list", n_f)
+  lp <- numeric(n_wf)
+
+  # OBS-mark only the vector used by the active likelihood
+  if (wf_switch == 1) wf_obs_flat <- OBS(wf_obs_flat) # unrounded counts
+  if (wf_switch == 2) wf_obs_prop <- OBS(wf_obs_prop) # proportions
+  if (wf_switch == 3) wf_obs_ints <- OBS(wf_obs_ints) # integer counts
+
+  idx <- 0L
+  obs_offset <- 0L
+  for (j in seq_len(n_f)) {
+    f <- wf_fishery_f[j]
+    bmin <- wf_minbin[f]
+    bmax <- wf_maxbin[f]
+    nbins <- bmax - bmin + 1L
+    wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
+    for (i in seq_len(wf_n_f[j])) {
+      idx <- idx + 1L
+      y <- wf_year_fi[[j]][i]
+      catch_a <- catch_pred_fya[f, y, ]
+      pred_at_length <- c(pla %*% catch_a)
+      pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
+      if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
+      if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
+      pred <- pred_at_weight[bmin:bmax]
+      pred <- pred + 1e-8
+      pred <- pred / sum(pred)
+      wf_pred[[j]][i, ] <- pred
+      n_i <- wf_n_fi[[j]][i]
+      if (removal_switch_f[f] == 0 & n_i > 0) {
+        if (wf_switch == 1) { # Multinomial
+          obs_i <- wf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
+          lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
+        }
+        if (wf_switch == 2) { # Dirichlet
+          obs_i <- wf_obs_prop[(obs_offset + 1):(obs_offset + nbins)]
+          alpha_i <- pred * n_i * exp(log_wf_tau[f])
+          lp[idx] <- -RTMBdist::ddirichlet(x = obs_i, alpha = alpha_i, log = TRUE)
+        }
+        if (wf_switch == 3) { # Dirichlet-multinomial
+          obs_i <- wf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
+          alpha_i <- pred * exp(log_wf_tau[f])
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_i, alpha = alpha_i, log = TRUE)
+        }
+      }
+      obs_offset <- obs_offset + nbins
+    }
+  }
+
+  REPORT(wf_pred)
+  return(lp)
+}
