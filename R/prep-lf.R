@@ -31,6 +31,11 @@
 #'   \eqn{n_i / \text{lf\_var\_adjust}_f}.  Values greater than 1 downweight
 #'   (reduce effective \eqn{N}) and values less than 1 upweight the fishery.
 #'   Defaults to \code{rep(1, n_fishery)} (no adjustment).
+#' @param lf_cap positive integer (or \code{NULL}).  When supplied, each
+#'   effective sample size is capped: \eqn{n_i = \min(n_i, \text{lf\_cap})}.
+#'   Applied after proportions are computed so that observed compositions are
+#'   unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
+#'   feature.
 #'
 #' @return The input \code{data} list with the following elements appended or
 #'   updated:
@@ -82,7 +87,8 @@ prep_lf_data <- function(data,
                          lf_switch         = 1L,
                          lf_minbin         = NULL,
                          lf_maxbin         = NULL,
-                         lf_var_adjust     = NULL) {
+                         lf_var_adjust     = NULL,
+                         lf_cap            = NULL) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -98,6 +104,13 @@ prep_lf_data <- function(data,
 
   # ---- 3. Convert counts to proportions ----
   lf_obs <- lf_obs_counts / lf_n
+
+  # ---- 3b. Cap effective sample sizes ----
+  if (!is.null(lf_cap)) {
+    stopifnot("lf_cap must be a positive integer" =
+                length(lf_cap) == 1L && is.numeric(lf_cap) && lf_cap > 0)
+    lf_n <- pmin(lf_n, lf_cap)
+  }
 
   # ---- 4. Validate bin alignment against model length structure ----
   expected_bins <- seq(data$len_bin_start, by = data$len_bin_width,

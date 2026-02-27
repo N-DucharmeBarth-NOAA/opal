@@ -20,6 +20,11 @@
 #'   Defaults to rep(n_wt, n_fishery).
 #' @param wf_var_adjust numeric vector (length n_fishery) variance adjustment
 #'   divisors. Defaults to rep(1, n_fishery).
+#' @param wf_cap positive integer (or \code{NULL}).  When supplied, each
+#'   effective sample size is capped: \eqn{n_i = \min(n_i, \text{wf\_cap})}.
+#'   Applied after proportions are computed so that observed compositions are
+#'   unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
+#'   feature.
 #' @return data list with the following weight composition elements appended:
 #'   \describe{
 #'     \item{\code{wf_switch}}{Passed through from the argument.}
@@ -53,7 +58,8 @@
 #' @export
 prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
                          wf_switch = 1L, wf_minbin = NULL,
-                         wf_maxbin = NULL, wf_var_adjust = NULL) {
+                         wf_maxbin = NULL, wf_var_adjust = NULL,
+                         wf_cap = NULL) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -69,6 +75,13 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
 
   # ---- 3. Convert counts to proportions ----
   wf_obs <- wf_obs_counts / wf_n
+
+  # ---- 3b. Cap effective sample sizes ----
+  if (!is.null(wf_cap)) {
+    stopifnot("wf_cap must be a positive integer" =
+                length(wf_cap) == 1L && is.numeric(wf_cap) && wf_cap > 0)
+    wf_n <- pmin(wf_n, wf_cap)
+  }
 
   # ---- 4. Validate bin alignment against model weight structure ----
   expected_bins <- seq(data$wt_bin_start, by = data$wt_bin_width,
