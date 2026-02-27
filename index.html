@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,25 +67,29 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><strong>opal</strong> the <strong>o</strong>pen <strong>p</strong>opulation <strong>a</strong>ssessment <strong>l</strong>ibrary — is a fast, flexible, and modern R package for fisheries stock assessment. Built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a>, opal provides a powerful framework for conducting quantitative population dynamics modeling and stock assessment analyses.</p>
+<p><strong>opal</strong> — the <strong>o</strong>pen <strong>p</strong>opulation <strong>a</strong>ssessment <strong>l</strong>ibrary — is an open, modular R package for fisheries stock assessment built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a> for automatic differentiation and gradient-based optimization.</p>
 <div class="section level3">
-<h3 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
+<h3 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
 </h3>
 <ul>
 <li>
-<strong>Fast</strong>: Leverages RTMB’s efficient automatic differentiation and optimization engine for rapid model fitting and sensitivity analyses</li>
+<strong>Age-structured population dynamics with length-based processes</strong>: Forward simulation using the Baranov catch equation with flexible natural mortality, growth, and selectivity options</li>
 <li>
-<strong>Flexible</strong>: Modular design allows users to construct custom population models by combining readily available or custom process components</li>
+<strong>Modular design</strong>: Population model components (growth, selectivity, recruitment, likelihoods) are implemented as standalone functions that can be combined as needed</li>
 <li>
-<strong>Modern</strong>: Built with contemporary R programming patterns, extensive testing, and well-documented functions for reproducible, transparent science</li>
+<strong>Multiple likelihood options</strong>: Supports log-normal CPUE, and multinomial, Dirichlet, and Dirichlet-multinomial length &amp; weight composition likelihoods</li>
 <li>
-<strong>Open &amp; Accessible</strong>: Released under open-source license with clear documentation; transforms complex stock assessment workflows into intuitive R functions, reducing barriers to entry and enabling collaborative development</li>
+<strong>Parameter estimation and diagnostics</strong>: Gradient-based optimization via <code>nlminb</code>, OSA residuals, likelihood profiling, estimability checks, and parameter correlation summaries</li>
+<li>
+<strong>Uncertainty quantification and projections (<em>planned</em>)</strong>: MCMC sampling via <code>SparseNUTS</code>, and forward projections from estimated or sampled parameter sets</li>
+<li>
+<strong>Open source</strong>: Released under an open-source license with documented functions and reproducible workflows</li>
 </ul>
 </div>
 <div class="section level3">
 <h3 id="purpose">Purpose<a class="anchor" aria-label="anchor" href="#purpose"></a>
 </h3>
-<p>opal is designed for fisheries scientists, stock assessment analysts, and population modeling researchers who need a transparent, reproducible, and collaborative framework for quantitative population assessment. Whether you’re building novel models, conducting sensitivity analyses, or sharing transparent workflows with colleagues, opal provides the tools and infrastructure to make rigorous stock assessment accessible and reproducible.</p>
+<p>opal is designed for fisheries stock assessment analysts and population modelling researchers who need a transparent, reproducible framework for quantitative population assessment.</p>
 </div>
 </div>
 <div class="section level2">
@@ -109,23 +113,6 @@
 <span><span class="co"># (Example code will depend on your API—update with actual function calls)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="core-functionality">Core Functionality<a class="anchor" aria-label="anchor" href="#core-functionality"></a>
-</h2>
-<p>opal provides tools for:</p>
-<ul>
-<li>
-<strong>Population dynamics</strong>: Model age/size structure, vital rates, and stock-recruitment relationships</li>
-<li>
-<strong>Parameter estimation</strong>: Fit models to fisheries data (catch, surveys, length compositions, etc.)</li>
-<li>
-<strong>Inference</strong>: Conduct Bayesian and frequentist analyses with uncertainty quantification</li>
-<li>
-<strong>Diagnostics</strong>: Evaluate model fit through residuals, retrospective analyses, and likelihood profiling</li>
-<li>
-<strong>Projections</strong>: Forecast population dynamics under different management scenarios</li>
-</ul>
-</div>
-<div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
 <p>For detailed examples and function reference, see the <a href="vignettes/">vignettes</a> and inline function documentation (<code>?opal</code>).</p>
@@ -145,6 +132,11 @@
 <strong><code>dev</code></strong>: Active development branch. New features, bug fixes, and improvements are developed and tested here before being merged into <code>main</code>.</li>
 </ul>
 <p><strong>Workflow</strong>: Submit pull requests against the <code>dev</code> branch. Once features are tested and validated, they are incorporated into <code>main</code> for release.</p>
+</div>
+<div class="section level3">
+<h3 id="using-github-copilot">Using GitHub Copilot<a class="anchor" aria-label="anchor" href="#using-github-copilot"></a>
+</h3>
+<p>If you use GitHub Copilot to assist with development, please select <code>dev</code> as the base branch from the dropdown menu when assigning work to Copilot (the default is <code>main</code>). This ensures your feature branches and pull requests follow our development workflow.</p>
 </div>
 </div>
 <div class="section level2">
