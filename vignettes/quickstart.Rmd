@@ -16,7 +16,7 @@ knitr::opts_chunk$set(
 
 # The `opal` Package
 
-`opal` is an R package for building fast, transparent, and reproducible stock assessment models. It leverages [RTMB](https://kaskr.github.io/adcomp/group__R__interface.html) for automatic differentiation, enabling efficient optimization and uncertainty quantification.
+`opal` is an open, modular R package for fisheries stock assessment built on [RTMB](https://github.com/kaskr/RTMB) for automatic differentiation and gradient-based optimization.
 
 The core workflow involves:
 
