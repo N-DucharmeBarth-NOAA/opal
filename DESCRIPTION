@@ -1,6 +1,6 @@
 Package: opal
 Title: The open population assessment library
-Version: 0.0.1
+Version: 0.0.2
 Authors@R: c(
     person("Darcy", "Webber", , "darcy@quantifish.co.nz", role = "aut"),
     person("Philipp", "Neubauer", , "philipp@dragonfly.co.nz", role = "aut"),
