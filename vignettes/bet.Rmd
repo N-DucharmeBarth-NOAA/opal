@@ -184,12 +184,12 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-map_sel[8, 1] <- 1
-map_sel[9, 1] <- 2
-map_sel[8, 3] <- 3
-map_sel[9, 3] <- 4
-map_sel[8, 4] <- 5
-map_sel[9, 4] <- 6
+map_sel[8, 1] <- NA
+map_sel[9, 1] <- NA
+map_sel[8, 3] <- NA
+map_sel[9, 3] <- NA
+map_sel[8, 4] <- NA
+map_sel[9, 4] <- NA
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
@@ -221,9 +221,10 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
+data$lf_switch <- 0 # skip length comps (removal only)
 
 # Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
 # clarity alongside the equivalent lf_switch assignment.
@@ -316,179 +317,190 @@ Report <- sdreport(obj)
 Inspect predicted vs observed length compositions:
 
 ```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
-lf_rep <- obj$report()
-lf_pred <- lf_rep$lf_pred
-nbins <- data$lf_maxbin[1] - data$lf_minbin[1] + 1
+if(data$lf_switch == 0){
+  cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
+} else {
+  lf_rep <- obj$report()
+  lf_pred <- lf_rep$lf_pred
+  nbins <- data$lf_maxbin[1] - data$lf_minbin[1] + 1
 
-# Name the list elements and columns
-names(lf_pred) <- data$lf_fishery_f
-for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
+  # Name the list elements and columns
+  names(lf_pred) <- data$lf_fishery_f
+  for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
 
-# Helper: convert a flat OBS vector back to list-of-matrices (proportions)
-flat_to_list <- function(v, lf_n_f, nbins) {
-  out <- vector("list", length(lf_n_f))
-  offset <- 0L
-  for (k in seq_along(lf_n_f)) {
-    m <- matrix(v[(offset + 1):(offset + lf_n_f[k] * nbins)], nrow = lf_n_f[k], ncol = nbins, byrow = TRUE)
-    # Normalise each row to proportions
-    rs <- rowSums(m)
-    rs[rs == 0] <- 1
-    out[[k]] <- m / rs
-    offset <- offset + lf_n_f[k] * nbins
+  # Helper: convert a flat OBS vector back to list-of-matrices (proportions)
+  flat_to_list <- function(v, lf_n_f, nbins) {
+    out <- vector("list", length(lf_n_f))
+    offset <- 0L
+    for (k in seq_along(lf_n_f)) {
+      m <- matrix(v[(offset + 1):(offset + lf_n_f[k] * nbins)], nrow = lf_n_f[k], ncol = nbins, byrow = TRUE)
+      # Normalise each row to proportions
+      rs <- rowSums(m)
+      rs[rs == 0] <- 1
+      out[[k]] <- m / rs
+      offset <- offset + lf_n_f[k] * nbins
+    }
+    out
   }
-  out
-}
 
-# Split year index by fishery (must match length of lf_year)
-lf_year_list <- split(data$lf_year, data$lf_fishery)
+  # Split year index by fishery (must match length of lf_year)
+  lf_year_list <- split(data$lf_year, data$lf_fishery)
 
-# ---- Predicted: long data frame ----
-df_pred <- map_dfr(seq_along(lf_pred), function(i) {
-  m <- lf_pred[[i]]
-  yrs <- lf_year_list[[i]]
-  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
-    rename(id = Var1, length = Var2) %>%
-    mutate(fishery = names(lf_pred)[i],
-           id = as.integer(factor(id, levels = unique(id))),
-           year = yrs[id],
-           length = as.numeric(length))
-})
-
-# ---- Observed: long data frame ----
-df_obs <- data.frame(data$lf_obs_in)
-names(df_obs) <- data$len_mid
-df_obs <- df_obs %>%
-  mutate(year = data$lf_year, fishery = as.character(data$lf_fishery)) %>%
-  group_by(fishery) %>%
-  mutate(id = row_number()) %>%
-  ungroup() %>%
-  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
-  mutate(length = as.numeric(length))
-
-# ---- Simulations: generate n_sim draws and convert to long format ----
-n_sim <- 5
-df_sim_all <- map_dfr(seq_len(n_sim), function(s) {
-  # Determine which OBS vector was active based on lf_switch
-  sim <- obj$simulate()
-  if (data$lf_switch == 1) {
-    sim_vec <- sim$lf_obs_flat
-  } else if (data$lf_switch == 2) {
-    sim_vec <- sim$lf_obs_prop
-  } else {
-    sim_vec <- sim$lf_obs_ints
-  }
-  sim_list <- flat_to_list(sim_vec, data$lf_n_f, nbins)
-  names(sim_list) <- data$lf_fishery_f
-  for (k in seq_along(sim_list)) colnames(sim_list[[k]]) <- data$len_mid
-  map_dfr(seq_along(sim_list), function(i) {
-    m <- sim_list[[i]]
+  # ---- Predicted: long data frame ----
+  df_pred <- map_dfr(seq_along(lf_pred), function(i) {
+    m <- lf_pred[[i]]
     yrs <- lf_year_list[[i]]
-    as.data.frame.table(m, responseName = "sim", stringsAsFactors = FALSE) %>%
+    as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
       rename(id = Var1, length = Var2) %>%
-      mutate(fishery = names(sim_list)[i],
-             id = as.integer(factor(id, levels = unique(id))),
-             year = yrs[id],
-             length = as.numeric(length),
-             sim_id = s)
+      mutate(fishery = names(lf_pred)[i],
+            id = as.integer(factor(id, levels = unique(id))),
+            year = yrs[id],
+            length = as.numeric(length))
   })
-})
 
-# ---- Join observed + predicted ----
-df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
-  select(-year.y) %>%
-  rename(year = year.x)
+  # ---- Observed: long data frame ----
+  df_obs <- data.frame(data$lf_obs_in)
+  names(df_obs) <- data$len_mid
+  df_obs <- df_obs %>%
+    mutate(year = data$lf_year, fishery = as.character(data$lf_fishery)) %>%
+    group_by(fishery) %>%
+    mutate(id = row_number()) %>%
+    ungroup() %>%
+    pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+    mutate(length = as.numeric(length))
 
-# ---- Plot fishery 8 ----
-yrs_plot <- 146:188
-ggplot(df %>% filter(fishery == "8", year %in% yrs_plot), aes(x = length)) +
-  geom_col(aes(y = obs), fill = "grey70", width = 2) +
-  geom_line(data = df_sim_all %>% filter(fishery == "8", year %in% yrs_plot),
-            aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
-  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
-  facet_wrap(~ year, scales = "free_y", ncol = 6) +
-  labs(x = "Length (cm)", y = "Proportion",
-       title = "Length composition: Fishery 8",
-       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
-  theme(strip.text = element_text(size = 7),
-        axis.text = element_text(size = 6))
+  # ---- Simulations: generate n_sim draws and convert to long format ----
+  n_sim <- 5
+  df_sim_all <- map_dfr(seq_len(n_sim), function(s) {
+    # Determine which OBS vector was active based on lf_switch
+    sim <- obj$simulate()
+    if (data$lf_switch == 1) {
+      sim_vec <- sim$lf_obs_flat
+    } else if (data$lf_switch == 2) {
+      sim_vec <- sim$lf_obs_prop
+    } else {
+      sim_vec <- sim$lf_obs_ints
+    }
+    sim_list <- flat_to_list(sim_vec, data$lf_n_f, nbins)
+    names(sim_list) <- data$lf_fishery_f
+    for (k in seq_along(sim_list)) colnames(sim_list[[k]]) <- data$len_mid
+    map_dfr(seq_along(sim_list), function(i) {
+      m <- sim_list[[i]]
+      yrs <- lf_year_list[[i]]
+      as.data.frame.table(m, responseName = "sim", stringsAsFactors = FALSE) %>%
+        rename(id = Var1, length = Var2) %>%
+        mutate(fishery = names(sim_list)[i],
+              id = as.integer(factor(id, levels = unique(id))),
+              year = yrs[id],
+              length = as.numeric(length),
+              sim_id = s)
+    })
+  })
 
-# ---- Plot fishery 9 ----
-ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
-  geom_col(aes(y = obs), fill = "grey70", width = 2) +
-  geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
-            aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
-  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
-  facet_wrap(~ year, scales = "free_y", ncol = 6) +
-  labs(x = "Length (cm)", y = "Proportion",
-       title = "Length composition: Fishery 9",
-       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
-  theme(strip.text = element_text(size = 7),
-        axis.text = element_text(size = 6))
+  # ---- Join observed + predicted ----
+  df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
+    select(-year.y) %>%
+    rename(year = year.x)
+
+  # ---- Plot fishery 8 ----
+  yrs_plot <- 146:188
+  ggplot(df %>% filter(fishery == "8", year %in% yrs_plot), aes(x = length)) +
+    geom_col(aes(y = obs), fill = "grey70", width = 2) +
+    geom_line(data = df_sim_all %>% filter(fishery == "8", year %in% yrs_plot),
+              aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+    facet_wrap(~ year, scales = "free_y", ncol = 6) +
+    labs(x = "Length (cm)", y = "Proportion",
+        title = "Length composition: Fishery 8",
+        subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+    theme(strip.text = element_text(size = 7),
+          axis.text = element_text(size = 6))
+
+  # ---- Plot fishery 9 ----
+  ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
+    geom_col(aes(y = obs), fill = "grey70", width = 2) +
+    geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
+              aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+    facet_wrap(~ year, scales = "free_y", ncol = 6) +
+    labs(x = "Length (cm)", y = "Proportion",
+        title = "Length composition: Fishery 9",
+        subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+    theme(strip.text = element_text(size = 7),
+          axis.text = element_text(size = 6))
+}
 ```
 
 Inspect predicted vs observed weight compositions:
 
 ```{r wf-diagnostics, echo=TRUE, message=FALSE, fig.height=5, fig.width=7}
-wf_rep  <- obj$report()
-wf_pred <- wf_rep$wf_pred
-wt_mid_trim <- data$wt_mid[data$wf_minbin[data$wf_fishery_f[1]]:
-                             data$wf_maxbin[data$wf_fishery_f[1]]]
+if(data$wf_switch == 0){
+  cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
+} else {
+  wf_rep  <- obj$report()
+  wf_pred <- wf_rep$wf_pred
+  wt_mid_trim <- data$wt_mid[data$wf_minbin[data$wf_fishery_f[1]]:
+                              data$wf_maxbin[data$wf_fishery_f[1]]]
 
-names(wf_pred) <- data$wf_fishery_f
-for (k in seq_along(wf_pred)) colnames(wf_pred[[k]]) <- wt_mid_trim
+  names(wf_pred) <- data$wf_fishery_f
+  for (k in seq_along(wf_pred)) colnames(wf_pred[[k]]) <- wt_mid_trim
 
-wf_year_list <- split(data$wf_year, data$wf_fishery)
+  wf_year_list <- split(data$wf_year, data$wf_fishery)
 
-# ---- Predicted: long data frame ----
-df_wf_pred <- map_dfr(seq_along(wf_pred), function(i) {
-  m   <- wf_pred[[i]]
-  yrs <- wf_year_list[[i]]
-  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
-    rename(id = Var1, weight = Var2) %>%
-    mutate(fishery = names(wf_pred)[i],
-           id      = as.integer(factor(id, levels = unique(id))),
-           year    = yrs[id],
-           weight  = as.numeric(weight))
-})
+  # ---- Predicted: long data frame ----
+  df_wf_pred <- map_dfr(seq_along(wf_pred), function(i) {
+    m   <- wf_pred[[i]]
+    yrs <- wf_year_list[[i]]
+    as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+      rename(id = Var1, weight = Var2) %>%
+      mutate(fishery = names(wf_pred)[i],
+            id      = as.integer(factor(id, levels = unique(id))),
+            year    = yrs[id],
+            weight  = as.numeric(weight))
+  })
 
-# ---- Observed: long data frame (first WF fishery only for this plot) ----
-df_wf_obs <- data.frame(data$wf_obs_in[
-  seq_len(data$wf_n_f[1]), , drop = FALSE])
-names(df_wf_obs) <- data$wt_mid
-df_wf_obs <- df_wf_obs %>%
-  mutate(year    = wf_year_list[[1]],
-         fishery = as.character(data$wf_fishery_f[1])) %>%
-  mutate(id = row_number()) %>%
-  pivot_longer(cols = -c(year, fishery, id),
-               names_to = "weight", values_to = "obs") %>%
-  mutate(weight = as.numeric(weight)) %>%
-  filter(weight >= wt_mid_trim[1], weight <= wt_mid_trim[length(wt_mid_trim)])
+  # ---- Observed: long data frame (first WF fishery only for this plot) ----
+  df_wf_obs <- data.frame(data$wf_obs_in[
+    seq_len(data$wf_n_f[1]), , drop = FALSE])
+  names(df_wf_obs) <- data$wt_mid
+  df_wf_obs <- df_wf_obs %>%
+    mutate(year    = wf_year_list[[1]],
+          fishery = as.character(data$wf_fishery_f[1])) %>%
+    mutate(id = row_number()) %>%
+    pivot_longer(cols = -c(year, fishery, id),
+                names_to = "weight", values_to = "obs") %>%
+    mutate(weight = as.numeric(weight)) %>%
+    filter(weight >= wt_mid_trim[1], weight <= wt_mid_trim[length(wt_mid_trim)])
 
-df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "weight"))
+  df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "weight"))
 
-# ---- Plot first fishery with WF data ----
-f_plot <- as.character(data$wf_fishery_f[1])
-max_yrs_wf_plot <- 24  # show at most 24 time steps for readability
-yrs_wf_plot <- sort(unique(df_wf$year))[seq_len(min(max_yrs_wf_plot, length(unique(df_wf$year))))]
-ggplot(df_wf %>% filter(fishery == f_plot, year %in% yrs_wf_plot),
-       aes(x = weight)) +
-  geom_col(aes(y = obs), fill = "grey70") +
-  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
-  facet_wrap(~ year, scales = "free_y", ncol = 6) +
-  labs(x = "Weight (kg)", y = "Proportion",
-       title = paste0("Weight composition: Fishery ", f_plot),
-       subtitle = "Grey bars = observed, red = predicted") +
-  theme(strip.text = element_text(size = 7),
-        axis.text  = element_text(size = 6))
+  # ---- Plot first fishery with WF data ----
+  f_plot <- as.character(data$wf_fishery_f[1])
+  max_yrs_wf_plot <- 24  # show at most 24 time steps for readability
+  yrs_wf_plot <- sort(unique(df_wf$year))[seq_len(min(max_yrs_wf_plot, length(unique(df_wf$year))))]
+  ggplot(df_wf %>% filter(fishery == f_plot, year %in% yrs_wf_plot),
+        aes(x = weight)) +
+    geom_col(aes(y = obs), fill = "grey70") +
+    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+    facet_wrap(~ year, scales = "free_y", ncol = 6) +
+    labs(x = "Weight (kg)", y = "Proportion",
+        title = paste0("Weight composition: Fishery ", f_plot),
+        subtitle = "Grey bars = observed, red = predicted") +
+    theme(strip.text = element_text(size = 7),
+          axis.text  = element_text(size = 6))
+}
 ```
-
 Inspect fitted CPUE and catch:
 
 ```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-plot(data$cpue_data$value, col = 2, pch = 16,
-     xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
-lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
-lines(obj$report()$cpue_pred, lwd = 2)
+if(data$cpue_switch == 0){
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
+} else {
+  plot(data$cpue_data$value, col = 2, pch = 16,
+      xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
+  lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
+  lines(obj$report()$cpue_pred, lwd = 2)
+}
 ```
 
 ```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
@@ -567,10 +579,14 @@ The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
 allows simulation via `obj$simulate()`. For example:
 
 ```{r sim-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-plot(log(data$cpue_data$value), col = 2, pch = 16,
-     xlab = "Time step", ylab = "log(CPUE)", main = "Observed vs simulated CPUE")
-lines(log(obj$report()$cpue_pred), lwd = 2)
-for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
+if(data$cpue_switch == 0){
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
+} else {
+  plot(log(data$cpue_data$value), col = 2, pch = 16,
+      xlab = "Time step", ylab = "log(CPUE)", main = "Observed vs simulated CPUE")
+  lines(log(obj$report()$cpue_pred), lwd = 2)
+  for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
+}
 ```
 
 # One step ahead (OSA) residuals
@@ -578,10 +594,14 @@ for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
 OSA residuals are a replacement for Pearson residuals:
 
 ```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
-                           method = "oneStepGeneric", trace = FALSE)
-qqnorm(osa_cpue$res)
-abline(0, 1)
-plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
-abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
+if(data$cpue_switch == 0){
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
+} else {
+  osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
+                            method = "oneStepGeneric", trace = FALSE)
+  qqnorm(osa_cpue$res)
+  abline(0, 1)
+  plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
+  abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
+}
 ```
