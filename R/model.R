@@ -13,6 +13,11 @@ utils::globalVariables(c(
   "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_maxbin", "lf_obs", "lf_n",
   "lf_var_adj",
+  "wf_switch", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",
+  "wf_n_f", "wf_fishery_f", "wf_fishery", "wf_year", "wf_n",
+  "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
+  "wt_bin_start", "wt_bin_width",
+  "log_wf_tau",
   "priors"
 ))
 
