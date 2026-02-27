@@ -6,7 +6,7 @@ Linearly interpolates CV as a function of mean length, matching SS3's
 ## Usage
 
 ``` r
-get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
 ```
 
 ## Arguments
@@ -25,11 +25,11 @@ get_sd_at_age(mu_a, L1, L2, CV1, CV2)
 
   Numeric. Length at age A2 (may be AD).
 
-- CV1:
+- log_CV1:
 
   Numeric. CV at age A1 (may be AD).
 
-- CV2:
+- log_CV2:
 
   Numeric. CV at age A2 (may be AD).
 

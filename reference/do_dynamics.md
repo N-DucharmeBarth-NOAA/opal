@@ -106,6 +106,10 @@ A named list with:
   [`posfun`](https://n-ducharmebarth-noaa.github.io/opal/reference/posfun.md)
   (harvest rate constraints).
 
+- catch_pred_fya:
+
+  Predicted catch-at-age array `[n_fishery, n_year, n_age]`.
+
 ## Details
 
 All derived biology arrays (`M_a`, `spawning_potential_a`, `weight_fya`)

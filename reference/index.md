@@ -30,6 +30,8 @@
   : Natural mortality at length
 - [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md)
   : Get default parameter bounds
+- [`get_cor_pairs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_cor_pairs.md)
+  : Return strongly-correlated parameter pairs
 - [`get_cpue_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_cpue_like.md)
   : CPUE index likelihood
 - [`get_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_data.md)
@@ -57,6 +59,8 @@
   : Convert maturity-at-length to maturity-at-age
 - [`get_mcmc_profile()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_mcmc_profile.md)
   : Run the dynamics
+- [`get_par_table()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_par_table.md)
+  : Summarise model parameters in a table
 - [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_parameters.md)
   : Get default initial parameter values
 - [`get_pla()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_pla.md)
@@ -128,6 +132,8 @@
   : Plot weight at age
 - [`posfun()`](https://n-ducharmebarth-noaa.github.io/opal/reference/posfun.md)
   : Positive Constraint Penalty Function
+- [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_lf_data.md)
+  : Prepare length composition data for model input
 - [`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md)
   : Project dynamics
 - [`project_rec_devs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_rec_devs.md)
@@ -149,6 +155,12 @@
   : Logistic selectivity as a function of length
 - [`wcpo_bet_data`](https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_data.md)
   : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Assessment Data
+- [`wcpo_bet_lf`](https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_lf.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Length Frequency
+  Data
 - [`wcpo_bet_parameters`](https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_parameters.md)
   : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Assessment
   Parameters
+- [`wcpo_bet_wf`](https://n-ducharmebarth-noaa.github.io/opal/reference/wcpo_bet_wf.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Weight Frequency
+  Data

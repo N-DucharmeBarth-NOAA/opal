@@ -51,24 +51,28 @@
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Integer switch to activate the likelihood.</p></dd>
+<dd><p>a <code>list</code> of data inputs (cpue_data, cpue_switch, etc.).</p></dd>
 
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>
-<dd><p>a <code>vector</code> of year indices for CPUE observations.</p></dd>
+<dd><p>a <code>list</code> of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, weight_fya, etc.).</p></dd>
 
 
 <dt id="arg-number-ysa">number_ysa<a class="anchor" aria-label="anchor" href="#arg-number-ysa"></a></dt>
-<dd><p>a 3D <code>array</code> year, season, age of numbers-at-age.</p></dd>
+<dd><p>a 3D <code>array</code> <code>[n_year, n_season, n_age]</code> of numbers-at-age.</p></dd>
 
 
 <dt id="arg-sel-fya">sel_fya<a class="anchor" aria-label="anchor" href="#arg-sel-fya"></a></dt>
-<dd><p>a 3D <code>array</code> of selectivity by fishery, year, and age.</p></dd>
+<dd><p>a 3D <code>array</code> <code>[n_fishery, n_year, n_age]</code> of selectivity by fishery, year, and age.</p></dd>
+
+
+<dt id="arg-creep-init">creep_init<a class="anchor" aria-label="anchor" href="#arg-creep-init"></a></dt>
+<dd><p>scalar initialization value for creeping adjustment (default 1).</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>a <code>list</code> with predicted CPUE, residuals, and likelihood vector.</p>
+    <p>a <code>numeric</code> vector of negative log-likelihood contributions.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

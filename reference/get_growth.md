@@ -6,7 +6,7 @@ matching the SS3 formulation with `CV_Growth_Pattern = 2`.
 ## Usage
 
 ``` r
-get_growth(n_age, A1, A2, L1, L2, k)
+get_growth(n_age, A1, A2, L1, L2, log_k)
 ```
 
 ## Arguments
@@ -31,7 +31,7 @@ get_growth(n_age, A1, A2, L1, L2, k)
 
   Numeric. Length at age A2 (may be AD).
 
-- k:
+- log_k:
 
   Numeric. VB growth coefficient (may be AD).
 

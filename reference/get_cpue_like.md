@@ -13,20 +13,26 @@ get_cpue_like(data, parameters, number_ysa, sel_fya, creep_init = 1)
 
 - data:
 
-  Integer switch to activate the likelihood.
+  a `list` of data inputs (cpue_data, cpue_switch, etc.).
 
 - parameters:
 
-  a `vector` of year indices for CPUE observations.
+  a `list` of parameter values (log_cpue_tau, log_cpue_omega,
+  cpue_creep, log_cpue_q, weight_fya, etc.).
 
 - number_ysa:
 
-  a 3D `array` year, season, age of numbers-at-age.
+  a 3D `array` `[n_year, n_season, n_age]` of numbers-at-age.
 
 - sel_fya:
 
-  a 3D `array` of selectivity by fishery, year, and age.
+  a 3D `array` `[n_fishery, n_year, n_age]` of selectivity by fishery,
+  year, and age.
+
+- creep_init:
+
+  scalar initialization value for creeping adjustment (default 1).
 
 ## Value
 
-a `list` with predicted CPUE, residuals, and likelihood vector.
+a `numeric` vector of negative log-likelihood contributions.

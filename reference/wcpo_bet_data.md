@@ -177,6 +177,20 @@ biological parameters and priors derived from assessment modeling.
   Priors cover: log_B0, log_cpue_q, par_sel, log_L1, log_L2, log_k,
   log_CV1, log_CV2.
 
+**Length composition data:**
+
+- lf_minbin:
+
+  Integer vector (n_fishery). Per-fishery minimum bin index for
+  lower-tail aggregation. Bins from 1 to `lf_minbin[f]` are summed into
+  bin `lf_minbin[f]`. Default is 1 (no aggregation).
+
+- lf_maxbin:
+
+  Integer vector (n_fishery). Per-fishery maximum bin index for
+  upper-tail aggregation. Bins from `lf_maxbin[f]` to n_len are summed
+  into bin `lf_maxbin[f]`. Default is n_len (no aggregation).
+
 ## Examples
 
 ``` r
