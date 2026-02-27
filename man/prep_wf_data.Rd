@@ -11,7 +11,8 @@ prep_wf_data(
   wf_switch = 1L,
   wf_minbin = NULL,
   wf_maxbin = NULL,
-  wf_var_adjust = NULL
+  wf_var_adjust = NULL,
+  wf_cap = NULL
 )
 }
 \arguments{
@@ -36,6 +37,12 @@ Defaults to rep(n_wt, n_fishery).}
 
 \item{wf_var_adjust}{numeric vector (length n_fishery) variance adjustment
 divisors. Defaults to rep(1, n_fishery).}
+
+\item{wf_cap}{positive integer (or \code{NULL}).  When supplied, each
+effective sample size is capped: \eqn{n_i = \min(n_i, \text{wf\_cap})}.
+Applied after proportions are computed so that observed compositions are
+unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
+feature.}
 }
 \value{
 data list with the following weight composition elements appended:
