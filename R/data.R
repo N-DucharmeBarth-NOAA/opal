@@ -88,6 +88,16 @@
 #'   }
 #' }
 #'
+#' **Length composition data:**
+#' \describe{
+#'   \item{lf_minbin}{Integer vector (n_fishery). Per-fishery minimum bin index
+#'     for lower-tail aggregation. Bins from 1 to `lf_minbin[f]` are summed
+#'     into bin `lf_minbin[f]`. Default is 1 (no aggregation).}
+#'   \item{lf_maxbin}{Integer vector (n_fishery). Per-fishery maximum bin index
+#'     for upper-tail aggregation. Bins from `lf_maxbin[f]` to n_len are summed
+#'     into bin `lf_maxbin[f]`. Default is n_len (no aggregation).}
+#' }
+#'
 #' @format A list with 25 named elements combining dimensions, biological parameters,
 #' observed data (catch and CPUE), and Bayesian priors for RTMB model initialization.
 #'
@@ -168,3 +178,119 @@
 #' }
 #'
 "wcpo_bet_parameters"
+
+#' West Central Pacific Ocean Bigeye Tuna (WCPO BET) Length Frequency Data
+#'
+#' Length frequency composition data extracted from MFCL (Multifan-CL) frequency files
+#' and prepared for RTMB (R Template Model Builder) stock assessment modeling.
+#' Observations are organized by fishery, year, month, and 2 cm length bins.
+#'
+#' @details
+#' ## Data workflow
+#'
+#' **Preparation steps:**
+#' \enumerate{
+#'   \item Extract length composition data from MFCL frequency file using `lnfrq()`
+#'     - Returns wide-format data with length bins as columns (10, 12, 14, ... 198 cm)
+#'     - Observations grouped by fishery-year-month
+#'   \item Reshape to long format (one row per fishery-year-month-length bin combination)
+#'   \item Merge with timestep table to add model timestep indexing consistent with catch/CPUE
+#'   \item Save as long-format data for RTMB model input
+#' }
+#'
+#' ## Output columns
+#'
+#' \describe{
+#'   \item{year}{Calendar year (1952-2018). Integer.}
+#'   \item{month}{Fishing quarter month (2, 5, 8, 11 representing Q1-Q4 approx.). Numeric.}
+#'   \item{ts}{Model timestep number (1-268 for 67 years × 4 quarters). Integer.}
+#'   \item{fishery}{MFCL fleet index (1-15). Numeric.}
+#'   \item{bin}{Length bin lower edge (cm). 2 cm bins: 10, 12, 14, ... 198. Numeric.}
+#'   \item{value}{Observed count of fish in this length bin. Numeric.}
+#'   \item{week}{Temporal indicator within quarter (typically 1 for aggregated data). Numeric.}
+#' }
+#'
+#' ## Notes
+#'
+#' - MFCL data uses 2 cm length bins (10, 12, 14, ... 198 cm)
+#' - Data from `lnfrq()` represents observed length frequency
+#' - Sum of values across bins per fishery-year-month instance gives total input sample size
+#' - Bin values are left as counts for RTMB to handle (divide by sample size if proportions needed)
+#'
+#' @format A data.table with 7 columns:
+#'   year (integer), month (numeric), ts (integer), fishery (numeric),
+#'   bin (numeric), value (numeric), week (numeric).
+#'   Multiple rows per fishery-year-month (one per 2 cm length bin).
+#'
+#' @source Extracted from MFCL (Multifan-CL) model frequency file outputs
+#'   and prepared for RTMB model input.
+#'
+#' @examples
+#' \dontrun{
+#'   data(wcpo_bet_lf)
+#'   str(wcpo_bet_lf)
+#'   # View sample data
+#'   head(wcpo_bet_lf)
+#'   # Get total sample size per fishery-year-month
+#'   wcpo_bet_lf[, .(total_n = sum(value)), by = .(year, month, fishery)]
+#' }
+#'
+"wcpo_bet_lf"
+
+#' West Central Pacific Ocean Bigeye Tuna (WCPO BET) Weight Frequency Data
+#'
+#' Weight frequency composition data extracted from MFCL (Multifan-CL) frequency files
+#' and prepared for RTMB (R Template Model Builder) stock assessment modeling.
+#' Observations are organized by fishery, year, month, and 1 kg weight bins.
+#'
+#' @details
+#' ## Data workflow
+#'
+#' **Preparation steps:**
+#' \enumerate{
+#'   \item Extract weight composition data from MFCL frequency file using `wtfrq()`
+#'     - Returns wide-format data with weight bins as columns (1, 2, 3, ... 200 kg)
+#'     - Observations grouped by fishery-year-month
+#'   \item Reshape to long format (one row per fishery-year-month-weight bin combination)
+#'   \item Merge with timestep table to add model timestep indexing consistent with catch/CPUE
+#'   \item Save as long-format data for RTMB model input
+#' }
+#'
+#' ## Output columns
+#'
+#' \describe{
+#'   \item{year}{Calendar year (1952-2018). Integer.}
+#'   \item{month}{Fishing quarter month (2, 5, 8, 11 representing Q1-Q4 approx.). Numeric.}
+#'   \item{ts}{Model timestep number (1-268 for 67 years × 4 quarters). Integer.}
+#'   \item{fishery}{MFCL fleet index (1-15). Numeric.}
+#'   \item{bin}{Weight bin (kg). 1 kg bins: 1, 2, 3, ... 200. Integer.}
+#'   \item{value}{Observations in this weight bin. Numeric.}
+#'   \item{week}{Temporal indicator within quarter (typically 1 for aggregated data). Numeric.}
+#' }
+#'
+#' ## Notes
+#'
+#' - MFCL data uses 1 kg weight bins (1, 2, 3, ... 200 kg)
+#' - Data from `wtfrq()` represents observed weight frequency
+#' - Sum of values across bins per fishery-year-month instance gives total input sample size
+#' - Bin values are left as counts for RTMB to handle (divide by sample size if proportions needed)
+#'
+#' @format A data.table with 7 columns:
+#'   year (integer), month (numeric), ts (integer), fishery (numeric),
+#'   bin (integer), value (numeric), week (numeric).
+#'   Multiple rows per fishery-year-month (one per 1 kg weight bin).
+#'
+#' @source Extracted from MFCL (Multifan-CL) model frequency file outputs
+#'   and prepared for RTMB model input.
+#'
+#' @examples
+#' \dontrun{
+#'   data(wcpo_bet_wf)
+#'   str(wcpo_bet_wf)
+#'   # View sample data
+#'   head(wcpo_bet_wf)
+#'   # Get total sample size per fishery-year-month
+#'   wcpo_bet_wf[, .(total_n = sum(value)), by = .(year, month, fishery)]
+#' }
+#'
+"wcpo_bet_wf"

@@ -66,6 +66,7 @@ A named list with:
 \describe{
 \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
+\item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
 }
 }
 \description{

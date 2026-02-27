@@ -8,12 +8,13 @@
 #' @param A2 Integer. Reference age for L2 (data).
 #' @param L1 Numeric. Length at age A1 (may be AD).
 #' @param L2 Numeric. Length at age A2 (may be AD).
-#' @param k Numeric. VB growth coefficient (may be AD).
+#' @param log_k Numeric. VB growth coefficient (may be AD).
 #' @return Numeric vector of length \code{n_age}: mean length at each age
 #'   \code{a = 1, ..., n_age}.
 #' @export
-get_growth <- function(n_age, A1, A2, L1, L2, k) {
+get_growth <- function(n_age, A1, A2, L1, L2, log_k) {
   ages <- 1:n_age
+  k   <- exp(log_k)
   mu_a <- L1 + (L2 - L1) * (1 - exp(-k * (ages - A1))) / (1 - exp(-k * (A2 - A1)))
   return(mu_a)
 }
@@ -27,11 +28,13 @@ get_growth <- function(n_age, A1, A2, L1, L2, k) {
 #'   May be AD.
 #' @param L1 Numeric. Length at age A1 (may be AD).
 #' @param L2 Numeric. Length at age A2 (may be AD).
-#' @param CV1 Numeric. CV at age A1 (may be AD).
-#' @param CV2 Numeric. CV at age A2 (may be AD).
+#' @param log_CV1 Numeric. CV at age A1 (may be AD).
+#' @param log_CV2 Numeric. CV at age A2 (may be AD).
 #' @return Numeric vector of SD at each age.
 #' @export
-get_sd_at_age <- function(mu_a, L1, L2, CV1, CV2) {
+get_sd_at_age <- function(mu_a, L1, L2, log_CV1, log_CV2) {
+  CV1 <- exp(log_CV1)
+  CV2 <- exp(log_CV2)  
   cv_a <- CV1 + (mu_a - L1) / (L2 - L1) * (CV2 - CV1)
   sd_a <- mu_a * cv_a
   return(sd_a)

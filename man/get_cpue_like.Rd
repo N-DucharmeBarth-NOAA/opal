@@ -7,16 +7,18 @@
 get_cpue_like(data, parameters, number_ysa, sel_fya, creep_init = 1)
 }
 \arguments{
-\item{data}{Integer switch to activate the likelihood.}
+\item{data}{a \code{list} of data inputs (cpue_data, cpue_switch, etc.).}
 
-\item{parameters}{a \code{vector} of year indices for CPUE observations.}
+\item{parameters}{a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, weight_fya, etc.).}
 
-\item{number_ysa}{a 3D \code{array} year, season, age of numbers-at-age.}
+\item{number_ysa}{a 3D \code{array} \verb{[n_year, n_season, n_age]} of numbers-at-age.}
 
-\item{sel_fya}{a 3D \code{array} of selectivity by fishery, year, and age.}
+\item{sel_fya}{a 3D \code{array} \verb{[n_fishery, n_year, n_age]} of selectivity by fishery, year, and age.}
+
+\item{creep_init}{scalar initialization value for creeping adjustment (default 1).}
 }
 \value{
-a \code{list} with predicted CPUE, residuals, and likelihood vector.
+a \code{numeric} vector of negative log-likelihood contributions.
 }
 \description{
 Computes the likelihood for a standardized CPUE index using a log-linear model.

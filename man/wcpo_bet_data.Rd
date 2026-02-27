@@ -103,6 +103,16 @@ representing selectivity curve shapes (e.g., 2 = double-normal).}
 Priors cover: log_B0, log_cpue_q, par_sel, log_L1, log_L2, log_k, log_CV1, log_CV2.
 }
 }
+
+\strong{Length composition data:}
+\describe{
+\item{lf_minbin}{Integer vector (n_fishery). Per-fishery minimum bin index
+for lower-tail aggregation. Bins from 1 to \code{lf_minbin[f]} are summed
+into bin \code{lf_minbin[f]}. Default is 1 (no aggregation).}
+\item{lf_maxbin}{Integer vector (n_fishery). Per-fishery maximum bin index
+for upper-tail aggregation. Bins from \code{lf_maxbin[f]} to n_len are summed
+into bin \code{lf_maxbin[f]}. Default is n_len (no aggregation).}
+}
 }
 }
 \examples{

@@ -10,9 +10,9 @@ A1 <- 1L
 A2 <- 40L
 L1 <- 30.0
 L2 <- 180.0
-k  <- 0.2
-CV1 <- 0.15
-CV2 <- 0.08
+k  <- log(0.2)
+CV1 <- log(0.15)
+CV2 <- log(0.08)
 
 # Test get_growth ----
 
@@ -44,9 +44,9 @@ test_that("get_sd_at_age returns correct SD at reference ages", {
   mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
   sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
   # At age A1: mu = L1, so SD = L1 * CV1
-  expect_equal(sd_a[A1], L1 * CV1, tolerance = 1e-10)
+  expect_equal(sd_a[A1], L1 * exp(CV1), tolerance = 1e-10)
   # At age A2: mu = L2, so SD = L2 * CV2
-  expect_equal(sd_a[A2], L2 * CV2, tolerance = 1e-10)
+  expect_equal(sd_a[A2], L2 * exp(CV2), tolerance = 1e-10)
 })
 
 test_that("get_sd_at_age returns vector of length n_age", {
@@ -119,7 +119,7 @@ test_that("get_maturity_at_age is monotonically non-decreasing for knife-edge ma
 
 test_that("get_growth at A1 and A2 returns exactly L1 and L2 (boundary conditions)", {
   # Explicit boundary test with different parameter values
-  mu_a2 <- get_growth(50L, 5L, 45L, 40.0, 200.0, 0.15)
+  mu_a2 <- get_growth(50L, 5L, 45L, 40.0, 200.0, log(0.15))
   expect_equal(mu_a2[5],  40.0,  tolerance = 1e-10)
   expect_equal(mu_a2[45], 200.0, tolerance = 1e-10)
 })
@@ -169,9 +169,9 @@ test_that("growth model matches MFCL outputs with MFCL parameters", {
   # MFCL baseline parameters (from bet.Rmd vignette)
   L1_mfcl <- 30.9192
   L2_mfcl <- 153.4431
-  k_mfcl <- 0.09825
-  CV1_mfcl <- 0.16101
-  CV2_mfcl <- 0.1075122
+  k_mfcl <- log(0.09825)
+  CV1_mfcl <- log(0.16101)
+  CV2_mfcl <- log(0.1075122)
   
   # Expected MFCL outputs from bet.Rmd
   mean_length_at_age_expected <- c(

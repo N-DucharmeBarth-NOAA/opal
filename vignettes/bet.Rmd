@@ -24,8 +24,9 @@ Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
 ```{r load-pkg, echo=TRUE, message=FALSE}
-library(ggplot2)
-library(dplyr)
+# library(ggplot2)
+# library(dplyr)
+library(tidyverse)
 library(opal)
 library(RTMB)
 
@@ -77,6 +78,35 @@ ggplot(data.frame(length = len_mid, maturity = data$maturity),
        title = "Maturity-at-Length")
 ```
 
+## Length composition data
+
+Length composition observations are loaded from the bundled `wcpo_bet_lf`
+long-format data object and transformed into model-ready arrays.
+
+```{r prep-lf, echo=TRUE, message=FALSE}
+data(wcpo_bet_lf)
+
+# Pivot to wide format: one row per fishery x timestep, bins as columns
+# Note: LF data exist for fisheries 8-14, but we initially use only fisheries 8 & 9
+lf_wide <- wcpo_bet_lf %>%
+  tidyr::pivot_wider(
+    id_cols = c(fishery, year, month, ts),
+    names_from = bin,
+    values_from = value,
+    values_fill = 0
+  ) %>%
+  arrange(fishery, ts)
+
+# define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
+var_adjust_scalars <- 1/rep(1,data$n_fishery)
+# var_adjust_scalars <- 1/rep(20000,data$n_fishery)
+# var_adjust_scalars[c(1,4,5,6,15)] <- 1/40000
+
+data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
+                     lf_var_adjust = var_adjust_scalars)
+
+```
+
 # Model setup
 
 ## Parameters
@@ -95,8 +125,9 @@ parameters <- list(
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
   cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
-  log_cpue_tau = log(0.1),
+  log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
   log_k = as.numeric(wcpo_bet_parameters$log_k),
@@ -124,7 +155,16 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+map_sel[8, 1] <- 1
+map_sel[9, 1] <- 2
+map_sel[8, 3] <- 3
+map_sel[9, 3] <- 4
+map_sel[8, 4] <- 5
+map_sel[9, 4] <- 6
 map_rdev <- rep(NA, length(parameters$rdev_y))
+
+map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
+map_lf_tau[c(8, 9)] <- NA
 
 map <- list(
   # log_B0 = factor(NA),
@@ -134,13 +174,14 @@ map <- list(
   cpue_creep = factor(NA),
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
-  # rdev_y = as.factor(map_rdev),
-  par_sel = as.factor(map_sel),
+  log_lf_tau = factor(map_lf_tau),
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
   log_CV1 = factor(NA),
-  log_CV2 = factor(NA)
+  log_CV2 = factor(NA),
+  par_sel = factor(map_sel)
+  # rdev_y = as.factor(map_rdev),
 )
 ```
 
@@ -150,6 +191,11 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
+data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
+# data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
+
+# Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))
 obj$fn()
@@ -175,8 +221,12 @@ Lwr[grep("log_B0", names(obj$par))] <- log(1)
 Upr[grep("log_B0", names(obj$par))] <- log(exp(22))
 Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
-Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(parameters$rdev_y))
-Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(parameters$rdev_y))
+Lwr[grep("log_lf_tau", names(obj$par))] <- rep(-9, length(grep("log_lf_tau", names(obj$par))))
+Upr[grep("log_lf_tau", names(obj$par))] <- rep(9, length(grep("log_lf_tau", names(obj$par))))
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
+# Lwr[grep("par_sel", names(obj$par))] <- rep(-7, length(grep("par_sel", names(obj$par))))
+# Upr[grep("par_sel", names(obj$par))] <- rep(7, length(grep("par_sel", names(obj$par))))
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
@@ -190,29 +240,165 @@ opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
-max(obj$gr())
+obj$fn()
+max(abs(obj$gr()))
+obj$report()$lp_prior
+obj$report()$lp_penalty
+obj$report()$lp_rec
+sum(obj$report()$lp_cpue)
+sum(obj$report()$lp_lf)
 ```
 
 Compare initial and estimated parameter values:
 
 ```{r opt-results, echo=TRUE, message=FALSE}
-data.frame(init = unlist(parameters), 
-           value = unlist(obj$env$parList(obj$env$last.par.best))) %>%
-  mutate(par = rownames(.)) %>%
-  left_join(bounds) %>%
-  head()
+get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
+
+```
+## Diagnostics
+
+Check that all parameters are estimable using the `check_estimability` function:
+
+```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+check_estimability(obj = obj)
+```
+
+Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
+```{r check-cor, echo=TRUE, message=FALSE}
+get_cor_pairs(obj = obj, threshold = 0.95)
+```
+
+Calculate standard deviations of all model parameters:
+
+```{r run-sdreport, echo=TRUE, message=FALSE}
+Report <- sdreport(obj)
+```
+
+## Data fits
+
+Inspect predicted vs observed length compositions:
+
+```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
+lf_rep <- obj$report()
+lf_pred <- lf_rep$lf_pred
+nbins <- data$lf_maxbin[1] - data$lf_minbin[1] + 1
+
+# Name the list elements and columns
+names(lf_pred) <- data$lf_fishery_f
+for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
+
+# Helper: convert a flat OBS vector back to list-of-matrices (proportions)
+flat_to_list <- function(v, lf_n_f, nbins) {
+  out <- vector("list", length(lf_n_f))
+  offset <- 0L
+  for (k in seq_along(lf_n_f)) {
+    m <- matrix(v[(offset + 1):(offset + lf_n_f[k] * nbins)], nrow = lf_n_f[k], ncol = nbins, byrow = TRUE)
+    # Normalise each row to proportions
+    rs <- rowSums(m)
+    rs[rs == 0] <- 1
+    out[[k]] <- m / rs
+    offset <- offset + lf_n_f[k] * nbins
+  }
+  out
+}
+
+# Split year index by fishery (must match length of lf_year)
+lf_year_list <- split(data$lf_year, data$lf_fishery)
+
+# ---- Predicted: long data frame ----
+df_pred <- map_dfr(seq_along(lf_pred), function(i) {
+  m <- lf_pred[[i]]
+  yrs <- lf_year_list[[i]]
+  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+    rename(id = Var1, length = Var2) %>%
+    mutate(fishery = names(lf_pred)[i],
+           id = as.integer(factor(id, levels = unique(id))),
+           year = yrs[id],
+           length = as.numeric(length))
+})
+
+# ---- Observed: long data frame ----
+df_obs <- data.frame(data$lf_obs_in)
+names(df_obs) <- data$len_mid
+df_obs <- df_obs %>%
+  mutate(year = data$lf_year, fishery = as.character(data$lf_fishery)) %>%
+  group_by(fishery) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+  mutate(length = as.numeric(length))
+
+# ---- Simulations: generate n_sim draws and convert to long format ----
+n_sim <- 5
+df_sim_all <- map_dfr(seq_len(n_sim), function(s) {
+  # Determine which OBS vector was active based on lf_switch
+  sim <- obj$simulate()
+  if (data$lf_switch == 1) {
+    sim_vec <- sim$lf_obs_flat
+  } else if (data$lf_switch == 2) {
+    sim_vec <- sim$lf_obs_prop
+  } else {
+    sim_vec <- sim$lf_obs_ints
+  }
+  sim_list <- flat_to_list(sim_vec, data$lf_n_f, nbins)
+  names(sim_list) <- data$lf_fishery_f
+  for (k in seq_along(sim_list)) colnames(sim_list[[k]]) <- data$len_mid
+  map_dfr(seq_along(sim_list), function(i) {
+    m <- sim_list[[i]]
+    yrs <- lf_year_list[[i]]
+    as.data.frame.table(m, responseName = "sim", stringsAsFactors = FALSE) %>%
+      rename(id = Var1, length = Var2) %>%
+      mutate(fishery = names(sim_list)[i],
+             id = as.integer(factor(id, levels = unique(id))),
+             year = yrs[id],
+             length = as.numeric(length),
+             sim_id = s)
+  })
+})
+
+# ---- Join observed + predicted ----
+df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
+  select(-year.y) %>%
+  rename(year = year.x)
+
+# ---- Plot fishery 8 ----
+yrs_plot <- 146:188
+ggplot(df %>% filter(fishery == "8", year %in% yrs_plot), aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(data = df_sim_all %>% filter(fishery == "8", year %in% yrs_plot),
+            aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+  facet_wrap(~ year, scales = "free_y", ncol = 6) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Length composition: Fishery 8",
+       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+  theme(strip.text = element_text(size = 7),
+        axis.text = element_text(size = 6))
+
+# ---- Plot fishery 9 ----
+ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
+            aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+  facet_wrap(~ year, scales = "free_y", ncol = 6) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Length composition: Fishery 9",
+       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+  theme(strip.text = element_text(size = 7),
+        axis.text = element_text(size = 6))
 ```
 
 Inspect fitted CPUE and catch:
 
-```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot(data$cpue_data$value, col = 2, pch = 16,
      xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
 lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
 lines(obj$report()$cpue_pred, lwd = 2)
 ```
 
-```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
@@ -229,17 +415,44 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 
 ## Selectivity
 
-Visualise the selectivity curves by fleet:
+Visualise the selectivity curves by fleet (at length):
 
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
-rep <- obj$report()
-sel_fya <- rep$sel_fya
+```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
+par_sel_est <- obj$env$parList()$par_sel
 
 fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
                  "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
                  "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
                  "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
                  "S01_INDEX")
+
+sel_len_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
+  par_f <- par_sel_est[f, ]
+  sel_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(len_mid, par_f)
+  } else {
+    sel_double_normal(len_mid, par_f)
+  }
+  data.frame(
+    fishery    = f,
+    fleet_name = fleet_names[f],
+    length     = len_mid,
+    selectivity = as.numeric(sel_l)
+  )
+}))
+
+ggplot(sel_len_df, aes(x = length, y = selectivity)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 4) +
+  labs(x = "Length (cm)", y = "Selectivity") +
+  ylim(0, 1)
+```
+
+Visualise the selectivity curves by fleet (at age):
+
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+rep <- obj$report()
+sel_fya <- rep$sel_fya
 
 sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
 sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
@@ -255,20 +468,6 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
   ylim(0, 1)
 ```
 
-## Diagnostics
-
-Check that all parameters are estimable using the `check_estimability` function:
-
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
-check_estimability(obj = obj)
-```
-
-Calculate standard deviations of all model parameters:
-
-```{r run-sdreport, echo=TRUE, message=FALSE}
-Report <- sdreport(obj)
-```
-
 # Simulation
 
 The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
@@ -281,7 +480,7 @@ lines(log(obj$report()$cpue_pred), lwd = 2)
 for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
 ```
 
-## One step ahead (OSA) residuals
+# One step ahead (OSA) residuals
 
 OSA residuals are a replacement for Pearson residuals:
 

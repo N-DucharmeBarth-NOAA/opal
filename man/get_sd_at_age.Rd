@@ -4,7 +4,7 @@
 \alias{get_sd_at_age}
 \title{Compute SD of length-at-age from CV1 and CV2}
 \usage{
-get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
 }
 \arguments{
 \item{mu_a}{Numeric vector. Mean length at age (from \code{\link{get_growth}}).
@@ -14,9 +14,9 @@ May be AD.}
 
 \item{L2}{Numeric. Length at age A2 (may be AD).}
 
-\item{CV1}{Numeric. CV at age A1 (may be AD).}
+\item{log_CV1}{Numeric. CV at age A1 (may be AD).}
 
-\item{CV2}{Numeric. CV at age A2 (may be AD).}
+\item{log_CV2}{Numeric. CV at age A2 (may be AD).}
 }
 \value{
 Numeric vector of SD at each age.
