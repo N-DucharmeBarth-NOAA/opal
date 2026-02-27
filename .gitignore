@@ -57,8 +57,6 @@ po/*~
 rsconnect/
 docs
 
-# copilot-instructions
-.github/copilot-instructions.md
 .Rproj.user
 inst/doc
 *.Rproj.user
