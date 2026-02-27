@@ -10,7 +10,7 @@ utils::globalVariables(c(
   "A1", "A2", "lw_a", "lw_b", "maturity", "fecundity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
-  "cpue_switch", "cpue_years", "cpue_n", "cpue_obs", "cpue_sd",
+  "cpue_switch", "cpue_data",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_maxbin", "lf_obs", "lf_n",
   "lf_var_adj",
   "wf_switch", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",
@@ -44,6 +44,9 @@ bet_globals <- function() {
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
     get_length_like = get_length_like, 
+    get_weight_like = get_weight_like,
+    rebin_counts = rebin_counts,
+    rebin_matrix = rebin_matrix,
     get_cpue_like = get_cpue_like, 
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors)
@@ -64,6 +67,11 @@ opal_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
+  if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
+  if (!exists("lf_switch",  inherits = FALSE)) lf_switch   <- 0L
+  if (!exists("n_lf",       inherits = FALSE)) n_lf        <- 0L
+  if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
+  if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
 
   # Growth module ----
 
@@ -137,28 +145,60 @@ opal_model <- function(parameters, data) {
 
   # Likelihoods ----
 
-  lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya)
-  # lp_lf <- get_length_like(data, parameters, catch_pred_fya, pla)
-  lp_lf <- get_length_like(
-    lf_obs_flat = lf_obs_flat,
-    lf_obs_ints = lf_obs_ints,
-    lf_obs_prop = lf_obs_prop,
-    catch_pred_fya = catch_pred_fya,
-    pla = pla,
-    lf_n_f = lf_n_f,
-    lf_fishery_f = lf_fishery_f,
-    lf_year_fi = split(lf_year, lf_fishery),
-    lf_n_fi = split(lf_n, lf_fishery),
-    lf_minbin = lf_minbin,
-    lf_maxbin = lf_maxbin,
-    removal_switch_f = removal_switch_f,
-    lf_switch = lf_switch,
-    n_len = n_len,
-    n_lf = n_lf, log_lf_tau = log_lf_tau
-  )
-  # lp_lf <- 0
+  # CPUE likelihood ----
+  if (cpue_switch > 0) {
+    lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya, weight_fya_mod)
+  } else {
+    lp_cpue <- 0
+  }
+  # Length composition likelihood ----
+  if (lf_switch > 0 && n_lf > 0) {
+    lp_lf <- get_length_like(
+      lf_obs_flat = lf_obs_flat,
+      lf_obs_ints = lf_obs_ints,
+      lf_obs_prop = lf_obs_prop,
+      catch_pred_fya = catch_pred_fya,
+      pla = pla,
+      lf_n_f = lf_n_f,
+      lf_fishery_f = lf_fishery_f,
+      lf_year_fi = split(lf_year, lf_fishery),
+      lf_n_fi = split(lf_n, lf_fishery),
+      lf_minbin = lf_minbin,
+      lf_maxbin = lf_maxbin,
+      removal_switch_f = removal_switch_f,
+      lf_switch = lf_switch,
+      n_len = n_len,
+      n_lf = n_lf, log_lf_tau = log_lf_tau
+    )
+  } else {
+    lp_lf <- 0
+  }
+  # Weight composition likelihood ----
+  if (wf_switch > 0 && n_wf > 0) {
+    lp_wf <- get_weight_like(
+      wf_obs_flat = wf_obs_flat,
+      wf_obs_ints = wf_obs_ints,
+      wf_obs_prop = wf_obs_prop,
+      catch_pred_fya = catch_pred_fya,
+      pla = pla,
+      wf_rebin_matrix = wf_rebin_matrix,
+      wf_n_f = wf_n_f,
+      wf_fishery_f = wf_fishery_f,
+      wf_year_fi = split(wf_year, wf_fishery),
+      wf_n_fi = split(wf_n, wf_fishery),
+      wf_minbin = wf_minbin,
+      wf_maxbin = wf_maxbin,
+      removal_switch_f = removal_switch_f,
+      wf_switch = wf_switch,
+      n_wt = n_wt,
+      n_wf = n_wf,
+      log_wf_tau = log_wf_tau
+    )
+  } else {
+    lp_wf <- 0
+  }
   # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf)
+  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
   
   # Reporting ----
 
@@ -170,6 +210,7 @@ opal_model <- function(parameters, data) {
   REPORT(lp_rec)
   REPORT(lp_cpue)
   REPORT(lp_lf)
+  REPORT(lp_wf)
 
   REPORT(B0)
   REPORT(R0)
