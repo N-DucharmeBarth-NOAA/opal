@@ -131,7 +131,7 @@ wf_wide <- wcpo_bet_wf |>
   dplyr::arrange(fishery, ts)
 
 data <- prep_wf_data(data, wf_wide,
-                     wf_keep_fisheries = c(2, 11, 15),
+                     wf_keep_fisheries = c(2),
                      wf_switch = 1L)
 ```
 
@@ -229,6 +229,7 @@ data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # clarity alongside the equivalent lf_switch assignment.
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
+data$wf_switch <- 0 # skip weight comps (removal only)
 
 # Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
