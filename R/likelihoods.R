@@ -172,6 +172,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
+#' 
 get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             catch_pred_fya, pla, wf_rebin_matrix,
                             wf_n_f, wf_fishery_f, wf_year_fi, wf_n_fi,

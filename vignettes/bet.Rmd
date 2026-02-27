@@ -220,16 +220,17 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
+data$lf_switch <- 0 # skip length comps (removal only)
 # data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
-data$lf_switch <- 0 # skip length comps (removal only)
 
 # Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
 # clarity alongside the equivalent lf_switch assignment.
+# data$wf_switch <- 0 # skip weight comps (removal only)
+data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
-data$wf_switch <- 0 # skip weight comps (removal only)
 
 # Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
@@ -316,7 +317,7 @@ Report <- sdreport(obj)
 Inspect predicted vs observed length compositions:
 
 ```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
-if(data$lf_switch == 0){
+if (data$lf_switch == 0) {
   cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
 } else {
   lf_rep <- obj$report()
@@ -433,7 +434,7 @@ if(data$lf_switch == 0){
 Inspect predicted vs observed weight compositions:
 
 ```{r wf-diagnostics, echo=TRUE, message=FALSE, fig.height=5, fig.width=7}
-if(data$wf_switch == 0){
+if (data$wf_switch == 0) {
   cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
 } else {
   wf_rep  <- obj$report()
@@ -492,7 +493,7 @@ if(data$wf_switch == 0){
 Inspect fitted CPUE and catch:
 
 ```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-if(data$cpue_switch == 0){
+if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
   plot(data$cpue_data$value, col = 2, pch = 16,
