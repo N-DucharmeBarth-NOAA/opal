@@ -3,15 +3,16 @@
 #' Computes the likelihood for a standardized CPUE index using a log-linear model.
 #'
 #' @param data a \code{list} of data inputs (cpue_data, cpue_switch, etc.).
-#' @param parameters a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, weight_fya, etc.).
+#' @param parameters a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, etc.).
 #' @param number_ysa a 3D \code{array} `[n_year, n_season, n_age]` of numbers-at-age.
 #' @param sel_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of selectivity by fishery, year, and age.
+#' @param weight_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of weight-at-age by fishery and year.
 #' @param creep_init scalar initialization value for creeping adjustment (default 1).
 #' @return a \code{numeric} vector of negative log-likelihood contributions.
 #' @importFrom RTMB ADoverload dnorm
 #' @export
 #' 
-get_cpue_like <- function(data, parameters, number_ysa, sel_fya, creep_init = 1) {
+get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, creep_init = 1) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
