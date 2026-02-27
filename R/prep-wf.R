@@ -14,11 +14,11 @@
 #'   (NULL = keep all).
 #' @param wf_switch integer likelihood type (1=multinomial, 2=Dirichlet,
 #'   3=Dirichlet-multinomial). Default 1L.
-#' @param wf_minbin integer vector [n_fishery] min weight bin index.
+#' @param wf_minbin integer vector (length n_fishery) min weight bin index.
 #'   Defaults to rep(1L, n_fishery).
-#' @param wf_maxbin integer vector [n_fishery] max weight bin index.
+#' @param wf_maxbin integer vector (length n_fishery) max weight bin index.
 #'   Defaults to rep(n_wt, n_fishery).
-#' @param wf_var_adjust numeric vector [n_fishery] variance adjustment
+#' @param wf_var_adjust numeric vector (length n_fishery) variance adjustment
 #'   divisors. Defaults to rep(1, n_fishery).
 #' @return data list with the following weight composition elements appended:
 #'   \describe{
@@ -26,10 +26,10 @@
 #'     \item{\code{wt_lower}, \code{wt_upper}, \code{wt_mid}}{Weight bin
 #'       boundary and midpoint vectors derived from the scalar inputs.}
 #'     \item{\code{wt_bin_edges}}{Weight bin boundary vector (length n_wt + 1).}
-#'     \item{\code{wf_rebin_matrix}}{Precomputed rebinning matrix [n_wt x n_len]
+#'     \item{\code{wf_rebin_matrix}}{Precomputed rebinning matrix (n_wt x n_len)
 #'       for converting predicted length compositions to weight compositions.}
 #'     \item{\code{n_wf}}{Total number of WF observation rows.}
-#'     \item{\code{wf_obs_in}}{Matrix of observed proportions [n_wf x n_wt].}
+#'     \item{\code{wf_obs_in}}{Matrix of observed proportions (n_wf x n_wt).}
 #'     \item{\code{wf_obs_flat}}{Flattened numeric vector of counts (for
 #'       multinomial, \code{wf_switch = 1}).}
 #'     \item{\code{wf_obs_ints}}{Flattened integer vector of rounded counts

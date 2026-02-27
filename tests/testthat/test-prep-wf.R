@@ -4,7 +4,7 @@
 # Mirrors make_lf_data() in test-prep-lf.R: load wcpo_bet_data + wcpo_bet_wf,
 # add weight bin scalars, pivot to wide format, and call prep_wf_data().
 
-make_wf_data <- function(wf_keep_fisheries = c(8, 9), ...) {
+make_wf_data <- function(wf_keep_fisheries = c(6, 7), ...) {
   data(wcpo_bet_data, package = "opal", envir = environment())
   data(wcpo_bet_wf,   package = "opal", envir = environment())
   d <- wcpo_bet_data
@@ -59,7 +59,7 @@ test_that("prep_wf_data attaches expected fields to data", {
   expect_equal(sum(d$wf_n_f),         d$n_wf)
 
   # Only the two requested fisheries
-  expect_setequal(d$wf_fishery_f, c(8L, 9L))
+  expect_setequal(d$wf_fishery_f, c(6L, 7L))
 
   # wf_var_adjust default: rep(1, n_fishery)
   expect_equal(d$wf_var_adjust, rep(1, d$n_fishery))
@@ -68,22 +68,22 @@ test_that("prep_wf_data attaches expected fields to data", {
 # ---- 2. Fishery filtering --------------------------------------------------------
 
 test_that("wf_keep_fisheries retains only the requested fisheries", {
-  d <- make_wf_data(wf_keep_fisheries = c(8, 9))
-  expect_setequal(d$wf_fishery_f, c(8L, 9L))
-  expect_true(all(d$wf_fishery %in% c(8L, 9L)))
+  d <- make_wf_data(wf_keep_fisheries = c(6, 7))
+  expect_setequal(d$wf_fishery_f, c(6L, 7L))
+  expect_true(all(d$wf_fishery %in% c(6L, 7L)))
 })
 
 test_that("wf_keep_fisheries = single fishery returns only that fishery", {
-  d <- make_wf_data(wf_keep_fisheries = 9)
-  expect_setequal(d$wf_fishery_f, 9L)
-  expect_true(all(d$wf_fishery == 9L))
+  d <- make_wf_data(wf_keep_fisheries = 7)
+  expect_setequal(d$wf_fishery_f, 7L)
+  expect_true(all(d$wf_fishery == 7L))
 })
 
 test_that("wf_keep_fisheries reduces n_wf relative to keeping both fisheries", {
-  d_both <- make_wf_data(wf_keep_fisheries = c(8, 9))
-  d_one  <- make_wf_data(wf_keep_fisheries = 9)
+  d_both <- make_wf_data(wf_keep_fisheries = c(6, 7))
+  d_one  <- make_wf_data(wf_keep_fisheries = 7)
   expect_lt(d_one$n_wf, d_both$n_wf)
-  expect_equal(d_one$n_wf, sum(d_both$wf_fishery == 9L))
+  expect_equal(d_one$n_wf, sum(d_both$wf_fishery == 7L))
 })
 
 test_that("wf_keep_fisheries = NULL keeps all fisheries present in wf_wide", {
@@ -126,17 +126,17 @@ test_that("rows with zero total sample size are dropped before processing", {
       values_fill = 0
     ) |>
     dplyr::arrange(fishery, ts) |>
-    dplyr::filter(fishery %in% c(8, 9))
+    dplyr::filter(fishery %in% c(6, 7))
 
-  # Inject a zero row for fishery 8 at an unused ts
+  # Inject a zero row for fishery 6 at an unused ts
   zero_row            <- wf_wide[1, ]
   zero_row$ts         <- 9999L
   bin_cols            <- setdiff(names(zero_row), c("fishery", "year", "month", "ts"))
   zero_row[, bin_cols] <- 0
   wf_wide_with_zero   <- rbind(wf_wide, zero_row)
 
-  d_normal <- prep_wf_data(d, wf_wide,           wf_keep_fisheries = c(8, 9))
-  d_extras <- prep_wf_data(d, wf_wide_with_zero, wf_keep_fisheries = c(8, 9))
+  d_normal <- prep_wf_data(d, wf_wide,           wf_keep_fisheries = c(6, 7))
+  d_extras <- prep_wf_data(d, wf_wide_with_zero, wf_keep_fisheries = c(6, 7))
 
   expect_equal(d_normal$n_wf, d_extras$n_wf)
 })
