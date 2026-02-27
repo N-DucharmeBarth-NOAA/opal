@@ -65,7 +65,8 @@ filters to a subset of fisheries, and appends every derived object directly to
 <span>  lf_switch <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  lf_minbin <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  lf_maxbin <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  lf_var_adjust <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  lf_var_adjust <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lf_cap <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -116,6 +117,14 @@ scale the effective sample size for each fishery.  For observation row
 \(n_i / \text{lf\_var\_adjust}_f\).  Values greater than 1 downweight
 (reduce effective \(N\)) and values less than 1 upweight the fishery.
 Defaults to <code>rep(1, n_fishery)</code> (no adjustment).</p></dd>
+
+
+<dt id="arg-lf-cap">lf_cap<a class="anchor" aria-label="anchor" href="#arg-lf-cap"></a></dt>
+<dd><p>positive integer (or <code>NULL</code>).  When supplied, each
+effective sample size is capped: \(n_i = \min(n_i, \text{lf\_cap})\).
+Applied after proportions are computed so that observed compositions are
+unaffected.  Default <code>NULL</code> (no cap).  This is a Multifan-CL legacy
+feature.</p></dd>
 
 </dl></div>
     <div class="section level2">

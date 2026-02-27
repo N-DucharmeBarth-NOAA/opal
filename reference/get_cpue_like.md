@@ -6,7 +6,14 @@ model.
 ## Usage
 
 ``` r
-get_cpue_like(data, parameters, number_ysa, sel_fya, creep_init = 1)
+get_cpue_like(
+  data,
+  parameters,
+  number_ysa,
+  sel_fya,
+  weight_fya,
+  creep_init = 1
+)
 ```
 
 ## Arguments
@@ -18,7 +25,7 @@ get_cpue_like(data, parameters, number_ysa, sel_fya, creep_init = 1)
 - parameters:
 
   a `list` of parameter values (log_cpue_tau, log_cpue_omega,
-  cpue_creep, log_cpue_q, weight_fya, etc.).
+  cpue_creep, log_cpue_q, etc.).
 
 - number_ysa:
 
@@ -28,6 +35,11 @@ get_cpue_like(data, parameters, number_ysa, sel_fya, creep_init = 1)
 
   a 3D `array` `[n_fishery, n_year, n_age]` of selectivity by fishery,
   year, and age.
+
+- weight_fya:
+
+  a 3D `array` `[n_fishery, n_year, n_age]` of weight-at-age by fishery
+  and year.
 
 - creep_init:
 

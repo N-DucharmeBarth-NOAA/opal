@@ -17,7 +17,8 @@ prep_lf_data(
   lf_switch = 1L,
   lf_minbin = NULL,
   lf_maxbin = NULL,
-  lf_var_adjust = NULL
+  lf_var_adjust = NULL,
+  lf_cap = NULL
 )
 ```
 
@@ -65,6 +66,13 @@ prep_lf_data(
   \text{lf\\var\\adjust}\_f\\. Values greater than 1 downweight (reduce
   effective \\N\\) and values less than 1 upweight the fishery. Defaults
   to `rep(1, n_fishery)` (no adjustment).
+
+- lf_cap:
+
+  positive integer (or `NULL`). When supplied, each effective sample
+  size is capped: \\n_i = \min(n_i, \text{lf\\cap})\\. Applied after
+  proportions are computed so that observed compositions are unaffected.
+  Default `NULL` (no cap). This is a Multifan-CL legacy feature.
 
 ## Value
 

@@ -6,6 +6,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/quickstart.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/authors.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/copilot-instructions.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/bet_globals.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.html</loc></url>
@@ -48,6 +49,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_selectivity.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_at_age.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_at_length.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_like.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/grid_to_snutsfit.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.html</loc></url>
@@ -71,9 +73,12 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/plot_weight_at_age.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/posfun.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/prep_lf_data.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/prep_wf_data.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/project_rec_devs.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/project_selectivity.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/rebin_counts.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/rebin_matrix.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/rerun_grid.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/resolve_bio_vector.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/run_grid.html</loc></url>

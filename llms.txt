@@ -224,6 +224,8 @@ Oceanographic and Atmospheric Administration](https://www.noaa.gov) \|
   : Obtain the mean weight at age
 - [`get_weight_at_length()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_at_length.md)
   : Compute weight at each length bin midpoint
+- [`get_weight_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_like.md)
+  : Weight Composition Likelihood
 - [`grid_to_snutsfit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/grid_to_snutsfit.md)
   : Convert grid to an snutsfit object
 - [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md)
@@ -268,12 +270,18 @@ Oceanographic and Atmospheric Administration](https://www.noaa.gov) \|
   : Positive Constraint Penalty Function
 - [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_lf_data.md)
   : Prepare length composition data for model input
+- [`prep_wf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_wf_data.md)
+  : Prepare weight composition data for model input
 - [`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md)
   : Project dynamics
 - [`project_rec_devs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_rec_devs.md)
   : Project recruitment deviates
 - [`project_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_selectivity.md)
   : Project recruitment deviates
+- [`rebin_counts()`](https://n-ducharmebarth-noaa.github.io/opal/reference/rebin_counts.md)
+  : Linear area rebinning of frequency data
+- [`rebin_matrix()`](https://n-ducharmebarth-noaa.github.io/opal/reference/rebin_matrix.md)
+  : Compute rebinning weight matrix
 - [`rerun_grid()`](https://n-ducharmebarth-noaa.github.io/opal/reference/rerun_grid.md)
   : Run a grid again
 - [`resolve_bio_vector()`](https://n-ducharmebarth-noaa.github.io/opal/reference/resolve_bio_vector.md)

@@ -2,9 +2,11 @@
 
 ## Introduction
 
-The `opal` package is an R package that contains example fisheries data
-from western and central pacific bigeye tuna (BET). This page provides
-examples using the `opal` BET model.
+`opal` is an open, modular R package for fisheries stock assessment
+built on [RTMB](https://github.com/kaskr/RTMB) for automatic
+differentiation. It includes bundled data from the western and central
+Pacific Ocean (WCPO) bigeye tuna (BET) stock assessment. This vignette
+demonstrates model setup, fitting, and diagnostics using those data.
 
 ## Load inputs
 
@@ -113,6 +115,35 @@ data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
                      lf_var_adjust = var_adjust_scalars)
 ```
 
+### Weight composition data
+
+Weight composition observations are loaded from the bundled
+`wcpo_bet_wf` long-format data object and transformed into model-ready
+arrays.
+
+``` r
+data(wcpo_bet_wf)
+
+# Weight bin scalars (1 kg bins, 1–200 kg)
+data$wt_bin_start <- 1
+data$wt_bin_width <- 1
+data$n_wt         <- 200L
+
+# Pivot to wide format: one row per fishery x timestep, bins as columns
+wf_wide <- wcpo_bet_wf |>
+  tidyr::pivot_wider(
+    id_cols     = c(fishery, year, month, ts),
+    names_from  = bin,
+    values_from = value,
+    values_fill = 0
+  ) |>
+  dplyr::arrange(fishery, ts)
+
+data <- prep_wf_data(data, wf_wide,
+                     wf_keep_fisheries = c(2),
+                     wf_switch = 1L)
+```
+
 ## Model setup
 
 ### Parameters
@@ -134,6 +165,7 @@ parameters <- list(
   log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
   log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
+  log_wf_tau = rep(0, data$n_fishery),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
   log_k = as.numeric(wcpo_bet_parameters$log_k),
@@ -164,12 +196,12 @@ Use RTMB’s `map` option to turn parameters on/off. Parameters mapped to
 
 ``` r
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-map_sel[8, 1] <- 1
-map_sel[9, 1] <- 2
-map_sel[8, 3] <- 3
-map_sel[9, 3] <- 4
-map_sel[8, 4] <- 5
-map_sel[9, 4] <- 6
+map_sel[8, 1] <- NA
+map_sel[9, 1] <- NA
+map_sel[8, 3] <- NA
+map_sel[9, 3] <- NA
+map_sel[8, 4] <- NA
+map_sel[9, 4] <- NA
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
@@ -184,6 +216,7 @@ map <- list(
   log_cpue_tau = factor(NA),
   log_cpue_omega = factor(NA),
   log_lf_tau = factor(map_lf_tau),
+  log_wf_tau = factor(rep(NA, data$n_fishery)),  # fixed initially
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
@@ -201,94 +234,97 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 function:
 
 ``` r
-data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
+data$lf_switch <- 0 # skip length comps (removal only)
+
+# Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
+# clarity alongside the equivalent lf_switch assignment.
+# data$wf_switch <- 2 # Dirichlet
+# data$wf_switch <- 3 # Dirichlet-multinomial
+data$wf_switch <- 0 # skip weight comps (removal only)
 
 # Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))
-#> [1] "log_B0"     "log_cpue_q" "par_sel"    "rdev_y"
+#> [1] "log_B0"     "log_cpue_q" "rdev_y"
 obj$fn()
-#> [1] 134424.1
+#> [1] 696.6957
 obj$gr()
-#> outer mgc:  133368
-#>          [,1]     [,2]    [,3]     [,4]     [,5]      [,6]      [,7]     [,8]
-#> [1,] 1.283559 847.8735 -133368 34580.67 10039.04 -1615.304 -2525.923 5595.121
-#>           [,9]     [,10]     [,11]     [,12]     [,13]     [,14]     [,15]
-#> [1,] -14.42373 -17.79091 -11.96625 -12.08163 -23.62672 -17.25554 -17.79412
-#>        [,16]     [,17]     [,18]     [,19]     [,20]     [,21]     [,22]
-#> [1,] -22.425 -21.47014 -9.492821 -9.487043 -34.25532 -13.94378 -24.41817
-#>          [,23]     [,24]     [,25]     [,26]     [,27]     [,28]     [,29]
-#> [1,] -21.90769 -13.48098 -7.581472 -20.25591 -26.55707 -11.59815 -17.71141
-#>          [,30]     [,31]     [,32]    [,33]    [,34]     [,35]     [,36]
-#> [1,] -14.77482 -11.33642 -8.327971 -8.96007 -11.6725 -14.40481 -18.79485
-#>          [,37]     [,38]     [,39]    [,40]     [,41]     [,42]    [,43]
-#> [1,] -10.89253 -12.52936 -13.77128 -16.7568 -7.612169 -19.80656 -13.2092
-#>          [,44]     [,45]     [,46]     [,47]     [,48]    [,49]     [,50]
-#> [1,] -10.29417 -14.54021 -12.02666 -28.96282 -10.74705 -10.2815 -14.14097
-#>          [,51]    [,52]     [,53]     [,54]     [,55]     [,56]     [,57]
-#> [1,] -22.33503 -9.90664 -8.281683 -11.64374 -9.064876 -10.29405 -9.664478
-#>          [,58]     [,59]     [,60]     [,61]     [,62]     [,63]     [,64]
-#> [1,] -13.90944 -8.889367 -10.53526 -21.16105 -6.615882 -7.256252 -8.705208
-#>          [,65]    [,66]     [,67]     [,68]     [,69]     [,70]     [,71]
-#> [1,] -6.171801 -5.83139 -6.230671 -4.644741 -12.92809 -4.819266 -4.237605
-#>         [,72]     [,73]     [,74]     [,75]     [,76]     [,77]     [,78]
-#> [1,] -4.83079 -4.725531 -3.042983 -2.802723 -2.735913 -3.041889 -2.956688
-#>          [,79]     [,80]     [,81]     [,82]    [,83]    [,84]     [,85]
-#> [1,] -2.832056 -2.950518 -3.325519 -3.373152 -2.71565 -1.90421 -1.532612
-#>          [,86]     [,87]      [,88]     [,89]     [,90]     [,91]     [,92]
-#> [1,] -1.110487 -2.979341 -0.7495767 -3.512314 -1.775151 -2.770009 -2.894131
-#>          [,93]     [,94]     [,95]     [,96]     [,97]     [,98]    [,99]
-#> [1,] -3.200336 -3.530947 -3.947154 -3.963475 -3.887601 -3.864565 -3.65377
-#>        [,100]    [,101]    [,102]    [,103]    [,104]    [,105]    [,106]
-#> [1,] -3.86449 -3.413029 -2.858822 -2.516414 -2.421942 -1.873611 0.1267772
-#>         [,107]   [,108]  [,109]   [,110]   [,111]   [,112]  [,113]   [,114]
-#> [1,] 0.9110396 4.349335 3.56786 -1.37208 3.879227 1.018149 1.27915 -1.85131
-#>        [,115]  [,116]   [,117]   [,118]     [,119]   [,120]   [,121]   [,122]
-#> [1,] 2.258086 1.64341 3.415289 3.686082 -0.3844454 10.15892 4.477783 8.043484
-#>        [,123]   [,124]   [,125]   [,126]   [,127]   [,128]   [,129]   [,130]
-#> [1,] 9.868662 2.966459 4.498426 10.61197 6.183317 5.398775 20.12911 1.603732
-#>         [,131]    [,132]   [,133]   [,134]   [,135]   [,136]     [,137]
-#> [1,] 0.1650621 0.9320455 10.95296 14.25796 5.440251 19.92351 -0.3016632
-#>        [,138]   [,139]   [,140]   [,141]   [,142]   [,143]   [,144]   [,145]
-#> [1,] 1.697023 4.131396 4.966179 4.839128 4.653109 18.31732 7.044734 3.955484
-#>        [,146]  [,147]   [,148]   [,149]   [,150]    [,151]    [,152]   [,153]
-#> [1,] 3.024506 92.8257 35.58872 45.51684 73.66507 -72.26733 -184.5494 65.96103
-#>         [,154]    [,155]   [,156]   [,157]  [,158]   [,159]    [,160]    [,161]
-#> [1,] -318.1379 -179.2867 255.5759 235.1899 187.914 -42.7416 -88.10128 -17.57306
-#>         [,162]    [,163]    [,164]    [,165]   [,166]   [,167]     [,168]
-#> [1,] -111.0605 -133.7156 -269.3846 -109.8594 201.4434 30.68756 -0.4588547
-#>        [,169]   [,170]    [,171]   [,172]   [,173]    [,174]    [,175]   [,176]
-#> [1,] 161.8331 103.0581 -16.94057 29.59203 312.2648 -125.2455 -15.82691 275.7488
-#>         [,177]    [,178]    [,179]    [,180]    [,181]   [,182]   [,183]
-#> [1,] -85.94097 -173.5342 -610.3124 -128.6917 -513.4837 25.29142 746.1919
-#>        [,184]    [,185]    [,186]    [,187]   [,188]   [,189]   [,190]
-#> [1,] 283.4917 -606.6894 -1198.241 -344.7203 1597.985 453.6914 616.1131
-#>         [,191]    [,192]    [,193]    [,194]   [,195]   [,196]   [,197]
-#> [1,] -291.8059 -470.7017 -2306.502 -349.7535 537.7777 1572.384 2951.304
-#>        [,198]    [,199]    [,200]    [,201]    [,202]    [,203]    [,204]
-#> [1,] 48.57432 -500.9493 -355.4578 -420.0505 -656.7727 -953.5728 -845.6572
-#>        [,205]   [,206]  [,207]   [,208]   [,209]    [,210]    [,211]    [,212]
-#> [1,] 406.8608 1047.019 178.954 498.7094 155.1375 -271.9153 -213.7467 -41.94074
-#>        [,213]   [,214]    [,215]    [,216]   [,217]    [,218]    [,219]
-#> [1,] 344.8872 355.1801 -360.7799 -287.8721 173.4785 -129.4135 -46.37659
-#>        [,220]   [,221]   [,222]    [,223]   [,224]    [,225]   [,226]   [,227]
-#> [1,] 204.7333 788.5733 -8.16132 -272.3347 19.99657 -71.28219 541.5011 197.5311
-#>        [,228]    [,229]    [,230]   [,231]  [,232]   [,233]   [,234]    [,235]
-#> [1,] 308.8046 -553.5524 -870.1115 -241.801 351.364 629.2007 413.6063 -79.50617
-#>         [,236]    [,237]    [,238]    [,239]    [,240]    [,241]   [,242]
-#> [1,] -594.2893 -298.4981 -1081.499 -415.2285 -130.2232 -60.01887 3185.805
-#>        [,243]   [,244]   [,245]   [,246]    [,247]    [,248]   [,249]   [,250]
-#> [1,] 408.0679 1235.054 142.8773 29.82557 -1253.426 -671.8458 812.6589 69.88638
-#>         [,251]    [,252]   [,253]    [,254]    [,255]   [,256]    [,257]
-#> [1,] -600.1491 -141.6265 373.5507 -780.2418 -706.1567 233.5268 -158.4664
-#>         [,258]    [,259]  [,260]    [,261]    [,262]   [,263]  [,264]   [,265]
-#> [1,] -406.3222 -515.1598 161.159 -725.4307 -536.3243 869.2207 386.896 93.48939
-#>        [,266]   [,267]   [,268]    [,269]   [,270]   [,271]   [,272]   [,273]
-#> [1,] 692.0882 595.3564 1460.613 -1.630662 -933.118 13.88269 253.6477 -613.092
-#>         [,274]    [,275]    [,276]
-#> [1,] -1011.023 -42.43524 0.6256006
+#> outer mgc:  847.8735
+#>         [,1]     [,2]      [,3]      [,4]      [,5]      [,6]      [,7]
+#> [1,] 1.36223 847.8735 -14.42373 -17.79091 -11.96625 -12.08163 -23.62672
+#>           [,8]      [,9]   [,10]     [,11]     [,12]     [,13]     [,14]
+#> [1,] -17.25554 -17.79412 -22.425 -21.47014 -9.492821 -9.487044 -34.25533
+#>          [,15]     [,16]     [,17]     [,18]     [,19]     [,20]     [,21]
+#> [1,] -13.94379 -24.41818 -21.90769 -13.48098 -7.581473 -20.25592 -26.55708
+#>          [,22]     [,23]     [,24]     [,25]     [,26]     [,27]     [,28]
+#> [1,] -11.59815 -17.71142 -14.77482 -11.33643 -8.327975 -8.960074 -11.67251
+#>          [,29]     [,30]     [,31]     [,32]     [,33]     [,34]     [,35]
+#> [1,] -14.40482 -18.79487 -10.89254 -12.52937 -13.77129 -16.75682 -7.612175
+#>          [,36]     [,37]     [,38]     [,39]     [,40]     [,41]     [,42]
+#> [1,] -19.80659 -13.20922 -10.29418 -14.54024 -12.02668 -28.96289 -10.74707
+#>          [,43]     [,44]     [,45]     [,46]     [,47]     [,48]     [,49]
+#> [1,] -10.28152 -14.14101 -22.33511 -9.906668 -8.281704 -11.64379 -9.064911
+#>         [,50]     [,51]     [,52]     [,53]     [,54]     [,55]     [,56]
+#> [1,] -10.2941 -9.664533 -13.90955 -8.889439 -10.53537 -21.16136 -6.615962
+#>         [,57]     [,58]    [,59]     [,60]     [,61]     [,62]     [,63]
+#> [1,] -7.25638 -8.705425 -6.17196 -5.831573 -6.230935 -4.644877 -12.92899
+#>          [,64]     [,65]     [,66]     [,67]     [,68]     [,69]     [,70]
+#> [1,] -4.819591 -4.237939 -4.831417 -4.725637 -3.043372 -2.803211 -2.736426
+#>          [,71]     [,72]     [,73]     [,74]     [,75]     [,76]     [,77]
+#> [1,] -3.042287 -2.957644 -2.832817 -2.951742 -3.327376 -3.373636 -2.718246
+#>          [,78]     [,79]     [,80]     [,81]      [,82]     [,83]     [,84]
+#> [1,] -1.905599 -1.534254 -1.112567 -2.980091 -0.7524688 -3.513066 -1.777633
+#>         [,85]     [,86]     [,87]     [,88]     [,89]     [,90]     [,91]
+#> [1,] -2.77622 -2.898418 -3.203531 -3.533987 -3.949122 -3.965853 -3.891109
+#>          [,92]     [,93]     [,94]     [,95]     [,96]     [,97]     [,98]
+#> [1,] -3.869417 -3.657707 -3.873963 -3.423115 -2.867199 -2.524664 -2.428816
+#>          [,99]    [,100]    [,101]   [,102]  [,103]    [,104]   [,105]   [,106]
+#> [1,] -1.881653 0.1099419 0.8935999 4.313273 3.53943 -1.380832 3.849519 1.001104
+#>        [,107]    [,108]   [,109]   [,110]   [,111]   [,112]     [,113]   [,114]
+#> [1,] 1.260817 -1.860571 2.235185 1.621885 3.384444 3.651069 -0.4034103 10.06855
+#>        [,115]   [,116]   [,117]   [,118]   [,119]   [,120]   [,121]   [,122]
+#> [1,] 4.423438 7.950092 9.743676 2.905259 4.412664 10.42574 6.050362 5.262348
+#>        [,123]   [,124]    [,125]    [,126]   [,127]   [,128]   [,129]   [,130]
+#> [1,] 19.63047 1.499814 0.0709136 0.8013582 10.39791 13.36318 4.934542 17.81396
+#>          [,131]   [,132]   [,133]   [,134]   [,135]   [,136]   [,137]   [,138]
+#> [1,] -0.6327937 1.060031 2.913669 3.210989 2.645825 1.973106 8.814456 1.905641
+#>          [,139]    [,140]   [,141]   [,142]   [,143]   [,144]  [,145]  [,146]
+#> [1,] -0.5361419 -1.843739 16.19188 3.008929 2.066632 5.887302 1.33293 2.34599
+#>        [,147]   [,148]   [,149]   [,150]    [,151]   [,152]   [,153]   [,154]
+#> [1,] 2.694726 6.489514 1.825036 1.483763 0.3097918 7.556589 3.024082 9.470925
+#>        [,155]   [,156]   [,157]   [,158]   [,159]  [,160]   [,161]   [,162]
+#> [1,] 4.270987 5.030244 3.461459 5.489262 7.919619 4.12505 4.281111 1.847724
+#>        [,163]   [,164]   [,165]    [,166]   [,167]   [,168]    [,169]   [,170]
+#> [1,] 4.132976 2.679274 2.881558 0.5435661 2.279492 8.243004 -1.876656 8.524661
+#>        [,171]   [,172]  [,173]   [,174]   [,175]   [,176]  [,177]   [,178]
+#> [1,] 3.978502 1.049552 5.94895 4.913562 4.518005 4.382705 5.11398 4.263811
+#>        [,179]   [,180]    [,181]   [,182]   [,183]   [,184]   [,185]   [,186]
+#> [1,] 3.804904 1.952369 0.5251225 21.01821 7.529496 11.68518 10.81984 2.003909
+#>        [,187]   [,188]   [,189]   [,190]   [,191]   [,192]  [,193]     [,194]
+#> [1,] 25.51814 13.05216 6.110153 5.844232 12.74616 1.187579 9.65867 -0.8051976
+#>        [,195]   [,196]   [,197]   [,198]   [,199]   [,200]   [,201]   [,202]
+#> [1,] 5.905875 3.543131 3.104756 7.223417 4.720595 12.58776 12.51461 20.60459
+#>        [,203]   [,204]   [,205]   [,206]   [,207]   [,208]    [,209]   [,210]
+#> [1,] 15.85585 13.19304 14.98456 5.014382 7.704384 4.966446 0.9461077 8.565709
+#>        [,211]   [,212]   [,213]   [,214]  [,215]   [,216]   [,217]   [,218]
+#> [1,] 28.13899 31.12039 30.31993 11.78485 24.7352 6.036837 17.65149 22.38168
+#>        [,219]   [,220]   [,221]   [,222]   [,223]  [,224]  [,225]   [,226]
+#> [1,] 14.94333 14.78684 4.432771 16.58045 2.901582 11.1743 9.21042 11.13793
+#>        [,227]   [,228]   [,229]   [,230]   [,231]   [,232]   [,233]     [,234]
+#> [1,] 14.87578 14.09604 13.00995 18.83471 6.427051 13.80929 9.082483 -0.2643707
+#>        [,235]   [,236]   [,237]   [,238]   [,239]   [,240]  [,241]   [,242]
+#> [1,] 10.46214 31.25587 8.392217 9.580797 1.915908 6.143048 8.12524 4.091881
+#>        [,243]   [,244]   [,245]   [,246]   [,247]  [,248]   [,249]   [,250]
+#> [1,] 20.24496 9.960366 3.628648 2.183022 5.307158 9.07459 5.761786 5.801557
+#>        [,251]       [,252]   [,253]   [,254]   [,255]   [,256]   [,257] [,258]
+#> [1,] 6.351286 -0.001576827 8.981838 6.469136 5.821842 2.562364 12.84008 3.0483
+#>        [,259]   [,260]   [,261]   [,262]    [,263]   [,264]   [,265]    [,266]
+#> [1,] 5.601956 4.766498 2.654791 5.269718 0.8332309 1.495876 2.504979 -1.093281
+#>          [,267]    [,268]    [,269]    [,270]
+#> [1,] -0.7009227 -2.285167 -2.101524 0.6256006
 ```
 
 Inspect initial model outputs:
@@ -304,7 +340,7 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 ``` r
 
 plot_catch(data = data, obj = obj)
-#> [1] "The maximum catch difference was: 1.10399014374707e-08"
+#> [1] "The maximum catch difference was: 1.10394466901198e-08"
 ```
 
 ![](bet_files/figure-html/init-checks-2.png)
@@ -342,12 +378,6 @@ opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
 #> NA/NaN function evaluation
 #> Warning in nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, :
 #> NA/NaN function evaluation
-#> Warning in nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, :
-#> NA/NaN function evaluation
-#> Warning in nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, :
-#> NA/NaN function evaluation
-#> Warning in nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr, :
-#> NA/NaN function evaluation
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 obj$fn()
@@ -357,22 +387,17 @@ obj$report()$lp_penalty
 obj$report()$lp_rec
 sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
+sum(obj$report()$lp_wf)
 ```
 
 Compare initial and estimated parameter values:
 
 ``` r
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
-#> outer mgc:  0.005814213
-#>          par   init     est  lwr  upr       gr gr_chk bd_chk
-#> 1     log_B0 20.000 14.0000  0.0 22.0 -4.3e-05     OK     OK
-#> 2 log_cpue_q  0.000  0.0079 -2.3  2.3 -5.4e-08     OK     OK
-#> 3   par_sel8 -0.980 -0.9700 -Inf  Inf -3.4e-03     OK     OK
-#> 4   par_sel9 -0.780 -1.0000 -Inf  Inf -5.8e-03     OK     OK
-#> 5  par_sel38  0.044 -9.4000 -Inf  Inf  8.7e-06     OK     OK
-#> 6  par_sel39  1.600 -9.3000 -Inf  Inf  1.6e-05     OK     OK
-#> 7  par_sel53  0.450 -2.3000 -Inf  Inf -4.1e-06     OK     OK
-#> 8  par_sel54  3.000  1.7000 -Inf  Inf -8.4e-06     OK     OK
+#> outer mgc:  4.072735e-12
+#>          par init   est  lwr  upr       gr gr_chk bd_chk
+#> 1     log_B0   20 14.00  0.0 22.0 -4.1e-12     OK     OK
+#> 2 log_cpue_q    0 -0.02 -2.3  2.3 -2.3e-12     OK     OK
 ```
 
 ### Diagnostics
@@ -382,559 +407,547 @@ function:
 
 ``` r
 check_estimability(obj = obj)
-#> outer mgc:  0.005814213 
-#> outer mgc:  347.42 
-#> outer mgc:  351.1373 
+#> outer mgc:  4.072735e-12 
+#> outer mgc:  7.301959 
+#> outer mgc:  7.417775 
 #> outer mgc:  7.425739 
 #> outer mgc:  7.425739 
-#> outer mgc:  3890.009 
-#> outer mgc:  8195.263 
-#> outer mgc:  465.0801 
-#> outer mgc:  992.1283 
-#> outer mgc:  0.005814301 
-#> outer mgc:  0.005814126 
-#> outer mgc:  0.005918232 
-#> outer mgc:  0.005711919 
-#> outer mgc:  58.15584 
-#> outer mgc:  58.12709 
-#> outer mgc:  21.19431 
-#> outer mgc:  21.20637 
-#> outer mgc:  0.3042916 
-#> outer mgc:  0.3039646 
-#> outer mgc:  0.01688228 
-#> outer mgc:  0.01686521 
-#> outer mgc:  0.01673787 
-#> outer mgc:  0.01672093 
-#> outer mgc:  0.01686755 
-#> outer mgc:  0.01685047 
-#> outer mgc:  0.01659516 
-#> outer mgc:  0.01657793 
-#> outer mgc:  0.01697671 
-#> outer mgc:  0.01695946 
-#> outer mgc:  0.0168465 
-#> outer mgc:  0.01682941 
-#> outer mgc:  0.01652358 
-#> outer mgc:  0.01650683 
-#> outer mgc:  0.01566825 
-#> outer mgc:  0.01565201 
-#> outer mgc:  0.01544898 
-#> outer mgc:  0.0154333 
-#> outer mgc:  0.01504045 
-#> outer mgc:  0.01502522 
-#> outer mgc:  0.271319 
-#> outer mgc:  0.2710141 
-#> outer mgc:  0.01437019 
-#> outer mgc:  0.01435543 
-#> outer mgc:  0.01477366 
-#> outer mgc:  0.0147586 
-#> outer mgc:  0.01492105 
-#> outer mgc:  0.01490586 
-#> outer mgc:  0.01501281 
-#> outer mgc:  0.0149975 
-#> outer mgc:  0.0141765 
-#> outer mgc:  0.01416136 
-#> outer mgc:  0.01457218 
-#> outer mgc:  0.01455717 
-#> outer mgc:  0.01406493 
-#> outer mgc:  0.01405044 
-#> outer mgc:  0.01329359 
-#> outer mgc:  0.01327984 
-#> outer mgc:  0.01163088 
-#> outer mgc:  0.01161817 
-#> outer mgc:  0.01141218 
-#> outer mgc:  0.01140019 
-#> outer mgc:  0.01065471 
-#> outer mgc:  0.01064348 
-#> outer mgc:  0.009949391 
-#> outer mgc:  0.009938813 
-#> outer mgc:  0.008817761 
-#> outer mgc:  0.008807948 
-#> outer mgc:  0.008512605 
-#> outer mgc:  0.008503329 
-#> outer mgc:  0.008523387 
-#> outer mgc:  0.008428557 
-#> outer mgc:  0.008684793 
-#> outer mgc:  0.008589807 
-#> outer mgc:  0.008689872 
-#> outer mgc:  0.008594781 
-#> outer mgc:  0.0089683 
-#> outer mgc:  0.008873037 
-#> outer mgc:  0.009113287 
-#> outer mgc:  0.009017896 
-#> outer mgc:  0.009370842 
-#> outer mgc:  0.009275203 
-#> outer mgc:  0.009725815 
-#> outer mgc:  0.009629775 
-#> outer mgc:  0.01031767 
-#> outer mgc:  0.01022108 
-#> outer mgc:  0.01087413 
-#> outer mgc:  0.01077705 
-#> outer mgc:  0.01112326 
-#> outer mgc:  0.01102594 
-#> outer mgc:  0.01089429 
-#> outer mgc:  0.01079712 
-#> outer mgc:  0.01052345 
-#> outer mgc:  0.01042666 
-#> outer mgc:  0.0101078 
-#> outer mgc:  0.01001146 
-#> outer mgc:  0.009755902 
-#> outer mgc:  0.009659914 
-#> outer mgc:  0.009568277 
-#> outer mgc:  0.009472438 
-#> outer mgc:  0.009589216 
-#> outer mgc:  0.009493369 
-#> outer mgc:  0.009743978 
-#> outer mgc:  0.009648008 
-#> outer mgc:  0.01009576 
-#> outer mgc:  0.00999945 
-#> outer mgc:  0.01063821 
-#> outer mgc:  0.01054131 
-#> outer mgc:  0.01143027 
-#> outer mgc:  0.01133263 
-#> outer mgc:  0.01188737 
-#> outer mgc:  0.01178934 
-#> outer mgc:  0.0118354 
-#> outer mgc:  0.01173742 
-#> outer mgc:  0.01159499 
-#> outer mgc:  0.0114972 
-#> outer mgc:  0.01123659 
-#> outer mgc:  0.01113916 
-#> outer mgc:  0.01066512 
-#> outer mgc:  0.01056827 
-#> outer mgc:  0.01016346 
-#> outer mgc:  0.01006709 
-#> outer mgc:  0.009771673 
-#> outer mgc:  0.009675632 
-#> outer mgc:  0.009451658 
-#> outer mgc:  0.009355942 
-#> outer mgc:  0.009101834 
-#> outer mgc:  0.009006492 
-#> outer mgc:  0.008855073 
-#> outer mgc:  0.00875997 
-#> outer mgc:  0.008804128 
-#> outer mgc:  0.008709024 
-#> outer mgc:  0.009033596 
-#> outer mgc:  0.008938283 
-#> outer mgc:  0.009428661 
-#> outer mgc:  0.009332995 
-#> outer mgc:  0.009937349 
-#> outer mgc:  0.009841185 
-#> outer mgc:  0.01016883 
-#> outer mgc:  0.01007234 
-#> outer mgc:  0.009903808 
-#> outer mgc:  0.009807598 
-#> outer mgc:  0.009019507 
-#> outer mgc:  0.008924225 
-#> outer mgc:  0.008224952 
-#> outer mgc:  0.007970253 
-#> outer mgc:  0.007791051 
-#> outer mgc:  0.007217033 
-#> outer mgc:  0.007592337 
-#> outer mgc:  0.006852852 
-#> outer mgc:  0.007567097 
-#> outer mgc:  0.006773861 
-#> outer mgc:  0.007685113 
-#> outer mgc:  0.006920103 
-#> outer mgc:  0.00800093 
-#> outer mgc:  0.007382354 
-#> outer mgc:  0.008560641 
-#> outer mgc:  0.008226598 
-#> outer mgc:  0.009261893 
-#> outer mgc:  0.009166291 
-#> outer mgc:  0.01004301 
-#> outer mgc:  0.009946636 
-#> outer mgc:  0.0105068 
-#> outer mgc:  0.01040991 
-#> outer mgc:  0.01018391 
-#> outer mgc:  0.01008735 
-#> outer mgc:  0.009198618 
-#> outer mgc:  0.009008019 
-#> outer mgc:  0.00851311 
-#> outer mgc:  0.007917411 
-#> outer mgc:  0.007978154 
-#> outer mgc:  0.007070931 
-#> outer mgc:  0.007613693 
-#> outer mgc:  0.006555783 
-#> outer mgc:  0.007372657 
-#> outer mgc:  0.006313704 
-#> outer mgc:  0.00726984 
-#> outer mgc:  0.006255238 
-#> outer mgc:  0.007331487 
-#> outer mgc:  0.006450664 
-#> outer mgc:  0.00754939 
-#> outer mgc:  0.006863183 
-#> outer mgc:  0.007867802 
-#> outer mgc:  0.007360846 
-#> outer mgc:  0.008280704 
-#> outer mgc:  0.007927066 
-#> outer mgc:  0.00871985 
-#> outer mgc:  0.008455316 
-#> outer mgc:  0.009132536 
-#> outer mgc:  0.008871843 
-#> outer mgc:  0.009370432 
-#> outer mgc:  0.009005246 
-#> outer mgc:  0.009414892 
-#> outer mgc:  0.008976727 
-#> outer mgc:  0.009287637 
-#> outer mgc:  0.00875525 
-#> outer mgc:  0.009012937 
-#> outer mgc:  0.008310484 
-#> outer mgc:  0.008713204 
-#> outer mgc:  0.007830172 
-#> outer mgc:  0.008577917 
-#> outer mgc:  0.007592788 
-#> outer mgc:  0.008668877 
-#> outer mgc:  0.007684435 
-#> outer mgc:  0.008944078 
-#> outer mgc:  0.008044959 
-#> outer mgc:  0.009152839 
-#> outer mgc:  0.008619397 
-#> outer mgc:  0.009027656 
-#> outer mgc:  0.008895536 
-#> outer mgc:  0.008561575 
-#> outer mgc:  0.008554818 
-#> outer mgc:  0.008256897 
-#> outer mgc:  0.008250267 
-#> outer mgc:  0.008033942 
-#> outer mgc:  0.008027415 
-#> outer mgc:  0.00805381 
-#> outer mgc:  0.008047196 
-#> outer mgc:  0.008202076 
-#> outer mgc:  0.008195175 
-#> outer mgc:  0.008433295 
-#> outer mgc:  0.008426284 
-#> outer mgc:  0.008300739 
-#> outer mgc:  0.008293856 
-#> outer mgc:  0.007847038 
-#> outer mgc:  0.00784052 
-#> outer mgc:  0.007042925 
-#> outer mgc:  0.007036829 
-#> outer mgc:  0.006423638 
-#> outer mgc:  0.00641819 
-#> outer mgc:  0.005985482 
-#> outer mgc:  0.00586921 
-#> outer mgc:  0.005969096 
-#> outer mgc:  0.005659481 
-#> outer mgc:  0.005956586 
-#> outer mgc:  0.005671981 
-#> outer mgc:  0.005950864 
-#> outer mgc:  0.005677695 
-#> outer mgc:  0.005946057 
-#> outer mgc:  0.005785156 
-#> outer mgc:  0.006121307 
-#> outer mgc:  0.006116402 
-#> outer mgc:  0.006447632 
-#> outer mgc:  0.00644256 
-#> outer mgc:  0.006666683 
-#> outer mgc:  0.006661648 
-#> outer mgc:  0.006547545 
-#> outer mgc:  0.00654277 
-#> outer mgc:  0.006238794 
-#> outer mgc:  0.006234416 
-#> outer mgc:  0.005833388 
-#> outer mgc:  0.005828263 
-#> outer mgc:  0.005799077 
-#> outer mgc:  0.005829345 
-#> outer mgc:  0.005765781 
-#> outer mgc:  0.005862611 
-#> outer mgc:  0.005733158 
-#> outer mgc:  0.005895205 
-#> outer mgc:  0.005701619 
-#> outer mgc:  0.005926713 
-#> outer mgc:  0.005666037 
-#> outer mgc:  0.005962263 
-#> outer mgc:  0.005628721 
-#> outer mgc:  0.005999547 
-#> outer mgc:  0.005588318 
-#> outer mgc:  0.006039917 
-#> outer mgc:  0.005548072 
-#> outer mgc:  0.006080122 
-#> outer mgc:  0.005495784 
-#> outer mgc:  0.006132368 
-#> outer mgc:  0.005435181 
-#> outer mgc:  0.006192926 
-#> outer mgc:  0.005371342 
-#> outer mgc:  0.006256709 
-#> outer mgc:  0.005302249 
-#> outer mgc:  0.006325736 
-#> outer mgc:  0.005212001 
-#> outer mgc:  0.006415908 
-#> outer mgc:  0.005093913 
-#> outer mgc:  0.006533899 
-#> outer mgc:  0.005090693 
-#> outer mgc:  0.006691797 
-#> outer mgc:  0.005328581 
-#> outer mgc:  0.006911909 
-#> outer mgc:  0.005354578 
-#> outer mgc:  0.007265944 
-#> outer mgc:  0.005072143 
-#> outer mgc:  0.00785322 
-#> outer mgc:  0.004544398 
-#> outer mgc:  0.008800212 
-#> outer mgc:  0.004274964 
-#> outer mgc:  0.01102501 
-#> outer mgc:  0.00837789 
-#> outer mgc:  0.01517419 
-#> outer mgc:  0.0148112 
-#> outer mgc:  0.02160205 
-#> outer mgc:  0.02432195 
-#> outer mgc:  0.03110304 
-#> outer mgc:  0.03591293 
-#> outer mgc:  0.04267642 
-#> outer mgc:  0.05634112 
-#> outer mgc:  0.06308545 
-#> outer mgc:  0.7418375 
-#> outer mgc:  0.7481334 
-#> outer mgc:  2.155934 
-#> outer mgc:  2.16165 
-#> outer mgc:  0.07896789 
-#> outer mgc:  0.08569386 
-#> outer mgc:  0.5787951 
-#> outer mgc:  0.5846762 
-#> outer mgc:  0.8247599 
-#> outer mgc:  0.831068 
-#> outer mgc:  0.1043998 
-#> outer mgc:  0.1111215 
-#> outer mgc:  0.1210241 
-#> outer mgc:  0.1141382 
-#> outer mgc:  1.481842 
-#> outer mgc:  1.47538 
-#> outer mgc:  0.8193408 
-#> outer mgc:  0.8121152 
-#> outer mgc:  0.3935518 
-#> outer mgc:  0.4005771 
-#> outer mgc:  0.06584296 
-#> outer mgc:  0.07258385 
-#> outer mgc:  1.111809 
-#> outer mgc:  1.104889 
-#> outer mgc:  0.2947721 
-#> outer mgc:  0.3012738 
-#> outer mgc:  6.879335 
-#> outer mgc:  6.885098 
-#> outer mgc:  0.1283628 
-#> outer mgc:  0.13504 
-#> outer mgc:  1.184257 
-#> outer mgc:  1.177687 
-#> outer mgc:  1.515492 
-#> outer mgc:  1.507782 
-#> outer mgc:  0.2788924 
-#> outer mgc:  0.2855042 
-#> outer mgc:  0.6796601 
-#> outer mgc:  0.6860741 
-#> outer mgc:  0.5504502 
-#> outer mgc:  0.5568282 
-#> outer mgc:  0.7450391 
-#> outer mgc:  0.7517251 
-#> outer mgc:  0.3958923 
-#> outer mgc:  0.4022327 
-#> outer mgc:  0.06147695 
-#> outer mgc:  0.06825507 
-#> outer mgc:  0.4966519 
-#> outer mgc:  0.5041882 
-#> outer mgc:  0.7254516 
-#> outer mgc:  0.7181549 
-#> outer mgc:  0.07289171 
-#> outer mgc:  0.06592496 
-#> outer mgc:  0.6026561 
-#> outer mgc:  0.6086213 
-#> outer mgc:  0.5543888 
-#> outer mgc:  0.5607264 
-#> outer mgc:  1.300134 
-#> outer mgc:  1.305874 
-#> outer mgc:  0.1926756 
-#> outer mgc:  0.1993436 
-#> outer mgc:  5.574363 
-#> outer mgc:  5.57848 
-#> outer mgc:  0.0709951 
-#> outer mgc:  0.07772749 
-#> outer mgc:  0.2460567 
-#> outer mgc:  0.2456817 
-#> outer mgc:  1.117081 
-#> outer mgc:  1.122467 
-#> outer mgc:  0.5795667 
-#> outer mgc:  0.5788785 
-#> outer mgc:  1.205114 
-#> outer mgc:  1.204542 
-#> outer mgc:  0.4461172 
-#> outer mgc:  0.452669 
-#> outer mgc:  0.9735659 
-#> outer mgc:  0.9809175 
-#> outer mgc:  0.01533163 
-#> outer mgc:  0.01538453 
-#> outer mgc:  2.779095 
-#> outer mgc:  2.770233 
-#> outer mgc:  3.013237 
-#> outer mgc:  3.005858 
-#> outer mgc:  7.590464 
-#> outer mgc:  7.592583 
-#> outer mgc:  10.9211 
-#> outer mgc:  10.92415 
-#> outer mgc:  3.537771 
-#> outer mgc:  3.54227 
-#> outer mgc:  0.304755 
-#> outer mgc:  0.311397 
-#> outer mgc:  0.1706194 
-#> outer mgc:  0.1635631 
-#> outer mgc:  0.8772995 
-#> outer mgc:  0.8700635 
-#> outer mgc:  1.522929 
-#> outer mgc:  1.521785 
-#> outer mgc:  2.873678 
-#> outer mgc:  2.881836 
-#> outer mgc:  1.06335 
-#> outer mgc:  1.06258 
-#> outer mgc:  1.233552 
-#> outer mgc:  1.225529 
-#> outer mgc:  8.522805 
-#> outer mgc:  8.524982 
-#> outer mgc:  6.760632 
-#> outer mgc:  6.763145 
-#> outer mgc:  1.842182 
-#> outer mgc:  1.847702 
-#> outer mgc:  4.006611 
-#> outer mgc:  3.997721 
-#> outer mgc:  4.248198 
-#> outer mgc:  4.23627 
-#> outer mgc:  1.268859 
-#> outer mgc:  1.261518 
-#> outer mgc:  0.1612047 
-#> outer mgc:  0.1680634 
-#> outer mgc:  0.2803039 
-#> outer mgc:  0.2869764 
-#> outer mgc:  4.211275 
-#> outer mgc:  4.216344 
-#> outer mgc:  3.41939 
-#> outer mgc:  3.424782 
-#> outer mgc:  3.232833 
-#> outer mgc:  3.237916 
-#> outer mgc:  1.486452 
-#> outer mgc:  1.491889 
-#> outer mgc:  0.03107697 
-#> outer mgc:  0.03785861 
-#> outer mgc:  3.450172 
-#> outer mgc:  3.45573 
-#> outer mgc:  2.65533 
-#> outer mgc:  2.662088 
-#> outer mgc:  1.17144 
-#> outer mgc:  1.177339 
-#> outer mgc:  3.432255 
-#> outer mgc:  3.437952 
-#> outer mgc:  3.82763 
-#> outer mgc:  3.833155 
-#> outer mgc:  0.7330496 
-#> outer mgc:  0.7393711 
-#> outer mgc:  0.2860441 
-#> outer mgc:  0.2790369 
-#> outer mgc:  0.534149 
-#> outer mgc:  0.533641 
-#> outer mgc:  5.023069 
-#> outer mgc:  5.027728 
-#> outer mgc:  3.23317 
-#> outer mgc:  3.239002 
-#> outer mgc:  5.141974 
-#> outer mgc:  5.148815 
-#> outer mgc:  0.6807245 
-#> outer mgc:  0.6868668 
-#> outer mgc:  3.708177 
-#> outer mgc:  3.712172 
-#> outer mgc:  1.022393 
-#> outer mgc:  1.028466 
-#> outer mgc:  5.778456 
-#> outer mgc:  5.784651 
-#> outer mgc:  4.67385 
-#> outer mgc:  4.679382 
-#> outer mgc:  2.909998 
-#> outer mgc:  2.915709 
-#> outer mgc:  0.3652791 
-#> outer mgc:  0.3647707 
-#> outer mgc:  0.8994371 
-#> outer mgc:  0.8927196 
-#> outer mgc:  1.174924 
-#> outer mgc:  1.182068 
-#> outer mgc:  2.058319 
-#> outer mgc:  2.064897 
-#> outer mgc:  5.807428 
-#> outer mgc:  5.810696 
-#> outer mgc:  3.950383 
-#> outer mgc:  3.954096 
-#> outer mgc:  12.19628 
-#> outer mgc:  12.19668 
-#> outer mgc:  7.180289 
-#> outer mgc:  7.182716 
-#> outer mgc:  1.688183 
-#> outer mgc:  1.693474 
-#> outer mgc:  10.89622 
-#> outer mgc:  10.89814 
-#> outer mgc:  6.896194 
-#> outer mgc:  6.903373 
-#> outer mgc:  6.130411 
-#> outer mgc:  6.138583 
-#> outer mgc:  4.239735 
-#> outer mgc:  4.246409 
-#> outer mgc:  8.230351 
-#> outer mgc:  8.234589 
-#> outer mgc:  4.239054 
-#> outer mgc:  4.252703 
-#> outer mgc:  5.644993 
-#> outer mgc:  5.658023 
-#> outer mgc:  5.7308 
-#> outer mgc:  5.738049 
-#> outer mgc:  5.531328 
-#> outer mgc:  5.535201 
-#> outer mgc:  1.420927 
-#> outer mgc:  1.419385 
-#> outer mgc:  1.021527 
-#> outer mgc:  1.020361 
-#> outer mgc:  3.468327 
-#> outer mgc:  3.47458 
-#> outer mgc:  1.757969 
-#> outer mgc:  1.763484 
-#> outer mgc:  1.904011 
-#> outer mgc:  1.903157 
-#> outer mgc:  1.730432 
-#> outer mgc:  1.736458 
-#> outer mgc:  1.752873 
-#> outer mgc:  1.759543 
-#> outer mgc:  2.815207 
-#> outer mgc:  2.819144 
-#> outer mgc:  0.8573765 
-#> outer mgc:  0.8683017 
-#> outer mgc:  3.501611 
-#> outer mgc:  3.505564 
-#> outer mgc:  2.522105 
-#> outer mgc:  2.527065 
-#> outer mgc:  9.112851 
-#> outer mgc:  9.114084 
-#> outer mgc:  6.64043 
-#> outer mgc:  6.644873 
-#> outer mgc:  12.88707 
-#> outer mgc:  12.89751 
-#> outer mgc:  5.109293 
-#> outer mgc:  5.11293 
-#> outer mgc:  16.9188 
-#> outer mgc:  16.93082 
-#> outer mgc:  10.50079 
-#> outer mgc:  10.5095 
-#> outer mgc:  5.66418 
-#> outer mgc:  5.670516 
-#> outer mgc:  10.29922 
-#> outer mgc:  10.30999 
-#> outer mgc:  20.4458 
-#> outer mgc:  20.47105 
-#> outer mgc:  32.5316 
-#> outer mgc:  32.64331 
-#> outer mgc:  24.96667 
-#> outer mgc:  25.04121 
-#> outer mgc:  3.503004 
-#> outer mgc:  3.507844 
-#> outer mgc:  1.510851 
-#> outer mgc:  1.522215 
-#> outer mgc:  13.79604 
-#> outer mgc:  13.78759 
-#> outer mgc:  0.08780279 
-#> outer mgc:  0.08091153 
-#> outer mgc:  0.005814213 
-#> outer mgc:  0.005814213
+#> outer mgc:  0.03705092 
+#> outer mgc:  0.03701259 
+#> outer mgc:  0.03777039 
+#> outer mgc:  0.03773221 
+#> outer mgc:  0.03855943 
+#> outer mgc:  0.03852048 
+#> outer mgc:  0.04029141 
+#> outer mgc:  0.04025065 
+#> outer mgc:  0.04058785 
+#> outer mgc:  0.0405457 
+#> outer mgc:  0.04280243 
+#> outer mgc:  0.04275888 
+#> outer mgc:  0.04312595 
+#> outer mgc:  0.04308214 
+#> outer mgc:  0.04344454 
+#> outer mgc:  0.0434004 
+#> outer mgc:  0.04228394 
+#> outer mgc:  0.04224013 
+#> outer mgc:  0.04352656 
+#> outer mgc:  0.04348221 
+#> outer mgc:  0.04347253 
+#> outer mgc:  0.04342828 
+#> outer mgc:  0.04371646 
+#> outer mgc:  0.04367193 
+#> outer mgc:  0.04074535 
+#> outer mgc:  0.0407036 
+#> outer mgc:  0.04109553 
+#> outer mgc:  0.04105475 
+#> outer mgc:  0.03835994 
+#> outer mgc:  0.03832198 
+#> outer mgc:  0.03608784 
+#> outer mgc:  0.03605214 
+#> outer mgc:  0.03193525 
+#> outer mgc:  0.03190177 
+#> outer mgc:  0.03167213 
+#> outer mgc:  0.0316406 
+#> outer mgc:  0.02989747 
+#> outer mgc:  0.02986787 
+#> outer mgc:  0.02850442 
+#> outer mgc:  0.02847622 
+#> outer mgc:  0.02533635 
+#> outer mgc:  0.02530866 
+#> outer mgc:  0.02648068 
+#> outer mgc:  0.02645423 
+#> outer mgc:  0.02645692 
+#> outer mgc:  0.02643076 
+#> outer mgc:  0.02673562 
+#> outer mgc:  0.02670921 
+#> outer mgc:  0.02531674 
+#> outer mgc:  0.02528939 
+#> outer mgc:  0.02713217 
+#> outer mgc:  0.02710517 
+#> outer mgc:  0.02757828 
+#> outer mgc:  0.02755108 
+#> outer mgc:  0.02797858 
+#> outer mgc:  0.027951 
+#> outer mgc:  0.02763535 
+#> outer mgc:  0.02760712 
+#> outer mgc:  0.02861779 
+#> outer mgc:  0.02858954 
+#> outer mgc:  0.02907004 
+#> outer mgc:  0.02904146 
+#> outer mgc:  0.02974009 
+#> outer mgc:  0.02971088 
+#> outer mgc:  0.03029216 
+#> outer mgc:  0.03026184 
+#> outer mgc:  0.03149609 
+#> outer mgc:  0.03146479 
+#> outer mgc:  0.03272599 
+#> outer mgc:  0.03269393 
+#> outer mgc:  0.03335334 
+#> outer mgc:  0.03332072 
+#> outer mgc:  0.03287251 
+#> outer mgc:  0.03283961 
+#> outer mgc:  0.03248496 
+#> outer mgc:  0.03245265 
+#> outer mgc:  0.03205766 
+#> outer mgc:  0.03202629 
+#> outer mgc:  0.03148134 
+#> outer mgc:  0.03145055 
+#> outer mgc:  0.03102964 
+#> outer mgc:  0.03099895 
+#> outer mgc:  0.03116143 
+#> outer mgc:  0.03113071 
+#> outer mgc:  0.03166157 
+#> outer mgc:  0.03163062 
+#> outer mgc:  0.03253915 
+#> outer mgc:  0.03250738 
+#> outer mgc:  0.033387 
+#> outer mgc:  0.03335367 
+#> outer mgc:  0.03490109 
+#> outer mgc:  0.03486654 
+#> outer mgc:  0.03591642 
+#> outer mgc:  0.03588142 
+#> outer mgc:  0.03592828 
+#> outer mgc:  0.03589328 
+#> outer mgc:  0.03531244 
+#> outer mgc:  0.03527759 
+#> outer mgc:  0.03465394 
+#> outer mgc:  0.03461984 
+#> outer mgc:  0.03363056 
+#> outer mgc:  0.03359775 
+#> outer mgc:  0.03253897 
+#> outer mgc:  0.03250723 
+#> outer mgc:  0.03138182 
+#> outer mgc:  0.03135066 
+#> outer mgc:  0.03059518 
+#> outer mgc:  0.03056492 
+#> outer mgc:  0.02984814 
+#> outer mgc:  0.02981896 
+#> outer mgc:  0.02925111 
+#> outer mgc:  0.02922252 
+#> outer mgc:  0.02893164 
+#> outer mgc:  0.02890287 
+#> outer mgc:  0.0294495 
+#> outer mgc:  0.02942037 
+#> outer mgc:  0.03039898 
+#> outer mgc:  0.03036926 
+#> outer mgc:  0.03146594 
+#> outer mgc:  0.03143522 
+#> outer mgc:  0.03138598 
+#> outer mgc:  0.03135417 
+#> outer mgc:  0.03095806 
+#> outer mgc:  0.03092699 
+#> outer mgc:  0.02945591 
+#> outer mgc:  0.02942706 
+#> outer mgc:  0.02728879 
+#> outer mgc:  0.02726206 
+#> outer mgc:  0.02505717 
+#> outer mgc:  0.02503155 
+#> outer mgc:  0.02413791 
+#> outer mgc:  0.02411345 
+#> outer mgc:  0.02418304 
+#> outer mgc:  0.02415924 
+#> outer mgc:  0.02470402 
+#> outer mgc:  0.0246794 
+#> outer mgc:  0.02598373 
+#> outer mgc:  0.02595717 
+#> outer mgc:  0.02844988 
+#> outer mgc:  0.02842121 
+#> outer mgc:  0.0309806 
+#> outer mgc:  0.03094995 
+#> outer mgc:  0.03263572 
+#> outer mgc:  0.03260341 
+#> outer mgc:  0.03329664 
+#> outer mgc:  0.03326311 
+#> outer mgc:  0.03274996 
+#> outer mgc:  0.03271711 
+#> outer mgc:  0.03064222 
+#> outer mgc:  0.03061179 
+#> outer mgc:  0.02796335 
+#> outer mgc:  0.02793564 
+#> outer mgc:  0.02544004 
+#> outer mgc:  0.02541439 
+#> outer mgc:  0.02367066 
+#> outer mgc:  0.02364684 
+#> outer mgc:  0.02248174 
+#> outer mgc:  0.02245933 
+#> outer mgc:  0.02191011 
+#> outer mgc:  0.02188835 
+#> outer mgc:  0.02213394 
+#> outer mgc:  0.02211179 
+#> outer mgc:  0.02310288 
+#> outer mgc:  0.02307987 
+#> outer mgc:  0.02443416 
+#> outer mgc:  0.02440989 
+#> outer mgc:  0.02617322 
+#> outer mgc:  0.02614725 
+#> outer mgc:  0.02782609 
+#> outer mgc:  0.02779825 
+#> outer mgc:  0.02938929 
+#> outer mgc:  0.02936007 
+#> outer mgc:  0.03028732 
+#> outer mgc:  0.03025733 
+#> outer mgc:  0.03047173 
+#> outer mgc:  0.03044151 
+#> outer mgc:  0.03004622 
+#> outer mgc:  0.03001622 
+#> outer mgc:  0.02916754 
+#> outer mgc:  0.02913847 
+#> outer mgc:  0.0281353 
+#> outer mgc:  0.0281073 
+#> outer mgc:  0.0276073 
+#> outer mgc:  0.02757975 
+#> outer mgc:  0.02782265 
+#> outer mgc:  0.02779461 
+#> outer mgc:  0.02868982 
+#> outer mgc:  0.02866097 
+#> outer mgc:  0.02929985 
+#> outer mgc:  0.02927042 
+#> outer mgc:  0.02884304 
+#> outer mgc:  0.028814 
+#> outer mgc:  0.02642563 
+#> outer mgc:  0.02639812 
+#> outer mgc:  0.02449987 
+#> outer mgc:  0.0244748 
+#> outer mgc:  0.02287367 
+#> outer mgc:  0.02285052 
+#> outer mgc:  0.02184823 
+#> outer mgc:  0.02182604 
+#> outer mgc:  0.02103326 
+#> outer mgc:  0.02101124 
+#> outer mgc:  0.020828 
+#> outer mgc:  0.02080656 
+#> outer mgc:  0.02015474 
+#> outer mgc:  0.02013409 
+#> outer mgc:  0.01918406 
+#> outer mgc:  0.01916441 
+#> outer mgc:  0.01724616 
+#> outer mgc:  0.01722754 
+#> outer mgc:  0.01613423 
+#> outer mgc:  0.01611744 
+#> outer mgc:  0.01507217 
+#> outer mgc:  0.01505673 
+#> outer mgc:  0.01431762 
+#> outer mgc:  0.01430289 
+#> outer mgc:  0.01372884 
+#> outer mgc:  0.01371407 
+#> outer mgc:  0.01405542 
+#> outer mgc:  0.01404072 
+#> outer mgc:  0.01454303 
+#> outer mgc:  0.01452784 
+#> outer mgc:  0.01530579 
+#> outer mgc:  0.01528968 
+#> outer mgc:  0.01606874 
+#> outer mgc:  0.01605145 
+#> outer mgc:  0.01686147 
+#> outer mgc:  0.01684333 
+#> outer mgc:  0.01710547 
+#> outer mgc:  0.01708688 
+#> outer mgc:  0.01700595 
+#> outer mgc:  0.01698723 
+#> outer mgc:  0.01647916 
+#> outer mgc:  0.01646061 
+#> outer mgc:  0.01565848 
+#> outer mgc:  0.01564079 
+#> outer mgc:  0.01462556 
+#> outer mgc:  0.01460893 
+#> outer mgc:  0.01370259 
+#> outer mgc:  0.01368679 
+#> outer mgc:  0.01283882 
+#> outer mgc:  0.01282361 
+#> outer mgc:  0.01236047 
+#> outer mgc:  0.01234579 
+#> outer mgc:  0.01190606 
+#> outer mgc:  0.01189174 
+#> outer mgc:  0.01141919 
+#> outer mgc:  0.01140522 
+#> outer mgc:  0.01082422 
+#> outer mgc:  0.01081057 
+#> outer mgc:  0.01058847 
+#> outer mgc:  0.010575 
+#> outer mgc:  0.01043105 
+#> outer mgc:  0.01041747 
+#> outer mgc:  0.01014746 
+#> outer mgc:  0.01013383 
+#> outer mgc:  0.009685618 
+#> outer mgc:  0.009672127 
+#> outer mgc:  0.009312784 
+#> outer mgc:  0.009299263 
+#> outer mgc:  0.008912726 
+#> outer mgc:  0.008899084 
+#> outer mgc:  0.008184648 
+#> outer mgc:  0.008171483 
+#> outer mgc:  0.007197504 
+#> outer mgc:  0.007185436 
+#> outer mgc:  0.006214566 
+#> outer mgc:  0.00620384 
+#> outer mgc:  0.005658703 
+#> outer mgc:  0.00565157 
+#> outer mgc:  0.005565039 
+#> outer mgc:  0.005558498 
+#> outer mgc:  0.005464202 
+#> outer mgc:  0.005458053 
+#> outer mgc:  0.005459641 
+#> outer mgc:  0.005453687 
+#> outer mgc:  0.005512257 
+#> outer mgc:  0.005506202 
+#> outer mgc:  0.005951965 
+#> outer mgc:  0.005948283 
+#> outer mgc:  0.006568977 
+#> outer mgc:  0.006564679 
+#> outer mgc:  0.007521996 
+#> outer mgc:  0.007517236 
+#> outer mgc:  0.008950055 
+#> outer mgc:  0.008944883 
+#> outer mgc:  0.01043485 
+#> outer mgc:  0.01042924 
+#> outer mgc:  0.01186668 
+#> outer mgc:  0.01186071 
+#> outer mgc:  0.01261979 
+#> outer mgc:  0.01261368 
+#> outer mgc:  0.01239226 
+#> outer mgc:  0.012386 
+#> outer mgc:  0.01199413 
+#> outer mgc:  0.01198746 
+#> outer mgc:  0.01185217 
+#> outer mgc:  0.01184475 
+#> outer mgc:  0.01225857 
+#> outer mgc:  0.01225065 
+#> outer mgc:  0.01298552 
+#> outer mgc:  0.012977 
+#> outer mgc:  0.01400607 
+#> outer mgc:  0.01399681 
+#> outer mgc:  0.01512083 
+#> outer mgc:  0.01511059 
+#> outer mgc:  0.0161317 
+#> outer mgc:  0.01612097 
+#> outer mgc:  0.01823648 
+#> outer mgc:  0.01823396 
+#> outer mgc:  0.01972271 
+#> outer mgc:  0.01971924 
+#> outer mgc:  0.02004934 
+#> outer mgc:  0.020044 
+#> outer mgc:  0.02000971 
+#> outer mgc:  0.02000286 
+#> outer mgc:  0.0198004 
+#> outer mgc:  0.01979208 
+#> outer mgc:  0.01998454 
+#> outer mgc:  0.01997522 
+#> outer mgc:  0.02086931 
+#> outer mgc:  0.02085933 
+#> outer mgc:  0.0219632 
+#> outer mgc:  0.02195245 
+#> outer mgc:  0.02321409 
+#> outer mgc:  0.02320266 
+#> outer mgc:  0.02416807 
+#> outer mgc:  0.02415585 
+#> outer mgc:  0.02420947 
+#> outer mgc:  0.02419606 
+#> outer mgc:  0.02415429 
+#> outer mgc:  0.02414035 
+#> outer mgc:  0.02429449 
+#> outer mgc:  0.02428002 
+#> outer mgc:  0.02527904 
+#> outer mgc:  0.02526371 
+#> outer mgc:  0.02726969 
+#> outer mgc:  0.02725253 
+#> outer mgc:  0.03057398 
+#> outer mgc:  0.03055479 
+#> outer mgc:  0.03640508 
+#> outer mgc:  0.03638394 
+#> outer mgc:  0.04475474 
+#> outer mgc:  0.04473133 
+#> outer mgc:  0.05563076 
+#> outer mgc:  0.05560552 
+#> outer mgc:  0.06843682 
+#> outer mgc:  0.06841202 
+#> outer mgc:  0.07521148 
+#> outer mgc:  0.07518597 
+#> outer mgc:  0.07407738 
+#> outer mgc:  0.07404968 
+#> outer mgc:  0.0674127 
+#> outer mgc:  0.06738145 
+#> outer mgc:  0.06054421 
+#> outer mgc:  0.06051058 
+#> outer mgc:  0.05713168 
+#> outer mgc:  0.05709774 
+#> outer mgc:  0.0577185 
+#> outer mgc:  0.0576851 
+#> outer mgc:  0.0607472 
+#> outer mgc:  0.0607114 
+#> outer mgc:  0.06511649 
+#> outer mgc:  0.06507893 
+#> outer mgc:  0.07434123 
+#> outer mgc:  0.07430351 
+#> outer mgc:  0.08572162 
+#> outer mgc:  0.08568225 
+#> outer mgc:  0.09931663 
+#> outer mgc:  0.09927607 
+#> outer mgc:  0.1118563 
+#> outer mgc:  0.1118172 
+#> outer mgc:  0.1171744 
+#> outer mgc:  0.1171334 
+#> outer mgc:  0.1119395 
+#> outer mgc:  0.1118911 
+#> outer mgc:  0.1083053 
+#> outer mgc:  0.1082523 
+#> outer mgc:  0.1085015 
+#> outer mgc:  0.1084476 
+#> outer mgc:  0.1131364 
+#> outer mgc:  0.1130823 
+#> outer mgc:  0.1168027 
+#> outer mgc:  0.1167441 
+#> outer mgc:  0.12824 
+#> outer mgc:  0.1281782 
+#> outer mgc:  0.1448289 
+#> outer mgc:  0.1447682 
+#> outer mgc:  0.1488663 
+#> outer mgc:  0.148807 
+#> outer mgc:  0.1331433 
+#> outer mgc:  0.1330816 
+#> outer mgc:  0.1160581 
+#> outer mgc:  0.115995 
+#> outer mgc:  0.1032122 
+#> outer mgc:  0.1031486 
+#> outer mgc:  0.09707163 
+#> outer mgc:  0.09700854 
+#> outer mgc:  0.1017144 
+#> outer mgc:  0.1016516 
+#> outer mgc:  0.1115651 
+#> outer mgc:  0.111499 
+#> outer mgc:  0.1248447 
+#> outer mgc:  0.1247761 
+#> outer mgc:  0.1382938 
+#> outer mgc:  0.1382258 
+#> outer mgc:  0.1434027 
+#> outer mgc:  0.1433369 
+#> outer mgc:  0.1357267 
+#> outer mgc:  0.1356579 
+#> outer mgc:  0.1304035 
+#> outer mgc:  0.1303344 
+#> outer mgc:  0.1326064 
+#> outer mgc:  0.1325377 
+#> outer mgc:  0.1399934 
+#> outer mgc:  0.1399237 
+#> outer mgc:  0.1478892 
+#> outer mgc:  0.1478136 
+#> outer mgc:  0.1607946 
+#> outer mgc:  0.160719 
+#> outer mgc:  0.1747331 
+#> outer mgc:  0.1746599 
+#> outer mgc:  0.1797385 
+#> outer mgc:  0.1796667 
+#> outer mgc:  0.1718467 
+#> outer mgc:  0.1717704 
+#> outer mgc:  0.1622535 
+#> outer mgc:  0.1621772 
+#> outer mgc:  0.1580853 
+#> outer mgc:  0.1580109 
+#> outer mgc:  0.1579289 
+#> outer mgc:  0.1578556 
+#> outer mgc:  0.1591844 
+#> outer mgc:  0.1591053 
+#> outer mgc:  0.1640026 
+#> outer mgc:  0.1639217 
+#> outer mgc:  0.1801885 
+#> outer mgc:  0.180115 
+#> outer mgc:  0.196168 
+#> outer mgc:  0.1961033 
+#> outer mgc:  0.1963476 
+#> outer mgc:  0.1962794 
+#> outer mgc:  0.1890751 
+#> outer mgc:  0.1890018 
+#> outer mgc:  0.1847872 
+#> outer mgc:  0.1847152 
+#> outer mgc:  0.1826456 
+#> outer mgc:  0.1825769 
+#> outer mgc:  0.1778515 
+#> outer mgc:  0.1777826 
+#> outer mgc:  0.1690758 
+#> outer mgc:  0.1690048 
+#> outer mgc:  0.1631956 
+#> outer mgc:  0.1631231 
+#> outer mgc:  0.163937 
+#> outer mgc:  0.1638659 
+#> outer mgc:  0.1739192 
+#> outer mgc:  0.1738504 
+#> outer mgc:  0.1800206 
+#> outer mgc:  0.1799495 
+#> outer mgc:  0.1942705 
+#> outer mgc:  0.1942062 
+#> outer mgc:  0.2003827 
+#> outer mgc:  0.2003342 
+#> outer mgc:  0.1823035 
+#> outer mgc:  0.1822476 
+#> outer mgc:  0.1519063 
+#> outer mgc:  0.151837 
+#> outer mgc:  0.1329732 
+#> outer mgc:  0.1329013 
+#> outer mgc:  0.1273073 
+#> outer mgc:  0.1272425 
+#> outer mgc:  0.1270056 
+#> outer mgc:  0.1269448 
+#> outer mgc:  0.1181345 
+#> outer mgc:  0.1180691 
+#> outer mgc:  0.1215816 
+#> outer mgc:  0.1215165 
+#> outer mgc:  0.1341553 
+#> outer mgc:  0.1340888 
+#> outer mgc:  0.1763906 
+#> outer mgc:  0.1763399 
+#> outer mgc:  0.2123527 
+#> outer mgc:  0.2123155 
+#> outer mgc:  0.2587935 
+#> outer mgc:  0.2588034 
+#> outer mgc:  0.1943547 
+#> outer mgc:  0.1943242 
+#> outer mgc:  0.1489883 
+#> outer mgc:  0.148937 
+#> outer mgc:  0.1166996 
+#> outer mgc:  0.116642 
+#> outer mgc:  0.1013811 
+#> outer mgc:  0.1013279 
+#> outer mgc:  0.09537271 
+#> outer mgc:  0.09532768 
+#> outer mgc:  0.09008129 
+#> outer mgc:  0.09003705 
+#> outer mgc:  0.08350529 
+#> outer mgc:  0.08346109 
+#> outer mgc:  0.08242265 
+#> outer mgc:  0.08238205 
+#> outer mgc:  0.08302936 
+#> outer mgc:  0.08299201 
+#> outer mgc:  0.08797039 
+#> outer mgc:  0.08794074 
+#> outer mgc:  0.08446968 
+#> outer mgc:  0.08443955 
+#> outer mgc:  0.08047273 
+#> outer mgc:  0.08044473 
+#> outer mgc:  0.07381704 
+#> outer mgc:  0.07379129 
+#> outer mgc:  0.06453203 
+#> outer mgc:  0.06450665 
+#> outer mgc:  0.04994719 
+#> outer mgc:  0.0499207 
+#> outer mgc:  0.03847386 
+#> outer mgc:  0.03845168 
+#> outer mgc:  0.02705258 
+#> outer mgc:  0.02703592 
+#> outer mgc:  0.01685738 
+#> outer mgc:  0.01684572 
+#> outer mgc:  0.009547628 
+#> outer mgc:  0.009540424 
+#> outer mgc:  0.00457244 
+#> outer mgc:  0.004568829 
+#> outer mgc:  0.002775735 
+#> outer mgc:  0.002775718 
+#> outer mgc:  0.002774406 
+#> outer mgc:  0.002774408 
+#> outer mgc:  0.002776984 
+#> outer mgc:  0.002776985 
+#> outer mgc:  0.002777671 
+#> outer mgc:  0.002777671 
+#> outer mgc:  0.002777778 
+#> outer mgc:  0.002777778
 ```
 
 Look for any parameters with high correlations (absolute correlation \>
@@ -949,559 +962,547 @@ Calculate standard deviations of all model parameters:
 
 ``` r
 Report <- sdreport(obj)
-#> outer mgc:  0.005814213 
-#> outer mgc:  347.42 
-#> outer mgc:  351.1373 
+#> outer mgc:  4.072735e-12 
+#> outer mgc:  7.301959 
+#> outer mgc:  7.417775 
 #> outer mgc:  7.425739 
 #> outer mgc:  7.425739 
-#> outer mgc:  3890.009 
-#> outer mgc:  8195.263 
-#> outer mgc:  465.0801 
-#> outer mgc:  992.1283 
-#> outer mgc:  0.005814301 
-#> outer mgc:  0.005814126 
-#> outer mgc:  0.005918232 
-#> outer mgc:  0.005711919 
-#> outer mgc:  58.15584 
-#> outer mgc:  58.12709 
-#> outer mgc:  21.19431 
-#> outer mgc:  21.20637 
-#> outer mgc:  0.3042916 
-#> outer mgc:  0.3039646 
-#> outer mgc:  0.01688228 
-#> outer mgc:  0.01686521 
-#> outer mgc:  0.01673787 
-#> outer mgc:  0.01672093 
-#> outer mgc:  0.01686755 
-#> outer mgc:  0.01685047 
-#> outer mgc:  0.01659516 
-#> outer mgc:  0.01657793 
-#> outer mgc:  0.01697671 
-#> outer mgc:  0.01695946 
-#> outer mgc:  0.0168465 
-#> outer mgc:  0.01682941 
-#> outer mgc:  0.01652358 
-#> outer mgc:  0.01650683 
-#> outer mgc:  0.01566825 
-#> outer mgc:  0.01565201 
-#> outer mgc:  0.01544898 
-#> outer mgc:  0.0154333 
-#> outer mgc:  0.01504045 
-#> outer mgc:  0.01502522 
-#> outer mgc:  0.271319 
-#> outer mgc:  0.2710141 
-#> outer mgc:  0.01437019 
-#> outer mgc:  0.01435543 
-#> outer mgc:  0.01477366 
-#> outer mgc:  0.0147586 
-#> outer mgc:  0.01492105 
-#> outer mgc:  0.01490586 
-#> outer mgc:  0.01501281 
-#> outer mgc:  0.0149975 
-#> outer mgc:  0.0141765 
-#> outer mgc:  0.01416136 
-#> outer mgc:  0.01457218 
-#> outer mgc:  0.01455717 
-#> outer mgc:  0.01406493 
-#> outer mgc:  0.01405044 
-#> outer mgc:  0.01329359 
-#> outer mgc:  0.01327984 
-#> outer mgc:  0.01163088 
-#> outer mgc:  0.01161817 
-#> outer mgc:  0.01141218 
-#> outer mgc:  0.01140019 
-#> outer mgc:  0.01065471 
-#> outer mgc:  0.01064348 
-#> outer mgc:  0.009949391 
-#> outer mgc:  0.009938813 
-#> outer mgc:  0.008817761 
-#> outer mgc:  0.008807948 
-#> outer mgc:  0.008512605 
-#> outer mgc:  0.008503329 
-#> outer mgc:  0.008523387 
-#> outer mgc:  0.008428557 
-#> outer mgc:  0.008684793 
-#> outer mgc:  0.008589807 
-#> outer mgc:  0.008689872 
-#> outer mgc:  0.008594781 
-#> outer mgc:  0.0089683 
-#> outer mgc:  0.008873037 
-#> outer mgc:  0.009113287 
-#> outer mgc:  0.009017896 
-#> outer mgc:  0.009370842 
-#> outer mgc:  0.009275203 
-#> outer mgc:  0.009725815 
-#> outer mgc:  0.009629775 
-#> outer mgc:  0.01031767 
-#> outer mgc:  0.01022108 
-#> outer mgc:  0.01087413 
-#> outer mgc:  0.01077705 
-#> outer mgc:  0.01112326 
-#> outer mgc:  0.01102594 
-#> outer mgc:  0.01089429 
-#> outer mgc:  0.01079712 
-#> outer mgc:  0.01052345 
-#> outer mgc:  0.01042666 
-#> outer mgc:  0.0101078 
-#> outer mgc:  0.01001146 
-#> outer mgc:  0.009755902 
-#> outer mgc:  0.009659914 
-#> outer mgc:  0.009568277 
-#> outer mgc:  0.009472438 
-#> outer mgc:  0.009589216 
-#> outer mgc:  0.009493369 
-#> outer mgc:  0.009743978 
-#> outer mgc:  0.009648008 
-#> outer mgc:  0.01009576 
-#> outer mgc:  0.00999945 
-#> outer mgc:  0.01063821 
-#> outer mgc:  0.01054131 
-#> outer mgc:  0.01143027 
-#> outer mgc:  0.01133263 
-#> outer mgc:  0.01188737 
-#> outer mgc:  0.01178934 
-#> outer mgc:  0.0118354 
-#> outer mgc:  0.01173742 
-#> outer mgc:  0.01159499 
-#> outer mgc:  0.0114972 
-#> outer mgc:  0.01123659 
-#> outer mgc:  0.01113916 
-#> outer mgc:  0.01066512 
-#> outer mgc:  0.01056827 
-#> outer mgc:  0.01016346 
-#> outer mgc:  0.01006709 
-#> outer mgc:  0.009771673 
-#> outer mgc:  0.009675632 
-#> outer mgc:  0.009451658 
-#> outer mgc:  0.009355942 
-#> outer mgc:  0.009101834 
-#> outer mgc:  0.009006492 
-#> outer mgc:  0.008855073 
-#> outer mgc:  0.00875997 
-#> outer mgc:  0.008804128 
-#> outer mgc:  0.008709024 
-#> outer mgc:  0.009033596 
-#> outer mgc:  0.008938283 
-#> outer mgc:  0.009428661 
-#> outer mgc:  0.009332995 
-#> outer mgc:  0.009937349 
-#> outer mgc:  0.009841185 
-#> outer mgc:  0.01016883 
-#> outer mgc:  0.01007234 
-#> outer mgc:  0.009903808 
-#> outer mgc:  0.009807598 
-#> outer mgc:  0.009019507 
-#> outer mgc:  0.008924225 
-#> outer mgc:  0.008224952 
-#> outer mgc:  0.007970253 
-#> outer mgc:  0.007791051 
-#> outer mgc:  0.007217033 
-#> outer mgc:  0.007592337 
-#> outer mgc:  0.006852852 
-#> outer mgc:  0.007567097 
-#> outer mgc:  0.006773861 
-#> outer mgc:  0.007685113 
-#> outer mgc:  0.006920103 
-#> outer mgc:  0.00800093 
-#> outer mgc:  0.007382354 
-#> outer mgc:  0.008560641 
-#> outer mgc:  0.008226598 
-#> outer mgc:  0.009261893 
-#> outer mgc:  0.009166291 
-#> outer mgc:  0.01004301 
-#> outer mgc:  0.009946636 
-#> outer mgc:  0.0105068 
-#> outer mgc:  0.01040991 
-#> outer mgc:  0.01018391 
-#> outer mgc:  0.01008735 
-#> outer mgc:  0.009198618 
-#> outer mgc:  0.009008019 
-#> outer mgc:  0.00851311 
-#> outer mgc:  0.007917411 
-#> outer mgc:  0.007978154 
-#> outer mgc:  0.007070931 
-#> outer mgc:  0.007613693 
-#> outer mgc:  0.006555783 
-#> outer mgc:  0.007372657 
-#> outer mgc:  0.006313704 
-#> outer mgc:  0.00726984 
-#> outer mgc:  0.006255238 
-#> outer mgc:  0.007331487 
-#> outer mgc:  0.006450664 
-#> outer mgc:  0.00754939 
-#> outer mgc:  0.006863183 
-#> outer mgc:  0.007867802 
-#> outer mgc:  0.007360846 
-#> outer mgc:  0.008280704 
-#> outer mgc:  0.007927066 
-#> outer mgc:  0.00871985 
-#> outer mgc:  0.008455316 
-#> outer mgc:  0.009132536 
-#> outer mgc:  0.008871843 
-#> outer mgc:  0.009370432 
-#> outer mgc:  0.009005246 
-#> outer mgc:  0.009414892 
-#> outer mgc:  0.008976727 
-#> outer mgc:  0.009287637 
-#> outer mgc:  0.00875525 
-#> outer mgc:  0.009012937 
-#> outer mgc:  0.008310484 
-#> outer mgc:  0.008713204 
-#> outer mgc:  0.007830172 
-#> outer mgc:  0.008577917 
-#> outer mgc:  0.007592788 
-#> outer mgc:  0.008668877 
-#> outer mgc:  0.007684435 
-#> outer mgc:  0.008944078 
-#> outer mgc:  0.008044959 
-#> outer mgc:  0.009152839 
-#> outer mgc:  0.008619397 
-#> outer mgc:  0.009027656 
-#> outer mgc:  0.008895536 
-#> outer mgc:  0.008561575 
-#> outer mgc:  0.008554818 
-#> outer mgc:  0.008256897 
-#> outer mgc:  0.008250267 
-#> outer mgc:  0.008033942 
-#> outer mgc:  0.008027415 
-#> outer mgc:  0.00805381 
-#> outer mgc:  0.008047196 
-#> outer mgc:  0.008202076 
-#> outer mgc:  0.008195175 
-#> outer mgc:  0.008433295 
-#> outer mgc:  0.008426284 
-#> outer mgc:  0.008300739 
-#> outer mgc:  0.008293856 
-#> outer mgc:  0.007847038 
-#> outer mgc:  0.00784052 
-#> outer mgc:  0.007042925 
-#> outer mgc:  0.007036829 
-#> outer mgc:  0.006423638 
-#> outer mgc:  0.00641819 
-#> outer mgc:  0.005985482 
-#> outer mgc:  0.00586921 
-#> outer mgc:  0.005969096 
-#> outer mgc:  0.005659481 
-#> outer mgc:  0.005956586 
-#> outer mgc:  0.005671981 
-#> outer mgc:  0.005950864 
-#> outer mgc:  0.005677695 
-#> outer mgc:  0.005946057 
-#> outer mgc:  0.005785156 
-#> outer mgc:  0.006121307 
-#> outer mgc:  0.006116402 
-#> outer mgc:  0.006447632 
-#> outer mgc:  0.00644256 
-#> outer mgc:  0.006666683 
-#> outer mgc:  0.006661648 
-#> outer mgc:  0.006547545 
-#> outer mgc:  0.00654277 
-#> outer mgc:  0.006238794 
-#> outer mgc:  0.006234416 
-#> outer mgc:  0.005833388 
-#> outer mgc:  0.005828263 
-#> outer mgc:  0.005799077 
-#> outer mgc:  0.005829345 
-#> outer mgc:  0.005765781 
-#> outer mgc:  0.005862611 
-#> outer mgc:  0.005733158 
-#> outer mgc:  0.005895205 
-#> outer mgc:  0.005701619 
-#> outer mgc:  0.005926713 
-#> outer mgc:  0.005666037 
-#> outer mgc:  0.005962263 
-#> outer mgc:  0.005628721 
-#> outer mgc:  0.005999547 
-#> outer mgc:  0.005588318 
-#> outer mgc:  0.006039917 
-#> outer mgc:  0.005548072 
-#> outer mgc:  0.006080122 
-#> outer mgc:  0.005495784 
-#> outer mgc:  0.006132368 
-#> outer mgc:  0.005435181 
-#> outer mgc:  0.006192926 
-#> outer mgc:  0.005371342 
-#> outer mgc:  0.006256709 
-#> outer mgc:  0.005302249 
-#> outer mgc:  0.006325736 
-#> outer mgc:  0.005212001 
-#> outer mgc:  0.006415908 
-#> outer mgc:  0.005093913 
-#> outer mgc:  0.006533899 
-#> outer mgc:  0.005090693 
-#> outer mgc:  0.006691797 
-#> outer mgc:  0.005328581 
-#> outer mgc:  0.006911909 
-#> outer mgc:  0.005354578 
-#> outer mgc:  0.007265944 
-#> outer mgc:  0.005072143 
-#> outer mgc:  0.00785322 
-#> outer mgc:  0.004544398 
-#> outer mgc:  0.008800212 
-#> outer mgc:  0.004274964 
-#> outer mgc:  0.01102501 
-#> outer mgc:  0.00837789 
-#> outer mgc:  0.01517419 
-#> outer mgc:  0.0148112 
-#> outer mgc:  0.02160205 
-#> outer mgc:  0.02432195 
-#> outer mgc:  0.03110304 
-#> outer mgc:  0.03591293 
-#> outer mgc:  0.04267642 
-#> outer mgc:  0.05634112 
-#> outer mgc:  0.06308545 
-#> outer mgc:  0.7418375 
-#> outer mgc:  0.7481334 
-#> outer mgc:  2.155934 
-#> outer mgc:  2.16165 
-#> outer mgc:  0.07896789 
-#> outer mgc:  0.08569386 
-#> outer mgc:  0.5787951 
-#> outer mgc:  0.5846762 
-#> outer mgc:  0.8247599 
-#> outer mgc:  0.831068 
-#> outer mgc:  0.1043998 
-#> outer mgc:  0.1111215 
-#> outer mgc:  0.1210241 
-#> outer mgc:  0.1141382 
-#> outer mgc:  1.481842 
-#> outer mgc:  1.47538 
-#> outer mgc:  0.8193408 
-#> outer mgc:  0.8121152 
-#> outer mgc:  0.3935518 
-#> outer mgc:  0.4005771 
-#> outer mgc:  0.06584296 
-#> outer mgc:  0.07258385 
-#> outer mgc:  1.111809 
-#> outer mgc:  1.104889 
-#> outer mgc:  0.2947721 
-#> outer mgc:  0.3012738 
-#> outer mgc:  6.879335 
-#> outer mgc:  6.885098 
-#> outer mgc:  0.1283628 
-#> outer mgc:  0.13504 
-#> outer mgc:  1.184257 
-#> outer mgc:  1.177687 
-#> outer mgc:  1.515492 
-#> outer mgc:  1.507782 
-#> outer mgc:  0.2788924 
-#> outer mgc:  0.2855042 
-#> outer mgc:  0.6796601 
-#> outer mgc:  0.6860741 
-#> outer mgc:  0.5504502 
-#> outer mgc:  0.5568282 
-#> outer mgc:  0.7450391 
-#> outer mgc:  0.7517251 
-#> outer mgc:  0.3958923 
-#> outer mgc:  0.4022327 
-#> outer mgc:  0.06147695 
-#> outer mgc:  0.06825507 
-#> outer mgc:  0.4966519 
-#> outer mgc:  0.5041882 
-#> outer mgc:  0.7254516 
-#> outer mgc:  0.7181549 
-#> outer mgc:  0.07289171 
-#> outer mgc:  0.06592496 
-#> outer mgc:  0.6026561 
-#> outer mgc:  0.6086213 
-#> outer mgc:  0.5543888 
-#> outer mgc:  0.5607264 
-#> outer mgc:  1.300134 
-#> outer mgc:  1.305874 
-#> outer mgc:  0.1926756 
-#> outer mgc:  0.1993436 
-#> outer mgc:  5.574363 
-#> outer mgc:  5.57848 
-#> outer mgc:  0.0709951 
-#> outer mgc:  0.07772749 
-#> outer mgc:  0.2460567 
-#> outer mgc:  0.2456817 
-#> outer mgc:  1.117081 
-#> outer mgc:  1.122467 
-#> outer mgc:  0.5795667 
-#> outer mgc:  0.5788785 
-#> outer mgc:  1.205114 
-#> outer mgc:  1.204542 
-#> outer mgc:  0.4461172 
-#> outer mgc:  0.452669 
-#> outer mgc:  0.9735659 
-#> outer mgc:  0.9809175 
-#> outer mgc:  0.01533163 
-#> outer mgc:  0.01538453 
-#> outer mgc:  2.779095 
-#> outer mgc:  2.770233 
-#> outer mgc:  3.013237 
-#> outer mgc:  3.005858 
-#> outer mgc:  7.590464 
-#> outer mgc:  7.592583 
-#> outer mgc:  10.9211 
-#> outer mgc:  10.92415 
-#> outer mgc:  3.537771 
-#> outer mgc:  3.54227 
-#> outer mgc:  0.304755 
-#> outer mgc:  0.311397 
-#> outer mgc:  0.1706194 
-#> outer mgc:  0.1635631 
-#> outer mgc:  0.8772995 
-#> outer mgc:  0.8700635 
-#> outer mgc:  1.522929 
-#> outer mgc:  1.521785 
-#> outer mgc:  2.873678 
-#> outer mgc:  2.881836 
-#> outer mgc:  1.06335 
-#> outer mgc:  1.06258 
-#> outer mgc:  1.233552 
-#> outer mgc:  1.225529 
-#> outer mgc:  8.522805 
-#> outer mgc:  8.524982 
-#> outer mgc:  6.760632 
-#> outer mgc:  6.763145 
-#> outer mgc:  1.842182 
-#> outer mgc:  1.847702 
-#> outer mgc:  4.006611 
-#> outer mgc:  3.997721 
-#> outer mgc:  4.248198 
-#> outer mgc:  4.23627 
-#> outer mgc:  1.268859 
-#> outer mgc:  1.261518 
-#> outer mgc:  0.1612047 
-#> outer mgc:  0.1680634 
-#> outer mgc:  0.2803039 
-#> outer mgc:  0.2869764 
-#> outer mgc:  4.211275 
-#> outer mgc:  4.216344 
-#> outer mgc:  3.41939 
-#> outer mgc:  3.424782 
-#> outer mgc:  3.232833 
-#> outer mgc:  3.237916 
-#> outer mgc:  1.486452 
-#> outer mgc:  1.491889 
-#> outer mgc:  0.03107697 
-#> outer mgc:  0.03785861 
-#> outer mgc:  3.450172 
-#> outer mgc:  3.45573 
-#> outer mgc:  2.65533 
-#> outer mgc:  2.662088 
-#> outer mgc:  1.17144 
-#> outer mgc:  1.177339 
-#> outer mgc:  3.432255 
-#> outer mgc:  3.437952 
-#> outer mgc:  3.82763 
-#> outer mgc:  3.833155 
-#> outer mgc:  0.7330496 
-#> outer mgc:  0.7393711 
-#> outer mgc:  0.2860441 
-#> outer mgc:  0.2790369 
-#> outer mgc:  0.534149 
-#> outer mgc:  0.533641 
-#> outer mgc:  5.023069 
-#> outer mgc:  5.027728 
-#> outer mgc:  3.23317 
-#> outer mgc:  3.239002 
-#> outer mgc:  5.141974 
-#> outer mgc:  5.148815 
-#> outer mgc:  0.6807245 
-#> outer mgc:  0.6868668 
-#> outer mgc:  3.708177 
-#> outer mgc:  3.712172 
-#> outer mgc:  1.022393 
-#> outer mgc:  1.028466 
-#> outer mgc:  5.778456 
-#> outer mgc:  5.784651 
-#> outer mgc:  4.67385 
-#> outer mgc:  4.679382 
-#> outer mgc:  2.909998 
-#> outer mgc:  2.915709 
-#> outer mgc:  0.3652791 
-#> outer mgc:  0.3647707 
-#> outer mgc:  0.8994371 
-#> outer mgc:  0.8927196 
-#> outer mgc:  1.174924 
-#> outer mgc:  1.182068 
-#> outer mgc:  2.058319 
-#> outer mgc:  2.064897 
-#> outer mgc:  5.807428 
-#> outer mgc:  5.810696 
-#> outer mgc:  3.950383 
-#> outer mgc:  3.954096 
-#> outer mgc:  12.19628 
-#> outer mgc:  12.19668 
-#> outer mgc:  7.180289 
-#> outer mgc:  7.182716 
-#> outer mgc:  1.688183 
-#> outer mgc:  1.693474 
-#> outer mgc:  10.89622 
-#> outer mgc:  10.89814 
-#> outer mgc:  6.896194 
-#> outer mgc:  6.903373 
-#> outer mgc:  6.130411 
-#> outer mgc:  6.138583 
-#> outer mgc:  4.239735 
-#> outer mgc:  4.246409 
-#> outer mgc:  8.230351 
-#> outer mgc:  8.234589 
-#> outer mgc:  4.239054 
-#> outer mgc:  4.252703 
-#> outer mgc:  5.644993 
-#> outer mgc:  5.658023 
-#> outer mgc:  5.7308 
-#> outer mgc:  5.738049 
-#> outer mgc:  5.531328 
-#> outer mgc:  5.535201 
-#> outer mgc:  1.420927 
-#> outer mgc:  1.419385 
-#> outer mgc:  1.021527 
-#> outer mgc:  1.020361 
-#> outer mgc:  3.468327 
-#> outer mgc:  3.47458 
-#> outer mgc:  1.757969 
-#> outer mgc:  1.763484 
-#> outer mgc:  1.904011 
-#> outer mgc:  1.903157 
-#> outer mgc:  1.730432 
-#> outer mgc:  1.736458 
-#> outer mgc:  1.752873 
-#> outer mgc:  1.759543 
-#> outer mgc:  2.815207 
-#> outer mgc:  2.819144 
-#> outer mgc:  0.8573765 
-#> outer mgc:  0.8683017 
-#> outer mgc:  3.501611 
-#> outer mgc:  3.505564 
-#> outer mgc:  2.522105 
-#> outer mgc:  2.527065 
-#> outer mgc:  9.112851 
-#> outer mgc:  9.114084 
-#> outer mgc:  6.64043 
-#> outer mgc:  6.644873 
-#> outer mgc:  12.88707 
-#> outer mgc:  12.89751 
-#> outer mgc:  5.109293 
-#> outer mgc:  5.11293 
-#> outer mgc:  16.9188 
-#> outer mgc:  16.93082 
-#> outer mgc:  10.50079 
-#> outer mgc:  10.5095 
-#> outer mgc:  5.66418 
-#> outer mgc:  5.670516 
-#> outer mgc:  10.29922 
-#> outer mgc:  10.30999 
-#> outer mgc:  20.4458 
-#> outer mgc:  20.47105 
-#> outer mgc:  32.5316 
-#> outer mgc:  32.64331 
-#> outer mgc:  24.96667 
-#> outer mgc:  25.04121 
-#> outer mgc:  3.503004 
-#> outer mgc:  3.507844 
-#> outer mgc:  1.510851 
-#> outer mgc:  1.522215 
-#> outer mgc:  13.79604 
-#> outer mgc:  13.78759 
-#> outer mgc:  0.08780279 
-#> outer mgc:  0.08091153 
-#> outer mgc:  0.005814213 
-#> outer mgc:  0.005814213
+#> outer mgc:  0.03705092 
+#> outer mgc:  0.03701259 
+#> outer mgc:  0.03777039 
+#> outer mgc:  0.03773221 
+#> outer mgc:  0.03855943 
+#> outer mgc:  0.03852048 
+#> outer mgc:  0.04029141 
+#> outer mgc:  0.04025065 
+#> outer mgc:  0.04058785 
+#> outer mgc:  0.0405457 
+#> outer mgc:  0.04280243 
+#> outer mgc:  0.04275888 
+#> outer mgc:  0.04312595 
+#> outer mgc:  0.04308214 
+#> outer mgc:  0.04344454 
+#> outer mgc:  0.0434004 
+#> outer mgc:  0.04228394 
+#> outer mgc:  0.04224013 
+#> outer mgc:  0.04352656 
+#> outer mgc:  0.04348221 
+#> outer mgc:  0.04347253 
+#> outer mgc:  0.04342828 
+#> outer mgc:  0.04371646 
+#> outer mgc:  0.04367193 
+#> outer mgc:  0.04074535 
+#> outer mgc:  0.0407036 
+#> outer mgc:  0.04109553 
+#> outer mgc:  0.04105475 
+#> outer mgc:  0.03835994 
+#> outer mgc:  0.03832198 
+#> outer mgc:  0.03608784 
+#> outer mgc:  0.03605214 
+#> outer mgc:  0.03193525 
+#> outer mgc:  0.03190177 
+#> outer mgc:  0.03167213 
+#> outer mgc:  0.0316406 
+#> outer mgc:  0.02989747 
+#> outer mgc:  0.02986787 
+#> outer mgc:  0.02850442 
+#> outer mgc:  0.02847622 
+#> outer mgc:  0.02533635 
+#> outer mgc:  0.02530866 
+#> outer mgc:  0.02648068 
+#> outer mgc:  0.02645423 
+#> outer mgc:  0.02645692 
+#> outer mgc:  0.02643076 
+#> outer mgc:  0.02673562 
+#> outer mgc:  0.02670921 
+#> outer mgc:  0.02531674 
+#> outer mgc:  0.02528939 
+#> outer mgc:  0.02713217 
+#> outer mgc:  0.02710517 
+#> outer mgc:  0.02757828 
+#> outer mgc:  0.02755108 
+#> outer mgc:  0.02797858 
+#> outer mgc:  0.027951 
+#> outer mgc:  0.02763535 
+#> outer mgc:  0.02760712 
+#> outer mgc:  0.02861779 
+#> outer mgc:  0.02858954 
+#> outer mgc:  0.02907004 
+#> outer mgc:  0.02904146 
+#> outer mgc:  0.02974009 
+#> outer mgc:  0.02971088 
+#> outer mgc:  0.03029216 
+#> outer mgc:  0.03026184 
+#> outer mgc:  0.03149609 
+#> outer mgc:  0.03146479 
+#> outer mgc:  0.03272599 
+#> outer mgc:  0.03269393 
+#> outer mgc:  0.03335334 
+#> outer mgc:  0.03332072 
+#> outer mgc:  0.03287251 
+#> outer mgc:  0.03283961 
+#> outer mgc:  0.03248496 
+#> outer mgc:  0.03245265 
+#> outer mgc:  0.03205766 
+#> outer mgc:  0.03202629 
+#> outer mgc:  0.03148134 
+#> outer mgc:  0.03145055 
+#> outer mgc:  0.03102964 
+#> outer mgc:  0.03099895 
+#> outer mgc:  0.03116143 
+#> outer mgc:  0.03113071 
+#> outer mgc:  0.03166157 
+#> outer mgc:  0.03163062 
+#> outer mgc:  0.03253915 
+#> outer mgc:  0.03250738 
+#> outer mgc:  0.033387 
+#> outer mgc:  0.03335367 
+#> outer mgc:  0.03490109 
+#> outer mgc:  0.03486654 
+#> outer mgc:  0.03591642 
+#> outer mgc:  0.03588142 
+#> outer mgc:  0.03592828 
+#> outer mgc:  0.03589328 
+#> outer mgc:  0.03531244 
+#> outer mgc:  0.03527759 
+#> outer mgc:  0.03465394 
+#> outer mgc:  0.03461984 
+#> outer mgc:  0.03363056 
+#> outer mgc:  0.03359775 
+#> outer mgc:  0.03253897 
+#> outer mgc:  0.03250723 
+#> outer mgc:  0.03138182 
+#> outer mgc:  0.03135066 
+#> outer mgc:  0.03059518 
+#> outer mgc:  0.03056492 
+#> outer mgc:  0.02984814 
+#> outer mgc:  0.02981896 
+#> outer mgc:  0.02925111 
+#> outer mgc:  0.02922252 
+#> outer mgc:  0.02893164 
+#> outer mgc:  0.02890287 
+#> outer mgc:  0.0294495 
+#> outer mgc:  0.02942037 
+#> outer mgc:  0.03039898 
+#> outer mgc:  0.03036926 
+#> outer mgc:  0.03146594 
+#> outer mgc:  0.03143522 
+#> outer mgc:  0.03138598 
+#> outer mgc:  0.03135417 
+#> outer mgc:  0.03095806 
+#> outer mgc:  0.03092699 
+#> outer mgc:  0.02945591 
+#> outer mgc:  0.02942706 
+#> outer mgc:  0.02728879 
+#> outer mgc:  0.02726206 
+#> outer mgc:  0.02505717 
+#> outer mgc:  0.02503155 
+#> outer mgc:  0.02413791 
+#> outer mgc:  0.02411345 
+#> outer mgc:  0.02418304 
+#> outer mgc:  0.02415924 
+#> outer mgc:  0.02470402 
+#> outer mgc:  0.0246794 
+#> outer mgc:  0.02598373 
+#> outer mgc:  0.02595717 
+#> outer mgc:  0.02844988 
+#> outer mgc:  0.02842121 
+#> outer mgc:  0.0309806 
+#> outer mgc:  0.03094995 
+#> outer mgc:  0.03263572 
+#> outer mgc:  0.03260341 
+#> outer mgc:  0.03329664 
+#> outer mgc:  0.03326311 
+#> outer mgc:  0.03274996 
+#> outer mgc:  0.03271711 
+#> outer mgc:  0.03064222 
+#> outer mgc:  0.03061179 
+#> outer mgc:  0.02796335 
+#> outer mgc:  0.02793564 
+#> outer mgc:  0.02544004 
+#> outer mgc:  0.02541439 
+#> outer mgc:  0.02367066 
+#> outer mgc:  0.02364684 
+#> outer mgc:  0.02248174 
+#> outer mgc:  0.02245933 
+#> outer mgc:  0.02191011 
+#> outer mgc:  0.02188835 
+#> outer mgc:  0.02213394 
+#> outer mgc:  0.02211179 
+#> outer mgc:  0.02310288 
+#> outer mgc:  0.02307987 
+#> outer mgc:  0.02443416 
+#> outer mgc:  0.02440989 
+#> outer mgc:  0.02617322 
+#> outer mgc:  0.02614725 
+#> outer mgc:  0.02782609 
+#> outer mgc:  0.02779825 
+#> outer mgc:  0.02938929 
+#> outer mgc:  0.02936007 
+#> outer mgc:  0.03028732 
+#> outer mgc:  0.03025733 
+#> outer mgc:  0.03047173 
+#> outer mgc:  0.03044151 
+#> outer mgc:  0.03004622 
+#> outer mgc:  0.03001622 
+#> outer mgc:  0.02916754 
+#> outer mgc:  0.02913847 
+#> outer mgc:  0.0281353 
+#> outer mgc:  0.0281073 
+#> outer mgc:  0.0276073 
+#> outer mgc:  0.02757975 
+#> outer mgc:  0.02782265 
+#> outer mgc:  0.02779461 
+#> outer mgc:  0.02868982 
+#> outer mgc:  0.02866097 
+#> outer mgc:  0.02929985 
+#> outer mgc:  0.02927042 
+#> outer mgc:  0.02884304 
+#> outer mgc:  0.028814 
+#> outer mgc:  0.02642563 
+#> outer mgc:  0.02639812 
+#> outer mgc:  0.02449987 
+#> outer mgc:  0.0244748 
+#> outer mgc:  0.02287367 
+#> outer mgc:  0.02285052 
+#> outer mgc:  0.02184823 
+#> outer mgc:  0.02182604 
+#> outer mgc:  0.02103326 
+#> outer mgc:  0.02101124 
+#> outer mgc:  0.020828 
+#> outer mgc:  0.02080656 
+#> outer mgc:  0.02015474 
+#> outer mgc:  0.02013409 
+#> outer mgc:  0.01918406 
+#> outer mgc:  0.01916441 
+#> outer mgc:  0.01724616 
+#> outer mgc:  0.01722754 
+#> outer mgc:  0.01613423 
+#> outer mgc:  0.01611744 
+#> outer mgc:  0.01507217 
+#> outer mgc:  0.01505673 
+#> outer mgc:  0.01431762 
+#> outer mgc:  0.01430289 
+#> outer mgc:  0.01372884 
+#> outer mgc:  0.01371407 
+#> outer mgc:  0.01405542 
+#> outer mgc:  0.01404072 
+#> outer mgc:  0.01454303 
+#> outer mgc:  0.01452784 
+#> outer mgc:  0.01530579 
+#> outer mgc:  0.01528968 
+#> outer mgc:  0.01606874 
+#> outer mgc:  0.01605145 
+#> outer mgc:  0.01686147 
+#> outer mgc:  0.01684333 
+#> outer mgc:  0.01710547 
+#> outer mgc:  0.01708688 
+#> outer mgc:  0.01700595 
+#> outer mgc:  0.01698723 
+#> outer mgc:  0.01647916 
+#> outer mgc:  0.01646061 
+#> outer mgc:  0.01565848 
+#> outer mgc:  0.01564079 
+#> outer mgc:  0.01462556 
+#> outer mgc:  0.01460893 
+#> outer mgc:  0.01370259 
+#> outer mgc:  0.01368679 
+#> outer mgc:  0.01283882 
+#> outer mgc:  0.01282361 
+#> outer mgc:  0.01236047 
+#> outer mgc:  0.01234579 
+#> outer mgc:  0.01190606 
+#> outer mgc:  0.01189174 
+#> outer mgc:  0.01141919 
+#> outer mgc:  0.01140522 
+#> outer mgc:  0.01082422 
+#> outer mgc:  0.01081057 
+#> outer mgc:  0.01058847 
+#> outer mgc:  0.010575 
+#> outer mgc:  0.01043105 
+#> outer mgc:  0.01041747 
+#> outer mgc:  0.01014746 
+#> outer mgc:  0.01013383 
+#> outer mgc:  0.009685618 
+#> outer mgc:  0.009672127 
+#> outer mgc:  0.009312784 
+#> outer mgc:  0.009299263 
+#> outer mgc:  0.008912726 
+#> outer mgc:  0.008899084 
+#> outer mgc:  0.008184648 
+#> outer mgc:  0.008171483 
+#> outer mgc:  0.007197504 
+#> outer mgc:  0.007185436 
+#> outer mgc:  0.006214566 
+#> outer mgc:  0.00620384 
+#> outer mgc:  0.005658703 
+#> outer mgc:  0.00565157 
+#> outer mgc:  0.005565039 
+#> outer mgc:  0.005558498 
+#> outer mgc:  0.005464202 
+#> outer mgc:  0.005458053 
+#> outer mgc:  0.005459641 
+#> outer mgc:  0.005453687 
+#> outer mgc:  0.005512257 
+#> outer mgc:  0.005506202 
+#> outer mgc:  0.005951965 
+#> outer mgc:  0.005948283 
+#> outer mgc:  0.006568977 
+#> outer mgc:  0.006564679 
+#> outer mgc:  0.007521996 
+#> outer mgc:  0.007517236 
+#> outer mgc:  0.008950055 
+#> outer mgc:  0.008944883 
+#> outer mgc:  0.01043485 
+#> outer mgc:  0.01042924 
+#> outer mgc:  0.01186668 
+#> outer mgc:  0.01186071 
+#> outer mgc:  0.01261979 
+#> outer mgc:  0.01261368 
+#> outer mgc:  0.01239226 
+#> outer mgc:  0.012386 
+#> outer mgc:  0.01199413 
+#> outer mgc:  0.01198746 
+#> outer mgc:  0.01185217 
+#> outer mgc:  0.01184475 
+#> outer mgc:  0.01225857 
+#> outer mgc:  0.01225065 
+#> outer mgc:  0.01298552 
+#> outer mgc:  0.012977 
+#> outer mgc:  0.01400607 
+#> outer mgc:  0.01399681 
+#> outer mgc:  0.01512083 
+#> outer mgc:  0.01511059 
+#> outer mgc:  0.0161317 
+#> outer mgc:  0.01612097 
+#> outer mgc:  0.01823648 
+#> outer mgc:  0.01823396 
+#> outer mgc:  0.01972271 
+#> outer mgc:  0.01971924 
+#> outer mgc:  0.02004934 
+#> outer mgc:  0.020044 
+#> outer mgc:  0.02000971 
+#> outer mgc:  0.02000286 
+#> outer mgc:  0.0198004 
+#> outer mgc:  0.01979208 
+#> outer mgc:  0.01998454 
+#> outer mgc:  0.01997522 
+#> outer mgc:  0.02086931 
+#> outer mgc:  0.02085933 
+#> outer mgc:  0.0219632 
+#> outer mgc:  0.02195245 
+#> outer mgc:  0.02321409 
+#> outer mgc:  0.02320266 
+#> outer mgc:  0.02416807 
+#> outer mgc:  0.02415585 
+#> outer mgc:  0.02420947 
+#> outer mgc:  0.02419606 
+#> outer mgc:  0.02415429 
+#> outer mgc:  0.02414035 
+#> outer mgc:  0.02429449 
+#> outer mgc:  0.02428002 
+#> outer mgc:  0.02527904 
+#> outer mgc:  0.02526371 
+#> outer mgc:  0.02726969 
+#> outer mgc:  0.02725253 
+#> outer mgc:  0.03057398 
+#> outer mgc:  0.03055479 
+#> outer mgc:  0.03640508 
+#> outer mgc:  0.03638394 
+#> outer mgc:  0.04475474 
+#> outer mgc:  0.04473133 
+#> outer mgc:  0.05563076 
+#> outer mgc:  0.05560552 
+#> outer mgc:  0.06843682 
+#> outer mgc:  0.06841202 
+#> outer mgc:  0.07521148 
+#> outer mgc:  0.07518597 
+#> outer mgc:  0.07407738 
+#> outer mgc:  0.07404968 
+#> outer mgc:  0.0674127 
+#> outer mgc:  0.06738145 
+#> outer mgc:  0.06054421 
+#> outer mgc:  0.06051058 
+#> outer mgc:  0.05713168 
+#> outer mgc:  0.05709774 
+#> outer mgc:  0.0577185 
+#> outer mgc:  0.0576851 
+#> outer mgc:  0.0607472 
+#> outer mgc:  0.0607114 
+#> outer mgc:  0.06511649 
+#> outer mgc:  0.06507893 
+#> outer mgc:  0.07434123 
+#> outer mgc:  0.07430351 
+#> outer mgc:  0.08572162 
+#> outer mgc:  0.08568225 
+#> outer mgc:  0.09931663 
+#> outer mgc:  0.09927607 
+#> outer mgc:  0.1118563 
+#> outer mgc:  0.1118172 
+#> outer mgc:  0.1171744 
+#> outer mgc:  0.1171334 
+#> outer mgc:  0.1119395 
+#> outer mgc:  0.1118911 
+#> outer mgc:  0.1083053 
+#> outer mgc:  0.1082523 
+#> outer mgc:  0.1085015 
+#> outer mgc:  0.1084476 
+#> outer mgc:  0.1131364 
+#> outer mgc:  0.1130823 
+#> outer mgc:  0.1168027 
+#> outer mgc:  0.1167441 
+#> outer mgc:  0.12824 
+#> outer mgc:  0.1281782 
+#> outer mgc:  0.1448289 
+#> outer mgc:  0.1447682 
+#> outer mgc:  0.1488663 
+#> outer mgc:  0.148807 
+#> outer mgc:  0.1331433 
+#> outer mgc:  0.1330816 
+#> outer mgc:  0.1160581 
+#> outer mgc:  0.115995 
+#> outer mgc:  0.1032122 
+#> outer mgc:  0.1031486 
+#> outer mgc:  0.09707163 
+#> outer mgc:  0.09700854 
+#> outer mgc:  0.1017144 
+#> outer mgc:  0.1016516 
+#> outer mgc:  0.1115651 
+#> outer mgc:  0.111499 
+#> outer mgc:  0.1248447 
+#> outer mgc:  0.1247761 
+#> outer mgc:  0.1382938 
+#> outer mgc:  0.1382258 
+#> outer mgc:  0.1434027 
+#> outer mgc:  0.1433369 
+#> outer mgc:  0.1357267 
+#> outer mgc:  0.1356579 
+#> outer mgc:  0.1304035 
+#> outer mgc:  0.1303344 
+#> outer mgc:  0.1326064 
+#> outer mgc:  0.1325377 
+#> outer mgc:  0.1399934 
+#> outer mgc:  0.1399237 
+#> outer mgc:  0.1478892 
+#> outer mgc:  0.1478136 
+#> outer mgc:  0.1607946 
+#> outer mgc:  0.160719 
+#> outer mgc:  0.1747331 
+#> outer mgc:  0.1746599 
+#> outer mgc:  0.1797385 
+#> outer mgc:  0.1796667 
+#> outer mgc:  0.1718467 
+#> outer mgc:  0.1717704 
+#> outer mgc:  0.1622535 
+#> outer mgc:  0.1621772 
+#> outer mgc:  0.1580853 
+#> outer mgc:  0.1580109 
+#> outer mgc:  0.1579289 
+#> outer mgc:  0.1578556 
+#> outer mgc:  0.1591844 
+#> outer mgc:  0.1591053 
+#> outer mgc:  0.1640026 
+#> outer mgc:  0.1639217 
+#> outer mgc:  0.1801885 
+#> outer mgc:  0.180115 
+#> outer mgc:  0.196168 
+#> outer mgc:  0.1961033 
+#> outer mgc:  0.1963476 
+#> outer mgc:  0.1962794 
+#> outer mgc:  0.1890751 
+#> outer mgc:  0.1890018 
+#> outer mgc:  0.1847872 
+#> outer mgc:  0.1847152 
+#> outer mgc:  0.1826456 
+#> outer mgc:  0.1825769 
+#> outer mgc:  0.1778515 
+#> outer mgc:  0.1777826 
+#> outer mgc:  0.1690758 
+#> outer mgc:  0.1690048 
+#> outer mgc:  0.1631956 
+#> outer mgc:  0.1631231 
+#> outer mgc:  0.163937 
+#> outer mgc:  0.1638659 
+#> outer mgc:  0.1739192 
+#> outer mgc:  0.1738504 
+#> outer mgc:  0.1800206 
+#> outer mgc:  0.1799495 
+#> outer mgc:  0.1942705 
+#> outer mgc:  0.1942062 
+#> outer mgc:  0.2003827 
+#> outer mgc:  0.2003342 
+#> outer mgc:  0.1823035 
+#> outer mgc:  0.1822476 
+#> outer mgc:  0.1519063 
+#> outer mgc:  0.151837 
+#> outer mgc:  0.1329732 
+#> outer mgc:  0.1329013 
+#> outer mgc:  0.1273073 
+#> outer mgc:  0.1272425 
+#> outer mgc:  0.1270056 
+#> outer mgc:  0.1269448 
+#> outer mgc:  0.1181345 
+#> outer mgc:  0.1180691 
+#> outer mgc:  0.1215816 
+#> outer mgc:  0.1215165 
+#> outer mgc:  0.1341553 
+#> outer mgc:  0.1340888 
+#> outer mgc:  0.1763906 
+#> outer mgc:  0.1763399 
+#> outer mgc:  0.2123527 
+#> outer mgc:  0.2123155 
+#> outer mgc:  0.2587935 
+#> outer mgc:  0.2588034 
+#> outer mgc:  0.1943547 
+#> outer mgc:  0.1943242 
+#> outer mgc:  0.1489883 
+#> outer mgc:  0.148937 
+#> outer mgc:  0.1166996 
+#> outer mgc:  0.116642 
+#> outer mgc:  0.1013811 
+#> outer mgc:  0.1013279 
+#> outer mgc:  0.09537271 
+#> outer mgc:  0.09532768 
+#> outer mgc:  0.09008129 
+#> outer mgc:  0.09003705 
+#> outer mgc:  0.08350529 
+#> outer mgc:  0.08346109 
+#> outer mgc:  0.08242265 
+#> outer mgc:  0.08238205 
+#> outer mgc:  0.08302936 
+#> outer mgc:  0.08299201 
+#> outer mgc:  0.08797039 
+#> outer mgc:  0.08794074 
+#> outer mgc:  0.08446968 
+#> outer mgc:  0.08443955 
+#> outer mgc:  0.08047273 
+#> outer mgc:  0.08044473 
+#> outer mgc:  0.07381704 
+#> outer mgc:  0.07379129 
+#> outer mgc:  0.06453203 
+#> outer mgc:  0.06450665 
+#> outer mgc:  0.04994719 
+#> outer mgc:  0.0499207 
+#> outer mgc:  0.03847386 
+#> outer mgc:  0.03845168 
+#> outer mgc:  0.02705258 
+#> outer mgc:  0.02703592 
+#> outer mgc:  0.01685738 
+#> outer mgc:  0.01684572 
+#> outer mgc:  0.009547628 
+#> outer mgc:  0.009540424 
+#> outer mgc:  0.00457244 
+#> outer mgc:  0.004568829 
+#> outer mgc:  0.002775735 
+#> outer mgc:  0.002775718 
+#> outer mgc:  0.002774406 
+#> outer mgc:  0.002774408 
+#> outer mgc:  0.002776984 
+#> outer mgc:  0.002776985 
+#> outer mgc:  0.002777671 
+#> outer mgc:  0.002777671 
+#> outer mgc:  0.002777778 
+#> outer mgc:  0.002777778
 ```
 
 ### Data fits
@@ -1509,146 +1510,209 @@ Report <- sdreport(obj)
 Inspect predicted vs observed length compositions:
 
 ``` r
-lf_rep <- obj$report()
-lf_pred <- lf_rep$lf_pred
-nbins <- data$lf_maxbin[1] - data$lf_minbin[1] + 1
+if(data$lf_switch == 0){
+  cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
+} else {
+  lf_rep <- obj$report()
+  lf_pred <- lf_rep$lf_pred
+  nbins <- data$lf_maxbin[1] - data$lf_minbin[1] + 1
 
-# Name the list elements and columns
-names(lf_pred) <- data$lf_fishery_f
-for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
+  # Name the list elements and columns
+  names(lf_pred) <- data$lf_fishery_f
+  for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
 
-# Helper: convert a flat OBS vector back to list-of-matrices (proportions)
-flat_to_list <- function(v, lf_n_f, nbins) {
-  out <- vector("list", length(lf_n_f))
-  offset <- 0L
-  for (k in seq_along(lf_n_f)) {
-    m <- matrix(v[(offset + 1):(offset + lf_n_f[k] * nbins)], nrow = lf_n_f[k], ncol = nbins, byrow = TRUE)
-    # Normalise each row to proportions
-    rs <- rowSums(m)
-    rs[rs == 0] <- 1
-    out[[k]] <- m / rs
-    offset <- offset + lf_n_f[k] * nbins
+  # Helper: convert a flat OBS vector back to list-of-matrices (proportions)
+  flat_to_list <- function(v, lf_n_f, nbins) {
+    out <- vector("list", length(lf_n_f))
+    offset <- 0L
+    for (k in seq_along(lf_n_f)) {
+      m <- matrix(v[(offset + 1):(offset + lf_n_f[k] * nbins)], nrow = lf_n_f[k], ncol = nbins, byrow = TRUE)
+      # Normalise each row to proportions
+      rs <- rowSums(m)
+      rs[rs == 0] <- 1
+      out[[k]] <- m / rs
+      offset <- offset + lf_n_f[k] * nbins
+    }
+    out
   }
-  out
-}
 
-# Split year index by fishery (must match length of lf_year)
-lf_year_list <- split(data$lf_year, data$lf_fishery)
+  # Split year index by fishery (must match length of lf_year)
+  lf_year_list <- split(data$lf_year, data$lf_fishery)
 
-# ---- Predicted: long data frame ----
-df_pred <- map_dfr(seq_along(lf_pred), function(i) {
-  m <- lf_pred[[i]]
-  yrs <- lf_year_list[[i]]
-  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
-    rename(id = Var1, length = Var2) %>%
-    mutate(fishery = names(lf_pred)[i],
-           id = as.integer(factor(id, levels = unique(id))),
-           year = yrs[id],
-           length = as.numeric(length))
-})
-
-# ---- Observed: long data frame ----
-df_obs <- data.frame(data$lf_obs_in)
-names(df_obs) <- data$len_mid
-df_obs <- df_obs %>%
-  mutate(year = data$lf_year, fishery = as.character(data$lf_fishery)) %>%
-  group_by(fishery) %>%
-  mutate(id = row_number()) %>%
-  ungroup() %>%
-  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
-  mutate(length = as.numeric(length))
-
-# ---- Simulations: generate n_sim draws and convert to long format ----
-n_sim <- 5
-df_sim_all <- map_dfr(seq_len(n_sim), function(s) {
-  # Determine which OBS vector was active based on lf_switch
-  sim <- obj$simulate()
-  if (data$lf_switch == 1) {
-    sim_vec <- sim$lf_obs_flat
-  } else if (data$lf_switch == 2) {
-    sim_vec <- sim$lf_obs_prop
-  } else {
-    sim_vec <- sim$lf_obs_ints
-  }
-  sim_list <- flat_to_list(sim_vec, data$lf_n_f, nbins)
-  names(sim_list) <- data$lf_fishery_f
-  for (k in seq_along(sim_list)) colnames(sim_list[[k]]) <- data$len_mid
-  map_dfr(seq_along(sim_list), function(i) {
-    m <- sim_list[[i]]
+  # ---- Predicted: long data frame ----
+  df_pred <- map_dfr(seq_along(lf_pred), function(i) {
+    m <- lf_pred[[i]]
     yrs <- lf_year_list[[i]]
-    as.data.frame.table(m, responseName = "sim", stringsAsFactors = FALSE) %>%
+    as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
       rename(id = Var1, length = Var2) %>%
-      mutate(fishery = names(sim_list)[i],
-             id = as.integer(factor(id, levels = unique(id))),
-             year = yrs[id],
-             length = as.numeric(length),
-             sim_id = s)
+      mutate(fishery = names(lf_pred)[i],
+            id = as.integer(factor(id, levels = unique(id))),
+            year = yrs[id],
+            length = as.numeric(length))
   })
-})
 
-# ---- Join observed + predicted ----
-df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
-  select(-year.y) %>%
-  rename(year = year.x)
+  # ---- Observed: long data frame ----
+  df_obs <- data.frame(data$lf_obs_in)
+  names(df_obs) <- data$len_mid
+  df_obs <- df_obs %>%
+    mutate(year = data$lf_year, fishery = as.character(data$lf_fishery)) %>%
+    group_by(fishery) %>%
+    mutate(id = row_number()) %>%
+    ungroup() %>%
+    pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+    mutate(length = as.numeric(length))
 
-# ---- Plot fishery 8 ----
-yrs_plot <- 146:188
-ggplot(df %>% filter(fishery == "8", year %in% yrs_plot), aes(x = length)) +
-  geom_col(aes(y = obs), fill = "grey70", width = 2) +
-  geom_line(data = df_sim_all %>% filter(fishery == "8", year %in% yrs_plot),
-            aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
-  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
-  facet_wrap(~ year, scales = "free_y", ncol = 6) +
-  labs(x = "Length (cm)", y = "Proportion",
-       title = "Length composition: Fishery 8",
-       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
-  theme(strip.text = element_text(size = 7),
-        axis.text = element_text(size = 6))
+  # ---- Simulations: generate n_sim draws and convert to long format ----
+  n_sim <- 5
+  df_sim_all <- map_dfr(seq_len(n_sim), function(s) {
+    # Determine which OBS vector was active based on lf_switch
+    sim <- obj$simulate()
+    if (data$lf_switch == 1) {
+      sim_vec <- sim$lf_obs_flat
+    } else if (data$lf_switch == 2) {
+      sim_vec <- sim$lf_obs_prop
+    } else {
+      sim_vec <- sim$lf_obs_ints
+    }
+    sim_list <- flat_to_list(sim_vec, data$lf_n_f, nbins)
+    names(sim_list) <- data$lf_fishery_f
+    for (k in seq_along(sim_list)) colnames(sim_list[[k]]) <- data$len_mid
+    map_dfr(seq_along(sim_list), function(i) {
+      m <- sim_list[[i]]
+      yrs <- lf_year_list[[i]]
+      as.data.frame.table(m, responseName = "sim", stringsAsFactors = FALSE) %>%
+        rename(id = Var1, length = Var2) %>%
+        mutate(fishery = names(sim_list)[i],
+              id = as.integer(factor(id, levels = unique(id))),
+              year = yrs[id],
+              length = as.numeric(length),
+              sim_id = s)
+    })
+  })
+
+  # ---- Join observed + predicted ----
+  df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
+    select(-year.y) %>%
+    rename(year = year.x)
+
+  # ---- Plot fishery 8 ----
+  yrs_plot <- 146:188
+  ggplot(df %>% filter(fishery == "8", year %in% yrs_plot), aes(x = length)) +
+    geom_col(aes(y = obs), fill = "grey70", width = 2) +
+    geom_line(data = df_sim_all %>% filter(fishery == "8", year %in% yrs_plot),
+              aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+    facet_wrap(~ year, scales = "free_y", ncol = 6) +
+    labs(x = "Length (cm)", y = "Proportion",
+        title = "Length composition: Fishery 8",
+        subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+    theme(strip.text = element_text(size = 7),
+          axis.text = element_text(size = 6))
+
+  # ---- Plot fishery 9 ----
+  ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
+    geom_col(aes(y = obs), fill = "grey70", width = 2) +
+    geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
+              aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+    facet_wrap(~ year, scales = "free_y", ncol = 6) +
+    labs(x = "Length (cm)", y = "Proportion",
+        title = "Length composition: Fishery 9",
+        subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+    theme(strip.text = element_text(size = 7),
+          axis.text = element_text(size = 6))
+}
+#> Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.
 ```
 
-![](bet_files/figure-html/lf-diagnostics-1.png)
+Inspect predicted vs observed weight compositions:
 
 ``` r
+if(data$wf_switch == 0){
+  cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
+} else {
+  wf_rep  <- obj$report()
+  wf_pred <- wf_rep$wf_pred
+  wt_mid_trim <- data$wt_mid[data$wf_minbin[data$wf_fishery_f[1]]:
+                              data$wf_maxbin[data$wf_fishery_f[1]]]
 
-# ---- Plot fishery 9 ----
-ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
-  geom_col(aes(y = obs), fill = "grey70", width = 2) +
-  geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
-            aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
-  geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
-  facet_wrap(~ year, scales = "free_y", ncol = 6) +
-  labs(x = "Length (cm)", y = "Proportion",
-       title = "Length composition: Fishery 9",
-       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
-  theme(strip.text = element_text(size = 7),
-        axis.text = element_text(size = 6))
+  names(wf_pred) <- data$wf_fishery_f
+  for (k in seq_along(wf_pred)) colnames(wf_pred[[k]]) <- wt_mid_trim
+
+  wf_year_list <- split(data$wf_year, data$wf_fishery)
+
+  # ---- Predicted: long data frame ----
+  df_wf_pred <- map_dfr(seq_along(wf_pred), function(i) {
+    m   <- wf_pred[[i]]
+    yrs <- wf_year_list[[i]]
+    as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+      rename(id = Var1, weight = Var2) %>%
+      mutate(fishery = names(wf_pred)[i],
+            id      = as.integer(factor(id, levels = unique(id))),
+            year    = yrs[id],
+            weight  = as.numeric(weight))
+  })
+
+  # ---- Observed: long data frame (first WF fishery only for this plot) ----
+  df_wf_obs <- data.frame(data$wf_obs_in[
+    seq_len(data$wf_n_f[1]), , drop = FALSE])
+  names(df_wf_obs) <- data$wt_mid
+  df_wf_obs <- df_wf_obs %>%
+    mutate(year    = wf_year_list[[1]],
+          fishery = as.character(data$wf_fishery_f[1])) %>%
+    mutate(id = row_number()) %>%
+    pivot_longer(cols = -c(year, fishery, id),
+                names_to = "weight", values_to = "obs") %>%
+    mutate(weight = as.numeric(weight)) %>%
+    filter(weight >= wt_mid_trim[1], weight <= wt_mid_trim[length(wt_mid_trim)])
+
+  df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "weight"))
+
+  # ---- Plot first fishery with WF data ----
+  f_plot <- as.character(data$wf_fishery_f[1])
+  max_yrs_wf_plot <- 24  # show at most 24 time steps for readability
+  yrs_wf_plot <- sort(unique(df_wf$year))[seq_len(min(max_yrs_wf_plot, length(unique(df_wf$year))))]
+  ggplot(df_wf %>% filter(fishery == f_plot, year %in% yrs_wf_plot),
+        aes(x = weight)) +
+    geom_col(aes(y = obs), fill = "grey70") +
+    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+    facet_wrap(~ year, scales = "free_y", ncol = 6) +
+    labs(x = "Weight (kg)", y = "Proportion",
+        title = paste0("Weight composition: Fishery ", f_plot),
+        subtitle = "Grey bars = observed, red = predicted") +
+    theme(strip.text = element_text(size = 7),
+          axis.text  = element_text(size = 6))
+}
+#> Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.
 ```
-
-![](bet_files/figure-html/lf-diagnostics-2.png)
 
 Inspect fitted CPUE and catch:
 
 ``` r
-plot(data$cpue_data$value, col = 2, pch = 16,
-     xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
-lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
-lines(obj$report()$cpue_pred, lwd = 2)
+if(data$cpue_switch == 0){
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
+} else {
+  plot(data$cpue_data$value, col = 2, pch = 16,
+      xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
+  lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
+  lines(obj$report()$cpue_pred, lwd = 2)
+}
 ```
 
 ![](bet_files/figure-html/opt-cpue-1.png)
 
 ``` r
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
-#> [1] 0.9998036
+#> [1] 0.9998705
 plot_catch(data = data, obj = obj)
-#> [1] "The maximum catch difference was: 7.91827187640592e-06"
+#> [1] "The maximum catch difference was: 2.20916081161704e-06"
 ```
 
 ![](bet_files/figure-html/opt-catch-1.png)
 
 ``` r
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
-#> [1] "The maximum catch difference was: 7.91827187640592e-06"
+#> [1] "The maximum catch difference was: 2.20916081161704e-06"
 ```
 
 ![](bet_files/figure-html/opt-catch-2.png)
@@ -1735,10 +1799,14 @@ The CPUE series is set up using RTMB’s `OBS` mechanism inside the model,
 which allows simulation via `obj$simulate()`. For example:
 
 ``` r
-plot(log(data$cpue_data$value), col = 2, pch = 16,
-     xlab = "Time step", ylab = "log(CPUE)", main = "Observed vs simulated CPUE")
-lines(log(obj$report()$cpue_pred), lwd = 2)
-for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
+if(data$cpue_switch == 0){
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
+} else {
+  plot(log(data$cpue_data$value), col = 2, pch = 16,
+      xlab = "Time step", ylab = "log(CPUE)", main = "Observed vs simulated CPUE")
+  lines(log(obj$report()$cpue_pred), lwd = 2)
+  for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
+}
 ```
 
 ![](bet_files/figure-html/sim-1-1.png)
@@ -1748,17 +1816,16 @@ for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
 OSA residuals are a replacement for Pearson residuals:
 
 ``` r
-osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
-                           method = "oneStepGeneric", trace = FALSE)
-qqnorm(osa_cpue$res)
-abline(0, 1)
+if(data$cpue_switch == 0){
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
+} else {
+  osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
+                            method = "oneStepGeneric", trace = FALSE)
+  qqnorm(osa_cpue$res)
+  abline(0, 1)
+  plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
+  abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
+}
 ```
 
-![](bet_files/figure-html/osa1-1.png)
-
-``` r
-plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
-abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
-```
-
-![](bet_files/figure-html/osa1-2.png)
+![](bet_files/figure-html/osa1-1.png)![](bet_files/figure-html/osa1-2.png)
