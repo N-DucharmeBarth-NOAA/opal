@@ -103,11 +103,11 @@ test_that("multinomial NLL is finite and non-negative", {
   expect_true(all(lp >= 0))
 })
 
-test_that("Dirichlet NLL is finite and non-negative", {
+test_that("Dirichlet NLL is finite", {
   s  <- make_wf_args(wf_switch = 2)
   lp <- do.call(get_weight_like, s)
   expect_true(all(is.finite(lp)))
-  expect_true(all(lp >= 0))
+  # Note: Dirichlet density can exceed 1 so NLL = -log_density can be negative
 })
 
 test_that("Dirichlet-multinomial NLL is finite and non-negative", {
@@ -153,8 +153,7 @@ test_that("log_wf_tau affects NLL magnitude for wf_switch = 2 (Dirichlet)", {
 
   expect_true(is.finite(lp_low[1]))
   expect_true(is.finite(lp_high[1]))
-  expect_true(lp_low[1]  >= 0)
-  expect_true(lp_high[1] >= 0)
+  # Note: Dirichlet density can exceed 1, so NLL can be negative
   expect_false(isTRUE(all.equal(lp_low[1], lp_high[1])))
 })
 

@@ -150,23 +150,23 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param wf_obs_flat numeric vector of unrounded weight comp counts (wf_switch=1).
 #' @param wf_obs_ints integer vector of integer weight comp counts (wf_switch=3).
 #' @param wf_obs_prop numeric vector of weight comp proportions (wf_switch=2).
-#' @param catch_pred_fya 3D array [n_fishery, n_year, n_age] of predicted
+#' @param catch_pred_fya 3D array `[n_fishery, n_year, n_age]` of predicted
 #'   catch-at-age from do_dynamics().
-#' @param pla matrix [n_len, n_age] probability-of-length-at-age from
+#' @param pla matrix `[n_len, n_age]` probability-of-length-at-age from
 #'   get_pla(). On the AD tape when growth parameters are estimated.
-#' @param wf_rebin_matrix matrix [n_wt, n_len] precomputed rebinning weights
+#' @param wf_rebin_matrix matrix `[n_wt, n_len]` precomputed rebinning weights
 #'   from prep_wf_data().
-#' @param wf_n_f integer vector [n_fishery] of observation counts per fishery.
+#' @param wf_n_f integer vector `[n_fishery]` of observation counts per fishery.
 #' @param wf_fishery_f integer vector of fishery indices with WF data.
 #' @param wf_year_fi list of integer vectors of year indices per fishery.
 #' @param wf_n_fi list of integer vectors of sample sizes per fishery.
-#' @param wf_minbin integer vector [n_fishery] minimum weight bin index.
-#' @param wf_maxbin integer vector [n_fishery] maximum weight bin index.
-#' @param removal_switch_f integer vector [n_fishery] removal flags.
+#' @param wf_minbin integer vector `[n_fishery]` minimum weight bin index.
+#' @param wf_maxbin integer vector `[n_fishery]` maximum weight bin index.
+#' @param removal_switch_f integer vector `[n_fishery]` removal flags.
 #' @param wf_switch integer likelihood type (1=multinomial, 2=Dirichlet, 3=DM).
 #' @param n_wt integer number of weight bins.
 #' @param n_wf integer total number of WF observations.
-#' @param log_wf_tau numeric vector [n_fishery] log-scale variance adjustment.
+#' @param log_wf_tau numeric vector `[n_fishery]` log-scale variance adjustment.
 #' @return numeric vector of negative log-likelihood contributions, one per observation.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
