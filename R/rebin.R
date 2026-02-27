@@ -65,7 +65,7 @@ rebin_counts <- function(src_edges, src_counts, dest_edges) {
 
 #' Compute rebinning weight matrix
 #'
-#' Returns an M x N matrix W where W[i,j] is the fraction of source bin j
+#' Returns an M x N matrix W where `W[i,j]` is the fraction of source bin j
 #' that falls within destination bin i. Applying \code{W \%*\% src_counts} gives
 #' the same result as \code{rebin_counts(src_edges, src_counts, dest_edges)}.
 #'
