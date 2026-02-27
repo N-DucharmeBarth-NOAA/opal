@@ -15,8 +15,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Introduction
 
-The `opal` package is an R package that contains example fisheries data from western and central pacific
-bigeye tuna (BET). This page provides examples using the `opal` BET model.
+`opal` is an open, modular R package for fisheries stock assessment built on [RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. It includes bundled data from the western and central Pacific Ocean (WCPO) bigeye tuna (BET) stock assessment. This vignette demonstrates model setup, fitting, and diagnostics using those data.
 
 # Load inputs
 
