@@ -44,6 +44,9 @@ bet_globals <- function() {
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
     get_length_like = get_length_like, 
+    get_weight_like = get_weight_like,
+    rebin_counts = rebin_counts,
+    rebin_matrix = rebin_matrix,
     get_cpue_like = get_cpue_like, 
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors)
@@ -64,6 +67,8 @@ opal_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
+  if (!exists("wf_switch", inherits = FALSE)) wf_switch <- 0L
+  if (!exists("n_wf", inherits = FALSE)) n_wf <- 0L
 
   # Growth module ----
 
@@ -157,8 +162,32 @@ opal_model <- function(parameters, data) {
     n_lf = n_lf, log_lf_tau = log_lf_tau
   )
   # lp_lf <- 0
+  # Weight composition likelihood ----
+  if (wf_switch > 0 && n_wf > 0) {
+    lp_wf <- get_weight_like(
+      wf_obs_flat = wf_obs_flat,
+      wf_obs_ints = wf_obs_ints,
+      wf_obs_prop = wf_obs_prop,
+      catch_pred_fya = catch_pred_fya,
+      pla = pla,
+      wf_rebin_matrix = wf_rebin_matrix,
+      wf_n_f = wf_n_f,
+      wf_fishery_f = wf_fishery_f,
+      wf_year_fi = split(wf_year, wf_fishery),
+      wf_n_fi = split(wf_n, wf_fishery),
+      wf_minbin = wf_minbin,
+      wf_maxbin = wf_maxbin,
+      removal_switch_f = removal_switch_f,
+      wf_switch = wf_switch,
+      n_wt = n_wt,
+      n_wf = n_wf,
+      log_wf_tau = log_wf_tau
+    )
+  } else {
+    lp_wf <- 0
+  }
   # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf)
+  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
   
   # Reporting ----
 
@@ -170,6 +199,7 @@ opal_model <- function(parameters, data) {
   REPORT(lp_rec)
   REPORT(lp_cpue)
   REPORT(lp_lf)
+  REPORT(lp_wf)
 
   REPORT(B0)
   REPORT(R0)
