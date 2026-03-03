@@ -102,15 +102,11 @@ do_dynamics <- function(data, parameters,
   catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
   catch_pred_ysf <- array(0, dim = c(n_year, n_season, n_fishery))
   lp_penalty <- 0
-  get_hr <- function(y, s) {
-    if (y < fy) return(NULL)
-    get_harvest_rate(data, y, s, number_ysa, sel_fya, weight_fya)
-  }
   
   for (y in seq_len(n_year)) {
     for (s in seq_len(n_season1)) {
-      hr <- get_hr(y, s)
-      if (!is.null(hr)) {
+      if (y >= fy) {
+        hr <- get_harvest_rate(data, y, s, number_ysa, sel_fya, weight_fya)
         hrate_ysfa[y, s,,] <- hr$h_rate_fa
         hrate_ysa[y, s,] <- hr$h_rate_a
         lp_penalty <- lp_penalty + hr$penalty
@@ -118,8 +114,8 @@ do_dynamics <- function(data, parameters,
       number_ysa[y, s + 1,] <- number_ysa[y, s,] * (1 - hrate_ysa[y, s,]) * S_a
     }
     # Last season
-    hr <- get_hr(y, n_season)
-    if (!is.null(hr)) {
+    if (y >= fy) {
+      hr <- get_harvest_rate(data, y, n_season, number_ysa, sel_fya, weight_fya)
       hrate_ysfa[y, n_season,,] <- hr$h_rate_fa
       hrate_ysa[y, n_season,] <- hr$h_rate_a
       lp_penalty <- lp_penalty + hr$penalty
