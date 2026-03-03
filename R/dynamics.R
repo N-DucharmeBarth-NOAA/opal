@@ -102,24 +102,21 @@ do_dynamics <- function(data, parameters,
   catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
   catch_pred_ysf <- array(0, dim = c(n_year, n_season, n_fishery))
   lp_penalty <- 0
+  update_harvest <- function(y, s) {
+    if (y < fy) return(NULL)
+    hr <- get_harvest_rate(data, y, s, number_ysa, sel_fya, weight_fya)
+    hrate_ysfa[y, s,,] <<- hr$h_rate_fa
+    hrate_ysa[y, s,] <<- hr$h_rate_a
+    lp_penalty <<- lp_penalty + hr$penalty
+  }
   
   for (y in seq_len(n_year)) {
     for (s in seq_len(n_season1)) {
-      if (y >= fy) {
-        hr <- get_harvest_rate(data, y, s, number_ysa, sel_fya, weight_fya)
-        hrate_ysfa[y, s,,] <- hr$h_rate_fa
-        hrate_ysa[y, s,] <- hr$h_rate_a
-        lp_penalty <- lp_penalty + hr$penalty
-      }
+      update_harvest(y, s)
       number_ysa[y, s + 1,] <- number_ysa[y, s,] * (1 - hrate_ysa[y, s,]) * S_a
     }
     # Last season
-    if (y >= fy) {
-      hr <- get_harvest_rate(data, y, n_season, number_ysa, sel_fya, weight_fya)
-      hrate_ysfa[y, n_season,,] <- hr$h_rate_fa
-      hrate_ysa[y, n_season,] <- hr$h_rate_a
-      lp_penalty <- lp_penalty + hr$penalty
-    }
+    update_harvest(y, n_season)
     number_ysa[y + 1, 1, 2:n_age] <- number_ysa[y, n_season, 1:n_age1] * (1 - hrate_ysa[y, n_season, 1:n_age1]) * S_a[1:n_age1]
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
     spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * spawning_potential_a)
