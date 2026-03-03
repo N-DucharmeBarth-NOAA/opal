@@ -334,11 +334,11 @@ bm_pla <- bench::mark(
 )
 bm_pla[, c("expression", "min", "median", "itr/sec","total_time")]
 
-prof_pla <- profvis({
-  for (i in 1:10) {
-    get_pla(len_lower, len_upper, mu_a, sd_a)
-  }
-}, simplify = FALSE)
+# prof_pla <- profvis({
+#   for (i in 1:10) {
+#     get_pla(len_lower, len_upper, mu_a, sd_a)
+#   }
+# }, simplify = FALSE)
 ```
 
 ## `get_selectivity`
