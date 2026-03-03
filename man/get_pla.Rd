@@ -23,3 +23,9 @@ Computes the probability distribution of fish lengths across different
 age classes. AD-compatible: uses RTMB::pnorm and ADoverload so that
 gradients propagate if growth parameters (mu_a, sd_a) are estimated.
 }
+\details{
+Bins are assumed contiguous and non-overlapping, i.e.
+\code{len_upper[i] == len_lower[i + 1]} for all \code{i}. This allows a
+single vectorized \code{pnorm} call per age on the \code{n_len + 1} unique
+bin edges rather than two calls on the lower and upper bounds separately.
+}
