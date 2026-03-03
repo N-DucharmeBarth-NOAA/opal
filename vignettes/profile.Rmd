@@ -36,7 +36,7 @@ library(dplyr)
 library(RTMB)
 library(profvis)
 library(bench)
-devtools::load_all()
+library(opal)
 ```
 
 The bundled data object `wcpo_bet_data` contains all biological parameters,
