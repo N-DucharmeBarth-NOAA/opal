@@ -22,7 +22,9 @@ gradients propagate if growth parameters (mu_a, sd_a) are estimated."><meta prop
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/bet.html">The BET model</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/baseline.html">Save &amp; Compare Refactoring Baseline</a></li>
+    <li><a class="dropdown-item" href="../articles/bet.html">The BET model</a></li>
+    <li><a class="dropdown-item" href="../articles/profile.html">Profiling &amp; Benchmarking</a></li>
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -75,6 +77,13 @@ gradients propagate if growth parameters (mu_a, sd_a) are estimated.</p>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Matrix of dimensions L x A where columns sum to 1.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Bins are assumed contiguous and non-overlapping, i.e.
+<code>len_upper[i] == len_lower[i + 1]</code> for all <code>i</code>. This allows a
+single vectorized <code>pnorm</code> call per age on the <code>n_len + 1</code> unique
+bin edges rather than two calls on the lower and upper bounds separately.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

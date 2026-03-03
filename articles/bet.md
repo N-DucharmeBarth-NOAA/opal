@@ -234,16 +234,17 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 function:
 
 ``` r
+data$lf_switch <- 0 # skip length comps (removal only)
 # data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
-data$lf_switch <- 0 # skip length comps (removal only)
 
 # Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
 # clarity alongside the equivalent lf_switch assignment.
+data$wf_switch <- 0 # skip weight comps (removal only)
+# data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
-data$wf_switch <- 0 # skip weight comps (removal only)
 
 # Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
@@ -340,7 +341,7 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 ``` r
 
 plot_catch(data = data, obj = obj)
-#> [1] "The maximum catch difference was: 1.10394466901198e-08"
+#> [1] "The maximum catch difference was: 1.10399014374707e-08"
 ```
 
 ![](bet_files/figure-html/init-checks-2.png)
@@ -394,10 +395,10 @@ Compare initial and estimated parameter values:
 
 ``` r
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
-#> outer mgc:  4.072735e-12
+#> outer mgc:  9.13469e-12
 #>          par init   est  lwr  upr       gr gr_chk bd_chk
-#> 1     log_B0   20 14.00  0.0 22.0 -4.1e-12     OK     OK
-#> 2 log_cpue_q    0 -0.02 -2.3  2.3 -2.3e-12     OK     OK
+#> 1     log_B0   20 14.00  0.0 22.0 -9.1e-12     OK     OK
+#> 2 log_cpue_q    0 -0.02 -2.3  2.3 -3.8e-12     OK     OK
 ```
 
 ### Diagnostics
@@ -407,7 +408,7 @@ function:
 
 ``` r
 check_estimability(obj = obj)
-#> outer mgc:  4.072735e-12 
+#> outer mgc:  9.13469e-12 
 #> outer mgc:  7.301959 
 #> outer mgc:  7.417775 
 #> outer mgc:  7.425739 
@@ -962,7 +963,7 @@ Calculate standard deviations of all model parameters:
 
 ``` r
 Report <- sdreport(obj)
-#> outer mgc:  4.072735e-12 
+#> outer mgc:  9.13469e-12 
 #> outer mgc:  7.301959 
 #> outer mgc:  7.417775 
 #> outer mgc:  7.425739 
@@ -1510,7 +1511,7 @@ Report <- sdreport(obj)
 Inspect predicted vs observed length compositions:
 
 ``` r
-if(data$lf_switch == 0){
+if (data$lf_switch == 0) {
   cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
 } else {
   lf_rep <- obj$report()
@@ -1628,7 +1629,7 @@ if(data$lf_switch == 0){
 Inspect predicted vs observed weight compositions:
 
 ``` r
-if(data$wf_switch == 0){
+if (data$wf_switch == 0) {
   cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
 } else {
   wf_rep  <- obj$report()
@@ -1689,7 +1690,7 @@ if(data$wf_switch == 0){
 Inspect fitted CPUE and catch:
 
 ``` r
-if(data$cpue_switch == 0){
+if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
   plot(data$cpue_data$value, col = 2, pch = 16,

@@ -36,7 +36,9 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/bet.html">The BET model</a></li>
+<li><a class="dropdown-item" href="../articles/baseline.html">Save &amp; Compare Refactoring Baseline</a></li>
+    <li><a class="dropdown-item" href="../articles/bet.html">The BET model</a></li>
+    <li><a class="dropdown-item" href="../articles/profile.html">Profiling &amp; Benchmarking</a></li>
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul>
 </li>
@@ -289,16 +291,17 @@ values:</p>
 parameter <code>map</code>, and the model (<code>opal_model</code>), the
 AD object is created using RTMB’s <code>MakeADFun</code> function:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># data$lf_switch &lt;- 1 # multinomial likelihood on flat counts (default)</span></span>
+<code class="sourceCode R"><span><span class="va">data</span><span class="op">$</span><span class="va">lf_switch</span> <span class="op">&lt;-</span> <span class="fl">0</span> <span class="co"># skip length comps (removal only)</span></span>
+<span><span class="co"># data$lf_switch &lt;- 1 # multinomial likelihood on flat counts (default)</span></span>
 <span><span class="co"># data$lf_switch &lt;- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find</span></span>
 <span><span class="co"># data$lf_switch &lt;- 3 # fails - wants integers - think this should be an issue to RTMBdist guys</span></span>
-<span><span class="va">data</span><span class="op">$</span><span class="va">lf_switch</span> <span class="op">&lt;-</span> <span class="fl">0</span> <span class="co"># skip length comps (removal only)</span></span>
 <span></span>
 <span><span class="co"># Note: wf_switch was already set by prep_wf_data(); it is re-stated here for</span></span>
 <span><span class="co"># clarity alongside the equivalent lf_switch assignment.</span></span>
+<span><span class="va">data</span><span class="op">$</span><span class="va">wf_switch</span> <span class="op">&lt;-</span> <span class="fl">0</span> <span class="co"># skip weight comps (removal only)</span></span>
+<span><span class="co"># data$wf_switch &lt;- 1 # multinomial likelihood on flat counts (default)</span></span>
 <span><span class="co"># data$wf_switch &lt;- 2 # Dirichlet</span></span>
 <span><span class="co"># data$wf_switch &lt;- 3 # Dirichlet-multinomial</span></span>
-<span><span class="va">data</span><span class="op">$</span><span class="va">wf_switch</span> <span class="op">&lt;-</span> <span class="fl">0</span> <span class="co"># skip weight comps (removal only)</span></span>
 <span></span>
 <span><span class="co"># Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.</span></span>
 <span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu">MakeADFun</span><span class="op">(</span>func <span class="op">=</span> <span class="fu"><a href="../reference/cmb.html">cmb</a></span><span class="op">(</span><span class="va">opal_model</span>, <span class="va">data</span><span class="op">)</span>, parameters <span class="op">=</span> <span class="va">parameters</span>, map <span class="op">=</span> <span class="va">map</span><span class="op">)</span></span>
@@ -389,7 +392,7 @@ AD object is created using RTMB’s <code>MakeADFun</code> function:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="fu"><a href="../reference/plot_catch.html">plot_catch</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">data</span>, obj <span class="op">=</span> <span class="va">obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "The maximum catch difference was: 1.10394466901198e-08"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "The maximum catch difference was: 1.10399014374707e-08"</span></span></code></pre></div>
 <p><img src="bet_files/figure-html/init-checks-2.png" class="r-plt" alt="" width="672"></p>
 </div>
 <div class="section level3">
@@ -439,10 +442,10 @@ sure to be sure (said with Irish accent):</p>
 <p>Compare initial and estimated parameter values:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/get_par_table.html">get_par_table</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">parameters</span>, <span class="va">map</span>, lower <span class="op">=</span> <span class="va">Lwr</span>, upper <span class="op">=</span> <span class="va">Upr</span>, grad_tol <span class="op">=</span> <span class="fl">1e-2</span>, digits <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span></span>
-<span><span class="co">#&gt; outer mgc:  4.072735e-12</span></span>
+<span><span class="co">#&gt; outer mgc:  9.13469e-12</span></span>
 <span><span class="co">#&gt;          par init   est  lwr  upr       gr gr_chk bd_chk</span></span>
-<span><span class="co">#&gt; 1     log_B0   20 14.00  0.0 22.0 -4.1e-12     OK     OK</span></span>
-<span><span class="co">#&gt; 2 log_cpue_q    0 -0.02 -2.3  2.3 -2.3e-12     OK     OK</span></span></code></pre></div>
+<span><span class="co">#&gt; 1     log_B0   20 14.00  0.0 22.0 -9.1e-12     OK     OK</span></span>
+<span><span class="co">#&gt; 2 log_cpue_q    0 -0.02 -2.3  2.3 -3.8e-12     OK     OK</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="diagnostics">Diagnostics<a class="anchor" aria-label="anchor" href="#diagnostics"></a>
 </h3>
@@ -450,7 +453,7 @@ sure to be sure (said with Irish accent):</p>
 <code>check_estimability</code> function:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/check_estimability.html">check_estimability</a></span><span class="op">(</span>obj <span class="op">=</span> <span class="va">obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt; outer mgc:  4.072735e-12 </span></span>
+<span><span class="co">#&gt; outer mgc:  9.13469e-12 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.301959 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.417775 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.425739 </span></span>
@@ -999,7 +1002,7 @@ sure to be sure (said with Irish accent):</p>
 <p>Calculate standard deviations of all model parameters:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">Report</span> <span class="op">&lt;-</span> <span class="fu">sdreport</span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
-<span><span class="co">#&gt; outer mgc:  4.072735e-12 </span></span>
+<span><span class="co">#&gt; outer mgc:  9.13469e-12 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.301959 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.417775 </span></span>
 <span><span class="co">#&gt; outer mgc:  7.425739 </span></span>
@@ -1546,7 +1549,7 @@ sure to be sure (said with Irish accent):</p>
 </h3>
 <p>Inspect predicted vs observed length compositions:</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">lf_switch</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">lf_switch</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
 <span>  <span class="va">lf_rep</span> <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">report</span><span class="op">(</span><span class="op">)</span></span>
@@ -1661,7 +1664,7 @@ sure to be sure (said with Irish accent):</p>
 <span><span class="co">#&gt; Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.</span></span></code></pre></div>
 <p>Inspect predicted vs observed weight compositions:</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">wf_switch</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">wf_switch</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
 <span>  <span class="va">wf_rep</span>  <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">report</span><span class="op">(</span><span class="op">)</span></span>
@@ -1719,7 +1722,7 @@ sure to be sure (said with Irish accent):</p>
 <span><span class="co">#&gt; Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.</span></span></code></pre></div>
 <p>Inspect fitted CPUE and catch:</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">cpue_switch</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">cpue_switch</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">cpue_data</span><span class="op">$</span><span class="va">value</span>, col <span class="op">=</span> <span class="fl">2</span>, pch <span class="op">=</span> <span class="fl">16</span>,</span>

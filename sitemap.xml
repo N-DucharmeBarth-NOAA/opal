@@ -2,8 +2,11 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/404.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/DISCLAIMER.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/LICENSE.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/baseline.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/bet.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/index.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/profile.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/profile_opal.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/quickstart.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/authors.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/copilot-instructions.html</loc></url>
@@ -52,6 +55,10 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_like.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/grid_to_snutsfit.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/index.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_baseline.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_baseline_data.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_baseline_map.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_baseline_parameters.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opalprofile.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/plot_af.html</loc></url>

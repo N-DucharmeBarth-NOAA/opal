@@ -2,9 +2,11 @@ pandoc: 3.1.11
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
+  baseline: baseline.html
   bet: bet.html
+  profile: profile.html
   quickstart: quickstart.html
-last_built: 2026-02-27T17:23Z
+last_built: 2026-03-03T23:49Z
 urls:
   reference: https://n-ducharmebarth-noaa.github.io/opal/reference
   article: https://n-ducharmebarth-noaa.github.io/opal/articles

@@ -31,3 +31,10 @@ get_pla(len_lower, len_upper, mu_a, sd_a)
 ## Value
 
 Matrix of dimensions L x A where columns sum to 1.
+
+## Details
+
+Bins are assumed contiguous and non-overlapping, i.e.
+`len_upper[i] == len_lower[i + 1]` for all `i`. This allows a single
+vectorized `pnorm` call per age on the `n_len + 1` unique bin edges
+rather than two calls on the lower and upper bounds separately.
