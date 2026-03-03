@@ -210,14 +210,15 @@ get_harvest_rate <- function(data, y, s, number_ysa, sel_fya, weight_fya) {
   n_age <- data$n_age
   catch_obs_ysf <- data$catch_obs_ysf
   catch_units_f <- data$catch_units_f
+  eps_denom <- 1e-6
   F_f <- numeric(n_fishery)
   h_rate_fa <- array(0, dim = c(n_fishery, n_age))
   for (f in seq_len(n_fishery)) {
     if (catch_obs_ysf[y, s, f] > 0) {
       if (catch_units_f[f] == 1) { # weight
-        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,] * weight_fya[f, y,]) + 1e-6
+        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,] * weight_fya[f, y,]) + eps_denom
       } else if (catch_units_f[f] == 2) { # numbers
-        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,]) + 1e-6
+        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,]) + eps_denom
       }
       F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
       h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]

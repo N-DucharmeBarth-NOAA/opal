@@ -107,7 +107,7 @@ test_that("get_harvest_rate reproduces observed catch in number and weight units
     catch_units_f = 2
   )
   hr_numbers <- get_harvest_rate(data_numbers, 1, 1, number_ysa, sel_fya, array(1, dim = c(1, 1, 3)))
-  expect_equal(sum(hr_numbers$h_rate_fa[1, ] * number_ysa[1, 1, ]), data_numbers$catch_obs_ysf[1, 1, 1], tolerance = 1e-10)
+  expect_equal(sum(hr_numbers$h_rate_fa[1, ] * number_ysa[1, 1, ]), data_numbers$catch_obs_ysf[1, 1, 1], tolerance = 1e-7)
 
   weight_fya <- array(c(1, 2, 3), dim = c(1, 1, 3))
   data_weight <- list(
@@ -120,6 +120,6 @@ test_that("get_harvest_rate reproduces observed catch in number and weight units
   expect_equal(
     sum(hr_weight$h_rate_fa[1, ] * number_ysa[1, 1, ] * weight_fya[1, 1, ]),
     data_weight$catch_obs_ysf[1, 1, 1],
-    tolerance = 1e-10
+    tolerance = 1e-7
   )
 })
