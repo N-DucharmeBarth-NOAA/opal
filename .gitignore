@@ -62,3 +62,6 @@ inst/doc
 *.Rproj.user
 /doc/
 /Meta/
+
+# ignore benchmark results
+profile_*.html

@@ -91,7 +91,6 @@ do_dynamics <- function(data, parameters,
   getAll(data, parameters, warn = FALSE)
   fy <- first_yr_catch - first_yr + 1
   n_age1 <- n_age - 1
-  n_season1 <- n_season - 1
   S_a <- exp(-M_a / n_season)
   number_ysa <- array(0, dim = c(n_year + 1, n_season, n_age))
   number_ysa[1, 1,] <- init_number_a
@@ -102,41 +101,68 @@ do_dynamics <- function(data, parameters,
   catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
   catch_pred_ysf <- array(0, dim = c(n_year, n_season, n_fishery))
   lp_penalty <- 0
+  eps_denom <- 1e-6
+  F_f <- numeric(n_fishery)
+  h_rate_fa <- array(0, dim = c(n_fishery, n_age))
+  f_weight <- which(catch_units_f == 1)
+  f_numbers <- which(catch_units_f != 1)
   
   for (y in seq_len(n_year)) {
-    for (s in seq_len(n_season1)) {
+    for (s in seq_len(n_season)) {
       if (y >= fy) {
-        hr <- get_harvest_rate(data, y, s, number_ysa, sel_fya, weight_fya)
-        hrate_ysfa[y, s,,] <- hr$h_rate_fa
-        hrate_ysa[y, s,] <- hr$h_rate_a
-        lp_penalty <- lp_penalty + hr$penalty
+        F_f[] <- 0
+        h_rate_fa[] <- 0
+
+        # Calculate harvest rate (F_f) by fishery based on catch units (weight or numbers)
+        for (f in f_weight) {
+          if (catch_obs_ysf[y, s, f] > 0) {
+            sel_N <- number_ysa[y, s,] * sel_fya[f, y,]
+            Nsum <- sum(sel_N * weight_fya[f, y,]) + eps_denom
+            F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
+            h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]
+          }
+        }
+        for (f in f_numbers) {
+          if (catch_obs_ysf[y, s, f] > 0) {
+            sel_N <- number_ysa[y, s,] * sel_fya[f, y,]
+            Nsum <- sum(sel_N) + eps_denom
+            F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
+            h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]
+          }
+        }
+
+        # Apply posfun penalty to ensure total harvest rate < 1
+        sum_F <- sum(F_f)
+        tmp <- posfun(x = 1 - sum_F, eps = 0.001)
+        lp_penalty <- lp_penalty + tmp$penalty
+        hrate_ysfa[y, s,,] <- h_rate_fa
+        hrate_ysa[y, s,] <- colSums(h_rate_fa)
+
+        # Compute predicted catches for observation model
+        for (f in f_weight) {
+          catch_at_age_fs <- hrate_ysfa[y, s, f,] * number_ysa[y, s,]
+          catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + catch_at_age_fs
+          catch_pred_ysf[y, s, f] <- sum(catch_at_age_fs * weight_fya[f, y,])
+        }
+        for (f in f_numbers) {
+          catch_at_age_fs <- hrate_ysfa[y, s, f,] * number_ysa[y, s,]
+          catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + catch_at_age_fs
+          catch_pred_ysf[y, s, f] <- sum(catch_at_age_fs)
+        }
       }
-      number_ysa[y, s + 1,] <- number_ysa[y, s,] * (1 - hrate_ysa[y, s,]) * S_a
+      if (s < n_season) {
+        # Mid-year survival (seasonal natural mortality and fishing)
+        number_ysa[y, s + 1,] <- number_ysa[y, s,] * (1 - hrate_ysa[y, s,]) * S_a
+      }
     }
-    # Last season
-    if (y >= fy) {
-      hr <- get_harvest_rate(data, y, n_season, number_ysa, sel_fya, weight_fya)
-      hrate_ysfa[y, n_season,,] <- hr$h_rate_fa
-      hrate_ysa[y, n_season,] <- hr$h_rate_a
-      lp_penalty <- lp_penalty + hr$penalty
-    }
+
+    # Annual transition: aging with plus-group accumulation and spawning
     number_ysa[y + 1, 1, 2:n_age] <- number_ysa[y, n_season, 1:n_age1] * (1 - hrate_ysa[y, n_season, 1:n_age1]) * S_a[1:n_age1]
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
     spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * spawning_potential_a)
-    number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r)
 
-    for (f in seq_len(n_fishery)) {
-      for (s in seq_len(n_season)) {
-        catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + hrate_ysfa[y, s, f,] * number_ysa[y, s,]
-        for (a in seq_len(n_age)) {
-          if (catch_units_f[f] == 1) { # weight
-            catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a] * weight_fya[f, y, a]
-          } else { # numbers
-            catch_pred_ysf[y, s, f] <- catch_pred_ysf[y, s, f] + hrate_ysfa[y, s, f, a] * number_ysa[y, s, a]
-          }
-        }
-      }
-    }
+    # Recruitment based on spawning biomass and deviations
+    number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r)
   }
   
   REPORT(catch_pred_ysf)
@@ -180,15 +206,19 @@ do_dynamics <- function(data, parameters,
 #'
 get_harvest_rate <- function(data, y, s, number_ysa, sel_fya, weight_fya) {
   "[<-" <- ADoverload("[<-")
-  getAll(data, warn = FALSE)
+  n_fishery <- data$n_fishery
+  n_age <- data$n_age
+  catch_obs_ysf <- data$catch_obs_ysf
+  catch_units_f <- data$catch_units_f
+  eps_denom <- 1e-6
   F_f <- numeric(n_fishery)
   h_rate_fa <- array(0, dim = c(n_fishery, n_age))
   for (f in seq_len(n_fishery)) {
     if (catch_obs_ysf[y, s, f] > 0) {
       if (catch_units_f[f] == 1) { # weight
-        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,] * weight_fya[f, y,]) + 1e-6
+        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,] * weight_fya[f, y,]) + eps_denom
       } else if (catch_units_f[f] == 2) { # numbers
-        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,]) + 1e-6
+        Nsum <- sum(number_ysa[y, s,] * sel_fya[f, y,]) + eps_denom
       }
       F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
       h_rate_fa[f,] <- F_f[f] * sel_fya[f, y,]

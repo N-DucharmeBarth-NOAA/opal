@@ -294,3 +294,68 @@
 #' }
 #'
 "wcpo_bet_wf"
+
+#' `opal` model regression baseline
+#'
+#' A saved reference run for the WCPO bigeye tuna assessment that documents the
+#' objective, gradient, and RTMB report output used by the
+#' `vignettes/baseline.Rmd` workflow to detect numerical regressions and timing
+#' changes before and after refactors.
+#'
+#' @details
+#' ## Baseline contents
+#' \describe{
+#'   \item{timestamp}{Time when the baseline was created.}
+#'   \item{description}{Free-form label ("Pre-refactoring baseline" by default).}
+#'   \item{opal_version}{Version string of the installed `opal` package.}
+#'   \item{dimensions}{Named list with `n_year`, `n_age`, `n_fishery`, `n_season`,
+#'     `n_len`, `n_lf`, `n_wt`, and `n_wf` from the model inputs.}
+#'   \item{nll}{Negative log-likelihood at the reference parameter set.}
+#'   \item{gradient}{Gradient vector evaluated at `obj$par` for the baseline.}
+#'   \item{max_gr}{Maximum absolute gradient entry.}
+#'   \item{timing}{List with `fn_elapsed`, `gr_elapsed`, `fn_median`, and
+#'     `gr_median` values that summarize runtime measurements used in the
+#'     comparison vignette.}
+#'   \item{report}{Sublist containing the baseline's `number_ysa`,
+#'     `spawning_biomass_y`, catch and harvest rate predictions (`catch_pred_fya`,
+#'     `catch_pred_ysf`, `hrate_ysa`, `hrate_ysfa`), selectivity curves
+#'     (`sel_fya`), and log-likelihood components (`lp_prior`, `lp_penalty`,
+#'     `lp_rec`, `lp_cpue`, `lp_lf`, `lp_wf`).}
+#'   \item{par_values}{Vector of `obj$par` values that produced the baseline.}
+#' }
+#'
+#' @format A named list accessible via `data(opal_baseline)` and
+#'   packaged as `data/opal_baseline.rda`.
+#'
+#' @source `vignettes/baseline.Rmd` (the "Save or compare" chunk) which
+#'   reproduces the reference run saved to `data/opal_baseline.rda`.
+#'
+#' @examples
+#' \dontrun{
+#'   data(opal_baseline)
+#'   str(opal_baseline$dimensions)
+#'   opal_baseline$timing$fn_median
+#' }
+#'
+"opal_baseline"
+
+#' Opal Baseline Data
+#'
+#' The full data list used for testing in the opal baseline model.
+#'
+#' @source \code{vignettes/baseline.Rmd}
+"opal_baseline_data"
+
+#' Opal Baseline Parameters
+#'
+#' The full parameter list used for testing in the opal baseline model.
+#'
+#' @source \code{vignettes/baseline.Rmd}
+"opal_baseline_parameters"
+
+#' Opal Baseline Map
+#'
+#' The parameter map used for testing in the opal baseline model.
+#'
+#' @source \code{vignettes/baseline.Rmd}
+"opal_baseline_map"

@@ -39,7 +39,12 @@ Imports:
 Suggests:
     knitr,
     rmarkdown,
-    tidyverse
+    tidyverse,
+    bench,
+    here,
+    htmlwidgets,
+    profmem,
+    profvis
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://n-ducharmebarth-noaa.github.io/opal/
