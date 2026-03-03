@@ -93,5 +93,5 @@ test_that("do_dynamics catch-at-age sums to observed catch in numbers", {
     sel_fya = array(1, dim = c(1, data$n_year, data$n_age))
   )
 
-  expect_equal(sum(dyn$catch_pred_fya[1, 1,]), data$catch_obs_ysf[1, 1, 1], tolerance = 1e-6)
+  expect_equal(sum(dyn$catch_pred_fya[1, 1, ]), data$catch_obs_ysf[1, 1, 1], tolerance = 1e-6)
 })
