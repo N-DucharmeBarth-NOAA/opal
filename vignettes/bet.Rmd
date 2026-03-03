@@ -227,8 +227,8 @@ data$lf_switch <- 0 # skip length comps (removal only)
 
 # Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
 # clarity alongside the equivalent lf_switch assignment.
-# data$wf_switch <- 0 # skip weight comps (removal only)
-data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
+data$wf_switch <- 0 # skip weight comps (removal only)
+# data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
