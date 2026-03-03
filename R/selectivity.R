@@ -111,6 +111,11 @@ sel_double_normal <- function(x, par) {
 #' age classes. AD-compatible: uses RTMB::pnorm and ADoverload so that
 #' gradients propagate if growth parameters (mu_a, sd_a) are estimated.
 #'
+#' Bins are assumed contiguous and non-overlapping, i.e.
+#' \code{len_upper[i] == len_lower[i + 1]} for all \code{i}. This allows a
+#' single vectorized \code{pnorm} call per age on the \code{n_len + 1} unique
+#' bin edges rather than two calls on the lower and upper bounds separately.
+#'
 #' @param len_lower Numeric vector of lower bounds of length bins (length L). Data only.
 #' @param len_upper Numeric vector of upper bounds of length bins (length L). Data only.
 #' @param mu_a Numeric vector of mean length at age (length A). May be AD.
@@ -123,14 +128,12 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
   "[<-" <- ADoverload("[<-")
   n_len <- length(len_lower)
   n_age <- length(mu_a)
+  edges <- c(len_lower, len_upper[n_len])
   pla <- array(0, dim = c(n_len, n_age))
   for (a in seq_len(n_age)) {
-    for (z in seq_len(n_len)) {
-      pla[z, a] <- pnorm((len_upper[z] - mu_a[a]) / sd_a[a]) -
-                   pnorm((len_lower[z] - mu_a[a]) / sd_a[a])
-    }
+    p_edges <- pnorm((edges - mu_a[a]) / sd_a[a])
+    pla[, a] <- p_edges[2:(n_len + 1)] - p_edges[1:n_len]
     col_sum <- sum(pla[, a])
-    # Normalize - use epsilon instead of if-branch for AD safety
     pla[, a] <- pla[, a] / (col_sum + 1e-12)
   }
   return(pla)

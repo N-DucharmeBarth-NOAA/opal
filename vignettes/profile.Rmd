@@ -1,0 +1,649 @@
+---
+title: "Profiling & Benchmarking"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Profiling & Benchmarking}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+This vignette establishes performance baselines for the `opal` BET model prior
+to efficiency refactoring. It profiles the full
+model evaluation, isolates key sub-functions, and records AD tape metrics. After
+each refactoring change, re-run this vignette and compare against the saved
+baseline to verify numerical equivalence and measure speedup.
+
+The profiling workflow uses:
+
+- `profvis` — interactive flame graph profiler for identifying hotspots
+- `bench` — precise microbenchmarking for comparing before/after
+- `system.time` — simple wall-clock timing for quick checks
+
+# Load inputs
+
+Load the `opal` package, `RTMB`, and profiling dependencies:
+
+```{r load-pkg, echo=TRUE, message=FALSE}
+library(dplyr)
+library(RTMB)
+library(profvis)
+library(bench)
+devtools::load_all()
+```
+
+The bundled data object `wcpo_bet_data` contains all biological parameters,
+catch and CPUE observations, length structure, and prior specifications needed
+for the BET assessment model:
+
+```{r load-data, echo=TRUE, message=FALSE}
+data(wcpo_bet_data)
+data <- wcpo_bet_data
+```
+
+## Length composition data
+
+Length composition observations are loaded from the bundled `wcpo_bet_lf`
+long-format data object and transformed into model-ready arrays:
+
+```{r prep-lf, echo=TRUE, message=FALSE}
+data(wcpo_bet_lf)
+
+lf_wide <- wcpo_bet_lf %>%
+  tidyr::pivot_wider(
+    id_cols     = c(fishery, year, month, ts),
+    names_from  = bin,
+    values_from = value,
+    values_fill = 0
+  ) %>%
+  dplyr::arrange(fishery, ts)
+
+var_adjust_scalars <- 1 / rep(1, data$n_fishery)
+
+data <- prep_lf_data(data, lf_wide,
+                     lf_keep_fisheries = c(8, 9),
+                     lf_var_adjust     = var_adjust_scalars)
+data$lf_switch <- 1L
+```
+
+## Weight composition data
+
+Weight composition observations are loaded from the bundled `wcpo_bet_wf`
+long-format data object and transformed into model-ready arrays. The
+`prep_wf_data()` function also precomputes the rebinning matrix that maps
+predicted length compositions to weight bins:
+
+```{r prep-wf, echo=TRUE, message=FALSE}
+data(wcpo_bet_wf)
+
+# Weight bin scalars (1 kg bins, 1–200 kg)
+data$wt_bin_start <- 1
+data$wt_bin_width <- 1
+data$n_wt         <- 200L
+
+wf_wide <- wcpo_bet_wf |>
+  tidyr::pivot_wider(
+    id_cols     = c(fishery, year, month, ts),
+    names_from  = bin,
+    values_from = value,
+    values_fill = 0
+  ) |>
+  dplyr::arrange(fishery, ts)
+
+data <- prep_wf_data(data, wf_wide,
+                     wf_keep_fisheries = c(2),
+                     wf_switch = 1L)
+```
+
+# Model setup
+
+## Parameters
+
+Load initial parameter values from the bundled `wcpo_bet_parameters` data
+object:
+
+```{r get-pars, echo=TRUE, message=FALSE}
+data(wcpo_bet_parameters)
+
+parameters <- list(
+  log_B0         = 20,
+  log_h          = as.numeric(wcpo_bet_parameters$log_h),
+  log_sigma_r    = as.numeric(wcpo_bet_parameters$log_sigma_r),
+  log_cpue_q     = as.numeric(wcpo_bet_parameters$log_cpue_q),
+  cpue_creep     = as.numeric(wcpo_bet_parameters$cpue_creep),
+  log_cpue_tau   = as.numeric(wcpo_bet_parameters$log_cpue_tau),
+  log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_lf_tau     = log(rep(0.1, data$n_fishery)),
+  log_wf_tau     = rep(0, data$n_fishery),
+  log_L1         = as.numeric(wcpo_bet_parameters$log_L1),
+  log_L2         = as.numeric(wcpo_bet_parameters$log_L2),
+  log_k          = as.numeric(wcpo_bet_parameters$log_k),
+  log_CV1        = as.numeric(wcpo_bet_parameters$log_CV1),
+  log_CV2        = as.numeric(wcpo_bet_parameters$log_CV2),
+  par_sel        = as.matrix(wcpo_bet_parameters$par_sel),
+  rdev_y         = as.numeric(wcpo_bet_parameters$rdev_y)
+)
+```
+
+## Priors
+
+```{r get-priors, echo=TRUE, message=FALSE}
+data$priors <- get_priors(parameters = parameters, data = data)
+```
+
+## Parameter map
+
+Fix growth, selectivity, and some CPUE parameters at their initial values:
+
+```{r get-map, echo=TRUE, message=FALSE}
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+
+map <- list(
+  log_h          = factor(NA),
+  log_sigma_r    = factor(NA),
+  cpue_creep     = factor(NA),
+  log_cpue_tau   = factor(NA),
+  log_cpue_omega = factor(NA),
+  log_lf_tau     = factor(rep(NA, length(parameters$log_lf_tau))),
+  log_wf_tau     = factor(rep(NA, length(parameters$log_wf_tau))),
+  log_L1         = factor(NA),
+  log_L2         = factor(NA),
+  log_k          = factor(NA),
+  log_CV1        = factor(NA),
+  log_CV2        = factor(NA),
+  par_sel        = factor(map_sel)
+)
+```
+
+## Build the AD object
+
+```{r make-adfun, echo=TRUE, message=FALSE}
+t_build <- system.time({
+  obj <- MakeADFun(func = cmb(opal_model, data),
+                   parameters = parameters, map = map)
+})
+cat("MakeADFun build time:", round(t_build["elapsed"], 2), "sec\n")
+cat("Estimated parameters:", length(obj$par), "\n")
+cat("Parameter names:", paste(unique(names(obj$par)), collapse = ", "), "\n")
+```
+
+# Model dimensions
+
+These dimensions drive the computational cost. Every unnecessary scalar loop or
+function call inside the dynamics is amplified by these values:
+
+```{r dims, echo=TRUE}
+cat("n_year:    ", data$n_year, "\n")
+cat("n_age:     ", data$n_age, "\n")
+cat("n_fishery: ", data$n_fishery, "\n")
+cat("n_season:  ", data$n_season, "\n")
+cat("n_len:     ", data$n_len, "\n")
+cat("n_lf obs:  ", data$n_lf, "\n")
+cat("lf_switch: ", data$lf_switch, "\n")
+cat("n_wt:      ", data$n_wt, "\n")
+cat("n_wf obs:  ", data$n_wf, "\n")
+cat("wf_switch: ", data$wf_switch, "\n")
+```
+
+# Baseline timing
+
+Warm up the AD tape (the first call constructs it), then time `fn()` and
+`gr()` separately:
+
+```{r baseline-warmup, echo=TRUE, message=FALSE}
+invisible(obj$fn(obj$par))
+invisible(obj$gr(obj$par))
+```
+
+```{r baseline-timing, echo=TRUE}
+t_fn <- system.time(nll <- obj$fn(obj$par))
+t_gr <- system.time(gr  <- obj$gr(obj$par))
+cat("obj$fn():", round(t_fn["elapsed"], 4), "sec  (NLL =", round(nll, 4), ")\n")
+cat("obj$gr():", round(t_gr["elapsed"], 4), "sec  (max|gr| =", round(max(abs(gr)), 6), ")\n")
+cat("gr/fn ratio:", round(t_gr["elapsed"] / max(t_fn["elapsed"], 1e-6), 1), "x\n")
+```
+
+For a well-optimised AD tape, the gradient should cost roughly 2--4× the
+function evaluation. A much higher ratio suggests redundant operations on the
+tape that compound in reverse mode.
+
+Repeated timing with `bench::mark` gives more stable estimates:
+
+```{r baseline-bench, echo=TRUE}
+bm_core <- bench::mark(
+  fn = obj$fn(obj$par),
+  gr = obj$gr(obj$par),
+  iterations = 20,
+  check = FALSE
+)
+bm_core[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+# AD tape diagnostics
+
+The AD tape is the sequence of elementary operations that RTMB records during
+the first `fn()` call. Tape size directly determines gradient cost: fewer
+operations = faster `gr()`.
+
+```{r tape-diag, echo=TRUE}
+tryCatch({
+  tape_env <- obj$env
+  if (!is.null(tape_env$ADFun)) {
+    cat("ADFun object found in obj$env\n\n")
+    capture.output(print(tape_env$ADFun)) |> head(20) |> cat(sep = "\n")
+  }
+}, error = function(e) {
+  cat("Could not access tape info:", e$message, "\n")
+})
+
+cat("\nobj total size:  ", round(object.size(obj) / 1e6, 1), "MB\n")
+cat("obj$env size:    ", round(object.size(obj$env) / 1e6, 1), "MB\n")
+```
+
+# profvis — full model evaluation
+
+`profvis` samples the R call stack at regular intervals and produces an
+interactive flame graph. Run 10 iterations of `fn()` + `gr()` to accumulate
+enough samples:
+
+```{r profvis-run, echo=TRUE, eval=FALSE}
+prof <- profvis({
+  for (i in 1:10) {
+    obj$fn(obj$par)
+    obj$gr(obj$par)
+  }
+}, simplify = FALSE)
+
+htmlwidgets::saveWidget(prof, "profile_full.html", selfcontained = TRUE)
+```
+
+Open `profile_full.html` in a browser to inspect the flame graph. Key things to
+look for:
+
+- Time in `get_harvest_rate` vs `do_dynamics` vs `opal_model` — if
+  `get_harvest_rate` is a significant fraction, Change 1 (inlining) will help.
+- Time in `get_length_like` / `get_weight_like` / `get_cpue_like` — if the
+  composition likelihoods dominate, Changes 7--9 are important. The weight
+  likelihood adds an extra rebinning matrix multiply per observation.
+- Time in `getAll()` calls — indicates overhead from unpacking data/parameter
+  lists.
+- Time in `.Call` (C++ / RTMB internals) vs R code — if most time is in
+  `.Call`, the bottleneck is tape complexity rather than R dispatch overhead.
+
+# Component-level profiling
+
+Benchmark individual functions in plain R (outside the AD tape) to understand
+their base cost. These timings won't include AD overhead but show the
+algorithmic cost of each component.
+
+## `opal_model`
+
+The highest-level entry point bundles all individual components together: growth,
+selectivity, dynamics, and likelihoods. Timing `opal_model()` directly outside the
+AD tape gives a sense of the un-taped work that the tape must eventually record.
+
+```{r bench-opal-model, echo=TRUE}
+bm_opal_model <- bench::mark(
+  opal_model = opal_model(parameters = parameters, data = data),
+  iterations = 20,
+  check = FALSE
+)
+bm_opal_model[, c("expression", "min", "median", "itr/sec","total_time")]
+
+prof_opal <- profvis({
+  for (i in 1:10) {
+    opal_model(parameters = parameters, data = data)
+  }
+}, simplify = FALSE)
+
+htmlwidgets::saveWidget(prof_opal, "profile_opal.html", selfcontained = TRUE)
+```
+
+## `get_pla`
+
+The probability-of-length-at-age matrix is a `n_len × n_age` matrix computed
+via `pnorm`. Currently uses a scalar inner loop over length bins (see Change 4):
+
+```{r bench-pla, echo=TRUE}
+par_list <- obj$env$parList(obj$env$last.par.best)
+L1  <- exp(par_list$log_L1)
+L2  <- exp(par_list$log_L2)
+k   <- exp(par_list$log_k)
+CV1 <- exp(par_list$log_CV1)
+CV2 <- exp(par_list$log_CV2)
+
+len_lower <- seq(from = data$len_bin_start, by = data$len_bin_width,
+                 length.out = data$n_len)
+len_upper <- len_lower + data$len_bin_width
+len_mid   <- len_lower + data$len_bin_width / 2
+
+mu_a <- get_growth(data$n_age, data$A1, data$A2, L1, L2, k)
+sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+
+bm_pla <- bench::mark(
+  get_pla = get_pla(len_lower, len_upper, mu_a, sd_a),
+  iterations = 50,
+  check = FALSE
+)
+bm_pla[, c("expression", "min", "median", "itr/sec","total_time")]
+
+prof_pla <- profvis({
+  for (i in 1:10) {
+    get_pla(len_lower, len_upper, mu_a, sd_a)
+  }
+}, simplify = FALSE)
+```
+
+## `get_selectivity`
+
+Selectivity is computed per fishery via logistic or double-normal curves applied
+through the PLA matrix:
+
+```{r bench-sel, echo=TRUE}
+pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+
+bm_sel <- bench::mark(
+  get_selectivity = get_selectivity(data, par_list$par_sel, pla, len_mid),
+  iterations = 50,
+  check = FALSE
+)
+bm_sel[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+## PLA matrix multiply
+
+The core operation inside `get_length_like` — a `n_len × n_age` matrix-vector
+multiply that converts catch-at-age to catch-at-length. This executes once per
+LF observation:
+
+```{r bench-pla-mult, echo=TRUE}
+catch_a <- rep(1, data$n_age)
+
+bm_pla_mult <- bench::mark(
+  `pla %*% catch_a` = c(pla %*% catch_a),
+  iterations = 200,
+  check = FALSE
+)
+bm_pla_mult[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+## `get_length_like`
+
+The full length composition likelihood, called with plain-R arguments (not
+AD-taped). This includes the per-observation matrix multiply, bin aggregation,
+normalisation, and `dmultinom` evaluation:
+
+```{r bench-lf, echo=TRUE}
+invisible(obj$fn(obj$par))
+rep <- obj$report()
+
+lf_year_fi <- split(data$lf_year, data$lf_fishery)
+lf_n_fi    <- split(data$lf_n, data$lf_fishery)
+
+bm_lf <- bench::mark(
+  get_length_like = get_length_like(
+    lf_obs_flat      = data$lf_obs_flat,
+    lf_obs_ints      = data$lf_obs_ints,
+    lf_obs_prop      = data$lf_obs_prop,
+    catch_pred_fya   = rep$catch_pred_fya,
+    pla              = pla,
+    lf_n_f           = data$lf_n_f,
+    lf_fishery_f     = data$lf_fishery_f,
+    lf_year_fi       = lf_year_fi,
+    lf_n_fi          = lf_n_fi,
+    lf_minbin        = data$lf_minbin,
+    lf_maxbin        = data$lf_maxbin,
+    removal_switch_f = data$removal_switch_f,
+    lf_switch        = data$lf_switch,
+    n_len            = data$n_len,
+    n_lf             = data$n_lf,
+    log_lf_tau       = par_list$log_lf_tau
+  ),
+  iterations = 50,
+  check = FALSE
+)
+bm_lf[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+## `split()` overhead
+
+These `split()` calls currently execute inside the AD-taped function on every
+model evaluation (see Change 8):
+
+```{r bench-split, echo=TRUE}
+bm_split <- bench::mark(
+  split_year = split(data$lf_year, data$lf_fishery),
+  split_n    = split(data$lf_n, data$lf_fishery),
+  iterations = 500,
+  check = FALSE
+)
+bm_split[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+## Rebinning matrix multiply
+
+The weight likelihood adds an extra matrix multiply per WF observation:
+`wf_rebin_matrix %*% pred_at_length` converts the `n_len`-vector of predicted
+length composition to an `n_wt`-vector of predicted weight composition. This
+is a `n_wt × n_len` matrix-vector product:
+
+```{r bench-rebin-mult, echo=TRUE}
+pred_at_length <- rep(1, data$n_len)
+
+bm_rebin_mult <- bench::mark(
+  `rebin %*% pred_l` = c(data$wf_rebin_matrix %*% pred_at_length),
+  iterations = 200,
+  check = FALSE
+)
+bm_rebin_mult[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+## `get_weight_like`
+
+The full weight composition likelihood, called with plain-R arguments (not
+AD-taped). This includes the per-observation PLA multiply, rebinning to
+weight bins, normalisation, and likelihood evaluation:
+
+```{r bench-wf, echo=TRUE}
+invisible(obj$fn(obj$par))
+rep <- obj$report()
+
+wf_year_fi <- split(data$wf_year, data$wf_fishery)
+wf_n_fi    <- split(data$wf_n, data$wf_fishery)
+
+bm_wf <- bench::mark(
+  get_weight_like = get_weight_like(
+    wf_obs_flat      = data$wf_obs_flat,
+    wf_obs_ints      = data$wf_obs_ints,
+    wf_obs_prop      = data$wf_obs_prop,
+    catch_pred_fya   = rep$catch_pred_fya,
+    pla              = pla,
+    wf_rebin_matrix  = data$wf_rebin_matrix,
+    wf_n_f           = data$wf_n_f,
+    wf_fishery_f     = data$wf_fishery_f,
+    wf_year_fi       = wf_year_fi,
+    wf_n_fi          = wf_n_fi,
+    wf_minbin        = data$wf_minbin,
+    wf_maxbin        = data$wf_maxbin,
+    removal_switch_f = data$removal_switch_f,
+    wf_switch        = data$wf_switch,
+    n_wt             = data$n_wt,
+    n_wf             = data$n_wf,
+    log_wf_tau       = par_list$log_wf_tau
+  ),
+  iterations = 50,
+  check = FALSE
+)
+bm_wf[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+## WF `split()` overhead
+
+These `split()` calls for WF data also execute inside the AD-taped function
+on every model evaluation, mirroring the LF split overhead:
+
+```{r bench-wf-split, echo=TRUE}
+bm_wf_split <- bench::mark(
+  split_wf_year = split(data$wf_year, data$wf_fishery),
+  split_wf_n    = split(data$wf_n, data$wf_fishery),
+  iterations = 500,
+  check = FALSE
+)
+bm_wf_split[, c("expression", "min", "median", "itr/sec","total_time")]
+```
+
+# Likelihood component breakdown
+
+Inspect the contribution of each likelihood component to the total NLL:
+
+```{r nll-breakdown, echo=TRUE}
+cat("lp_prior:  ", round(rep$lp_prior, 4), "\n")
+cat("lp_penalty:", round(rep$lp_penalty, 4), "\n")
+cat("lp_rec:    ", round(rep$lp_rec, 4), "\n")
+cat("lp_cpue:   ", round(sum(rep$lp_cpue), 4),
+    " (sum of", length(rep$lp_cpue), "obs)\n")
+cat("lp_lf:     ", round(sum(rep$lp_lf), 4),
+    " (sum of", length(rep$lp_lf), "obs)\n")
+cat("lp_wf:     ", round(sum(rep$lp_wf), 4),
+    " (sum of", length(rep$lp_wf), "obs)\n")
+cat("Total NLL: ", round(nll, 4), "\n")
+```
+
+# Estimated tape operation counts
+
+Before profiling, we can estimate the theoretical number of scalar AD tape
+operations from the model dimensions. These estimates help prioritise which
+refactoring changes will have the largest impact:
+
+```{r tape-estimates, echo=TRUE}
+n_yr  <- data$n_year
+n_a   <- data$n_age
+n_f   <- data$n_fishery
+n_s   <- data$n_season
+n_l   <- data$n_len
+n_obs <- data$n_lf
+n_w   <- data$n_wt
+n_wobs <- data$n_wf
+
+cat("Dynamics loop:\n")
+cat("  Harvest rate function calls: ", n_yr, "×", n_s, "=", n_yr * n_s, "\n")
+cat("  Scalar catch pred ops:       ", n_f, "×", n_a, "×", n_yr * n_s,
+    "=", n_f * n_a * n_yr * n_s, "\n")
+
+cat("\nTime-invariant array overhead:\n")
+cat("  sel_fya year replication:  ", n_f, "×", n_yr, "=", n_f * n_yr, "\n")
+cat("  weight_fya replication:    ", n_f, "×", n_yr, "=", n_f * n_yr, "\n")
+
+cat("\nPLA construction:\n")
+cat("  Current (scalar pnorm):    ", n_a, "×", n_l, "=", n_a * n_l, "\n")
+cat("  After vectorisation:       ", n_a, "× 2 =", n_a * 2, "\n")
+
+cat("\nLength likelihood:\n")
+cat("  Matrix multiplies:         ", n_obs, "×", n_l, "×", n_a, "=",
+    n_obs * n_l * n_a, "multiply-adds\n")
+cat("  if-branch evaluations:     ", n_obs, "× 3 =", n_obs * 3, "\n")
+
+cat("\nWeight likelihood:\n")
+cat("  PLA multiplies:            ", n_wobs, "×", n_l, "×", n_a, "=",
+    n_wobs * n_l * n_a, "multiply-adds\n")
+cat("  Rebin multiplies:          ", n_wobs, "×", n_w, "×", n_l, "=",
+    n_wobs * n_w * n_l, "multiply-adds\n")
+cat("  if-branch evaluations:     ", n_wobs, "× 3 =", n_wobs * 3, "\n")
+
+scalar_total <- n_f * n_a * n_yr * n_s + n_a * n_l + n_f * n_yr * 2 +
+                n_wobs * n_w * n_l
+cat("\nTotal estimated scalar tape ops: ~", scalar_total, "\n")
+```
+
+# Optimisation timing
+
+Uncomment the block below to time a full `nlminb` optimisation run. This is
+useful for measuring end-to-end improvement but takes several minutes:
+
+```{r opt-timing, echo=TRUE, eval=FALSE}
+Lwr <- rep(-Inf, length(obj$par))
+Upr <- rep(Inf, length(obj$par))
+Lwr[grep("log_B0", names(obj$par))] <- log(1)
+Upr[grep("log_B0", names(obj$par))] <- log(exp(22))
+Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
+Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
+Lwr[grep("rdev_y", names(obj$par))] <- -5
+Upr[grep("rdev_y", names(obj$par))] <- 5
+
+control <- list(eval.max = 10000, iter.max = 10000)
+
+t_opt <- system.time({
+  opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
+                hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+})
+cat("Optimization time: ", round(t_opt["elapsed"], 1), "sec\n")
+cat("Convergence:       ", ifelse(opt$convergence == 0, "TRUE", "FALSE"), "\n")
+cat("Final NLL:         ", round(opt$objective, 4), "\n")
+cat("Function evals:    ", opt$evaluations["function"], "\n")
+cat("Gradient evals:    ", opt$evaluations["gradient"], "\n")
+cat("Sec per fn eval:   ", round(t_opt["elapsed"] / opt$evaluations["function"], 4), "\n")
+cat("Sec per gr eval:   ", round(t_opt["elapsed"] / opt$evaluations["gradient"], 4), "\n")
+```
+
+# Save baseline
+
+Save the current NLL, gradient, report outputs, and timing to an RDS file.
+After each refactoring change, load this baseline and compare numerically to
+verify equivalence:
+
+```{r save-baseline, echo=TRUE}
+baseline <- list(
+  timestamp   = Sys.time(),
+  description = "Pre-refactoring baseline",
+  dimensions  = list(
+    n_year    = data$n_year,
+    n_age     = data$n_age,
+    n_fishery = data$n_fishery,
+    n_season  = data$n_season,
+    n_len     = data$n_len,
+    n_lf      = data$n_lf,
+    n_wt      = data$n_wt,
+    n_wf      = data$n_wf
+  ),
+  nll         = nll,
+  max_gr      = max(abs(gr)),
+  timing      = list(
+    fn_median = as.numeric(bm_core$median[1]),
+    gr_median = as.numeric(bm_core$median[2])
+  ),
+  report      = list(
+    spawning_biomass_y = rep$spawning_biomass_y,
+    catch_pred_fya     = rep$catch_pred_fya,
+    lp_cpue            = rep$lp_cpue,
+    lp_lf              = rep$lp_lf,
+    lp_wf              = rep$lp_wf,
+    number_ysa         = rep$number_ysa
+  ),
+  par_values  = obj$par
+)
+
+saveRDS(baseline, "opal_baseline.rds")
+```
+
+To compare after refactoring:
+
+```{r compare-baseline, echo=TRUE, eval=FALSE}
+old <- readRDS("opal_baseline.rds")
+
+# Numerical equivalence (should be ~1e-14)
+max(abs(rep$number_ysa - old$report$number_ysa))
+max(abs(rep$catch_pred_fya - old$report$catch_pred_fya))
+max(abs(rep$spawning_biomass_y - old$report$spawning_biomass_y))
+abs(nll - old$nll)
+
+# Speedup
+cat("fn speedup:", round(old$timing$fn_median / as.numeric(bm_core$median[1]), 1), "x\n")
+cat("gr speedup:", round(old$timing$gr_median / as.numeric(bm_core$median[2]), 1), "x\n")
+```
