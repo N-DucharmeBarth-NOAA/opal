@@ -25,10 +25,12 @@ Set the flag here before knitting:
 
 ```{r config, echo=TRUE}
 compare       <- TRUE
-baseline_file            <- file.path("data", "opal_baseline.rda")
-baseline_data_file       <- file.path("data", "opal_baseline_data.rda")
-baseline_parameters_file <- file.path("data", "opal_baseline_parameters.rda")
-baseline_map_file        <- file.path("data", "opal_baseline_map.rda")
+
+# Use here::here() to resolve paths from the project root reliably
+baseline_file            <- here::here("data", "opal_baseline.rda")
+baseline_data_file       <- here::here("data", "opal_baseline_data.rda")
+baseline_parameters_file <- here::here("data", "opal_baseline_parameters.rda")
+baseline_map_file        <- here::here("data", "opal_baseline_map.rda")
 bench_iters              <- 20
 ```
 
@@ -38,6 +40,7 @@ bench_iters              <- 20
 library(dplyr)
 library(RTMB)
 library(bench)
+library(here)
 library(opal)
 ```
 
@@ -250,16 +253,16 @@ if (!compare) {
   )
 
   opal_baseline <- baseline
-  save(opal_baseline, file="data/opal_baseline.rda")
+  save(opal_baseline, file = baseline_file)
 
   opal_baseline_data <- data
-  save(opal_baseline_data, file = "data/opal_baseline_data.rda")
+  save(opal_baseline_data, file = baseline_data_file)
 
   opal_baseline_parameters <- parameters
-  save(opal_baseline_parameters, file = "data/opal_baseline_parameters.rda")
+  save(opal_baseline_parameters, file = baseline_parameters_file)
 
   opal_baseline_map <- map
-  save(opal_baseline_map, file = "data/opal_baseline_map.rda")
+  save(opal_baseline_map, file = baseline_map_file)
 
   cat("Baseline saved to:", baseline_file, "\n")
   cat("  NLL:       ", round(nll, 6), "\n")
