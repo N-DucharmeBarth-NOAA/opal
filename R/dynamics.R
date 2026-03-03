@@ -196,7 +196,10 @@ do_dynamics <- function(data, parameters,
 #'
 get_harvest_rate <- function(data, y, s, number_ysa, sel_fya, weight_fya) {
   "[<-" <- ADoverload("[<-")
-  getAll(data, warn = FALSE)
+  n_fishery <- data$n_fishery
+  n_age <- data$n_age
+  catch_obs_ysf <- data$catch_obs_ysf
+  catch_units_f <- data$catch_units_f
   F_f <- numeric(n_fishery)
   h_rate_fa <- array(0, dim = c(n_fishery, n_age))
   for (f in seq_len(n_fishery)) {

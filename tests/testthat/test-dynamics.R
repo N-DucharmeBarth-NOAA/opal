@@ -95,3 +95,31 @@ test_that("do_dynamics catch-at-age sums to observed catch in numbers", {
 
   expect_equal(sum(dyn$catch_pred_fya[1, 1, ]), data$catch_obs_ysf[1, 1, 1], tolerance = 1e-6)
 })
+
+test_that("get_harvest_rate reproduces observed catch in number and weight units", {
+  number_ysa <- array(c(10, 20, 30), dim = c(2, 1, 3))
+  sel_fya <- array(1, dim = c(1, 1, 3))
+
+  data_numbers <- list(
+    n_fishery = 1,
+    n_age = 3,
+    catch_obs_ysf = array(12, dim = c(1, 1, 1)),
+    catch_units_f = 2
+  )
+  hr_numbers <- get_harvest_rate(data_numbers, 1, 1, number_ysa, sel_fya, array(1, dim = c(1, 1, 3)))
+  expect_equal(sum(hr_numbers$h_rate_fa[1, ] * number_ysa[1, 1, ]), data_numbers$catch_obs_ysf[1, 1, 1], tolerance = 1e-10)
+
+  weight_fya <- array(c(1, 2, 3), dim = c(1, 1, 3))
+  data_weight <- list(
+    n_fishery = 1,
+    n_age = 3,
+    catch_obs_ysf = array(14, dim = c(1, 1, 1)),
+    catch_units_f = 1
+  )
+  hr_weight <- get_harvest_rate(data_weight, 1, 1, number_ysa, sel_fya, weight_fya)
+  expect_equal(
+    sum(hr_weight$h_rate_fa[1, ] * number_ysa[1, 1, ] * weight_fya[1, 1, ]),
+    data_weight$catch_obs_ysf[1, 1, 1],
+    tolerance = 1e-10
+  )
+})
