@@ -66,3 +66,6 @@ inst/doc
 
 # ignore benchmark results
 profile_*.html
+
+# backup files
+*.bak
