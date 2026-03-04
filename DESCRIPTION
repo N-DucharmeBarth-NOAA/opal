@@ -6,11 +6,11 @@ Authors@R: c(
     person("Philipp", "Neubauer", , "philipp@dragonfly.co.nz", role = "aut"),
     person("Nicholas", "Ducharme-Barth", , "nicholas.ducharme-barth@noaa.gov", role = c("aut", "cre"))
   )
-Description: A fast, flexible, and modern R package for fisheries stock assessment. 
-    Built on RTMB, opal provides a powerful framework for conducting quantitative 
-    population dynamics modeling and stock assessment analyses. Designed for fisheries 
-    scientists and stock assessment analysts who need transparent, reproducible, and 
-    collaborative tools for population assessment.
+Description: An open, modular R package for fisheries stock assessment 
+    built on RTMB for automatic differentiation and gradient-based 
+    optimization. opal provides a transparent, reproducible framework 
+    for conducting quantitative population dynamics modeling and stock 
+    assessment analyses.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -39,7 +39,12 @@ Imports:
 Suggests:
     knitr,
     rmarkdown,
-    tidyverse
+    tidyverse,
+    bench,
+    here,
+    htmlwidgets,
+    profmem,
+    profvis
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://n-ducharmebarth-noaa.github.io/opal/
