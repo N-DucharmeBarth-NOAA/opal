@@ -139,14 +139,14 @@ do_dynamics <- function(data, parameters,
 
         for (f in f_weight) {
           if (catch_obs_ysf[y, s, f] > 0) {
-            catch_at_age_fs <- hrate_ysfa[y, s, f,] * N_ys
+            catch_at_age_fs <- h_rate_fa[f,] * N_ys
             catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + catch_at_age_fs
             catch_pred_ysf[y, s, f] <- sum(catch_at_age_fs * weight_fya[f, y,])
           }
         }
         for (f in f_numbers) {
           if (catch_obs_ysf[y, s, f] > 0) {
-            catch_at_age_fs <- hrate_ysfa[y, s, f,] * N_ys
+            catch_at_age_fs <- h_rate_fa[f,] * N_ys
             catch_pred_fya[f, y,] <- catch_pred_fya[f, y,] + catch_at_age_fs
             catch_pred_ysf[y, s, f] <- sum(catch_at_age_fs)
           }
