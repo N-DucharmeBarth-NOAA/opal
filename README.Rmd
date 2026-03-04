@@ -47,6 +47,20 @@ You can install the development version of opal from GitHub:
 devtools::install_github("N-DucharmeBarth-NOAA/opal")
 ```
 
+If you encounter an error that the dependency [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS) is not available, you will need to install it manually.
+`SparseNUTS` is not currently on CRAN. First, install `StanEstimators`:
+
+``` r
+# we recommend running this is a fresh R session or restarting your current session
+install.packages('StanEstimators', repos = c('https://andrjohns.r-universe.dev', 'https://cloud.r-project.org'))
+```
+
+Now install the latest version of `SparseNUTS`:
+
+``` r
+remotes::install_github("noaa-afsc/SparseNUTS")
+```
+
 Ensure you have RTMB installed:
 
 ``` r
