@@ -62,3 +62,4 @@ inst/doc
 *.Rproj.user
 /doc/
 /Meta/
+.claude/settings.local.json
