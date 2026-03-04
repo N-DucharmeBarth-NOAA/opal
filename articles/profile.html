@@ -149,7 +149,7 @@ to ensure consistency across all profiling and comparison tasks.</p>
 <span>                   parameters <span class="op">=</span> <span class="va">parameters</span>, map <span class="op">=</span> <span class="va">map</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MakeADFun build time:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_build</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"sec\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; MakeADFun build time: 21.94 sec</span></span>
+<span><span class="co">#&gt; MakeADFun build time: 22.05 sec</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Estimated parameters:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Estimated parameters: 270</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Parameter names:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
@@ -198,11 +198,11 @@ values:</p>
 <span><span class="va">t_gr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">gr</span>  <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; outer mgc:  13629.29</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"obj$fn():"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_fn</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"sec  (NLL ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">nll</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; obj$fn(): 0 sec  (NLL = 852582 )</span></span>
+<span><span class="co">#&gt; obj$fn(): 0.001 sec  (NLL = 852582 )</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"obj$gr():"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_gr</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"sec  (max|gr| ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">gr</span><span class="op">)</span><span class="op">)</span>, <span class="fl">6</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; obj$gr(): 0.025 sec  (max|gr| = 13629.29 )</span></span>
+<span><span class="co">#&gt; obj$gr(): 0.027 sec  (max|gr| = 13629.29 )</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"gr/fn ratio:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_gr</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">t_fn</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">1e-6</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"x\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; gr/fn ratio: 25000 x</span></span></code></pre></div>
+<span><span class="co">#&gt; gr/fn ratio: 27 x</span></span></code></pre></div>
 <p>For a well-optimised AD tape, the gradient should cost roughly 2–4×
 the function evaluation. A much higher ratio suggests redundant
 operations on the tape that compound in reverse mode.</p>
@@ -240,8 +240,8 @@ estimates:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 4</span></span></span>
 <span><span class="co">#&gt;   expression      min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> fn           13.2µs   13.6µs   <span style="text-decoration: underline;">63</span>508. </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> gr           23.7ms   23.9ms      41.5</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> fn           13.3µs   14.1µs   <span style="text-decoration: underline;">56</span>284. </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> gr           24.4ms     25ms      39.9</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="ad-tape-diagnostics">AD tape diagnostics<a class="anchor" aria-label="anchor" href="#ad-tape-diagnostics"></a>
@@ -263,7 +263,7 @@ determines gradient cost: fewer operations = faster
 <span><span class="co">#&gt; ADFun object found in obj$env</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $ptr</span></span>
-<span><span class="co">#&gt; &lt;pointer: 0x559ad6022020&gt;</span></span>
+<span><span class="co">#&gt; &lt;pointer: 0x5562e72161f0&gt;</span></span>
 <span><span class="co">#&gt; attr(,"par")</span></span>
 <span><span class="co">#&gt;       log_B0   log_cpue_q       rdev_y       rdev_y       rdev_y       rdev_y </span></span>
 <span><span class="co">#&gt; 20.000000000  0.000000000  0.057843051  0.250649244 -0.297200433 -0.332988095 </span></span>
@@ -345,7 +345,7 @@ the un-taped work that the tape must eventually record.</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression      min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> opal_model    159ms    163ms      6.15</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> opal_model    153ms    154ms      6.50</span></span>
 <span></span>
 <span><span class="va">prof_opal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://profvis.r-lib.org/reference/profvis.html" class="external-link">profvis</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>  <span class="kw">for</span> <span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span> <span class="op">{</span></span>
@@ -387,7 +387,7 @@ Currently uses a scalar inner loop over length bins (see Change 4):</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression      min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_pla       545µs    568µs     <span style="text-decoration: underline;">1</span>707.</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_pla       543µs    580µs     <span style="text-decoration: underline;">1</span>683.</span></span>
 <span></span>
 <span><span class="co"># prof_pla &lt;- profvis({</span></span>
 <span><span class="co">#   for (i in 1:10) {</span></span>
@@ -413,7 +413,7 @@ curves applied through the PLA matrix:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression           min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_selectivity      5ms   5.23ms      187.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_selectivity      5ms   5.26ms      188.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="pla-matrix-multiply">PLA matrix multiply<a class="anchor" aria-label="anchor" href="#pla-matrix-multiply"></a>
@@ -434,7 +434,7 @@ observation:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression           min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> pla %*% catch_a   1.86µs   2.04µs   <span style="text-decoration: underline;">443</span>867.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> pla %*% catch_a    2.5µs   3.03µs   <span style="text-decoration: underline;">322</span>473.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="get_length_like">
@@ -476,7 +476,7 @@ aggregation, normalisation, and <code>dmultinom</code> evaluation:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression           min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_length_like   5.29ms   5.45ms      181.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_length_like   5.48ms   5.58ms      175.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="split-overhead">
@@ -495,8 +495,8 @@ AD-taped function on every model evaluation (see Change 8):</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 4</span></span></span>
 <span><span class="co">#&gt;   expression      min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> split_year   14.5µs   15.3µs    <span style="text-decoration: underline;">63</span>207.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> split_n      14.8µs   15.5µs    <span style="text-decoration: underline;">62</span>129.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> split_year   15.7µs   17.4µs    <span style="text-decoration: underline;">55</span>069.</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> split_n      15.7µs   16.9µs    <span style="text-decoration: underline;">56</span>802.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="rebinning-matrix-multiply">Rebinning matrix multiply<a class="anchor" aria-label="anchor" href="#rebinning-matrix-multiply"></a>
@@ -518,7 +518,7 @@ the <code>n_len</code>-vector of predicted length composition to an
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression            min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rebin %*% pred_l   13.4µs   14.6µs    <span style="text-decoration: underline;">67</span>359.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> rebin %*% pred_l   14.3µs   16.9µs    <span style="text-decoration: underline;">37</span>043.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="get_weight_like">
@@ -561,7 +561,7 @@ rebinning to weight bins, normalisation, and likelihood evaluation:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   expression           min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_weight_like   8.02ms   8.31ms      118.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> get_weight_like   8.15ms   8.34ms      119.</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="wf-split-overhead">WF <code>split()</code> overhead<a class="anchor" aria-label="anchor" href="#wf-split-overhead"></a>
@@ -580,8 +580,8 @@ overhead:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 4</span></span></span>
 <span><span class="co">#&gt;   expression         min   median `itr/sec`</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span>    <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> split_wf_year   14.3µs   15.2µs    <span style="text-decoration: underline;">62</span>959.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> split_wf_n      13.8µs   14.9µs    <span style="text-decoration: underline;">64</span>701.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> split_wf_year   14.4µs   15.2µs    <span style="text-decoration: underline;">64</span>128.</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> split_wf_n      14.1µs   15.1µs    <span style="text-decoration: underline;">64</span>208.</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">

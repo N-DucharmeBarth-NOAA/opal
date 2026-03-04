@@ -72,7 +72,7 @@ t_build <- system.time({
                    parameters = parameters, map = map)
 })
 cat("MakeADFun build time:", round(t_build["elapsed"], 2), "sec\n")
-#> MakeADFun build time: 21.94 sec
+#> MakeADFun build time: 22.05 sec
 cat("Estimated parameters:", length(obj$par), "\n")
 #> Estimated parameters: 270
 cat("Parameter names:", paste(unique(names(obj$par)), collapse = ", "), "\n")
@@ -123,11 +123,11 @@ t_fn <- system.time(nll <- obj$fn(obj$par))
 t_gr <- system.time(gr  <- obj$gr(obj$par))
 #> outer mgc:  13629.29
 cat("obj$fn():", round(t_fn["elapsed"], 4), "sec  (NLL =", round(nll, 4), ")\n")
-#> obj$fn(): 0 sec  (NLL = 852582 )
+#> obj$fn(): 0.001 sec  (NLL = 852582 )
 cat("obj$gr():", round(t_gr["elapsed"], 4), "sec  (max|gr| =", round(max(abs(gr)), 6), ")\n")
-#> obj$gr(): 0.025 sec  (max|gr| = 13629.29 )
+#> obj$gr(): 0.027 sec  (max|gr| = 13629.29 )
 cat("gr/fn ratio:", round(t_gr["elapsed"] / max(t_fn["elapsed"], 1e-6), 1), "x\n")
-#> gr/fn ratio: 25000 x
+#> gr/fn ratio: 27 x
 ```
 
 For a well-optimised AD tape, the gradient should cost roughly 2–4× the
@@ -170,8 +170,8 @@ bm_core[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 2 × 4
 #>   expression      min   median `itr/sec`
 #>   <bch:expr> <bch:tm> <bch:tm>     <dbl>
-#> 1 fn           13.2µs   13.6µs   63508. 
-#> 2 gr           23.7ms   23.9ms      41.5
+#> 1 fn           13.3µs   14.1µs   56284. 
+#> 2 gr           24.4ms     25ms      39.9
 ```
 
 ## AD tape diagnostics
@@ -193,7 +193,7 @@ tryCatch({
 #> ADFun object found in obj$env
 #> 
 #> $ptr
-#> <pointer: 0x559ad6022020>
+#> <pointer: 0x5562e72161f0>
 #> attr(,"par")
 #>       log_B0   log_cpue_q       rdev_y       rdev_y       rdev_y       rdev_y 
 #> 20.000000000  0.000000000  0.057843051  0.250649244 -0.297200433 -0.332988095 
@@ -277,7 +277,7 @@ bm_opal_model[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression      min   median `itr/sec`
 #>   <bch:expr> <bch:tm> <bch:tm>     <dbl>
-#> 1 opal_model    159ms    163ms      6.15
+#> 1 opal_model    153ms    154ms      6.50
 
 prof_opal <- profvis({
   for (i in 1:10) {
@@ -319,7 +319,7 @@ bm_pla[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression      min   median `itr/sec`
 #>   <bch:expr> <bch:tm> <bch:tm>     <dbl>
-#> 1 get_pla       545µs    568µs     1707.
+#> 1 get_pla       543µs    580µs     1683.
 
 # prof_pla <- profvis({
 #   for (i in 1:10) {
@@ -345,7 +345,7 @@ bm_sel[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression           min   median `itr/sec`
 #>   <bch:expr>      <bch:tm> <bch:tm>     <dbl>
-#> 1 get_selectivity      5ms   5.23ms      187.
+#> 1 get_selectivity      5ms   5.26ms      188.
 ```
 
 ### PLA matrix multiply
@@ -366,7 +366,7 @@ bm_pla_mult[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression           min   median `itr/sec`
 #>   <bch:expr>      <bch:tm> <bch:tm>     <dbl>
-#> 1 pla %*% catch_a   1.86µs   2.04µs   443867.
+#> 1 pla %*% catch_a    2.5µs   3.03µs   322473.
 ```
 
 ### `get_length_like`
@@ -408,7 +408,7 @@ bm_lf[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression           min   median `itr/sec`
 #>   <bch:expr>      <bch:tm> <bch:tm>     <dbl>
-#> 1 get_length_like   5.29ms   5.45ms      181.
+#> 1 get_length_like   5.48ms   5.58ms      175.
 ```
 
 ### `split()` overhead
@@ -428,8 +428,8 @@ bm_split[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 2 × 4
 #>   expression      min   median `itr/sec`
 #>   <bch:expr> <bch:tm> <bch:tm>     <dbl>
-#> 1 split_year   14.5µs   15.3µs    63207.
-#> 2 split_n      14.8µs   15.5µs    62129.
+#> 1 split_year   15.7µs   17.4µs    55069.
+#> 2 split_n      15.7µs   16.9µs    56802.
 ```
 
 ### Rebinning matrix multiply
@@ -451,7 +451,7 @@ bm_rebin_mult[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression            min   median `itr/sec`
 #>   <bch:expr>       <bch:tm> <bch:tm>     <dbl>
-#> 1 rebin %*% pred_l   13.4µs   14.6µs    67359.
+#> 1 rebin %*% pred_l   14.3µs   16.9µs    37043.
 ```
 
 ### `get_weight_like`
@@ -494,7 +494,7 @@ bm_wf[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 1 × 4
 #>   expression           min   median `itr/sec`
 #>   <bch:expr>      <bch:tm> <bch:tm>     <dbl>
-#> 1 get_weight_like   8.02ms   8.31ms      118.
+#> 1 get_weight_like   8.15ms   8.34ms      119.
 ```
 
 ### WF `split()` overhead
@@ -514,8 +514,8 @@ bm_wf_split[, c("expression", "min", "median", "itr/sec","total_time")]
 #> # A tibble: 2 × 4
 #>   expression         min   median `itr/sec`
 #>   <bch:expr>    <bch:tm> <bch:tm>     <dbl>
-#> 1 split_wf_year   14.3µs   15.2µs    62959.
-#> 2 split_wf_n      13.8µs   14.9µs    64701.
+#> 1 split_wf_year   14.4µs   15.2µs    64128.
+#> 2 split_wf_n      14.1µs   15.1µs    64208.
 ```
 
 ## Likelihood component breakdown
