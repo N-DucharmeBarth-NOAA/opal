@@ -80,7 +80,9 @@ extract_fixed <- function(obj) {
 #'
 posfun <- function(x, eps = 0.001) {
   "[<-" <- ADoverload("[<-")
-  pen <- eps * (1 / (1 - (x - eps) / eps + (x - eps)^2 / eps^2 - (x - eps)^3 / eps^3 + (x - eps)^4 / eps^4 - (x - eps)^5 / eps^5))
+  d <- (x - eps) / eps
+  d2 <- d * d
+  pen <- eps * (1 / (1 - d + d2 - d2 * d + d2 * d2 - d2 * d2 * d))
   out <- list()
   out$new <- eps * logspace_add(x / eps, 0)
   out$penalty <- pen
