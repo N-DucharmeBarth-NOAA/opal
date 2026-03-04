@@ -101,7 +101,7 @@ var_adjust_scalars <- 1/rep(1,data$n_fishery)
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
 # var_adjust_scalars[c(1,4,5,6,15)] <- 1/40000
 
-data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
+data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8:14),
                      lf_var_adjust = var_adjust_scalars)
 
 ```
@@ -130,7 +130,7 @@ wf_wide <- wcpo_bet_wf |>
   dplyr::arrange(fishery, ts)
 
 data <- prep_wf_data(data, wf_wide,
-                     wf_keep_fisheries = c(2),
+                     wf_keep_fisheries = c(1:7, 15),
                      wf_switch = 1L)
 ```
 
@@ -183,19 +183,22 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-map_sel[8, 1] <- NA
-map_sel[9, 1] <- NA
-map_sel[8, 3] <- NA
-map_sel[9, 3] <- NA
-map_sel[8, 4] <- NA
-map_sel[9, 4] <- NA
+map_sel[2, 1] <- 1
+map_sel[8, 1] <- 2
+map_sel[9, 1] <- 3
+map_sel[2, 3] <- 4
+map_sel[8, 3] <- 5
+map_sel[9, 3] <- 6
+map_sel[2, 4] <- 7
+map_sel[8, 4] <- 8
+map_sel[9, 4] <- 9
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
 map_lf_tau[c(8, 9)] <- NA
 
 map <- list(
-  # log_B0 = factor(NA),
+  log_B0 = factor(NA),
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
@@ -220,15 +223,15 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-data$lf_switch <- 0 # skip length comps (removal only)
-# data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 0 # skip length comps (removal only)
+ data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
 
 # Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
 # clarity alongside the equivalent lf_switch assignment.
-data$wf_switch <- 0 # skip weight comps (removal only)
-# data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$wf_switch <- 0 # skip weight comps (removal only)
+ data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
@@ -262,8 +265,8 @@ Lwr[grep("log_lf_tau", names(obj$par))] <- rep(-9, length(grep("log_lf_tau", nam
 Upr[grep("log_lf_tau", names(obj$par))] <- rep(9, length(grep("log_lf_tau", names(obj$par))))
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
-# Lwr[grep("par_sel", names(obj$par))] <- rep(-7, length(grep("par_sel", names(obj$par))))
-# Upr[grep("par_sel", names(obj$par))] <- rep(7, length(grep("par_sel", names(obj$par))))
+Lwr[grep("par_sel", names(obj$par))] <- rep(-4, length(grep("par_sel", names(obj$par))))
+Upr[grep("par_sel", names(obj$par))] <- rep(4, length(grep("par_sel", names(obj$par))))
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
@@ -272,7 +275,7 @@ bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 Optimise using the `nlminb` function, do it twice to be sure to be sure (said with Irish accent):
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
-control <- list(eval.max = 10000, iter.max = 10000)
+control <- list(eval.max = 1000, iter.max = 500, trace=1)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
@@ -472,7 +475,7 @@ if (data$wf_switch == 0) {
     mutate(weight = as.numeric(weight)) %>%
     filter(weight >= wt_mid_trim[1], weight <= wt_mid_trim[length(wt_mid_trim)])
 
-  df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "weight"))
+  df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("year", "id", "fishery", "weight"))
 
   # ---- Plot first fishery with WF data ----
   f_plot <- as.character(data$wf_fishery_f[1])
@@ -579,7 +582,7 @@ The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
 allows simulation via `obj$simulate()`. For example:
 
 ```{r sim-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-if(data$cpue_switch == 0){
+if (data$cpue_switch == 0){
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
 } else {
   plot(log(data$cpue_data$value), col = 2, pch = 16,
@@ -594,7 +597,7 @@ if(data$cpue_switch == 0){
 OSA residuals are a replacement for Pearson residuals:
 
 ```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-if(data$cpue_switch == 0){
+if (data$cpue_switch == 0){
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
 } else {
   osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",

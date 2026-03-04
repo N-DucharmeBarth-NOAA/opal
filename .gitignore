@@ -62,6 +62,10 @@ inst/doc
 *.Rproj.user
 /doc/
 /Meta/
+.claude/settings.local.json
 
 # ignore benchmark results
 profile_*.html
+
+# backup files
+*.bak
