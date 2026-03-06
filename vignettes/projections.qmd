@@ -970,13 +970,6 @@ existing adult stock declines almost deterministically; the divergence from futu
 recruitment and selectivity uncertainty accumulates gradually.  Longer projection
 horizons or more variable catch scenarios will produce wider bands.
 
-For a well-identified model with a near-Gaussian posterior, the MVN and MCMC
-envelopes should broadly agree.  Differences indicate departures from Gaussian
-behaviour — common when parameters approach bounds, when the likelihood surface
-is skewed, or when there are strong parameter interactions.  In those cases MCMC
-provides the more reliable characterisation of uncertainty, at the cost of
-additional computation.
-
 ```{r summary-table}
 # Numerical summary at the end of the projection
 df_all |>
