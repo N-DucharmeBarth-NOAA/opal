@@ -1,104 +1,203 @@
 #' Project dynamics
-#' 
-#' @param data a \code{list} of parameter values.
-#' @param object a \code{list} of parameter values.
-#' @param mcmc a \code{list} of parameter values.
-#' @param n_proj the number of projection years.
-#' @param n_iter a \code{list} of inputs.
-#' @param rdev_y a \code{list} of inputs.
-#' @param sel_fya a \code{list} of inputs.
-#' @param catch_ysf a \code{list} of inputs.
-#' @return the negative log-likelihood (NLL) value.
+#'
+#' Forward-projects population dynamics for \code{n_proj} years using either
+#' MCMC posterior draws (when \code{mcmc} is supplied) or multivariate-normal
+#' (MVN) draws derived from the Hessian-based variance-covariance matrix at the
+#' MLE (when \code{mcmc = NULL}).
+#'
+#' @param data A \code{list} of model data (as passed to \code{opal_model}).
+#' @param object The RTMB AD object returned by \code{RTMB::MakeADFun}, after
+#'   optimisation.
+#' @param mcmc Optional. MCMC fit object returned by \code{SparseNUTS}.  When
+#'   supplied, posterior draws are used for the projection.  When \code{NULL}
+#'   (default), MVN draws are generated from the Hessian-derived
+#'   variance-covariance matrix.
+#' @param n_proj Integer. Number of projection years.
+#' @param n_iter Integer. Number of iterations (posterior draws or MVN samples).
+#' @param rdev_y Numeric matrix \code{[n_iter, n_proj]}.  Projected recruitment
+#'   deviates (e.g., from \code{\link{project_rec_devs}}).
+#' @param sel_fya Numeric array \code{[n_iter, n_fishery, n_proj, n_age]}.
+#'   Projected selectivity (e.g., from \code{\link{project_selectivity}}).
+#' @param catch_ysf Numeric array \code{[n_proj, n_season, n_fishery]}.
+#'   Projected observed catch by year, season, and fishery.
+#' @param return_hist Logical (default \code{FALSE}).  When \code{TRUE} the
+#'   function returns a named list with elements \code{dyn} (the projection
+#'   results) and \code{hist_sbio}, a numeric matrix
+#'   \code{[n_iter, n_year + 1]} containing the full spawning-biomass
+#'   trajectory from each parameter draw over the historical period.  The
+#'   last column of \code{hist_sbio} corresponds to the same terminal state
+#'   as the \code{proj_year = 0} bridge point in the projection, so the two
+#'   can be plotted seamlessly without any join discontinuity.
+#' @return When \code{return_hist = FALSE} (default): a \code{list} of length
+#'   \code{n_iter}, each element being the named list returned by
+#'   \code{\link{do_dynamics}} for that iteration.  When
+#'   \code{return_hist = TRUE}: a named list with elements \code{dyn} and
+#'   \code{hist_sbio}.
 #' @importFrom SparseNUTS extract_samples
+#' @importFrom stats optimHess plogis qlogis rnorm
 #' @importFrom utils txtProgressBar setTxtProgressBar
 #' @export
-#' 
-project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1, rdev_y, sel_fya, catch_ysf) {
-  
-  if (!is.null(mcmc)) {
-    post <- extract_samples(fit = mcmc)
-    n_post <- nrow(post)
-    if (n_iter > n_post) stop("Cannot simulate this many iterations from the 'mcmc' input.")
-  }
-  
+#'
+project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
+                              rdev_y, sel_fya, catch_ysf, return_hist = FALSE) {
+
+  # Input validation ----
   dr <- dim(rdev_y)
-  if (length(dr) != 2) stop("Incorrect dimensions for the array 'rdev_y'.")
-  if (n_iter > dr[1]) stop("Cannot simulate this many iterations from the array 'rdev_y'.")
-  
+  if (length(dr) != 2) stop("'rdev_y' must be a 2-D matrix [n_iter, n_proj].")
+  if (n_iter > dr[1]) stop("'n_iter' exceeds the number of rows in 'rdev_y'.")
+
   ds <- dim(sel_fya)
-  if (length(ds) != 4) stop("Incorrect dimensions for the array 'sel_fya'.")
-  if (n_iter > ds[1]) stop("Cannot simulate this many iterations from the array 'sel_fya'.")
-  
-  proj_years <- (data$last_yr + 1):(data$last_yr + n_proj)
-  
-  # dn <- dimnames(data$catch_obs_ysf)
-  # proj_catch_ysf <- array(0, dim = list(n_proj, data$n_season, data$n_fishery), dimnames = list(Year = proj_years, Season = dn$Season, Fishery = dn$Fishery))
-  # for (y in 1:n_proj) proj_catch_ysf[y,,] <- data$catch_obs_ysf[71,,]
-  
-  dn <- dimnames(data$weight_fya)
-  proj_weight_fya <- array(0, dim = list(data$n_fishery, n_proj, data$n_age), dimnames = list(fishery = dn$fishery, year = proj_years, age = dn$age))
-  for (y in 1:n_proj) proj_weight_fya[,y,] <- data$weight_fya[,data$n_year,]
-  
-  dn <- dimnames(data$af_sliced_ysfa)
-  proj_af_sliced_ysfa <- array(0, dim = list(n_proj, data$n_season, data$n_fishery, data$n_age), dimnames = list(year = proj_years, season = dn$Season, fishery = dn$Fishery, age = dn$Age))
-  for (y in 1:n_proj) proj_af_sliced_ysfa[y,,,] <- data$af_sliced_ysfa[data$n_year,,,]
-  
-  for (f in seq_len(data$n_fishery)) {
-    if (data$removal_switch_f[f] > 0) {
-      # x1 <- data$catch_obs_ysf[,,f]
-      # x2 <- apply(data$af_sliced_ysfa[,,f,], 1:2, sum)
-      x1 <- proj_catch_ysf[,,f]
-      x2 <- apply(proj_af_sliced_ysfa[,,f,], 1:2, sum)
-      df1 <- as.data.frame(x1) %>%
-        rownames_to_column("Year") %>%
-        pivot_longer(cols = c(`1`, `2`), names_to = "Season", values_to = "catch")
-      df2 <- as.data.frame(x2) %>%
-        rownames_to_column("Year") %>%
-        pivot_longer(cols = c(`1`, `2`), names_to = "Season", values_to = "AF")
-      df <- left_join(df1, df2, by = c("Year", "Season")) %>%
-        mutate(Year = as.numeric(Year)) %>%
-        mutate(violation = (catch > 0 & AF == 0) | (AF > 0 & catch == 0)) %>%
-        filter(violation)
-      if (nrow(df) > 0) stop("You have specified catch for a fishery using direct removals but no associated sliced AFs.")
-      # data$catch_obs_ysf[39:44,1,f]
-      # rowSums(data$af_sliced_ysfa[60:65,1,f,])
-    }
-  }
-  
-  dyn <- vector("list", n_iter)
-  if (n_iter > 1) pb <- txtProgressBar(min = 1, max = n_iter, style = 3)
-  rep1 <- object$report(object$env$last.par.best)
-  
-  for (i in seq_len(n_iter)) {
-    if (!is.null(mcmc)) {
-      rep <- object$report(as.numeric(post[i,]))
+  if (length(ds) != 4) stop("'sel_fya' must be a 4-D array [n_iter, n_fishery, n_proj, n_age].")
+  if (n_iter > ds[1]) stop("'n_iter' exceeds the first dimension of 'sel_fya'.")
+
+  dc <- dim(catch_ysf)
+  if (length(dc) != 3 || dc[1] != n_proj || dc[2] != data$n_season || dc[3] != data$n_fishery)
+    stop("'catch_ysf' must be a 3-D array [n_proj, n_season, n_fishery].")
+
+  # Parameter draws ----
+  if (!is.null(mcmc)) {
+    # MCMC path: use posterior draws
+    post <- extract_samples(fit = mcmc)
+    if (n_iter > nrow(post))
+      stop("'n_iter' exceeds the number of available MCMC draws.")
+  } else {
+    # MVN path: simulate from Hessian-derived variance-covariance matrix.
+    # Parameters already named par_log_* are on log scale; the Hessian from
+    # obj$he() is therefore already in log-space for those.  For any positive
+    # parameter NOT already on log scale (e.g. a creep rate, a rho), we apply
+    # a log-transform and adjust the Hessian via the delta method so that MVN
+    # draws remain in a valid range and back-transform cleanly.
+    mu_vec   <- object$env$last.par.best
+    par_names <- names(mu_vec)
+
+    # Classify each free parameter's working scale for MVN simulation:
+    #   par_log_* or log_* → already on log scale   (identity, jac = 1)
+    #   rdev_y             → normal deviates, unbounded (identity, jac = 1)
+    #   *rho*              → any autocorrelation param in (0,1) (logit, jac = theta*(1-theta))
+    #   anything else positive                           (log,   jac = theta)
+    needs_logit <- grepl("rho", par_names) & !grepl("logit", par_names)
+    needs_log   <- mu_vec > 0 &
+      !grepl("log_|logit", par_names) &
+      !grepl("rdev_y",     par_names) &
+      !needs_logit
+
+    # Working (unconstrained) MLE vector
+    mu_unc <- mu_vec
+    mu_unc[needs_log]   <- log(mu_vec[needs_log])
+    mu_unc[needs_logit] <- qlogis(mu_vec[needs_logit])
+
+    # Hessian in the native (optimizer) parameter space
+    H_nat <- if (!is.null(object$he)) {
+      object$he()
     } else {
-      rep <- rep1
+      stats::optimHess(par = mu_vec, fn = object$fn, gr = object$gr)
     }
-    
-    # phi_ya <- get_phi(log_psi = rep$par_log_psi, data$length_m50, data$length_m95, data$length_mu_ysa, data$length_sd_a, data$dl_yal)
-    phi_ya <- rep$phi_ya
-    dn <- list(year = data$first_yr:(data$last_yr + 1), age = data$age_a)
-    dimnames(phi_ya) <- dn
-    proj_phi_ya <- array(0, dim = list(n_proj + 1, data$n_age), dimnames = list(year = c(proj_years, max(proj_years) + 1), age = dn$age))
-    for (y in 1:(n_proj + 1)) proj_phi_ya[y,] <- phi_ya[data$n_year + 1,]
-    
+
+    # Delta-method Jacobian: d theta_k / d phi_k for each transform.
+    # H_unc[k,j] = H_nat[k,j] * jac[k] * jac[j]
+    # (second-derivative correction vanishes at the MLE where gradient = 0)
+    jac <- rep(1.0, length(mu_vec))
+    jac[needs_log]   <- mu_vec[needs_log]                             # d exp(phi)/d phi = theta
+    jac[needs_logit] <- mu_vec[needs_logit] * (1 - mu_vec[needs_logit]) # d plogis(phi)/d phi = theta*(1-theta)
+    H_unc  <- H_nat * outer(jac, jac)
+
+    Sigma_unc <- tryCatch(
+      solve(H_unc),
+      error = function(e) stop(
+        "Hessian is singular after scale transformation; cannot invert for MVN simulation. ",
+        "Run check_estimability() to diagnose non-estimable parameters."
+      )
+    )
+
+    # Cholesky MVN draws in working space, then back-transform to native space
+    z         <- matrix(rnorm(n_iter * length(mu_unc)), nrow = n_iter)
+    draws_unc <- sweep(z %*% chol(Sigma_unc), 2, mu_unc, "+")
+    mvn_draws <- draws_unc
+    mvn_draws[, needs_log]   <- exp(draws_unc[, needs_log])
+    mvn_draws[, needs_logit] <- plogis(draws_unc[, needs_logit])
+
+    # Replace MVN-drawn rdev_y with their conditional expectations given the
+    # scalar-parameter draws (log_B0, log_cpue_q).
+    #
+    # Rationale: SE(rdev_y) ≈ σ_r (constrained mainly by the prior).  Drawing
+    # all 268 simultaneously inflates E[SBY] ~76 % above the MLE via Jensen's
+    # inequality.  Pinning at the *unconditional* MLE ignores the negative
+    # log_B0 ↔ rdev_y correlation in the Hessian (higher B0 requires lower
+    # rdev_y to fit the same declining trajectory), so the marginal B0
+    # uncertainty inflates the bridge-point ribbon above the sdreport
+    # delta-method ribbon.
+    #
+    # Setting rdev_y to E[rdev_y | scalar_draw] = μ + Σ_{rdev,sc} Σ_{sc,sc}⁻¹
+    # (draw − μ) preserves this negative correlation, eliminates Jensen bias
+    # (individual rdev_y shifts are O(0.17) vs σ_r = 0.6), and aligns the
+    # bridge-point ribbon with the sdreport historical uncertainty.
+    rdev_idx   <- par_names == "rdev_y"
+    scalar_idx <- which(!rdev_idx)                                        # log_B0, log_cpue_q
+    B_cond     <- Sigma_unc[rdev_idx, scalar_idx, drop = FALSE] %*%
+                  solve(Sigma_unc[scalar_idx, scalar_idx, drop = FALSE])  # [n_rdev x 2]
+    delta_sc   <- sweep(mvn_draws[, scalar_idx, drop = FALSE], 2,
+                        mu_vec[scalar_idx], "-")                           # [n_iter x 2]
+    mvn_draws[, rdev_idx] <-
+      matrix(mu_vec[rdev_idx], nrow = n_iter, ncol = sum(rdev_idx), byrow = TRUE) +
+      t(B_cond %*% t(delta_sc))                                            # [n_iter x n_rdev]
+  }
+
+  # Minimal data list for the projection call to do_dynamics() ----
+  proj_data <- list(
+    first_yr       = 1L,
+    first_yr_catch = 1L,
+    n_year         = n_proj,
+    n_season       = data$n_season,
+    n_fishery      = data$n_fishery,
+    n_age          = data$n_age,
+    catch_obs_ysf  = catch_ysf,
+    catch_units_f  = data$catch_units_f
+  )
+
+  # Quantities that depend only on fixed (mapped) parameters are identical
+  # for every draw, so compute them once from the MLE report.
+  rep_mle         <- object$report()
+  M_a_mle         <- rep_mle$M_a
+  spa_mle         <- rep_mle$spawning_potential_a
+  proj_weight_fya <- array(0, dim = c(data$n_fishery, n_proj, data$n_age))
+  for (y in seq_len(n_proj)) proj_weight_fya[, y, ] <- rep_mle$weight_fya_mod[, data$n_year, ]
+
+  # Projection loop ----
+  dyn          <- vector("list", n_iter)
+  hist_sbio    <- if (return_hist) matrix(NA_real_, n_iter, data$n_year + 1) else NULL
+  if (n_iter > 1) pb <- txtProgressBar(min = 1, max = n_iter, style = 3)
+
+  for (i in seq_len(n_iter)) {
+    rep <- if (!is.null(mcmc)) {
+      object$report(as.numeric(post[i, ]))
+    } else {
+      object$report(mvn_draws[i, ])
+    }
+
+    if (return_hist) hist_sbio[i, ] <- rep$spawning_biomass_y
+
+    # Terminal state from this draw's full historical trajectory — reflects
+    # parameter uncertainty in the initial condition.  Future process
+    # uncertainty (rdev_y, sel_fya) is then added on top.
     dyn[[i]] <- do_dynamics(
-      first_yr = 1, first_yr_catch = 1, 
-      B0 = rep$B0, R0 = rep$R0, alpha = rep$alpha, beta = rep$beta, h = rep$par_h, sigma_r = rep$sigma_r,
-      rdev_y = rdev_y[i,], # projected recruitment deviates
-      M_a = rep$M_a, 
-      phi_ya = proj_phi_ya, # projected phi
-      init_number_a = rep$number_ysa[data$n_year + 1, 1,], # different N
-      removal_switch_f = data$removal_switch_f, 
-      catch_obs_ysf = catch_ysf, # projected catch
-      sel_fya = sel_fya[i,,,], # projected selectivity
-      weight_fya = proj_weight_fya, # projected weight
-      af_sliced_ysfa = data$af_sliced_ysfa)
-    
+      data                 = proj_data,
+      parameters           = list(rdev_y = rdev_y[i, ]),
+      B0                   = rep$B0,
+      R0                   = rep$R0,
+      alpha                = rep$alpha,
+      beta                 = rep$beta,
+      sigma_r              = rep$sigma_r,
+      M_a                  = M_a_mle,
+      spawning_potential_a = spa_mle,
+      weight_fya           = proj_weight_fya,
+      init_number_a        = rep$number_ysa[data$n_year + 1, 1, ],
+      sel_fya              = sel_fya[i, , , ]
+    )
+
     if (n_iter > 1) setTxtProgressBar(pb, i)
   }
 
+  if (return_hist) return(list(dyn = dyn, hist_sbio = hist_sbio))
   return(dyn)
 }
 
@@ -196,7 +295,7 @@ project_rec_devs <- function(data, obj, mcmc = NULL, first_yr = 1931, last_yr = 
   
   if (!is.null(mcmc)) {
     post <- extract_samples(fit = mcmc)
-    rdevs1 <- as.matrix(post[grepl("par_rdev_y", names(post))])
+    rdevs1 <- as.matrix(post[grepl("rdev_y", names(post))])
     if (!is.null(n_iter)) {
       ii <- sample(x = 1:nrow(post), size = n_iter)
       rdevs1 <- rdevs1[ii,]
@@ -205,7 +304,7 @@ project_rec_devs <- function(data, obj, mcmc = NULL, first_yr = 1931, last_yr = 
     }
   } else {
     if (is.null(n_iter)) n_iter <- 1
-    x <- obj$env$last.par.best[names(obj$par) %in% "par_rdev_y"]
+    x <- obj$env$last.par.best[names(obj$par) %in% "rdev_y"]
     rdevs1 <- matrix(x, nrow = n_iter, ncol = length(x), byrow = TRUE)
     # rdevs1 <- array(obj$par[names(obj$par) %in% "par_rdev_y"], dim = c(n_iter, n_year))
     # rdevs1 <- t(as.matrix(obj$par[names(obj$par) %in% "par_rdev_y"]))

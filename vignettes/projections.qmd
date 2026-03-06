@@ -1,0 +1,995 @@
+---
+title: "Projections and uncertainty: MVN vs MCMC"
+format: html
+execute:
+  eval: true
+  echo: true
+  message: false
+  warning: false
+vignette: >
+  %\VignetteIndexEntry{Projections and uncertainty: MVN vs MCMC}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Overview
+
+This vignette demonstrates the full simulation-estimation-projection workflow in
+`opal`:
+
+1. **Fit** a model to real data (WCPO bigeye tuna, CPUE likelihood only).
+2. **Construct** an alternative catch scenario in which fishing effort is reduced
+   by 50 % over the last 20 years, producing a biomass recovery signal.
+3. **Simulate** a synthetic CPUE series from the recovery scenario, using the
+   original MLE parameters and the modified catch — establishing a known "truth".
+4. **Refit** the model to the simulated data so both MVN and MCMC approaches are
+   evaluated against a known trajectory.
+5. **Project** population dynamics forward under two approaches to parameter
+   uncertainty:
+   - **MVN simulation** — multivariate-normal draws from the Hessian-derived
+     variance-covariance matrix; no MCMC required.
+   - **MCMC posteriors** — draws from the posterior distribution obtained via
+     SparseNUTS (code shown; set `eval: true` on those chunks to run).
+6. **Compare** the resulting uncertainty envelopes against the true simulated
+   trajectory.
+
+See `vignette("bet")` for a detailed walkthrough of the BET model setup.
+
+---
+
+# Setup
+
+```{r packages}
+library(opal)
+library(RTMB)
+library(SparseNUTS)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(posterior)
+
+theme_set(theme_bw())
+```
+
+## Load data and parameters
+
+```{r data}
+data(wcpo_bet_data)
+data(wcpo_bet_parameters)
+
+data <- wcpo_bet_data
+
+# Use CPUE likelihood only for speed
+data$lf_switch   <- 0L
+data$wf_switch   <- 0L
+data$cpue_switch <- 1L
+
+# Length bin bounds and midpoints (required by the PLA inside the model)
+data$len_lower <- seq(from = data$len_bin_start, by = data$len_bin_width,
+                      length.out = data$n_len)
+data$len_upper <- data$len_lower + data$len_bin_width
+data$len_mid   <- data$len_lower + data$len_bin_width / 2
+
+# Removal switch: 0 = fishery active (required by project_selectivity)
+data$removal_switch_f <- rep(0L, data$n_fishery)
+```
+
+```{r parameters}
+parameters <- list(
+  log_B0         = 20,
+  log_h          = as.numeric(wcpo_bet_parameters$log_h),
+  log_sigma_r    = as.numeric(wcpo_bet_parameters$log_sigma_r),
+  log_cpue_q     = as.numeric(wcpo_bet_parameters$log_cpue_q),
+  cpue_creep     = as.numeric(wcpo_bet_parameters$cpue_creep),
+  log_cpue_tau   = as.numeric(wcpo_bet_parameters$log_cpue_tau),
+  log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_lf_tau     = log(rep(0.1, data$n_fishery)),
+  log_wf_tau     = rep(0, data$n_fishery),
+  log_L1         = as.numeric(wcpo_bet_parameters$log_L1),
+  log_L2         = as.numeric(wcpo_bet_parameters$log_L2),
+  log_k          = as.numeric(wcpo_bet_parameters$log_k),
+  log_CV1        = as.numeric(wcpo_bet_parameters$log_CV1),
+  log_CV2        = as.numeric(wcpo_bet_parameters$log_CV2),
+  par_sel        = as.matrix(wcpo_bet_parameters$par_sel),
+  rdev_y         = as.numeric(wcpo_bet_parameters$rdev_y)
+)
+```
+
+Fix all parameters except `log_B0`, `log_cpue_q`, and the recruitment deviates
+`rdev_y`:
+
+```{r map}
+map <- list(
+  log_h          = factor(NA),
+  log_sigma_r    = factor(NA),
+  cpue_creep     = factor(NA),
+  log_cpue_tau   = factor(NA),
+  log_cpue_omega = factor(NA),
+  log_lf_tau     = factor(rep(NA, data$n_fishery)),
+  log_wf_tau     = factor(rep(NA, data$n_fishery)),
+  log_L1         = factor(NA),
+  log_L2         = factor(NA),
+  log_k          = factor(NA),
+  log_CV1        = factor(NA),
+  log_CV2        = factor(NA),
+  par_sel        = factor(matrix(NA, nrow(parameters$par_sel),
+                                     ncol(parameters$par_sel)))
+)
+```
+
+## Build and optimise
+
+```{r make-obj}
+#| output: false
+#| message: false
+obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+
+Lwr <- rep(-Inf, length(obj$par))
+Upr <- rep( Inf, length(obj$par))
+Lwr[grep("log_B0",     names(obj$par))] <- log(1)
+Upr[grep("log_B0",     names(obj$par))] <- log(exp(22))
+Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
+Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
+Lwr[grep("rdev_y",     names(obj$par))] <- -5
+Upr[grep("rdev_y",     names(obj$par))] <-  5
+
+control <- list(eval.max = 5000, iter.max = 5000)
+opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
+              lower = Lwr, upper = Upr, control = control)
+opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
+              lower = Lwr, upper = Upr, control = control)
+
+cat("Max gradient:", max(abs(obj$gr())), "\n")
+cat("NLL:", opt$objective, "\n")
+```
+
+---
+
+# Alternative catch scenario and simulation
+
+To give the model a distinctive and informative signal about the current stock
+state, we modify the catch time-series for the **last 80 quarters (20 years)** so that
+effort declines linearly to 50 % of its original level by the terminal quarter.  The
+resulting biomass recovery produces a rising CPUE trend that constrains the
+current state more tightly, reducing posterior uncertainty and leading to
+closer agreement between the MVN and MCMC projections.
+
+```{r alt-catch}
+data_alt <- data
+n_yr     <- data$n_year
+
+for (y in seq(n_yr - 79L, n_yr)) {
+  # Linear ramp from 100 % (quarter n_yr − 79) to 50 % (terminal quarter)
+  frac <- 1 - 0.5 * (y - (n_yr - 80L)) / 80
+  data_alt$catch_obs_ysf[y, , ] <- data$catch_obs_ysf[y, , ] * frac
+}
+```
+
+```{r alt-catch-plot}
+#| fig-height: 3.5
+#| fig-width: 7
+#| fig-cap: "Total annual catch (all fisheries and seasons): original series (grey) and the recovery scenario with a 50 % reduction over the last 80 quarters (20 years) (blue)."
+catch_orig <- rowSums(data$catch_obs_ysf,     dims = 1)
+catch_alt  <- rowSums(data_alt$catch_obs_ysf, dims = 1)
+years_all  <- seq_len(n_yr)
+plot(years_all, catch_orig, type = "l", col = "grey50", lwd = 1,
+     xlab = "Quarter", ylab = "Total catch (mt)",
+     main = "Original vs reduced-catch scenario")
+lines(years_all, catch_alt, col = "steelblue", lwd = 1.5)
+abline(v = n_yr - 79, lty = 2, col = "grey70")
+legend("topright", c("Original", "Reduced (recovery scenario)"),
+       col = c("grey50", "steelblue"), lwd = c(1, 1.5))
+```
+
+Simulate one CPUE realisation from the recovery scenario.  We build an AD
+object with the modified catch, evaluate it at the original MLE parameter
+vector (`opt$par`) so the simulated trajectory reflects recovery under those
+parameters, then draw a single CPUE realisation:
+
+```{r simulate}
+#| message: false
+# Build model object with modified catch
+obj_alt <- MakeADFun(func = cmb(opal_model, data_alt), parameters = parameters,
+                     map = map)
+
+# Evaluate at original MLE so internal state = recovery trajectory
+invisible(obj_alt$fn(opt$par))
+
+# True SSB trajectory under the recovery scenario (the "ground truth")
+rep_true_alt <- obj_alt$report()
+sbio_true    <- rep_true_alt$spawning_biomass_y   # length n_year + 1
+
+# Draw one CPUE realisation consistent with the recovery trajectory
+set.seed(42)
+sim_alt <- obj_alt$simulate()
+
+# Use modified catch + simulated CPUE as the scenario data
+data_sim <- data_alt
+data_sim$cpue_data$value <- exp(sim_alt$cpue_log_obs)
+```
+
+Compare the original and simulated CPUE series — the rising trend in the final
+20 years is the recovery signal we want the model to detect:
+
+```{r plot-sim}
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Original observed CPUE (grey) and simulated CPUE from the recovery scenario (blue). The rising trend in the final 20 years reflects the reduced catch."
+plot(data$cpue_data$value, type = "l", col = "grey50", lwd = 1,
+     xlab = "Time step", ylab = "CPUE",
+     main = "Original (grey) vs recovery-scenario simulated (blue) CPUE")
+lines(data_sim$cpue_data$value, col = "steelblue", lwd = 1.5)
+abline(v = n_yr - 79, lty = 2, col = "grey70")
+legend("topright", c("Original observed", "Recovery scenario"),
+       col = c("grey50", "steelblue"), lwd = c(1, 1.5))
+```
+
+---
+
+# Refit to simulated data
+
+Build a new AD object from the simulated data and re-optimise from the original
+starting values.  This recovers parameters consistent with the simulated
+observations and gives us a known "truth" for the projection comparison:
+
+```{r refit}
+#| output: false
+#| message: false
+obj_sim <- MakeADFun(func = cmb(opal_model, data_sim),
+                     parameters = parameters, map = map)
+
+opt_sim <- nlminb(start = obj_sim$par, objective = obj_sim$fn,
+                  gradient = obj_sim$gr,
+                  lower = Lwr, upper = Upr, control = control)
+opt_sim <- nlminb(start = opt_sim$par, objective = obj_sim$fn,
+                  gradient = obj_sim$gr,
+                  lower = Lwr, upper = Upr, control = control)
+
+cat("Max gradient (refitted):", max(abs(obj_sim$gr())), "\n")
+```
+
+Add data-driven prior centres using the refitted MLE estimates, then rebuild
+`obj_sim` so the AD tape carries the priors for MCMC sampling:
+
+```{r wire-priors}
+#| output: false
+# Prior centres anchored to the refitted MLE (avoids the default par1=0 for
+# log_B0 which would be wildly wrong for a stock of this size)
+data_sim$prior_log_B0_mean     <- opt_sim$par["log_B0"]
+data_sim$prior_log_cpue_q_mean <- opt_sim$par["log_cpue_q"]
+
+# Build the priors list using the full structured parameters list so that
+# get_priors() produces indices that match the RTMB AD tape layout.
+# The data-driven centres above are used by get_priors(); the parameter
+# values themselves only serve as fallback and do not matter here.
+data_sim$priors <- get_priors(parameters, data_sim)
+
+# Rebuild obj_sim with updated data (AD tape must capture data$priors)
+obj_sim <- MakeADFun(func = cmb(opal_model, data_sim),
+                     parameters = parameters, map = map)
+invisible(obj_sim$fn(opt_sim$par))
+```
+
+Compute Hessian-based standard errors for derived quantities via the delta
+method.  These are used later to draw the historical uncertainty ribbon:
+
+```{r sdreport}
+#| output: false
+# ADREPORT(spawning_biomass_y) is registered inside do_dynamics(), so sdreport
+# propagates Hessian uncertainty through the full historical trajectory via
+# automatic differentiation.
+sdr_sim   <- RTMB::sdreport(obj_sim)
+sdr_sum   <- summary(sdr_sim, "report")
+sbio_rows <- which(rownames(sdr_sum) == "spawning_biomass_y")
+sbio_mle_sd <- sdr_sum[sbio_rows, "Estimate"]
+sbio_se_sd  <- sdr_sum[sbio_rows, "Std. Error"]
+```
+
+Compare the true recovery-scenario trajectory against the trajectory estimated
+by refitting to the simulated data.  Close agreement shows the model can
+recover the true trajectory from the simulated observations:
+
+```{r sbio-check}
+#| fig-height: 4
+#| fig-width: 7
+rep_sim  <- obj_sim$report()
+
+ylim <- range(c(sbio_true, rep_sim$spawning_biomass_y)) * c(0, 1.15)
+plot(sbio_true, type = "l", col = "black", lwd = 2, lty = 2,
+     ylim = ylim,
+     xlab = "Time step", ylab = "Spawning biomass (mt)",
+     main = "True recovery trajectory (black dashed) vs refitted MLE (blue)")
+lines(rep_sim$spawning_biomass_y, col = "steelblue", lwd = 2)
+legend("topright", c("True (recovery scenario)", "Refitted MLE"),
+       col = c("black", "steelblue"), lwd = 2, lty = c(2, 1))
+```
+
+---
+
+# Parameter estimates and uncertainty
+
+The refitted model has three groups of free parameters: the unfished spawning
+biomass (`log_B0`), the CPUE catchability coefficient (`log_cpue_q`), and the
+annual log-recruitment deviates (`rdev_y`).  Standard errors are computed from
+the square root of the diagonal of the inverse Hessian at the MLE.
+
+```{r param-table}
+H_sim   <- obj_sim$he()
+Sigma   <- solve(H_sim)
+SE_vec  <- sqrt(diag(Sigma))
+mu_vec  <- obj_sim$env$last.par.best
+
+# Extract scalar free parameters and convert to natural scale
+scalar_params <- data.frame(
+  Parameter  = c("B0 (mt)", "CPUE q"),
+  MLE        = c(exp(mu_vec["log_B0"]),
+                 exp(mu_vec["log_cpue_q"])),
+  SE_log     = c(SE_vec[names(mu_vec) == "log_B0"][1],
+                 SE_vec[names(mu_vec) == "log_cpue_q"][1]),
+  CI_lo95    = c(exp(mu_vec["log_B0"]  - 1.96 * SE_vec[names(mu_vec) == "log_B0"][1]),
+                 exp(mu_vec["log_cpue_q"] - 1.96 * SE_vec[names(mu_vec) == "log_cpue_q"][1])),
+  CI_hi95    = c(exp(mu_vec["log_B0"]  + 1.96 * SE_vec[names(mu_vec) == "log_B0"][1]),
+                 exp(mu_vec["log_cpue_q"] + 1.96 * SE_vec[names(mu_vec) == "log_cpue_q"][1]))
+)
+scalar_params[, 2:5] <- round(scalar_params[, 2:5], 4)
+scalar_params$MLE[1]     <- round(scalar_params$MLE[1])
+scalar_params$CI_lo95[1] <- round(scalar_params$CI_lo95[1])
+scalar_params$CI_hi95[1] <- round(scalar_params$CI_hi95[1])
+knitr::kable(scalar_params,
+             col.names = c("Parameter", "MLE", "SE (log scale)", "95% CI lower", "95% CI upper"),
+             caption   = "MLE estimates and Hessian-based 95% confidence intervals.")
+```
+
+The recruitment deviates `rdev_y` have one value per model year
+(`r data_sim$n_year` parameters total).  Each deviate is centred on zero with a
+prior `sd = sigma_r = `r round(rep_sim$sigma_r, 2)``.
+
+```{r rdev-plot}
+#| fig-height: 3.5
+#| fig-width: 8
+#| fig-cap: "Estimated log-recruitment deviates with approximate 95% point-wise confidence intervals (±1.96 × Hessian SE)."
+rdev_idx <- which(names(mu_vec) == "rdev_y")
+rdev_mle <- mu_vec[rdev_idx]
+rdev_se  <- SE_vec[rdev_idx]
+rdev_df  <- data.frame(
+  year  = seq_len(data_sim$n_year),
+  rdev  = rdev_mle,
+  lo95  = rdev_mle - 1.96 * rdev_se,
+  hi95  = rdev_mle + 1.96 * rdev_se
+)
+ggplot(rdev_df, aes(x = year)) +
+  geom_ribbon(aes(ymin = lo95, ymax = hi95), fill = "steelblue", alpha = 0.25) +
+  geom_line(aes(y = rdev), colour = "steelblue", linewidth = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  labs(x = "Model year", y = "log-recruitment deviate",
+       title = "Estimated recruitment deviates (rdev_y)")
+```
+
+---
+
+# Forward projections
+
+## Common setup
+
+```{r proj-setup}
+#| output: false
+n_proj <- 10   # projection quarters
+n_iter <- 200  # uncertainty iterations
+
+# Projected recruitment deviates — ARIMA-based simulation from the fitted series
+rdev_proj <- project_rec_devs(
+  data     = data_sim,
+  obj      = obj_sim,
+  first_yr = data_sim$first_yr,
+  n_proj   = n_proj,
+  n_iter   = n_iter
+)
+
+# Projected selectivity — replicate mean selectivity over the last 10 fitted years
+sel_proj <- project_selectivity(
+  data     = data_sim,
+  obj      = obj_sim,
+  first_yr = data_sim$last_yr - 9,
+  n_proj   = n_proj,
+  n_iter   = n_iter
+)
+
+# Catch scenario: hold catch constant at the last observed year's level
+catch_ysf_proj <- array(0, dim = c(n_proj, data_sim$n_season, data_sim$n_fishery))
+for (y in seq_len(n_proj)) {
+  catch_ysf_proj[y, , ] <- data_sim$catch_obs_ysf[data_sim$n_year, , ]
+}
+```
+
+## Approach 1: MVN simulation
+
+When `mcmc = NULL`, `project_dynamics()` samples parameter sets from a
+multivariate-normal distribution centred on the MLE, using the inverse Hessian
+as the covariance matrix.  The sampling is performed on working (unconstrained)
+scales — log for positive parameters, logit for autocorrelation parameters —
+with the covariance adjusted via the delta method, then back-transformed to the
+native parameter space before each call to `obj$report()`.
+
+```{r proj-mvn}
+#| output: false
+proj_mvn <- project_dynamics(
+  data      = data_sim,
+  object    = obj_sim,
+  mcmc      = NULL,          # triggers MVN path
+  n_proj    = n_proj,
+  n_iter    = n_iter,
+  rdev_y    = rdev_proj$rdev_y,
+  sel_fya   = sel_proj,
+  catch_ysf = catch_ysf_proj
+)
+```
+
+## Approach 2: MCMC posteriors
+
+Run a No-U-Turn sampler (NUTS) chain via `SparseNUTS`.  The `bet_globals()`
+call exports all helper functions needed for likelihood evaluation inside the
+MCMC workers.
+
+```{r mcmc-sampling}
+#| output: false
+n_chains_mcmc <- 8
+mcmc_fit <- SparseNUTS::sample_snuts(
+  obj         = obj_sim,
+  globals     = bet_globals(),
+  num_samples = 500,
+  num_warmup  = 1000,
+  chains      = n_chains_mcmc,
+  cores       = min(n_chains_mcmc, parallel::detectCores()),
+  metric      = "dense"     # full Hessian-based mass matrix — captures B0/q/rdev_y correlations
+)
+```
+
+Use the posterior draws for projection.  The same pre-generated recruitment
+deviates and selectivity arrays are reused so that the only difference between
+the two approaches is how historical parameter uncertainty is represented:
+
+```{r proj-mcmc}
+#| output: false
+proj_mcmc <- project_dynamics(
+  data        = data_sim,
+  object      = obj_sim,
+  mcmc        = mcmc_fit,      # triggers MCMC path
+  n_proj      = n_proj,
+  n_iter      = n_iter,
+  rdev_y      = rdev_proj$rdev_y,
+  sel_fya     = sel_proj,
+  catch_ysf   = catch_ysf_proj,
+  return_hist = TRUE           # collect historical SB per MCMC draw
+)
+```
+
+## MCMC diagnostics
+
+Before comparing projection envelopes, we check whether the NUTS chains have
+converged.  With 1000 warmup steps and 8 independent chains, the dense-metric
+SparseNUTS sampler adapts a full Hessian-based mass matrix that captures
+correlations between B0, q, and the rdev_y parameters in the 270-dimensional
+parameter space.  Split-chain Rhat and per-chain ESS
+provide reliable convergence diagnostics across chains.
+
+```{r extract-post}
+# Extract posterior draws (post-warmup only, all chains merged row-by-row)
+post_samples  <- SparseNUTS::extract_samples(mcmc_fit)
+B0_mcmc       <- exp(post_samples[, "log_B0"])
+# Subset to the n_iter draws that project_dynamics used (for per-draw depletion)
+B0_mcmc_iter  <- B0_mcmc[seq_len(n_iter)]
+
+# Reconstruct chain / iteration labels (chains concatenated in order)
+n_post_total  <- nrow(post_samples)
+n_per_chain   <- n_post_total / n_chains_mcmc
+chain_id      <- rep(seq_len(n_chains_mcmc), each = n_per_chain)
+iter_id       <- rep(seq_len(n_per_chain),   times = n_chains_mcmc)
+
+# NUTS-level diagnostics: divergences and max-treedepth violations
+SparseNUTS::check_snuts_diagnostics(mcmc_fit)
+```
+
+```{r mcmc-traces}
+#| fig-height: 5
+#| fig-width: 8
+#| fig-cap: "MCMC traces for scalar parameters across all chains (colours). Red dashed = MLE estimate. Chains overlapping and stationary around a common mean indicates good convergence."
+trace_df <- data.frame(
+  iter       = iter_id,
+  chain      = factor(chain_id),
+  log_B0     = post_samples[, "log_B0"],
+  log_cpue_q = post_samples[, "log_cpue_q"]
+) |>
+  tidyr::pivot_longer(-c(iter, chain), names_to = "param", values_to = "value")
+
+mle_ref <- data.frame(
+  param = c("log_B0", "log_cpue_q"),
+  mle   = mu_vec[c("log_B0", "log_cpue_q")]
+)
+
+ggplot(trace_df, aes(x = iter, y = value, colour = chain)) +
+  geom_line(linewidth = 0.3, alpha = 0.7) +
+  geom_hline(data = mle_ref, aes(yintercept = mle),
+             linetype = "dashed", colour = "red", linewidth = 0.6) +
+  facet_wrap(~ param, scales = "free_y", ncol = 1,
+             labeller = as_labeller(
+               c(log_B0 = "log~B[0]", log_cpue_q = "log~q[CPUE]"),
+               default = label_parsed)) +
+  scale_colour_discrete(name = "Chain") +
+  labs(x = "Post-warmup iteration", y = "Parameter value",
+       title = "MCMC traces — scalar parameters",
+       subtitle = sprintf("Red dashed = MLE; %d post-warmup samples × %d chains",
+                          n_per_chain, n_chains_mcmc))
+```
+
+Without informative priors on `log_B0` and `log_cpue_q`, the joint likelihood
+has a ridge: high $B_0$ paired with low $q$ fits the CPUE as well as low $B_0$
+with high $q$.  MCMC correctly samples this flat posterior, but the posterior
+mean can lie far from the MLE (which sits at the mode).  Enabling data-driven
+priors (centred on the refitted MLE) regularises the posterior toward the MLE.
+The prior vs posterior comparison below illustrates this.
+
+```{r mcmc-diag-table}
+# Scalar parameters + 5 evenly-spaced rdev_y as a spread-check
+rdev_idx_all  <- grep("rdev_y", colnames(post_samples))
+rdev_idx_show <- rdev_idx_all[round(seq(1, length(rdev_idx_all), length.out = 5))]
+diag_cols     <- c("log_B0", "log_cpue_q", colnames(post_samples)[rdev_idx_show])
+
+# Build draws_df with chain / iteration metadata for correct split-chain Rhat
+draws_df <- as.data.frame(post_samples[, diag_cols, drop = FALSE])
+draws_df[[".chain"]]     <- chain_id
+draws_df[[".iteration"]] <- iter_id
+draws_obj <- posterior::as_draws_df(draws_df)
+diag_tbl  <- posterior::summarise_draws(
+  draws_obj,
+  posterior::default_summary_measures(),
+  posterior::default_convergence_measures()
+)
+# Add MLE column for easy comparison
+diag_tbl$mle <- mu_vec[match(diag_tbl$variable, names(mu_vec))]
+
+knitr::kable(
+  diag_tbl[, c("variable", "mle", "mean", "sd", "q5", "q95",
+               "ess_bulk", "ess_tail", "rhat")],
+  digits  = 3,
+  caption = paste0(
+    "MCMC diagnostics for key parameters (split-chain Rhat and ESS). ",
+    "'mle' = MLE estimate for comparison — large mle-mean discrepancy ",
+    "indicates prior-likelihood tension or poor mixing. ",
+    "ESS < 100 or Rhat > 1.01 indicate poor convergence."
+  )
+)
+```
+
+```{r prior-post-plot}
+#| fig-height: 4
+#| fig-width: 8
+#| fig-cap: "Prior (blue curve) vs MCMC posterior (grey histogram) for the two confounded scalar parameters. Red dashed line = MLE estimate. Priors are centred on the MLE with sd = 1.0 (log B0) and 1.5 (log q). Overlap of the posterior with the prior and agreement between the posterior mean and MLE indicate that the priors are doing their job of regularising the B0/q ridge."
+prior_params <- list(
+  log_B0     = list(mean = mu_vec["log_B0"],     sd = 1.0),
+  log_cpue_q = list(mean = mu_vec["log_cpue_q"], sd = 1.5)
+)
+par_labels <- c(log_B0 = "log~B[0]", log_cpue_q = "log~q[CPUE]")
+
+prior_lines <- do.call(rbind, lapply(names(prior_params), function(nm) {
+  pp <- prior_params[[nm]]
+  x  <- post_samples[, nm]
+  xr <- range(c(x, pp$mean + c(-4, 4) * pp$sd))
+  xs <- seq(xr[1], xr[2], length.out = 300)
+  data.frame(x = xs, density = dnorm(xs, pp$mean, pp$sd), param = nm)
+}))
+post_points <- do.call(rbind, lapply(names(prior_params), function(nm) {
+  data.frame(x = post_samples[, nm], param = nm)
+}))
+mle_ref2 <- data.frame(
+  param = names(prior_params),
+  mle   = mu_vec[names(prior_params)]
+)
+
+ggplot() +
+  geom_histogram(data = post_points,
+                 aes(x = x, y = after_stat(density)),
+                 bins = 30, fill = "grey70", colour = "white") +
+  geom_line(data = prior_lines,
+            aes(x = x, y = density),
+            colour = "steelblue", linewidth = 0.8) +
+  geom_vline(data = mle_ref2, aes(xintercept = mle),
+             colour = "red", linetype = "dashed", linewidth = 0.7) +
+  facet_wrap(~ param, scales = "free",
+             labeller = as_labeller(par_labels, default = label_parsed)) +
+  labs(x = "Parameter value", y = "Density",
+       title = "Prior (blue) vs MCMC posterior (grey) for scalar parameters",
+       subtitle = "Red dashed = MLE estimate")
+```
+
+---
+
+# Comparison: MVN vs MCMC uncertainty
+
+Extract projected spawning biomass from each iteration and compute quantile
+envelopes.
+
+```{r extract-sbio}
+spa <- obj_sim$report()$spawning_potential_a  # [n_age] maturity × fecundity
+
+# Helper: turn a list of do_dynamics() results into a long data frame.
+# number_ysa[1,,] is the initial state (= model end-state); include it as
+# proj_year = 0 so it bridges continuously to the historical trajectory.
+sbio_df <- function(proj_list, label) {
+  do.call(rbind, lapply(seq_along(proj_list), function(i) {
+    dyn <- proj_list[[i]]
+    sb  <- sapply(1:(n_proj + 1), function(y) sum(dyn$number_ysa[y, 1, ] * spa))
+    data.frame(iter = i, proj_year = 0:n_proj, sbio = sb, method = label)
+  }))
+}
+
+df_mvn  <- sbio_df(proj_mvn,       "MVN")   # plain list (no return_hist)
+df_mcmc <- sbio_df(proj_mcmc$dyn,  "MCMC")  # list(dyn=..., hist_sbio=...)
+df_all  <- rbind(df_mvn, df_mcmc)
+```
+
+```{r summarise-proj}
+# MLE historical trajectory (from sdreport estimates, identical to rep_sim$spawning_biomass_y)
+hist_df <- data.frame(
+  timestep = seq_len(data_sim$n_year + 1),
+  sbio     = sbio_mle_sd[seq_len(data_sim$n_year + 1)]
+)
+
+n_hist_show <- 100  # 100 quarters ≈ 25 years (covers the full 80-quarter recovery window)
+idx         <- (data_sim$n_year + 1 - n_hist_show + 1):(data_sim$n_year + 1)
+
+# MVN historical ribbon: delta-method Gaussian CI from the Hessian (no Jensen bias).
+# Drawing all 268 rdev_y from their MVN marginals and propagating through the
+# exponential recruitment function inflates E[SBY] ≈ 76 % above the MLE — the
+# delta method avoids this by linearising at the MLE.
+df_hist_mvn <- data.frame(
+  timestep = idx,
+  med      = sbio_mle_sd[idx],
+  lo50     = sbio_mle_sd[idx] - qnorm(0.75) * sbio_se_sd[idx],
+  hi50     = sbio_mle_sd[idx] + qnorm(0.75) * sbio_se_sd[idx],
+  lo90     = sbio_mle_sd[idx] - qnorm(0.95) * sbio_se_sd[idx],
+  hi90     = sbio_mle_sd[idx] + qnorm(0.95) * sbio_se_sd[idx],
+  method   = "MVN"
+)
+
+# MCMC historical ribbon: actual posterior trajectory quantiles
+hist_ribbon <- function(hist_sbio, label, n_show) {
+  n_ts <- ncol(hist_sbio)
+  idx2 <- (n_ts - n_show + 1):n_ts
+  do.call(rbind, lapply(idx2, function(t) {
+    v <- hist_sbio[, t]
+    data.frame(timestep = t,
+               med  = median(v),
+               lo50 = quantile(v, 0.25), hi50 = quantile(v, 0.75),
+               lo90 = quantile(v, 0.05), hi90 = quantile(v, 0.95),
+               method = label)
+  }))
+}
+df_hist_mcmc <- hist_ribbon(proj_mcmc$hist_sbio, "MCMC", n_hist_show)
+
+df_hist_ribbon <- rbind(df_hist_mvn, df_hist_mcmc)
+
+# Projection quantile ribbons (proj_year = 0 is the bridge / join point)
+df_ribbon <- df_all |>
+  group_by(method, proj_year) |>
+  summarise(
+    med  = median(sbio),
+    lo50 = quantile(sbio, 0.25),
+    hi50 = quantile(sbio, 0.75),
+    lo90 = quantile(sbio, 0.05),
+    hi90 = quantile(sbio, 0.95),
+    .groups = "drop"
+  ) |>
+  mutate(timestep = data_sim$n_year + 1 + proj_year)
+
+hist_zoom <- hist_df[hist_df$timestep > (data_sim$n_year + 1 - n_hist_show), ]
+
+# "True" SSB from the recovery scenario: obj_alt evaluated at opt$par
+# (the trajectory that actually generated the simulated CPUE observations)
+hist_zoom_true <- data.frame(
+  timestep = idx,
+  sbio     = sbio_true[idx]
+)
+
+# Depletion = SBY / B0
+B0_est  <- rep_sim$B0    # estimated MLE B0 from obj_sim
+B0_true <- rep_true_alt$B0  # true B0 used to generate the simulated data
+
+# MVN historical depletion: divide by B0_est (conditional-expectation approach
+# keeps B0 as the primary scalar uncertainty; approximately correct)
+df_hist_mvn_dep  <- df_hist_mvn |>
+  mutate(across(c(med, lo50, hi50, lo90, hi90), ~ . / B0_est))
+
+# MCMC historical depletion: per-draw B0 (B0_mcmc_iter defined in extract-post)
+hist_sbio_dep <- sweep(proj_mcmc$hist_sbio, 1, B0_mcmc_iter, "/")
+df_hist_mcmc_dep <- hist_ribbon(hist_sbio_dep, "MCMC", n_hist_show)
+df_hist_ribbon_dep <- rbind(df_hist_mvn_dep, df_hist_mcmc_dep)
+
+# MVN projection depletion: divide by B0_est
+df_ribbon_mvn_dep <- df_ribbon |>
+  filter(method == "MVN") |>
+  mutate(across(c(med, lo50, hi50, lo90, hi90), ~ . / B0_est))
+
+# MCMC projection depletion: per-draw B0
+df_ribbon_mcmc_dep <- df_mcmc |>
+  mutate(sbio = sbio / B0_mcmc[iter]) |>
+  group_by(method, proj_year) |>
+  summarise(
+    med  = median(sbio),
+    lo50 = quantile(sbio, 0.25), hi50 = quantile(sbio, 0.75),
+    lo90 = quantile(sbio, 0.05), hi90 = quantile(sbio, 0.95),
+    .groups = "drop"
+  ) |>
+  mutate(timestep = data_sim$n_year + 1 + proj_year)
+
+df_ribbon_dep <- rbind(df_ribbon_mvn_dep, df_ribbon_mcmc_dep)
+
+# MLE and true depletion reference lines
+hist_zoom_dep      <- hist_zoom      |> mutate(sbio = sbio / B0_est)
+hist_zoom_true_dep <- hist_zoom_true |> mutate(sbio = sbio / B0_true)
+```
+
+```{r mcmc-traj-diag}
+# Sanity checks for MCMC trajectory vs MLE
+n_t <- ncol(proj_mcmc$hist_sbio)  # = n_year + 1
+
+# 1. First timestep: SBY[1] / B0 should equal 1.0 (unfished equilibrium)
+sby1_B0_ratio <- proj_mcmc$hist_sbio[, 1] / B0_mcmc_iter
+cat("Check 1: SBY[t=1] / B0 (unfished eq, should be ~1.0 for all draws)\n")
+cat(sprintf("  MLE: %.4f\n", rep_sim$spawning_biomass_y[1] / B0_est))
+cat(sprintf("  MCMC: mean=%.4f, median=%.4f, sd=%.4f\n",
+            mean(sby1_B0_ratio), median(sby1_B0_ratio), sd(sby1_B0_ratio)))
+
+# 2. Terminal timestep depletion
+dep_mle  <- sbio_mle_sd[n_t] / B0_est
+dep_mcmc <- proj_mcmc$hist_sbio[, n_t] / B0_mcmc_iter
+cat("\nCheck 2: Terminal depletion SBY[last] / B0\n")
+cat(sprintf("  MLE:  %.4f\n", dep_mle))
+cat(sprintf("  MCMC: mean=%.4f, median=%.4f, sd=%.4f\n",
+            mean(dep_mcmc), median(dep_mcmc), sd(dep_mcmc)))
+
+# 3. Absolute SBY at terminal timestep (before B0 division)
+cat("\nCheck 3: Absolute SBY at terminal timestep\n")
+cat(sprintf("  MLE SBY[last]:  %.1f\n", sbio_mle_sd[n_t]))
+cat(sprintf("  MCMC SBY[last]: mean=%.1f, median=%.1f\n",
+            mean(proj_mcmc$hist_sbio[, n_t]), median(proj_mcmc$hist_sbio[, n_t])))
+cat(sprintf("  MLE B0:  %.1f\n", B0_est))
+cat(sprintf("  MCMC B0: mean=%.1f, median=%.1f\n",
+            mean(B0_mcmc), median(B0_mcmc)))
+
+# 4. rdev_y: are MCMC posterior means close to MLE?
+rdev_y_mle  <- mu_vec[names(mu_vec) == "rdev_y"]
+post_mat    <- SparseNUTS::extract_samples(mcmc_fit)
+rdev_cols   <- grep("rdev_y", colnames(post_mat))
+rdev_y_post_mean <- colMeans(post_mat[, rdev_cols])
+cat("\nCheck 4: rdev_y MLE vs MCMC mean (first 5 years)\n")
+cat(sprintf("  MLE:       %s\n", paste(round(rdev_y_mle[1:5], 3), collapse = "  ")))
+cat(sprintf("  MCMC mean: %s\n", paste(round(rdev_y_post_mean[1:5], 3), collapse = "  ")))
+cat(sprintf("  Max |MLE - MCMC mean| across all rdev_y: %.4f\n",
+            max(abs(rdev_y_mle - rdev_y_post_mean))))
+```
+
+```{r rdev-diag}
+#| fig-height: 4
+#| fig-width: 10
+#| fig-cap: "Recruitment deviates (log scale) for MLE (black) vs MCMC posterior (blue ribbon = 90% CI, blue line = mean). Horizontal dashed lines = ±sigma_r."
+
+# A. rdev_y scale confirmation
+# rdev_y is on the LOG scale: get_recruitment() uses exp(rdev - 0.5*sigma_r^2).
+# rdev_y = 0 → median recruitment; rdev_y = sigma_r → e^0.6 ≈ 1.82 × median.
+sigma_r_val <- exp(parameters$log_sigma_r)
+cat("A. rdev_y scale (log scale):\n")
+cat(sprintf("  sigma_r = %.3f\n", sigma_r_val))
+cat(sprintf("  MLE rdev_y[1]  = %.3f  (%.2f sigma_r from 0)\n",
+            rdev_y_mle[1], rdev_y_mle[1] / sigma_r_val))
+cat(sprintf("  MCMC mean rdev_y[1] = %.3f  (%.2f sigma_r from 0)\n",
+            rdev_y_post_mean[1], rdev_y_post_mean[1] / sigma_r_val))
+
+# B. NLL at MLE, MCMC posterior mean, and MCMC posterior mode
+mcmc_mean_par  <- colMeans(post_mat)
+nll_mle        <- obj_sim$fn(opt_sim$par)
+nll_mcmc_mean  <- obj_sim$fn(mcmc_mean_par)
+
+# Posterior mode = MCMC sample with the lowest NLL (MAP estimate from chain)
+nll_post      <- apply(post_mat, 1, function(par) obj_sim$fn(as.numeric(par)))
+mode_idx      <- which.min(nll_post)
+mcmc_mode_par <- as.numeric(post_mat[mode_idx, ])
+nll_mcmc_mode <- nll_post[mode_idx]
+
+rdev_prior_mle  <- sum(dnorm(rdev_y_mle,                                0, sigma_r_val, log = TRUE))
+rdev_prior_mean <- sum(dnorm(mcmc_mean_par[names(mu_vec) == "rdev_y"],  0, sigma_r_val, log = TRUE))
+rdev_prior_mode <- sum(dnorm(mcmc_mode_par[names(mu_vec) == "rdev_y"],  0, sigma_r_val, log = TRUE))
+
+cat("\nB. NLL penalty comparison:\n")
+cat(sprintf("  NLL at MLE:               %.2f\n", nll_mle))
+cat(sprintf("  NLL at MCMC post. mode:   %.2f  (diff vs MLE: %+.2f)\n",
+            nll_mcmc_mode, nll_mcmc_mode - nll_mle))
+cat(sprintf("  NLL at MCMC post. mean:   %.2f  (diff vs MLE: %+.2f)\n",
+            nll_mcmc_mean, nll_mcmc_mean - nll_mle))
+cat(sprintf("  rdev log-prior at MLE:           %.2f\n", rdev_prior_mle))
+cat(sprintf("  rdev log-prior at MCMC mode:     %.2f  (diff: %+.2f)\n",
+            rdev_prior_mode, rdev_prior_mode - rdev_prior_mle))
+cat(sprintf("  rdev log-prior at MCMC mean:     %.2f  (diff: %+.2f)\n",
+            rdev_prior_mean, rdev_prior_mean - rdev_prior_mle))
+
+# C. rdev_y pattern plot
+rdev_q05 <- apply(post_mat[, rdev_cols], 2, quantile, 0.05)
+rdev_q95 <- apply(post_mat[, rdev_cols], 2, quantile, 0.95)
+yr_seq   <- seq_len(data_sim$n_year)
+
+df_rdev <- data.frame(
+  year      = yr_seq,
+  mle       = rdev_y_mle,
+  mcmc_mean = rdev_y_post_mean,
+  mcmc_q05  = rdev_q05,
+  mcmc_q95  = rdev_q95
+)
+
+ggplot(df_rdev, aes(x = year)) +
+  geom_ribbon(aes(ymin = mcmc_q05, ymax = mcmc_q95), fill = "steelblue", alpha = 0.2) +
+  geom_line(aes(y = mcmc_mean), colour = "steelblue", linewidth = 0.7) +
+  geom_line(aes(y = mle), colour = "black", linewidth = 0.8) +
+  geom_hline(yintercept = c(-sigma_r_val, sigma_r_val),
+             linetype = "dashed", colour = "grey50", linewidth = 0.4) +
+  labs(x = "Year (index)", y = "rdev_y (log scale)",
+       title = "Recruitment deviates: MLE (black) vs MCMC posterior mean + 90% CI (blue)")
+```
+
+```{r comparison-plot}
+#| fig-height: 5
+#| fig-width: 8
+#| fig-cap: "Spawning biomass over the last 100 time-steps and 10-time-step projection. Black dashed = true SSB used to generate simulated data. Grey solid = estimated MLE (obj_sim). Coloured ribbons: 50 % (darker) and 90 % (lighter) uncertainty envelopes by method. Orange median line shows MCMC posterior central tendency in the historical period. Vertical dashed line = end of historical period."
+pal <- c(MVN = "steelblue", MCMC = "darkorange")
+
+ggplot() +
+  # Historical 90 % ribbons — coloured by method
+  geom_ribbon(data = df_hist_ribbon,
+              aes(x = timestep, ymin = lo90, ymax = hi90, fill = method),
+              alpha = 0.12) +
+  # Historical 50 % ribbons
+  geom_ribbon(data = df_hist_ribbon,
+              aes(x = timestep, ymin = lo50, ymax = hi50, fill = method),
+              alpha = 0.25) +
+  # MCMC historical median line (coloured; MVN median = MLE so not separately shown)
+  geom_line(data = subset(df_hist_ribbon, method == "MCMC"),
+            aes(x = timestep, y = med, colour = method),
+            linewidth = 0.75) +
+  # Estimated MLE trajectory (obj_sim)
+  geom_line(data = hist_zoom,
+            aes(x = timestep, y = sbio),
+            colour = "grey20", linewidth = 0.9) +
+  # True simulated SSB (ground truth from recovery scenario)
+  geom_line(data = hist_zoom_true,
+            aes(x = timestep, y = sbio),
+            colour = "black", linewidth = 0.8, linetype = "dashed") +
+  # End of historical period
+  geom_vline(xintercept = data_sim$n_year + 1,
+             linetype = "dashed", colour = "grey50") +
+  # Projection 90 % ribbons
+  geom_ribbon(data = df_ribbon,
+              aes(x = timestep, ymin = lo90, ymax = hi90, fill = method),
+              alpha = 0.15) +
+  # Projection 50 % ribbons
+  geom_ribbon(data = df_ribbon,
+              aes(x = timestep, ymin = lo50, ymax = hi50, fill = method),
+              alpha = 0.30) +
+  # Projection median lines
+  geom_line(data = df_ribbon,
+            aes(x = timestep, y = med, colour = method),
+            linewidth = 1) +
+  scale_fill_manual(values = pal) +
+  scale_colour_manual(values = pal) +
+  labs(
+    x        = "Time step",
+    y        = "Spawning biomass (mt)",
+    colour   = "Method",
+    fill     = "Method",
+    title    = "Spawning biomass: historical uncertainty + projections",
+    subtitle = paste0(
+      "Last ", n_hist_show, " time-steps shown; ",
+      n_proj, "-time-step constant-catch projection; ",
+      n_iter, " draws per method"
+    )
+  )
+```
+
+```{r depletion-plot}
+#| fig-height: 5
+#| fig-width: 8
+#| fig-cap: "Relative depletion (SB / B₀) over the last 100 time-steps and projection. All model-output quantities are divided by the estimated B₀ from obj_sim; the true-trajectory line uses the true B₀ from the recovery scenario. Dotted red line = 20 % B₀ limit reference point."
+ggplot() +
+  geom_ribbon(data = df_hist_ribbon_dep,
+              aes(x = timestep, ymin = lo90, ymax = hi90, fill = method),
+              alpha = 0.12) +
+  geom_ribbon(data = df_hist_ribbon_dep,
+              aes(x = timestep, ymin = lo50, ymax = hi50, fill = method),
+              alpha = 0.25) +
+  geom_line(data = subset(df_hist_ribbon_dep, method == "MCMC"),
+            aes(x = timestep, y = med, colour = method),
+            linewidth = 0.75) +
+  geom_line(data = hist_zoom_dep,
+            aes(x = timestep, y = sbio),
+            colour = "grey20", linewidth = 0.9) +
+  geom_line(data = hist_zoom_true_dep,
+            aes(x = timestep, y = sbio),
+            colour = "black", linewidth = 0.8, linetype = "dashed") +
+  geom_vline(xintercept = data_sim$n_year + 1,
+             linetype = "dashed", colour = "grey50") +
+  geom_ribbon(data = df_ribbon_dep,
+              aes(x = timestep, ymin = lo90, ymax = hi90, fill = method),
+              alpha = 0.15) +
+  geom_ribbon(data = df_ribbon_dep,
+              aes(x = timestep, ymin = lo50, ymax = hi50, fill = method),
+              alpha = 0.30) +
+  geom_line(data = df_ribbon_dep,
+            aes(x = timestep, y = med, colour = method),
+            linewidth = 1) +
+  geom_hline(yintercept = 0.2, linetype = "dotted",
+             colour = "red", linewidth = 0.5) +
+  coord_cartesian(ylim = c(0, NA)) +
+  scale_fill_manual(values = pal) +
+  scale_colour_manual(values = pal) +
+  labs(
+    x        = "Time step",
+    y        = expression("Relative depletion (SB / B"[0]*")"),
+    colour   = "Method",
+    fill     = "Method",
+    title    = "Relative depletion: historical uncertainty + projections",
+    subtitle = paste0(
+      "Last ", n_hist_show, " time-steps shown; ",
+      n_proj, "-time-step constant-catch projection; ",
+      n_iter, " draws per method"
+    )
+  )
+```
+
+**Reading the bridge point.**
+
+*MVN projections (blue)*: `log_B0` and `log_cpue_q` are drawn from the MVN;
+each `rdev_y` is then set to its conditional expectation given those scalar draws,
+`E[rdev_y | scalar_draw] = μ + Σ_{rdev,sc} Σ_{sc,sc}⁻¹ (draw − μ)`.
+This accounts for the negative `log_B0` ↔ `rdev_y` correlation in the Hessian
+(higher B₀ requires lower historical deviates to fit the same declining
+trajectory) and avoids a Jensen's-inequality bias — drawing all 268 deviates
+simultaneously from their marginal distributions would inflate E[SBY] ≈ 76 %
+above the MLE.  The bridge-point ribbon therefore aligns with the delta-method
+(sdreport) historical ribbon in the left panel, both centred on the MLE and
+spanning similar uncertainty.
+
+*MCMC projections (orange)*: each draw comes from the full joint posterior,
+including all `rdev_y`.  The bridge-point spread therefore reflects the actual
+posterior uncertainty in the current biomass state.
+
+In both cases, future process uncertainty (projected recruitment deviates and
+selectivity) widens the bands further over the projection horizon.
+
+**Why is the future uncertainty moderate?**  Because bigeye tuna mature slowly
+(spawning potential is near zero for ages 1–4), new recruits take several years
+before they contribute meaningfully to spawning biomass.  Under constant catch the
+existing adult stock declines almost deterministically; the divergence from future
+recruitment and selectivity uncertainty accumulates gradually.  Longer projection
+horizons or more variable catch scenarios will produce wider bands.
+
+For a well-identified model with a near-Gaussian posterior, the MVN and MCMC
+envelopes should broadly agree.  Differences indicate departures from Gaussian
+behaviour — common when parameters approach bounds, when the likelihood surface
+is skewed, or when there are strong parameter interactions.  In those cases MCMC
+provides the more reliable characterisation of uncertainty, at the cost of
+additional computation.
+
+```{r summary-table}
+# Numerical summary at the end of the projection
+df_all |>
+  filter(proj_year == n_proj) |>
+  group_by(method) |>
+  summarise(
+    mean   = mean(sbio),
+    sd     = sd(sbio),
+    p05    = quantile(sbio, 0.05),
+    p25    = quantile(sbio, 0.25),
+    median = median(sbio),
+    p75    = quantile(sbio, 0.75),
+    p95    = quantile(sbio, 0.95),
+    .groups = "drop"
+  )
+```

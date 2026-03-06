@@ -13,14 +13,16 @@
 #' 
 get_priors <- function(parameters, data = NULL) {
   priors <- list()
-  priors[["log_B0"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("log_B0" == names(parameters)))
+  log_B0_mean <- if (!is.null(data) && !is.null(data$prior_log_B0_mean)) data$prior_log_B0_mean else parameters$log_B0
+  priors[["log_B0"]] <- list(type = "normal", par1 = log_B0_mean, par2 = 1.0, index = which("log_B0" == names(parameters)))
   # priors[["par_log_m0"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_m0" == names(parameters)))
   # priors[["par_log_m4"]] <- list(type = "normal", par1 = log(0.12), par2 = 0.4, index = which("par_log_m4" == names(parameters)))
   # priors[["par_log_m10"]] <- list(type = "normal", par1 = log(0.1), par2 = 0.06, index = which("par_log_m10" == names(parameters)))
   # priors[["par_log_m30"]] <- list(type = "normal", par1 = log(2), par2 = 1.655705, index = which("par_log_m30" == names(parameters)))
   # priors[["par_log_h"]] <- list(type = "normal", par1 = log(1), par2 = 1.5, index = which("par_log_h" == names(parameters)))
   # priors[["par_log_sigma_r"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_sigma_r" == names(parameters)))
-  priors[["log_cpue_q"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("log_cpue_q" == names(parameters)))
+  log_cpue_q_mean <- if (!is.null(data) && !is.null(data$prior_log_cpue_q_mean)) data$prior_log_cpue_q_mean else parameters$log_cpue_q
+  priors[["log_cpue_q"]] <- list(type = "normal", par1 = log_cpue_q_mean, par2 = 1.5, index = which("log_cpue_q" == names(parameters)))
   # priors[["par_cpue_creep"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_cpue_creep" == names(parameters)))
   # priors[["par_log_cpue_sigma"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_cpue_sigma" == names(parameters)))
   # priors[["par_log_cpue_omega"]] <- list(type = "normal", par1 = 0.875, par2 = 0.1, index = which("par_log_cpue_omega" == names(parameters)))

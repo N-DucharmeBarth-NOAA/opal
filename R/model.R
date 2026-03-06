@@ -140,8 +140,11 @@ opal_model <- function(parameters, data) {
   # Priors ----
 
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
-  # lp_prior <- evaluate_priors(parameters, priors)
-  lp_prior <- 0
+  if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
+    lp_prior <- evaluate_priors(parameters, priors)
+  } else {
+    lp_prior <- 0
+  }
 
   # Likelihoods ----
 
@@ -220,6 +223,8 @@ opal_model <- function(parameters, data) {
   REPORT(maturity_a)
   REPORT(fecundity_a)
   REPORT(spawning_potential_a)
+  REPORT(M_a)
+  REPORT(weight_fya_mod)
 
   return(nll)
 }
