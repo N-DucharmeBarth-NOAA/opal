@@ -12,29 +12,53 @@ project_dynamics(
   n_iter = 1,
   rdev_y,
   sel_fya,
-  catch_ysf
+  catch_ysf,
+  return_hist = FALSE
 )
 }
 \arguments{
-\item{data}{a \code{list} of parameter values.}
+\item{data}{A \code{list} of model data (as passed to \code{opal_model}).}
 
-\item{object}{a \code{list} of parameter values.}
+\item{object}{The RTMB AD object returned by \code{RTMB::MakeADFun}, after
+optimisation.}
 
-\item{mcmc}{a \code{list} of parameter values.}
+\item{mcmc}{Optional. MCMC fit object returned by \code{SparseNUTS}.  When
+supplied, posterior draws are used for the projection.  When \code{NULL}
+(default), MVN draws are generated from the Hessian-derived
+variance-covariance matrix.}
 
-\item{n_proj}{the number of projection years.}
+\item{n_proj}{Integer. Number of projection years.}
 
-\item{n_iter}{a \code{list} of inputs.}
+\item{n_iter}{Integer. Number of iterations (posterior draws or MVN samples).}
 
-\item{rdev_y}{a \code{list} of inputs.}
+\item{rdev_y}{Numeric matrix \code{[n_iter, n_proj]}.  Projected recruitment
+deviates (e.g., from \code{\link{project_rec_devs}}).}
 
-\item{sel_fya}{a \code{list} of inputs.}
+\item{sel_fya}{Numeric array \code{[n_iter, n_fishery, n_proj, n_age]}.
+Projected selectivity (e.g., from \code{\link{project_selectivity}}).}
 
-\item{catch_ysf}{a \code{list} of inputs.}
+\item{catch_ysf}{Numeric array \code{[n_proj, n_season, n_fishery]}.
+Projected observed catch by year, season, and fishery.}
+
+\item{return_hist}{Logical (default \code{FALSE}).  When \code{TRUE} the
+function returns a named list with elements \code{dyn} (the projection
+results) and \code{hist_sbio}, a numeric matrix
+\code{[n_iter, n_year + 1]} containing the full spawning-biomass
+trajectory from each parameter draw over the historical period.  The
+last column of \code{hist_sbio} corresponds to the same terminal state
+as the \code{proj_year = 0} bridge point in the projection, so the two
+can be plotted seamlessly without any join discontinuity.}
 }
 \value{
-the negative log-likelihood (NLL) value.
+When \code{return_hist = FALSE} (default): a \code{list} of length
+\code{n_iter}, each element being the named list returned by
+\code{\link{do_dynamics}} for that iteration.  When
+\code{return_hist = TRUE}: a named list with elements \code{dyn} and
+\code{hist_sbio}.
 }
 \description{
-Project dynamics
+Forward-projects population dynamics for \code{n_proj} years using either
+MCMC posterior draws (when \code{mcmc} is supplied) or multivariate-normal
+(MVN) draws derived from the Hessian-based variance-covariance matrix at the
+MLE (when \code{mcmc = NULL}).
 }
