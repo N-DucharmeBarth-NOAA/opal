@@ -39,6 +39,8 @@ for the BET assessment model:
 ```{r load-data, echo=TRUE, message=FALSE}
 data(wcpo_bet_data)
 data <- wcpo_bet_data
+if (is.null(data$n_index)) data$n_index <- 1L
+if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpue_data))
 
 names(data)
 ```
@@ -150,10 +152,10 @@ parameters <- list(
   log_B0 = 20,
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
-  log_cpue_q = as.numeric(wcpo_bet_parameters$log_cpue_q),
-  cpue_creep = as.numeric(wcpo_bet_parameters$cpue_creep),
-  log_cpue_tau = as.numeric(wcpo_bet_parameters$log_cpue_tau),
-  log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_cpue_q = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
+  cpue_creep = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
+  log_cpue_tau = rep(log(0.1), data$n_index),
+  log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
   log_wf_tau = rep(0, data$n_fishery),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
@@ -199,9 +201,9 @@ map <- list(
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
-  cpue_creep = factor(NA),
-  log_cpue_tau = factor(NA),
-  log_cpue_omega = factor(NA),
+  cpue_creep = factor(rep(NA, data$n_index)),
+  log_cpue_tau = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
   log_wf_tau = factor(rep(NA, data$n_fishery)),  # fixed initially
   log_L1  = factor(NA),
@@ -582,10 +584,14 @@ allows simulation via `obj$simulate()`. For example:
 if(data$cpue_switch == 0){
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
 } else {
-  plot(log(data$cpue_data$value), col = 2, pch = 16,
-      xlab = "Time step", ylab = "log(CPUE)", main = "Observed vs simulated CPUE")
-  lines(log(obj$report()$cpue_pred), lwd = 2)
-  for (i in 1:5) lines(obj$simulate()$cpue_log_obs, col = "gray70")
+  for (idx in seq_len(data$n_index)) {
+    rows <- which(data$cpue_data$index == idx)
+    plot(log(data$cpue_data$value[rows]), col = 2, pch = 16,
+         xlab = "Observation", ylab = "log(CPUE)",
+         main = paste0("Index ", idx, ": Observed vs predicted CPUE"))
+    lines(log(obj$report()$cpue_pred[rows]), lwd = 2)
+    for (s in 1:5) lines(obj$simulate()$cpue_log_obs[rows], col = "gray70")
+  }
 }
 ```
 
@@ -599,9 +605,13 @@ if(data$cpue_switch == 0){
 } else {
   osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
                             method = "oneStepGeneric", trace = FALSE)
-  qqnorm(osa_cpue$res)
-  abline(0, 1)
-  plot(osa_cpue$res, xlab = "Index", ylab = "OSA residual")
-  abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
+  for (idx in seq_len(data$n_index)) {
+    rows <- which(data$cpue_data$index == idx)
+    qqnorm(osa_cpue$res[rows], main = paste0("Index ", idx, ": OSA QQ"))
+    abline(0, 1)
+    plot(osa_cpue$res[rows], xlab = "Observation", ylab = "OSA residual",
+         main = paste0("Index ", idx, ": OSA residuals"))
+    abline(h = c(-2, 0, 2), lty = c(2, 1, 2))
+  }
 }
 ```

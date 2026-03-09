@@ -1,14 +1,30 @@
-#' CPUE index likelihood
+#' CPUE index likelihood (multi-index)
 #'
-#' Computes the likelihood for a standardized CPUE index using a log-linear model.
+#' Computes the likelihood for one or more standardised CPUE/survey indices
+#' using a log-linear model. Each index has its own catchability (q),
+#' extra variance (tau), power parameter (omega), and effort creep.
+#' Mean-centering of predicted CPUE is performed within each index.
 #'
-#' @param data a \code{list} of data inputs (cpue_data, cpue_switch, etc.).
-#' @param parameters a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, etc.).
+#' @param data a \code{list} of data inputs. Must contain:
+#'   \describe{
+#'     \item{cpue_data}{data.frame with columns \code{ts}, \code{fishery},
+#'       \code{value}, \code{se}, \code{units}, and \code{index}.}
+#'     \item{cpue_switch}{integer switch (0 = skip likelihood).}
+#'     \item{n_index}{integer number of distinct indices.}
+#'   }
+#' @param parameters a \code{list} of parameter values. Must contain:
+#'   \describe{
+#'     \item{log_cpue_q}{numeric vector \code{[n_index]}.}
+#'     \item{log_cpue_tau}{numeric vector \code{[n_index]}.}
+#'     \item{log_cpue_omega}{numeric vector \code{[n_index]}.}
+#'     \item{cpue_creep}{numeric vector \code{[n_index]}.}
+#'   }
 #' @param number_ysa a 3D \code{array} `[n_year, n_season, n_age]` of numbers-at-age.
 #' @param sel_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of selectivity by fishery, year, and age.
 #' @param weight_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of weight-at-age by fishery and year.
 #' @param creep_init scalar initialization value for creeping adjustment (default 1).
-#' @return a \code{numeric} vector of negative log-likelihood contributions.
+#' @return numeric vector of length \code{nrow(cpue_data)} with per-observation
+#'   negative log-likelihood contributions.
 #' @importFrom RTMB ADoverload dnorm
 #' @export
 #' 
@@ -16,23 +32,51 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
-  cpue_tau <- exp(log_cpue_tau)
-  cpue_omega <- exp(log_cpue_omega)
+
   n_cpue <- nrow(cpue_data)
-  cpue_adjust <- cpue_log_pred <- lp <- numeric(n_cpue)
-  cpue_adjust[1] <- creep_init
-  for (i in 2:n_cpue) cpue_adjust[i] <- cpue_adjust[i - 1] + cpue_creep
-  cpue_sigma <- sqrt(cpue_data$se^2 + cpue_tau^2)
+  cpue_log_pred <- lp <- numeric(n_cpue)
+  cpue_sigma <- numeric(n_cpue)
+  if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
+  if (!exists("n_index", inherits = FALSE)) n_index <- max(cpue_data$index)
+
   for (i in seq_len(n_cpue)) {
     y <- cpue_data$ts[i]
-    # s <- cpue_data$season[i]
     f <- cpue_data$fishery[i]
-    cpue_n <- number_ysa[y, 1,] * sel_fya[f, y,]
+    cpue_n <- number_ysa[y, 1, ] * sel_fya[f, y, ]
     if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y,] # 1=weight, 2=numbers
     sum_n <- sum(cpue_n) + 1e-6
-    cpue_log_pred[i] <- log(cpue_adjust[i]) + cpue_omega * log(sum_n)
+    idx <- cpue_data$index[i]
+    cpue_log_pred[i] <- exp(log_cpue_omega[idx]) * log(sum_n)
   }
-  cpue_log_pred <- cpue_log_pred - log(mean(exp(cpue_log_pred))) + log_cpue_q
+
+  for (idx in seq_len(n_index)) {
+    rows <- which(cpue_data$index == idx)
+    n_idx <- length(rows)
+    if (n_idx == 0) next
+
+    cpue_adjust_idx <- numeric(n_idx)
+    cpue_adjust_idx[1] <- creep_init
+    if (n_idx > 1) {
+      for (j in 2:n_idx) {
+        cpue_adjust_idx[j] <- cpue_adjust_idx[j - 1] + cpue_creep[idx]
+      }
+    }
+    for (j in seq_len(n_idx)) {
+      cpue_log_pred[rows[j]] <- cpue_log_pred[rows[j]] + log(cpue_adjust_idx[j])
+    }
+
+    pred_idx <- cpue_log_pred[rows]
+    center <- log(mean(exp(pred_idx)))
+    for (j in seq_len(n_idx)) {
+      cpue_log_pred[rows[j]] <- pred_idx[j] - center + log_cpue_q[idx]
+    }
+
+    tau_idx <- exp(log_cpue_tau[idx])
+    for (j in seq_len(n_idx)) {
+      cpue_sigma[rows[j]] <- sqrt(cpue_data$se[rows[j]]^2 + tau_idx^2)
+    }
+  }
+
   cpue_log_obs <- log(cpue_data$value)
   cpue_log_obs <- OBS(cpue_log_obs)
   if (cpue_switch > 0) {

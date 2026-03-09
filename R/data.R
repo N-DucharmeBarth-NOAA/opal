@@ -5,7 +5,7 @@
 #' stock assessment modeling of western central Pacific bigeye tuna.
 #'
 #' @details
-#' ## Data structure (25 list elements)
+#' ## Data structure (26 list elements)
 #'
 #' **Age and time dimensions:**
 #' \describe{
@@ -38,12 +38,14 @@
 #' **CPUE data:**
 #' \describe{
 #'   \item{cpue_switch}{Indicator for CPUE inclusion (1 = included, typically for fishery 15).}
-#'   \item{cpue_data}{Tibble with 268 rows and 8 columns containing standardized CPUE observations:
+#'   \item{n_index}{Number of distinct CPUE/survey indices (integer).}
+#'   \item{cpue_data}{Tibble with 268 rows and 9 columns containing standardized CPUE observations:
 #'     \itemize{
 #'       \item{year}: Calendar year (1952-2018)
 #'       \item{month}: Quarter month (2, 5, 8, 11 for Q1-Q4)
 #'       \item{ts}: Sequential timestep (1-268)
 #'       \item{fishery}: Fleet identifier (usually 15 for survey fleet)
+#'       \item{index}: Integer index identifier (1, 2, ..., n_index)
 #'       \item{metric}: Data type ("cpue")
 #'       \item{units}: Unit code (typically 2 for fishery 15)
 #'       \item{value}: Normalized CPUE observations
