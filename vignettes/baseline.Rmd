@@ -109,7 +109,7 @@ parameters <- list(
   log_sigma_r    = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q     = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
   cpue_creep     = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
-  log_cpue_tau   = rep(log(0.1), data$n_index),
+  log_cpue_tau   = rep(as.numeric(wcpo_bet_parameters$log_cpue_tau), data$n_index),
   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau     = log(rep(0.1, data$n_fishery)),
   log_wf_tau     = rep(0, data$n_fishery),
