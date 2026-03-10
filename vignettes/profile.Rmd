@@ -46,6 +46,8 @@ profiling and comparison tasks.
 ```{r load-data, echo=TRUE, message=FALSE}
 data(opal_baseline_data)
 data <- opal_baseline_data
+if (is.null(data$n_index)) data$n_index <- 1L
+if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpue_data))
 ```
 
 ## Length and Weight Data
@@ -61,6 +63,10 @@ Load initial parameter values from the baseline parameters:
 ```{r get-pars, echo=TRUE, message=FALSE}
 data(opal_baseline_parameters)
 parameters <- opal_baseline_parameters
+parameters$log_cpue_q <- rep(as.numeric(parameters$log_cpue_q), data$n_index)
+parameters$cpue_creep <- rep(as.numeric(parameters$cpue_creep), data$n_index)
+parameters$log_cpue_tau <- rep(as.numeric(parameters$log_cpue_tau), data$n_index)
+parameters$log_cpue_omega <- rep(as.numeric(parameters$log_cpue_omega), data$n_index)
 ```
 
 ## Priors
@@ -74,6 +80,9 @@ Load the parameter map from the baseline:
 ```{r get-map, echo=TRUE, message=FALSE}
 data(opal_baseline_map)
 map <- opal_baseline_map
+map$cpue_creep <- factor(rep(NA, data$n_index))
+map$log_cpue_tau <- factor(rep(NA, data$n_index))
+map$log_cpue_omega <- factor(rep(NA, data$n_index))
 ```
 
 ## Build the AD object

@@ -4,7 +4,7 @@
 #' (e.g., par_log_sel_1) here because they are dealt with in the `get_recruitment_prior()` 
 #' and `get_selectivity_prior()` functions.
 #' 
-#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function.
+#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function. Vector parameters (e.g., \code{log_cpue_q}) are supported.
 #' @param data A \code{list} of data inputs (optional). Used to retrieve prior
 #'   center values for growth/variability parameters (e.g.,
 #'   \code{data$prior_log_L1_mean}).
