@@ -676,3 +676,59 @@
 #' }
 #'
 "opaka_lf"
+
+#' Opakapaka SS3 OM/EM truth and EM output (extracted)
+#'
+#' A small list containing Stock Synthesis (SS3) output extracted from an
+#' operating model (OM) and an estimation model (EM) pair using
+#' `r4ss::SS_output()`. Intended as a truth / comparison object for
+#' simulation-experiment workflows and diagnostics.
+#'
+#' @details
+#' The object is a list with two elements: `om` and `em`. Each element is a
+#' sub-list that contains `sprseries` (spawning biomass time series) and `cpue`
+#' (standardized index output). The contained data frames have the following
+#' structures:
+#'
+#' \describe{
+#'   \item{om$sprseries}{A data.frame with 100 rows and 2 columns:
+#'     \describe{
+#'       \item{Yr}{Integer year (e.g., 1949...)}
+#'       \item{SSB}{Numeric spawning stock biomass}
+#'     }
+#'   }
+#'   \item{om$cpue}{A data.frame with 107 rows and 7 columns:
+#'     \describe{
+#'       \item{Yr}{Integer year}
+#'       \item{Fleet}{Integer fleet id}
+#'       \item{Fleet_name}{Character fleet label}
+#'       \item{Vuln_bio}{Numeric vulnerable biomass predicted by SS3}
+#'       \item{Obs}{Observed CPUE (integer in OM)}
+#'       \item{Exp}{Expected CPUE (numeric)}
+#'       \item{SE}{Standard error (numeric)}
+#'     }
+#'   }
+#'   \item{em$sprseries}{A data.frame with 100 rows and 2 columns: same format as `om$sprseries`.}
+#'   \item{em$cpue}{A data.frame with 107 rows and 7 columns: same column names as `om$cpue`,
+#'     with `Obs` shown as numeric in the EM output shown here.}
+#' }
+#'
+#' @format A list with two named elements, `om` and `em`, each containing the
+#'   SS3 `sprseries` and `cpue` outputs as data.frames suitable for plotting
+#'   and comparison of true vs estimated indices and spawning biomass trajectories.
+#'
+#' @source Produced by calling `r4ss::SS_output()` on OM and EM model directories
+#'   and collecting the `sprseries` and `cpue` components.
+#'
+#' @examples
+#' \dontrun{
+#'   data(opaka_truth)
+#'   str(opaka_truth)
+#'   plot(opaka_truth$om$sprseries$Yr, opaka_truth$om$sprseries$SSB, type = "l")
+#'   lines(opaka_truth$em$sprseries$Yr, opaka_truth$em$sprseries$SSB, col = "red")
+#'   # Compare CPUE
+#'   head(opaka_truth$om$cpue)
+#'   head(opaka_truth$em$cpue)
+#' }
+
+"opaka_truth"
