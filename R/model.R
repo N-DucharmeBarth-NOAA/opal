@@ -10,7 +10,7 @@ utils::globalVariables(c(
   "A1", "A2", "lw_a", "lw_b", "maturity", "fecundity", "len_bin_start", "len_bin_width",
   "length_m50", "length_m95", "length_mu_ysa", "length_sd_a",
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
-  "cpue_switch", "cpue_data",
+  "cpue_switch", "cpue_data", "n_index",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_maxbin", "lf_obs", "lf_n",
   "lf_var_adj",
   "wf_switch", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",

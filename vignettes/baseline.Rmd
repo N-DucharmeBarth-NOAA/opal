@@ -47,6 +47,8 @@ library(opal)
 ```{r load-data, echo=TRUE, message=FALSE}
 data(wcpo_bet_data)
 data <- wcpo_bet_data
+if (is.null(data$n_index)) data$n_index <- 1L
+if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpue_data))
 ```
 
 ## Length composition data
@@ -105,10 +107,10 @@ parameters <- list(
   log_B0         = 20,
   log_h          = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r    = as.numeric(wcpo_bet_parameters$log_sigma_r),
-  log_cpue_q     = as.numeric(wcpo_bet_parameters$log_cpue_q),
-  cpue_creep     = as.numeric(wcpo_bet_parameters$cpue_creep),
-  log_cpue_tau   = as.numeric(wcpo_bet_parameters$log_cpue_tau),
-  log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_cpue_q     = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
+  cpue_creep     = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
+  log_cpue_tau   = rep(as.numeric(wcpo_bet_parameters$log_cpue_tau), data$n_index),
+  log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau     = log(rep(0.1, data$n_fishery)),
   log_wf_tau     = rep(0, data$n_fishery),
   log_L1         = as.numeric(wcpo_bet_parameters$log_L1),
@@ -135,9 +137,9 @@ map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 map <- list(
   log_h          = factor(NA),
   log_sigma_r    = factor(NA),
-  cpue_creep     = factor(NA),
-  log_cpue_tau   = factor(NA),
-  log_cpue_omega = factor(NA),
+  cpue_creep     = factor(rep(NA, data$n_index)),
+  log_cpue_tau   = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau     = factor(rep(NA, length(parameters$log_lf_tau))),
   log_wf_tau     = factor(rep(NA, length(parameters$log_wf_tau))),
   log_L1         = factor(NA),
