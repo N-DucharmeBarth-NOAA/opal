@@ -55,6 +55,39 @@ make_cpue_args <- function(n_fishery = 1, n_year = 3, n_age = 4,
        number_ysa = number_ysa, sel_fya = sel_fya, weight_fya = weight_fya)
 }
 
+# Legacy single-index implementation used for regression comparison when n_index=1.
+legacy_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya,
+                             creep_init = 1) {
+  cpue_data <- data$cpue_data
+  cpue_switch <- data$cpue_switch
+  log_cpue_tau <- parameters$log_cpue_tau[1]
+  log_cpue_omega <- parameters$log_cpue_omega[1]
+  cpue_creep <- parameters$cpue_creep[1]
+  log_cpue_q <- parameters$log_cpue_q[1]
+
+  cpue_tau <- exp(log_cpue_tau)
+  cpue_omega <- exp(log_cpue_omega)
+  n_cpue <- nrow(cpue_data)
+  cpue_adjust <- cpue_log_pred <- lp <- numeric(n_cpue)
+  cpue_adjust[1] <- creep_init
+  for (i in 2:n_cpue) cpue_adjust[i] <- cpue_adjust[i - 1] + cpue_creep
+  cpue_sigma <- sqrt(cpue_data$se^2 + cpue_tau^2)
+  for (i in seq_len(n_cpue)) {
+    y <- cpue_data$ts[i]
+    f <- cpue_data$fishery[i]
+    cpue_n <- number_ysa[y, 1, ] * sel_fya[f, y, ]
+    if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y, ]
+    sum_n <- sum(cpue_n) + 1e-6
+    cpue_log_pred[i] <- log(cpue_adjust[i]) + cpue_omega * log(sum_n)
+  }
+  cpue_log_pred <- cpue_log_pred - log(mean(exp(cpue_log_pred))) + log_cpue_q
+  cpue_log_obs <- log(cpue_data$value)
+  if (cpue_switch > 0) {
+    lp[] <- -dnorm(x = cpue_log_obs, mean = cpue_log_pred, sd = cpue_sigma, log = TRUE)
+  }
+  lp
+}
+
 # Tests ----
 
 test_that("NLL is finite for a basic CPUE observation", {
@@ -169,10 +202,42 @@ test_that("correct year's numbers-at-age are used for each observation", {
 })
 
 test_that("n_index=1 with explicit index column matches legacy scalar behaviour", {
-  s <- make_cpue_args(n_index = 1)
-  lp <- get_cpue_like(s$data, s$parameters, s$number_ysa, s$sel_fya, s$weight_fya)
-  expect_true(all(is.finite(lp)))
-  expect_equal(length(lp), 2)
+  n_year <- 5
+  n_age <- 4
+  n_cpue <- 5
+  number_ysa <- array(1, dim = c(n_year, 1L, n_age))
+  number_ysa[1, 1, ] <- c(1, 2, 3, 4)
+  number_ysa[2, 1, ] <- c(4, 3, 2, 1)
+  number_ysa[3, 1, ] <- c(2, 2, 2, 2)
+  number_ysa[4, 1, ] <- c(5, 4, 3, 2)
+  number_ysa[5, 1, ] <- c(1, 1, 2, 3)
+  sel_fya <- array(1, dim = c(1L, n_year, n_age))
+  sel_fya[1, 1, ] <- c(0.9, 0.8, 0.7, 0.6)
+  sel_fya[1, 2, ] <- c(0.8, 0.7, 0.6, 0.5)
+  sel_fya[1, 3, ] <- c(0.7, 0.6, 0.5, 0.4)
+  sel_fya[1, 4, ] <- c(0.6, 0.5, 0.4, 0.3)
+  sel_fya[1, 5, ] <- c(0.5, 0.4, 0.3, 0.2)
+  weight_fya <- array(1, dim = c(1L, n_year, n_age))
+
+  s <- make_cpue_args(
+    n_index = 1, n_year = n_year, n_age = n_age,
+    ts = as.integer(1:n_cpue),
+    fishery = rep(1L, n_cpue),
+    index = rep(1L, n_cpue),
+    units = c(1L, 2L, 1L, 2L, 1L),
+    value = c(1.2, 0.9, 1.6, 0.7, 1.1),
+    se = c(0.1, 0.2, 0.15, 0.12, 0.09),
+    log_cpue_tau = log(0.12),
+    log_cpue_omega = log(0.85),
+    cpue_creep = 0.03,
+    log_cpue_q = log(1.4),
+    number_ysa = number_ysa, sel_fya = sel_fya, weight_fya = weight_fya
+  )
+
+  lp_new <- get_cpue_like(s$data, s$parameters, s$number_ysa, s$sel_fya, s$weight_fya)
+  lp_old <- legacy_cpue_like(s$data, s$parameters, s$number_ysa, s$sel_fya, s$weight_fya)
+  expect_true(all(is.finite(lp_new)))
+  expect_equal(lp_new, lp_old, tolerance = 1e-14)
 })
 
 test_that("two indices get independent q values", {
