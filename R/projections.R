@@ -310,11 +310,17 @@ project_rec_devs <- function(data, obj, mcmc = NULL, first_yr = 1931, last_yr = 
     # rdevs1 <- t(as.matrix(obj$par[names(obj$par) %in% "par_rdev_y"]))
     # rdevs1 <- t(as.matrix(obj$report()$par_rdev_y))
   }
-  dimnames(rdevs1) <- list(iteration = 1:n_iter, year = data$first_yr:data$last_yr)
-  
+  # rdevs1 may cover fewer years than the full model span when early rdev_y are
+  # fixed in the map (e.g., spin-up period fixed at zero).  Derive the first
+  # estimated year from the actual column count rather than assuming n_year.
+  n_rdev <- ncol(rdevs1)
+  first_rdev_yr <- data$last_yr - n_rdev + 1
+  dimnames(rdevs1) <- list(iteration = 1:n_iter, year = first_rdev_yr:data$last_yr)
+
   if (is.null(last_yr)) last_yr <- data$last_yr
-  samp_years <- (first_yr - data$first_yr + 1):(last_yr - data$first_yr + 1)
-  rdevs <- rdevs1[,samp_years]
+  samp_first_yr <- max(first_yr, first_rdev_yr)
+  samp_years <- (samp_first_yr - first_rdev_yr + 1):(last_yr - first_rdev_yr + 1)
+  rdevs <- rdevs1[, samp_years, drop = FALSE]
   
   proj_years <- (data$last_yr + 1):(data$last_yr + n_proj)
   sim <- matrix(NA, nrow = n_iter, ncol = n_proj, dimnames = list(iteration = 1:n_iter, year = proj_years))

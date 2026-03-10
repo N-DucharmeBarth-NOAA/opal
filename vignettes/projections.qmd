@@ -97,7 +97,45 @@ parameters <- list(
 ```
 
 Fix all parameters except `log_B0`, `log_cpue_q`, and the recruitment deviates
-`rdev_y`:
+`rdev_y`.  Deviates for the first generation time are fixed at zero — the
+population is at or near its unfished state during that period and there is no
+catch information to distinguish individual year-class strengths.
+
+```{r gen-time}
+#| output: false
+#| message: false
+# Build a temporary model to extract life-history arrays for generation-time
+# calculation; no optimisation is performed here.
+obj_tmp <- MakeADFun(func = cmb(opal_model, data), parameters = parameters,
+                     map = list(
+                       log_h=factor(NA), log_sigma_r=factor(NA), log_B0=factor(NA),
+                       cpue_creep=factor(NA), log_cpue_tau=factor(NA),
+                       log_cpue_omega=factor(NA),
+                       log_lf_tau=factor(rep(NA,data$n_fishery)),
+                       log_wf_tau=factor(rep(NA,data$n_fishery)),
+                       log_L1=factor(NA), log_L2=factor(NA), log_k=factor(NA),
+                       log_CV1=factor(NA), log_CV2=factor(NA),
+                       log_cpue_q=factor(NA),
+                       par_sel=factor(matrix(NA,nrow(parameters$par_sel),
+                                                ncol(parameters$par_sel))),
+                       rdev_y=factor(rep(NA, length(parameters$rdev_y)))
+                     ))
+rep_tmp <- obj_tmp$report()
+
+# Generation time = mean age of spawners at unfished equilibrium (0-based ages)
+M_a_tmp   <- rep_tmp$M_a
+spa_tmp   <- rep_tmp$spawning_potential_a
+n_age_tmp <- length(M_a_tmp)
+surv_tmp  <- numeric(n_age_tmp)
+surv_tmp[1] <- 1
+for (a in seq(2, n_age_tmp))
+  surv_tmp[a] <- surv_tmp[a - 1] * exp(-M_a_tmp[a - 1])
+surv_tmp[n_age_tmp] <- surv_tmp[n_age_tmp] / (1 - exp(-M_a_tmp[n_age_tmp]))
+ages_0based <- seq_len(n_age_tmp) - 1
+spa_w <- spa_tmp * surv_tmp
+n_gen <- round(sum(ages_0based * spa_w) / sum(spa_w))
+rm(obj_tmp, rep_tmp, M_a_tmp, spa_tmp, surv_tmp, spa_w, ages_0based, n_age_tmp)
+```
 
 ```{r map}
 map <- list(
@@ -114,7 +152,10 @@ map <- list(
   log_CV1        = factor(NA),
   log_CV2        = factor(NA),
   par_sel        = factor(matrix(NA, nrow(parameters$par_sel),
-                                     ncol(parameters$par_sel)))
+                                     ncol(parameters$par_sel))),
+  # Fix the first n_gen rdev_y to zero (unfished spin-up period)
+  rdev_y         = factor(c(rep(NA, n_gen),
+                            seq_len(data$n_year - n_gen)))
 )
 ```
 
@@ -341,29 +382,40 @@ knitr::kable(scalar_params,
              caption   = "MLE estimates and Hessian-based 95% confidence intervals.")
 ```
 
-The recruitment deviates `rdev_y` have one value per model year
-(`r data_sim$n_year` parameters total).  Each deviate is centred on zero with a
-prior `sd = sigma_r = `r round(rep_sim$sigma_r, 2)``.
+The recruitment deviates `rdev_y` cover `r data_sim$n_year` model years, but
+the first `r n_gen` years (one generation time) are fixed at zero — the
+population is assumed to be at unfished equilibrium during that spin-up period.
+The remaining `r data_sim$n_year - n_gen` deviates are freely estimated, each
+centred on zero with prior `sd = sigma_r = `r round(rep_sim$sigma_r, 2)``.
 
 ```{r rdev-plot}
 #| fig-height: 3.5
 #| fig-width: 8
-#| fig-cap: "Estimated log-recruitment deviates with approximate 95% point-wise confidence intervals (±1.96 × Hessian SE)."
+#| fig-cap: "Estimated log-recruitment deviates with approximate 95% point-wise confidence intervals (±1.96 × Hessian SE). The first generation time (grey shading) is fixed at zero."
 rdev_idx <- which(names(mu_vec) == "rdev_y")
-rdev_mle <- mu_vec[rdev_idx]
-rdev_se  <- SE_vec[rdev_idx]
+rdev_mle_est <- mu_vec[rdev_idx]
+rdev_se_est  <- SE_vec[rdev_idx]
+# Reconstruct full time-series: fixed years = 0 (SE = 0), estimated years free
+rdev_mle <- c(rep(0, n_gen), rdev_mle_est)
+rdev_se  <- c(rep(0, n_gen), rdev_se_est)
 rdev_df  <- data.frame(
   year  = seq_len(data_sim$n_year),
   rdev  = rdev_mle,
   lo95  = rdev_mle - 1.96 * rdev_se,
-  hi95  = rdev_mle + 1.96 * rdev_se
+  hi95  = rdev_mle + 1.96 * rdev_se,
+  fixed = c(rep(TRUE, n_gen), rep(FALSE, data_sim$n_year - n_gen))
 )
 ggplot(rdev_df, aes(x = year)) +
-  geom_ribbon(aes(ymin = lo95, ymax = hi95), fill = "steelblue", alpha = 0.25) +
+  annotate("rect", xmin = 0.5, xmax = n_gen + 0.5,
+           ymin = -Inf, ymax = Inf, fill = "grey90", alpha = 0.6) +
+  geom_ribbon(data = subset(rdev_df, !fixed),
+              aes(ymin = lo95, ymax = hi95), fill = "steelblue", alpha = 0.25) +
   geom_line(aes(y = rdev), colour = "steelblue", linewidth = 0.6) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
   labs(x = "Model year", y = "log-recruitment deviate",
-       title = "Estimated recruitment deviates (rdev_y)")
+       title = "Estimated recruitment deviates (rdev_y)",
+       subtitle = paste0("Years 1–", n_gen, " fixed at zero (spin-up); years ",
+                         n_gen + 1, "–", data_sim$n_year, " estimated freely"))
 ```
 
 ---
@@ -445,9 +497,25 @@ mcmc_fit <- SparseNUTS::sample_snuts(
 )
 ```
 
-Use the posterior draws for projection.  The same pre-generated recruitment
-deviates and selectivity arrays are reused so that the only difference between
-the two approaches is how historical parameter uncertainty is represented:
+For the MCMC path, projected recruitment deviates are generated by fitting an
+ARIMA model to each posterior draw's own historical rdev_y series.  This keeps
+the projected rdev pattern consistent with the historical rdev pattern for that
+draw — the same ARIMA structure that characterises, say, a high-recruitment
+draw in the historical period also governs its projection.  For the MVN path
+(above), the ARIMA was fitted to the single MLE series, which is appropriate
+because all MVN iterations share the same conditional-expectation history.
+
+```{r rdev-proj-mcmc}
+#| output: false
+rdev_proj_mcmc <- project_rec_devs(
+  data     = data_sim,
+  obj      = obj_sim,
+  mcmc     = mcmc_fit,              # ARIMA fitted to each posterior draw's rdev_y series
+  first_yr = data_sim$first_yr,    # match the estimated rdev period
+  n_proj   = n_proj,
+  n_iter   = n_iter
+)
+```
 
 ```{r proj-mcmc}
 #| output: false
@@ -457,7 +525,7 @@ proj_mcmc <- project_dynamics(
   mcmc        = mcmc_fit,      # triggers MCMC path
   n_proj      = n_proj,
   n_iter      = n_iter,
-  rdev_y      = rdev_proj$rdev_y,
+  rdev_y      = rdev_proj_mcmc$rdev_y,
   sel_fya     = sel_proj,
   catch_ysf   = catch_ysf_proj,
   return_hist = TRUE           # collect historical SB per MCMC draw
@@ -762,7 +830,8 @@ rdev_y_mle  <- mu_vec[names(mu_vec) == "rdev_y"]
 post_mat    <- SparseNUTS::extract_samples(mcmc_fit)
 rdev_cols   <- grep("rdev_y", colnames(post_mat))
 rdev_y_post_mean <- colMeans(post_mat[, rdev_cols])
-cat("\nCheck 4: rdev_y MLE vs MCMC mean (first 5 years)\n")
+cat(sprintf("\nCheck 4: rdev_y MLE vs MCMC mean (first 5 estimated deviates, years %d–%d)\n",
+            n_gen + 1, n_gen + 5))
 cat(sprintf("  MLE:       %s\n", paste(round(rdev_y_mle[1:5], 3), collapse = "  ")))
 cat(sprintf("  MCMC mean: %s\n", paste(round(rdev_y_post_mean[1:5], 3), collapse = "  ")))
 cat(sprintf("  Max |MLE - MCMC mean| across all rdev_y: %.4f\n",
@@ -780,10 +849,10 @@ cat(sprintf("  Max |MLE - MCMC mean| across all rdev_y: %.4f\n",
 sigma_r_val <- exp(parameters$log_sigma_r)
 cat("A. rdev_y scale (log scale):\n")
 cat(sprintf("  sigma_r = %.3f\n", sigma_r_val))
-cat(sprintf("  MLE rdev_y[1]  = %.3f  (%.2f sigma_r from 0)\n",
-            rdev_y_mle[1], rdev_y_mle[1] / sigma_r_val))
-cat(sprintf("  MCMC mean rdev_y[1] = %.3f  (%.2f sigma_r from 0)\n",
-            rdev_y_post_mean[1], rdev_y_post_mean[1] / sigma_r_val))
+cat(sprintf("  MLE rdev_y[year %d]  = %.3f  (%.2f sigma_r from 0)\n",
+            n_gen + 1, rdev_y_mle[1], rdev_y_mle[1] / sigma_r_val))
+cat(sprintf("  MCMC mean rdev_y[year %d] = %.3f  (%.2f sigma_r from 0)\n",
+            n_gen + 1, rdev_y_post_mean[1], rdev_y_post_mean[1] / sigma_r_val))
 
 # B. NLL at MLE, MCMC posterior mean, and MCMC posterior mode
 mcmc_mean_par  <- colMeans(post_mat)
@@ -812,10 +881,10 @@ cat(sprintf("  rdev log-prior at MCMC mode:     %.2f  (diff: %+.2f)\n",
 cat(sprintf("  rdev log-prior at MCMC mean:     %.2f  (diff: %+.2f)\n",
             rdev_prior_mean, rdev_prior_mean - rdev_prior_mle))
 
-# C. rdev_y pattern plot
+# C. rdev_y pattern plot (estimated years only; first n_gen fixed at 0)
 rdev_q05 <- apply(post_mat[, rdev_cols], 2, quantile, 0.05)
 rdev_q95 <- apply(post_mat[, rdev_cols], 2, quantile, 0.95)
-yr_seq   <- seq_len(data_sim$n_year)
+yr_seq   <- seq(n_gen + 1, data_sim$n_year)   # estimated years only
 
 df_rdev <- data.frame(
   year      = yr_seq,
