@@ -169,8 +169,8 @@ do_dynamics <- function(data, parameters,
   REPORT(hrate_ysa)
   REPORT(hrate_ysfa)
   REPORT(spawning_biomass_y)
-  ADREPORT(spawning_biomass_y)
-
+  RTMB::ADREPORT(spawning_biomass_y)
+  
   return(list(number_ysa = number_ysa, lp_penalty = lp_penalty,
               catch_pred_fya = catch_pred_fya))
 }
