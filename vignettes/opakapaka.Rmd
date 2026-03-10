@@ -1,0 +1,423 @@
+---
+title: "The 'Opakapaka model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The 'Opakapaka model}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+`opal` is an open, modular R package for fisheries stock assessment built on
+[RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. This
+vignette demonstrates model setup, fitting, and diagnostics using bundled data
+for ['opakapaka](https://github.com/noaa-pifsc/Opaka_simulation), extracted from a Stock Synthesis 3 (SS3) model and converted to
+opal conventions. The model covers the historical period 1949–2023 with three
+fleets: a commercial fishery (Comm), a non-commercial fishery (Non_comm), and a
+research fishery survey (ResFish).
+
+# Load inputs
+
+Load the `opal` package and the `RTMB` dependency. The `tidyverse` package is
+used for data manipulation and plotting.
+
+```{r load-pkg, echo=TRUE, message=FALSE}
+library(tidyverse)
+library(opal)
+library(RTMB)
+
+theme_set(theme_bw())
+```
+
+The bundled data object `opaka_data` contains all biological parameters, catch
+and CPUE observations, length structure, and prior specifications needed for the
+opakapaka assessment model:
+
+```{r load-data, echo=TRUE, message=FALSE}
+data(opaka_data)
+data <- opaka_data
+if (is.null(data$n_index)) data$n_index <- 2L
+names(data)
+```
+
+Key dimensions of the data:
+
+```{r data-dims, echo=TRUE}
+cat("Number of ages:", data$n_age, "\n")
+cat("Number of years:", data$n_year, "\n")
+cat("Number of fisheries:", data$n_fishery, "\n")
+cat("Number of length bins:", data$n_len, "\n")
+```
+
+## Biological inputs
+
+Natural mortality, maturity at length, and length-weight parameters are all
+contained in the data object. Unlike the BET case study where M varies with
+age, opakapaka uses a constant M = 0.135 across all ages.
+
+```{r plot-biology, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+ages <- data$age_a
+
+# Natural mortality
+ggplot(data.frame(age = ages, M = data$M), aes(x = age, y = M)) +
+  geom_line() + geom_point(size = 0.8) +
+  labs(x = "Age (opal internal)", y = "M (annual rate)",
+       title = "Natural Mortality-at-Age")
+
+# Maturity at length
+len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
+               by = data$len_bin_width, length.out = data$n_len)
+ggplot(data.frame(length = len_mid, maturity = data$maturity),
+       aes(x = length, y = maturity)) +
+  geom_line() + geom_point() +
+  labs(x = "Length (cm)", y = "Maturity",
+       title = "Maturity-at-Length (logistic, Mat50 = 40.7 cm)")
+```
+
+## Length composition data
+
+Length composition observations are loaded from the bundled `opaka_lf`
+long-format data object and transformed into model-ready arrays. Data are
+available for two fleets: Comm (fleet 1, 1949–2023) and ResFish (fleet 3,
+2017–2023). Fleet 2 (Non_comm) has no length composition data.
+
+```{r prep-lf, echo=TRUE, message=FALSE}
+data(opaka_lf)
+
+# Pivot to wide format: one row per fishery x timestep, bins as columns
+lf_wide <- opaka_lf %>%
+  tidyr::pivot_wider(
+    id_cols = c(fishery, year, month, ts),
+    names_from = bin,
+    values_from = value,
+    values_fill = 0
+  ) %>%
+  arrange(fishery, ts)
+
+# Define variance adjustment scalars for each fishery
+var_adjust_scalars <- 1 / rep(1, data$n_fishery)
+
+data <- prep_lf_data(data, lf_wide,
+                     lf_keep_fisheries = c(1, 3),
+                     lf_var_adjust = var_adjust_scalars)
+```
+
+## Add data free years
+
+Add "data free" years at the model start to allow the population to depart from the
+steady-state age structure without influencing the likelihood.  This requires
+adjusting every time‑series array so that the first `n_early` years are blank
+(zeros) and any time-step columns/rows are shifted accordingly.
+
+```{r add-data-free, echo=TRUE, message=FALSE}
+# number of years of data to prepend
+n_early <- 10
+
+# extend the year vector and related indices
+data$n_year <- data$n_year + n_early
+data$years <- seq(min(data$years), by = 1, length.out = data$n_year)
+data$first_yr <- data$years[1]
+data$last_yr <- data$years[data$n_year]
+# catch series starts after the data‑free years
+data$first_yr_catch <- data$years[n_early + 1]
+
+# shift CPUE time steps so they line up with the expanded year vector
+data$cpue_data <- data$cpue_data %>%
+  mutate(ts = ts + n_early)
+
+# prepend zeros along the first (year) dimension of the 3‑D catch array
+catch_dim <- dim(data$catch_obs_ysf)
+zeros <- array(0, dim = c(n_early, catch_dim[2], catch_dim[3]))
+new_catch <- array(0, dim = c(catch_dim[1] + n_early,
+                               catch_dim[2], catch_dim[3]))
+new_catch[(n_early + 1):nrow(new_catch), , ] <- data$catch_obs_ysf
+
+data$catch_obs_ysf <- new_catch
+
+data$lf_year <- data$lf_year + n_early
+```
+
+
+# Model setup
+
+## Parameters
+
+Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
+`log_k`, `log_CV1`, `log_CV2`) and selectivity (`par_sel`) are initialised
+from the SS3 estimates. Load these from the bundled `opaka_parameters` data
+object:
+
+```{r get-pars, echo=TRUE, message=FALSE}
+data(opaka_parameters)
+
+parameters <- list(
+  log_B0 = 15,
+  log_h = as.numeric(opaka_parameters$log_h),
+  log_sigma_r = as.numeric(opaka_parameters$log_sigma_r),
+  log_cpue_q = as.numeric(opaka_parameters$log_cpue_q),
+  cpue_creep = as.numeric(rep(opaka_parameters$cpue_creep, data$n_index)),
+  log_cpue_tau = rep(log(0.1),data$n_index),
+  log_cpue_omega = as.numeric(rep(opaka_parameters$log_cpue_omega, data$n_index)),
+  log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
+  log_L1 = as.numeric(opaka_parameters$log_L1),
+  log_L2 = as.numeric(opaka_parameters$log_L2),
+  log_k = as.numeric(opaka_parameters$log_k),
+  log_CV1 = as.numeric(opaka_parameters$log_CV1),
+  log_CV2 = as.numeric(opaka_parameters$log_CV2),
+  par_sel = as.matrix(opaka_parameters$par_sel),
+  rdev_y = as.numeric(rep(0, data$n_year))
+)
+```
+
+## Priors
+
+Priors are specified using `get_priors()`. The data object already contains
+prior center values for growth parameters:
+
+```{r get-priors, echo=TRUE, message=FALSE}
+data$priors <- get_priors(parameters = parameters, data = data)
+evaluate_priors(parameters = parameters, priors = data$priors)
+```
+
+## Parameter map
+
+Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
+`factor(NA)` are fixed at their initial values. For the initial run, we fix
+most parameters and estimate only `log_B0`, `log_cpue_q`, and `rdev_y`:
+
+```{r get-map, echo=TRUE, message=FALSE}
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+# map_sel[1,1:2 ] <- c(1, 2) # Comm fleet selectivity parameters
+# map_sel[3,c(1,3,4) ] <- c(3,4,5) # Comm fleet selectivity parameters
+
+map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
+
+map <- list(
+  # log_B0 = factor(NA),
+  log_h = factor(NA),
+  log_sigma_r = factor(NA),
+  # log_cpue_q = factor(NA),
+  cpue_creep = as.factor(rep(NA, data$n_index)),
+  log_cpue_tau = as.factor(rep(NA, data$n_index)),
+  log_cpue_omega = as.factor(rep(NA, data$n_index)),
+  log_lf_tau = factor(map_lf_tau),
+  log_L1  = factor(NA),
+  log_L2  = factor(NA),
+  log_k   = factor(NA),
+  log_CV1 = factor(NA),
+  log_CV2 = factor(NA),
+  par_sel = factor(map_sel)
+  # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
+)
+```
+
+## Build the AD object
+
+Using the `data`, the `parameters`, the parameter `map`, and the model
+(`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
+
+```{r make-adfun, echo=TRUE, message=FALSE}
+data$lf_switch <- 0 # skip length comps initially (removal only)
+# data$lf_switch <- 1L # multinomial likelihood
+
+obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+unique(names(obj$par))
+obj$fn()
+obj$gr()
+```
+
+Inspect initial model outputs:
+
+```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+plot(obj$report()$spawning_biomass_y, type = "l",
+     xlab = "Time step", ylab = "Spawning biomass",
+     main = "Initial spawning biomass trajectory")
+```
+
+## Parameter bounds
+
+```{r get-par-bounds, echo=TRUE, message=FALSE}
+Lwr <- rep(-Inf, length(obj$par))
+Upr <- rep(Inf, length(obj$par))
+Lwr[grep("log_B0", names(obj$par))] <- log(1)
+Upr[grep("log_B0", names(obj$par))] <- log(exp(22))
+Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.001)
+Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
+bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
+```
+
+# Optimisation
+
+Optimise using the `nlminb` function, run twice to ensure convergence:
+
+```{r run-nlminb, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
+              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
+              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+obj$fn()
+max(abs(obj$gr()))
+obj$report()$lp_prior
+obj$report()$lp_penalty
+obj$report()$lp_rec
+sum(obj$report()$lp_cpue)
+sum(obj$report()$lp_lf)
+```
+
+Compare initial and estimated parameter values:
+
+```{r opt-results, echo=TRUE, message=FALSE}
+get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
+```
+
+Inspect fitted CPUE and catch:
+
+```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+# combine observations and predictions and respect the index column
+cpue_df <- data$cpue_data %>%
+  mutate(pred = obj$report()$cpue_pred)
+
+# simple ggplot version that splits by index (could also facet by season/fishery)
+ggplot(cpue_df, aes(x = ts, y = value)) +
+  geom_point(aes(color = factor(index), shape = factor(index))) +
+  geom_line(aes(y = pred, color = factor(index))) +
+  labs(x = "Time step", y = "CPUE", color = "Index", shape = "Index",
+       title = "CPUE: observed vs predicted") +
+  scale_color_brewer(type = "qual", palette = "Dark2") +
+  theme_minimal()
+```
+
+Inspect estimated spawning biomass trajectory:
+
+```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+plot(obj$report()$spawning_biomass_y, type = "l",
+     xlab = "Time step", ylab = "Spawning biomass",
+     main = "Estimated spawning biomass trajectory",
+     ylim = c(0, max(obj$report()$spawning_biomass_y) * 1.2))
+```
+
+## Selectivity
+
+Visualise the selectivity curves by fleet:
+
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=4, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+rep <- obj$report()
+sel_fya <- rep$sel_fya
+
+fleet_names <- c("Comm", "Non_comm", "ResFish")
+
+sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
+sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
+  sel_fya[sel_df$fishery[i], 1, sel_df$age[i]]
+})
+sel_df$fleet_name <- fleet_names[sel_df$fishery]
+
+ggplot(sel_df, aes(x = age, y = selectivity)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 3) +
+  labs(x = "Age (opal internal)", y = "Selectivity") +
+  ylim(0, 1)
+```
+
+## Diagnostics
+
+Check that all parameters are estimable using the `check_estimability` function:
+
+```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+check_estimability(obj = obj)
+```
+
+Look for any parameters with high correlations (absolute correlation > 0.95)
+using the `get_cor_pairs` function:
+
+```{r check-cor, echo=TRUE, message=FALSE}
+get_cor_pairs(obj = obj, threshold = 0.95)
+```
+
+Calculate standard deviations of all model parameters:
+
+```{r run-sdreport, echo=TRUE, message=FALSE}
+Report <- sdreport(obj)
+```
+
+## Data fits
+
+Inspect predicted vs observed length compositions:
+
+```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
+if (data$lf_switch == 0) {
+  cat("Length composition likelihood is switched off (lf_switch = 0),",
+      "so no predicted length compositions to show.\n")
+} else {
+  lf_rep <- obj$report()
+  lf_pred <- lf_rep$lf_pred
+  nbins <- data$lf_maxbin[1] - data$lf_minbin[1] + 1
+
+  names(lf_pred) <- data$lf_fishery_f
+  for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
+
+  lf_year_list <- split(data$lf_year, data$lf_fishery)
+
+  df_pred <- map_dfr(seq_along(lf_pred), function(i) {
+    m <- lf_pred[[i]]
+    yrs <- lf_year_list[[i]]
+    as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+      rename(id = Var1, length = Var2) %>%
+      mutate(fishery = names(lf_pred)[i],
+             id = as.integer(factor(id, levels = unique(id))),
+             year = yrs[id],
+             length = as.numeric(length),
+             pred = as.numeric(pred))
+  })
+
+  print(
+    ggplot(df_pred, aes(x = length, y = pred)) +
+      geom_line() +
+      facet_wrap(~fishery + year, scales = "free_y", ncol = 5) +
+      labs(x = "Length (cm)", y = "Predicted proportion",
+           title = "Predicted length compositions by fleet and year")
+  )
+}
+```
+
+# Simulation
+
+The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
+allows simulation via `obj$simulate()`.
+
+```{r simulate, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+set.seed(42)
+sims <- replicate(20, obj$simulate()$cpue_log_obs, simplify = FALSE)
+
+# again include index so points and lines are drawn per series
+cpue_df <- data$cpue_data %>%
+  mutate(pred = obj$report()$cpue_pred)
+
+# plot simulated replicates with index grouping
+base_plot <- ggplot(cpue_df, aes(x = ts, y = value)) +
+  geom_point(aes(color = factor(index), shape = factor(index))) +
+  geom_line(aes(y = pred, color = factor(index))) +
+  labs(x = "Time step", y = "CPUE", color = "Index", shape = "Index",
+       title = "Simulated vs observed CPUE (20 replicates)") +
+  scale_color_brewer(type = "qual", palette = "Dark2") +
+  theme_minimal()
+
+# add simulated series in gray
+sim_df <- map_dfr(sims, ~ data.frame(ts = data$cpue_data$ts,
+                                     index = as.factor(data$cpue_data$index),
+                                     sim = exp(.x)), .id = "iter")
+
+base_plot +
+  geom_line(data = sim_df, aes(x = ts, y = sim, group = iter,color=index), alpha = 0.5)
+
+```

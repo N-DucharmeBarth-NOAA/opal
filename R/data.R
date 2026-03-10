@@ -361,3 +361,318 @@
 #'
 #' @source \code{vignettes/baseline.Rmd}
 "opal_baseline_map"
+
+#' 'Opakapaka Stock Assessment Data
+#'
+#' A comprehensive list containing biological parameters, catch and CPUE data,
+#' and Bayesian prior specifications prepared for RTMB (R Template Model Builder)
+#' stock assessment modeling. Extracted from a Stock Synthesis 3 (SS3) model
+#' and converted to opal data conventions.
+#'
+#' @details
+#' ## Data structure (22 list elements)
+#'
+#' **Age and time dimensions:**
+#' \describe{
+#'   \item{age_a}{Vector of integer ages (1:44). Length = 44. Internal opal ages
+#'     mapping to SS3 ages 0-43 (opal age \code{i} = SS3 age \code{i - 1}).}
+#'   \item{n_age}{Number of age classes (44).}
+#'   \item{n_season}{Number of seasons per year (1).}
+#'   \item{n_fishery}{Number of fisheries/fleets (3).}
+#'   \item{n_year}{Number of years in model (75, representing 1949-2023).}
+#'   \item{first_yr}{First year designation in model (1, representing 1949).}
+#'   \item{last_yr}{Last year designation in model (75, representing 2023).}
+#'   \item{years}{Vector of model years (1:75).}
+#' }
+#'
+#' **Length structure:**
+#' \describe{
+#'   \item{len_bin_start}{First length bin lower edge (5 cm).}
+#'   \item{len_bin_width}{Width of each length bin (5 cm).}
+#'   \item{n_len}{Total number of length bins (17).}
+#' }
+#'
+#' **Catch data:**
+#' \describe{
+#'   \item{first_yr_catch}{First year with catch data (1).}
+#'   \item{catch_units_f}{Numeric vector of unit codes by fishery (3 elements).
+#'     All fisheries use units = 1 (biomass).}
+#'   \item{catch_obs_ysf}{Three-dimensional array of observed catch
+#'     (75 years \times 1 season \times 3 fisheries). Dimensions follow
+#'     (year, season, fishery). Fleet 3 (ResFish survey) has zero catch.}
+#' }
+#'
+#' **CPUE data:**
+#' \describe{
+#'   \item{cpue_switch}{Indicator for CPUE inclusion (1 = included).}
+#'   \item{cpue_data}{Data.table with 82 rows and 8 columns containing CPUE
+#'     observations from two fleets:
+#'     \itemize{
+#'       \item{year}: Calendar year (1949-2023)
+#'       \item{month}: Observation month (7 for Comm fleet, 1 for ResFish)
+#'       \item{ts}: Sequential timestep (1-75)
+#'       \item{fishery}: Fleet identifier (1 = Comm, 3 = ResFish)
+#'       \item{index}: Integer index identifier (1 for Comm, 2 for ResFish)
+#'       \item{metric}: Data type ("cpue")
+#'       \item{units}: Unit code (1 for biomass)
+#'       \item{value}: CPUE observations
+#'       \item{se}: Log-space standard error (0.2 for Comm, 0.15 for ResFish)
+#'     }
+#'     Comm fleet (fleet 1) covers 1949-2023 (75 obs). ResFish survey (fleet 3)
+#'     covers 2017-2023 (7 obs).
+#'   }
+#' }
+#'
+#' **Biological parameters:**
+#' \describe{
+#'   \item{lw_a}{Length-weight allometric coefficient (1.75e-05).}
+#'   \item{lw_b}{Length-weight allometric exponent (2.99).}
+#'   \item{maturity}{Maturity at length vector (17 elements). Logistic maturity
+#'     probabilities at each data length bin midpoint (Mat50 = 40.7 cm,
+#'     slope = -2.26).}
+#'   \item{fecundity}{Fecundity at length vector (17 elements). Fecundity equals
+#'     weight at each length bin midpoint (fecundity option: eggs = Wt).}
+#'   \item{M}{Natural mortality at age vector (44 elements). Constant
+#'     instantaneous rate (0.135) across all ages.}
+#' }
+#'
+#' **Growth reference ages (Schnute parameterization):**
+#' \describe{
+#'   \item{A1}{Reference age for L1 (1). Corresponds to SS3 age 0.}
+#'   \item{A2}{Reference age for L2 (44 = n_age). Corresponds to SS3 age 43.}
+#' }
+#'
+#' **Selectivity:**
+#' \describe{
+#'   \item{sel_type_f}{Selectivity function type by fishery (3 elements). Integer
+#'     codes: 1 = logistic (fleets 1-2), 24 = double-normal (fleet 3).}
+#' }
+#'
+#' **Priors:**
+#' \describe{
+#'   \item{priors}{List of 8 Bayesian prior specifications, each containing:
+#'     \itemize{
+#'       \item{type}: Prior distribution type ("none" = uninformative)
+#'       \item{par1}: First parameter (NA when type = "none")
+#'       \item{par2}: Second parameter (NA when type = "none")
+#'       \item{index}: Parameter index in the model
+#'     }
+#'     Priors cover: log_B0, log_cpue_q, par_sel, log_L1, log_L2, log_k,
+#'     log_CV1, log_CV2.
+#'   }
+#' }
+#'
+#' ## Fleet definitions
+#'
+#' \describe{
+#'   \item{Fleet 1 (Comm)}{Commercial fishery. Catch fleet with logistic
+#'     selectivity. CPUE and length composition data available 1949-2023.}
+#'   \item{Fleet 2 (Non_comm)}{Non-commercial fishery. Catch fleet with logistic
+#'     selectivity (fixed parameters). Catch data only, no CPUE or compositions.}
+#'   \item{Fleet 3 (ResFish)}{Research fishery survey. Survey fleet with
+#'     double-normal selectivity. CPUE and length composition data available
+#'     2017-2023.}
+#' }
+#'
+#' ## Growth conversion
+#'
+#' Growth parameters were converted from the SS3 standard von Bertalanffy
+#' parameterization (L_at_Amin = 6.0 at age 0, Linf = 67.5 at age 999,
+#' k = 0.242) to the opal Schnute parameterization with A1 = 1 and A2 = n_age.
+#' The conversion is exact to machine precision (~1e-14). The VB growth
+#' coefficient k is unchanged between parameterizations.
+#'
+#' @format A list with 22 named elements combining dimensions, biological
+#' parameters, observed data (catch and CPUE), and Bayesian priors for RTMB
+#' model initialization.
+#'
+#' @source Extracted from Stock Synthesis 3 (SS3 v3.30.19) model input files
+#'   (\code{data_echo.ss_new}, \code{control.ss_new}). Historical data only
+#'   (1949-2023), forecast period excluded.
+#'
+#' @seealso [opaka_parameters] for starting parameter values,
+#'   [opaka_lf] for length frequency composition data.
+#'
+#' @examples
+#' \dontrun{
+#'   data(opaka_data)
+#'   str(opaka_data)
+#'   # Access catch data
+#'   head(opaka_data$cpue_data)
+#'   # Get biological parameters
+#'   opaka_data$M
+#'   # Check dimensions
+#'   cat("Ages:", opaka_data$n_age, "\n")
+#'   cat("Years:", opaka_data$n_year, "\n")
+#'   cat("Fleets:", opaka_data$n_fishery, "\n")
+#'   cat("Length bins:", opaka_data$n_len, "\n")
+#' }
+#'
+"opaka_data"
+
+#' 'Opakapaka Stock Assessment Parameters
+#'
+#' A list of parameter values for the opakapaka stock assessment model,
+#' extracted from a fitted Stock Synthesis 3 (SS3) model and converted to
+#' opal conventions. Contains growth parameters, recruitment deviations,
+#' selectivity curves, and other model parameters suitable as starting
+#' values for RTMB optimization.
+#'
+#' @details
+#' ## Parameter structure (14 list elements)
+#'
+#' **Stock parameters:**
+#' \describe{
+#'   \item{log_B0}{Log initial recruitment/biomass (SS3's LN(R0)): 5.656}
+#'   \item{log_h}{Steepness parameter (log-scale): log(0.76) = -0.274}
+#'   \item{log_sigma_r}{Recruitment standard deviation (log-scale):
+#'     log(0.52) = -0.654}
+#' }
+#'
+#' **Observation model parameters:**
+#' \describe{
+#'   \item{log_cpue_q}{CPUE catchability coefficients (log-scale). Vector of
+#'     length 2: -3.773 (Comm fleet), -6.253 (ResFish survey).}
+#'   \item{cpue_creep}{CPUE creep adjustment: 0}
+#'   \item{log_cpue_tau}{CPUE observation error (log-scale): -Inf (disabled)}
+#'   \item{log_cpue_omega}{CPUE process error (log-scale): 0}
+#' }
+#'
+#' **Recruitment deviations:**
+#' \describe{
+#'   \item{rdev_y}{Recruitment deviations by year (75 elements, annual timesteps
+#'     1949-2023). Extracted from SS3 estimated main recruitment deviations.}
+#' }
+#'
+#' **Selectivity parameters:**
+#' \describe{
+#'   \item{par_sel}{Selectivity parameters matrix (3 fisheries \times 6 columns).
+#'     \itemize{
+#'       \item{Fleet 1 (Comm)}: Logistic. Cols 1-2 = inflection (36.1 cm),
+#'         95\% width (4.08 cm). Cols 3-6 unused.
+#'       \item{Fleet 2 (Non_comm)}: Logistic (fixed). Cols 1-2 = inflection
+#'         (40 cm), 95\% width (11 cm). Cols 3-6 unused.
+#'       \item{Fleet 3 (ResFish)}: Double-normal (SS3 pattern 24). Cols 1-6 =
+#'         peak (20.5), top_logit (-1.06), ascend_se (-0.34), descend_se (4.11),
+#'         start_logit (-999), end_logit (-1.40).
+#'     }
+#'   }
+#' }
+#'
+#' **Growth parameters (Schnute parameterization, log-scale):**
+#' \describe{
+#'   \item{log_L1}{Log of length at reference age A1 = 1 (opal internal),
+#'     corresponding to SS3 age 0: log(6.0) = 1.792}
+#'   \item{log_L2}{Log of length at reference age A2 = 44 (opal internal),
+#'     corresponding to SS3 age 43: log(67.498) = 4.212}
+#'   \item{log_k}{Log of von Bertalanffy growth coefficient:
+#'     log(0.242) = -1.419}
+#'   \item{log_CV1}{Log of CV at young ages: log(0.085) = -2.465}
+#'   \item{log_CV2}{Log of CV at old ages: log(0.085) = -2.465. Equal to
+#'     log_CV1, giving constant CV across all lengths.}
+#' }
+#'
+#' @format A list with 14 named elements containing parameters extracted from
+#' SS3 model optimization and converted to opal conventions.
+#'
+#' @source Extracted from Stock Synthesis 3 parameter file (\code{ss.par})
+#'   and control file (\code{control.ss_new}). Growth parameters converted
+#'   from standard VB to Schnute parameterization with A1 = 1, A2 = n_age.
+#'
+#' @seealso [opaka_data] for the corresponding data object,
+#'   [opaka_lf] for length frequency composition data.
+#'
+#' @examples
+#' \dontrun{
+#'   data(opaka_parameters)
+#'   str(opaka_parameters)
+#'   # Access growth parameters on real scale
+#'   exp(opaka_parameters$log_L1)   # L1 = 6.0 cm
+#'   exp(opaka_parameters$log_L2)   # L2 = 67.5 cm
+#'   exp(opaka_parameters$log_k)    # k = 0.242
+#'   # Steepness
+#'   exp(opaka_parameters$log_h)    # h = 0.76
+#' }
+#'
+"opaka_parameters"
+
+#' 'Opakapaka Length Frequency Data
+#'
+#' Length frequency composition data extracted from a Stock Synthesis 3 (SS3)
+#' model and prepared for RTMB (R Template Model Builder) stock assessment
+#' modeling. Observations are organized by fishery, year, month, and 5 cm
+#' length bins.
+#'
+#' @details
+#' ## Data workflow
+#'
+#' **Preparation steps:**
+#' \enumerate{
+#'   \item Parse length composition observations from SS3 data file
+#'     (\code{data_echo.ss_new})
+#'   \item Extract proportions and sample sizes by fleet-year
+#'   \item Convert proportions to pseudo-counts (proportion \times Nsamp)
+#'   \item Reshape to long format (one row per fishery-year-length bin)
+#'   \item Truncate to historical period (1949-2023)
+#' }
+#'
+#' ## Output columns
+#'
+#' \describe{
+#'   \item{year}{Calendar year (1949-2023). Integer.}
+#'   \item{month}{Observation month (1 for all observations). Integer.}
+#'   \item{ts}{Model timestep number (1-75). Integer.}
+#'   \item{fishery}{Fleet index: 1 = Comm (75 obs), 3 = ResFish (7 obs).
+#'     Numeric.}
+#'   \item{bin}{Length bin lower edge (cm). 5 cm bins: 5, 10, 15, ..., 85.
+#'     Numeric.}
+#'   \item{value}{Pseudo-count (proportion \times Nsamp) in this length bin.
+#'     Numeric.}
+#'   \item{week}{Temporal indicator (always 1). Numeric.}
+#' }
+#'
+#' ## Fleet coverage
+#'
+#' \describe{
+#'   \item{Fleet 1 (Comm)}{75 observation-years (1949-2023). Sample sizes
+#'     range from ~23 to ~755.}
+#'   \item{Fleet 2 (Non_comm)}{No length composition data available.}
+#'   \item{Fleet 3 (ResFish)}{7 observation-years (2017-2023). Fixed sample
+#'     size of 60 per year.}
+#' }
+#'
+#' ## Notes
+#'
+#' \itemize{
+#'   \item Data length bins are 5 cm wide (5, 10, 15, ..., 85 cm), giving 17 bins
+#'   \item Values are pseudo-counts derived from SS3 proportions \times Nsamp
+#'   \item Sum of values across bins per fishery-year gives the effective sample size
+#'   \item Very small pseudo-counts (< 1e-10) represent SS3's numerical zeros
+#'     and should be treated as absent observations
+#' }
+#'
+#' @format A data.table with 7 columns:
+#'   year (integer), month (integer), ts (integer), fishery (numeric),
+#'   bin (numeric), value (numeric), week (numeric).
+#'   Multiple rows per fishery-year (one per 5 cm length bin). Total rows = 1394
+#'   (82 observation-years \times 17 bins).
+#'
+#' @source Extracted from Stock Synthesis 3 data file (\code{data_echo.ss_new}).
+#'   Historical period only (1949-2023).
+#'
+#' @seealso [opaka_data] for the main data object,
+#'   [opaka_parameters] for starting parameter values.
+#'
+#' @examples
+#' \dontrun{
+#'   data(opaka_lf)
+#'   str(opaka_lf)
+#'   # View sample data
+#'   head(opaka_lf)
+#'   # Get effective sample size per fishery-year
+#'   opaka_lf[, .(total_n = sum(value)), by = .(year, fishery)]
+#'   # Count observations by fleet
+#'   opaka_lf[, uniqueN(paste(year, month)), by = fishery]
+#' }
+#'
+"opaka_lf"
