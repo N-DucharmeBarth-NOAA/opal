@@ -175,6 +175,7 @@ parameters <- list(
   log_CV1 = as.numeric(opaka_parameters$log_CV1),
   log_CV2 = as.numeric(opaka_parameters$log_CV2),
   par_sel = as.matrix(opaka_parameters$par_sel),
+  log_init_F_f = c(log(0.0119122), log(1e-8), log(1e-8)),
   rdev_y = c(rep(0, n_early),opaka_parameters$rdev_y)
 )
 
@@ -220,7 +221,8 @@ map <- list(
   log_k   = factor(NA),
   log_CV1 = factor(NA),
   log_CV2 = factor(NA),
-  par_sel = factor(map_sel)
+  par_sel = factor(map_sel),
+  log_init_F_f = rep(factor(NA), data$n_fishery)
   # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
 )
 ```
@@ -505,8 +507,10 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
 Inspect estimated spawning biomass trajectory from *opal* (blue) relative to the simulated 
 "truth" from the *SS3* operating model (black) and the estimated trajectory from the *SS3* 
 estimation model (red).
-The SS3 models both assumed a small level of equilibrium fishing mortality which may contribute to the discrepancy in estimated 
-scale. *opal* is currently only configured to model populations starting from an unfished equilibrium age structure.
+The base case fixes initial equilibrium fishing mortality using SS3-implied values:
+fleet 1 uses `InitF = 0.0119122` and fleets without initial catch use a negligible
+placeholder (`1e-8`). Estimating `init_F_f` can be treated as a future sensitivity
+when early composition data are informative about the initial age structure.
 
 ```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 
@@ -533,4 +537,3 @@ ggplot(spawning_biomass_est, aes(x = year)) +
   scale_y_continuous(limits = c(0, ybmax * 1.2)) +
   theme_minimal()
 ```
-

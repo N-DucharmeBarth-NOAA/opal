@@ -1,12 +1,17 @@
 #' Initial numbers and Beverton-Holt parameters
 #'
-#' Computes the initial equilibrium numbers-at-age, unfished recruitment (R0), and Beverton-Holt stock-recruitment parameters.
+#' Computes the initial equilibrium numbers-at-age, unfished recruitment (R0),
+#' and Beverton-Holt stock-recruitment parameters.
 #'
 #' @param B0 Unfished spawning biomass.
 #' @param h Beverton-Holt steepness parameter.
 #' @param M_a a \code{vector} of natural mortality at age.
 #' @param spawning_potential_a a \code{vector} of spawning potential at age
 #'   (maturity × fecundity).
+#' @param init_F_f an optional \code{vector} of initial fishing mortality by
+#'   fishery.
+#' @param sel_fa an optional matrix of selectivity-at-age with dimensions
+#'   \code{[n_fishery, n_age]}.
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
@@ -17,13 +22,22 @@
 #' @importFrom RTMB ADoverload
 #' @export
 #'
-get_initial_numbers <- function(B0, h, M_a, spawning_potential_a) {
+get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
+                                init_F_f = NULL, sel_fa = NULL) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
+  Z_a <- M_a
+  if (!is.null(init_F_f) && !is.null(sel_fa)) {
+    for (f in seq_along(init_F_f)) {
+      Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
+    }
+  }
   rel_N <- numeric(n_age)
   rel_N[1] <- 1
-  for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-M_a[a - 1])
-  rel_N[n_age] <- rel_N[n_age] / (1 - exp(-M_a[n_age]))
+  if (n_age > 1) {
+    for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-Z_a[a - 1])
+  }
+  rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
   R0 <- B0 / sum(spawning_potential_a * rel_N)
   alpha <- (4 * h * R0) / (5 * h - 1)
   beta  <- (B0 * (1 - h)) / (5 * h - 1)

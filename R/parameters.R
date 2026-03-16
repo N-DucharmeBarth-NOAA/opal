@@ -114,7 +114,8 @@ get_parameters <- function(data) {
     par_log_sel_5 = par_sel[[5]], 
     par_log_sel_6 = par_sel[[6]],
     par_log_sel_7 = par_sel[[7]], 
-    par_rdev_y = Reps
+    par_rdev_y = Reps,
+    log_init_F_f = rep(log(1e-8), data$n_fishery)
   )
   
   return(parameters)

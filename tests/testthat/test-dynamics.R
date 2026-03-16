@@ -123,3 +123,46 @@ test_that("get_harvest_rate reproduces observed catch in number and weight units
     tolerance = 1e-7
   )
 })
+
+test_that("init_F_f = NULL gives unfished equilibrium", {
+  M_a  <- rep(0.2, 5)
+  sp_a <- c(0, 0.2, 0.6, 1, 1)
+  init <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                              spawning_potential_a = sp_a)
+  expect_equal(sum(init$Ninit * sp_a), 1e6, tolerance = 1e-6)
+})
+
+test_that("init_F_f > 0 produces depleted SSB relative to B0", {
+  M_a    <- rep(0.2, 5)
+  sp_a   <- c(0, 0.2, 0.6, 1, 1)
+  sel_fa <- matrix(c(0, 0.2, 0.6, 1, 1), nrow = 1)
+  init   <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                                spawning_potential_a = sp_a,
+                                init_F_f = 0.1, sel_fa = sel_fa)
+  expect_lt(sum(init$Ninit * sp_a), 1e6)
+})
+
+test_that("init_F_f near zero matches unfished result", {
+  M_a      <- rep(0.2, 5)
+  sp_a     <- c(0, 0.2, 0.6, 1, 1)
+  sel_fa   <- matrix(c(0, 0.2, 0.6, 1, 1), nrow = 1)
+  unfished <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                                  spawning_potential_a = sp_a)
+  fished   <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                                  spawning_potential_a = sp_a,
+                                  init_F_f = 1e-8, sel_fa = sel_fa)
+  expect_equal(fished$Ninit, unfished$Ninit, tolerance = 1e-5)
+})
+
+test_that("init_F_f recovers analytic depletion for single plus-group age", {
+  M_ <- 0.3
+  F_ <- 0.1
+  Z <- M_ + F_
+  init <- get_initial_numbers(B0 = 1000, h = 0.75, M_a = M_,
+                              spawning_potential_a = 1,
+                              init_F_f = F_,
+                              sel_fa = matrix(1, nrow = 1, ncol = 1))
+  expected_relN <- 1 / (1 - exp(-Z))
+  expected_R0   <- 1000 / (1 * expected_relN)
+  expect_equal(init$Ninit, expected_R0 * expected_relN, tolerance = 1e-10)
+})
