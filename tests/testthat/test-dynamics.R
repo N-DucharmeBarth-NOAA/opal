@@ -155,12 +155,12 @@ test_that("init_F_f near zero matches unfished result", {
 })
 
 test_that("init_F_f recovers analytic depletion for single plus-group age", {
-  M_ <- 0.3
-  F_ <- 0.1
-  Z <- M_ + F_
-  init <- get_initial_numbers(B0 = 1000, h = 0.75, M_a = M_,
+  M_single <- 0.3
+  init_F <- 0.1
+  Z <- M_single + init_F
+  init <- get_initial_numbers(B0 = 1000, h = 0.75, M_a = M_single,
                               spawning_potential_a = 1,
-                              init_F_f = F_,
+                              init_F_f = init_F,
                               sel_fa = matrix(1, nrow = 1, ncol = 1))
   expected_relN <- 1 / (1 - exp(-Z))
   expected_R0   <- 1000 / (1 * expected_relN)
