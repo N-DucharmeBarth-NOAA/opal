@@ -192,6 +192,7 @@ get_bounds <- function(obj, parameters) {
   Upr[grep("par_log_sigma_r", names(obj$par))] <- log(2.0)
   Lwr[grep("par_log_h", names(obj$par))] <- log(0.21)
   Upr[grep("par_log_h", names(obj$par))] <- log(1.0)
+  # Keep initial F positive; upper cap F <= 3 follows the requested broad bound.
   Lwr[grep("log_init_F_f", names(obj$par))] <- log(1e-12)
   Upr[grep("log_init_F_f", names(obj$par))] <- log(3)
   Lwr[grep("par_rdev_y", names(obj$par))] <- rep(-5, length(parameters$par_rdev_y))

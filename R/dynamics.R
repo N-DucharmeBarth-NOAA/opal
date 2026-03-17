@@ -1,3 +1,16 @@
+#' Compute unfished equilibrium quantities from natural mortality only
+#'
+#' Internal helper used by \code{\link{get_initial_numbers}} to calculate
+#' unfished survivorship-per-recruit, \eqn{R_0}, and Beverton-Holt parameters.
+#'
+#' @param B0 Unfished spawning biomass.
+#' @param h Beverton-Holt steepness parameter.
+#' @param M_a a \code{vector} of natural mortality at age.
+#' @param spawning_potential_a a \code{vector} of spawning potential at age
+#'   (maturity × fecundity).
+#' @return A list with \code{rel_N}, \code{R0}, \code{alpha}, and \code{beta}.
+#' @importFrom RTMB ADoverload
+#' @keywords internal
 get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
