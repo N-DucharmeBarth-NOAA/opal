@@ -175,7 +175,7 @@ parameters <- list(
   log_CV1 = as.numeric(opaka_parameters$log_CV1),
   log_CV2 = as.numeric(opaka_parameters$log_CV2),
   par_sel = as.matrix(opaka_parameters$par_sel),
-  log_init_F_f = c(log(0.0119122), log(1e-8), log(1e-8)),
+  log_init_F_f = c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)),
   rdev_y = c(rep(0, n_early),opaka_parameters$rdev_y)
 )
 
