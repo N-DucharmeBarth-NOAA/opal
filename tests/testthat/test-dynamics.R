@@ -162,7 +162,8 @@ test_that("init_F_f recovers analytic depletion for single plus-group age", {
                               spawning_potential_a = 1,
                               init_F_f = init_F,
                               sel_fa = matrix(1, nrow = 1, ncol = 1))
-  expected_relN <- 1 / (1 - exp(-Z))
-  expected_R0   <- 1000 / (1 * expected_relN)
-  expect_equal(init$Ninit, expected_R0 * expected_relN, tolerance = 1e-10)
+  expected_relN_unfished <- 1 / (1 - exp(-M_single))
+  expected_R0 <- 1000 / expected_relN_unfished
+  expected_relN_fished <- 1 / (1 - exp(-Z))
+  expect_equal(init$Ninit, expected_R0 * expected_relN_fished, tolerance = 1e-10)
 })

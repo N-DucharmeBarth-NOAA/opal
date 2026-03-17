@@ -1,3 +1,18 @@
+get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
+  "[<-" <- ADoverload("[<-")
+  n_age <- length(M_a)
+  rel_N <- numeric(n_age)
+  rel_N[1] <- 1
+  if (n_age > 1) {
+    for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-M_a[a - 1])
+  }
+  rel_N[n_age] <- rel_N[n_age] / (1 - exp(-M_a[n_age]))
+  R0 <- B0 / sum(spawning_potential_a * rel_N)
+  alpha <- (4 * h * R0) / (5 * h - 1)
+  beta  <- (B0 * (1 - h)) / (5 * h - 1)
+  return(list(rel_N = rel_N, R0 = R0, alpha = alpha, beta = beta))
+}
+
 #' Initial numbers and Beverton-Holt parameters
 #'
 #' Computes the initial equilibrium numbers-at-age, unfished recruitment (R0),
@@ -25,6 +40,8 @@
 get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
                                 init_F_f = NULL, sel_fa = NULL) {
   "[<-" <- ADoverload("[<-")
+  unfished <- get_unfished_init(B0 = B0, h = h, M_a = M_a,
+                                spawning_potential_a = spawning_potential_a)
   n_age <- length(M_a)
   Z_a <- M_a
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
@@ -38,10 +55,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
     for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-Z_a[a - 1])
   }
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
-  R0 <- B0 / sum(spawning_potential_a * rel_N)
-  alpha <- (4 * h * R0) / (5 * h - 1)
-  beta  <- (B0 * (1 - h)) / (5 * h - 1)
-  return(list(Ninit = R0 * rel_N, R0 = R0, alpha = alpha, beta = beta))
+  return(list(Ninit = unfished$R0 * rel_N, R0 = unfished$R0,
+              alpha = unfished$alpha, beta = unfished$beta))
 }
 
 #' Population dynamics
