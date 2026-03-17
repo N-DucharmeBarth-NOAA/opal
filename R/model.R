@@ -1,5 +1,5 @@
 utils::globalVariables(c(
-  "log_B0", "log_h", "sigma_r", 
+  "log_B0", "log_h", "log_sigma_r", "sigma_r", 
   "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
   "rdev_y", 
   "log_init_F_f",
