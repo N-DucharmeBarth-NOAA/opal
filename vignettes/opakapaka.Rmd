@@ -148,6 +148,17 @@ if(n_early > 0) {
 calendar_years = seq(from = 1949-n_early, by = 1, length.out = data$n_year)
 ```
 
+## Add SS3 style recruitment bias adjustment ramp
+
+```{r add-bias-ramp, echo=TRUE, message=FALSE}
+  data$do_rec_bias_ramp <- 1
+  data$bias_adj_y <- get_bias_adj_vector(
+    years = data$first_yr:data$last_yr,
+    do_rec_bias_ramp = data$do_rec_bias_ramp,
+    bias_years = c(26,69,116.88,117.43),
+    max_bias_adj = 0.869
+  )
+```
 
 # Model setup
 
