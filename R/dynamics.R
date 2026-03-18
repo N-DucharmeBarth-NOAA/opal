@@ -127,6 +127,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #' @param sel_fya Numeric array \code{[n_fishery, n_year, n_age]}.
 #'   Fishery-specific selectivity at age by year (from
 #'   \code{\link{get_selectivity}}).
+#' @param bias_adj_y Numeric vector of length \code{n_year}. Recruitment bias
+#'   adjustment scalar by year.
 #' @return A named list with:
 #' \describe{
 #'   \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
@@ -139,11 +141,12 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
                         M_a, spawning_potential_a, weight_fya,
-                        init_number_a, sel_fya) {
+                        init_number_a, sel_fya, bias_adj_y = NULL) {
   
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
+  if (is.null(bias_adj_y)) bias_adj_y <- rep(1.0, n_year)
   fy <- first_yr_catch - first_yr + 1
   n_age1 <- n_age - 1
   S_a <- exp(-M_a / n_season)
@@ -216,7 +219,7 @@ do_dynamics <- function(data, parameters,
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
     spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * spawning_potential_a)
 
-    number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r)
+    number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
   }
   
   REPORT(catch_pred_ysf)

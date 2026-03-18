@@ -39,6 +39,14 @@ get_data <- function(data_in) {
   data_in$n_length <- 1
   data_in$n_fishery <- 6
   data_in$age_a <- data_in$min_age:data_in$max_age
+
+  # Recruitment bias adjustment ramp
+  data_in$bias_adj_y <- get_bias_adj_vector(
+    years = data_in$first_yr:data_in$last_yr,
+    do_rec_bias_ramp = data_in$do_rec_bias_ramp,
+    bias_years = data_in$bias_years,
+    max_bias_adj = data_in$max_bias_adj
+  )
   
   fsh <- data.frame(ifishery = 1:6, 
                     fishery = c("LL1", "LL2", "LL3", "LL4", "Indonesia", "Australia"),

@@ -2,6 +2,7 @@ utils::globalVariables(c(
   "log_B0", "log_h", "log_sigma_r", "sigma_r", 
   "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
   "rdev_y", 
+  "bias_adj_y",
   "log_init_F_f",
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
@@ -74,6 +75,7 @@ opal_model <- function(parameters, data) {
   if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
   if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
+  if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
 
   # Growth module ----
 
@@ -130,7 +132,7 @@ opal_model <- function(parameters, data) {
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
                      M_a = M_a, spawning_potential_a = spawning_potential_a, weight_fya = weight_fya_mod,
-                     init_number_a = init$Ninit, sel_fya = sel_fya)
+                     init_number_a = init$Ninit, sel_fya = sel_fya, bias_adj_y = bias_adj_y)
 
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
