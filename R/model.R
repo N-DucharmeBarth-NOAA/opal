@@ -1,7 +1,8 @@
 utils::globalVariables(c(
-  "log_B0", "log_h", "sigma_r", 
+  "log_B0", "log_h", "log_sigma_r", "sigma_r", 
   "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
   "rdev_y", 
+  "log_init_F_f",
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
   "n_age", "min_age", "max_age", 
@@ -72,6 +73,7 @@ opal_model <- function(parameters, data) {
   if (!exists("n_lf",       inherits = FALSE)) n_lf        <- 0L
   if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
   if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
+  if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
 
   # Growth module ----
 
@@ -116,7 +118,9 @@ opal_model <- function(parameters, data) {
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
-  init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a)
+  init_F_f <- exp(log_init_F_f)
+  init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a,
+                              init_F_f = init_F_f, sel_fa = sel_fya[, 1, ])
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta
@@ -140,8 +144,11 @@ opal_model <- function(parameters, data) {
   # Priors ----
 
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
-  # lp_prior <- evaluate_priors(parameters, priors)
-  lp_prior <- 0
+  if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
+    lp_prior <- evaluate_priors(parameters, priors)
+  } else {
+    lp_prior <- 0
+  }
 
   # Likelihoods ----
 
@@ -220,6 +227,9 @@ opal_model <- function(parameters, data) {
   REPORT(maturity_a)
   REPORT(fecundity_a)
   REPORT(spawning_potential_a)
+  REPORT(M_a)
+  REPORT(weight_fya_mod)
+  REPORT(init_F_f)
 
   return(nll)
 }

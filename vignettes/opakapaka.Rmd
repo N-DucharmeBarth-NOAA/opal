@@ -119,29 +119,30 @@ adjusting every time‑series array so that the first `n_early` years are blank
 ```{r add-data-free, echo=TRUE, message=FALSE}
 # number of years of data to prepend
 n_early <- 43
+if(n_early > 0) {
+  # extend the year vector and related indices
+  data$n_year <- data$n_year + n_early
+  data$years <- seq(min(data$years), by = 1, length.out = data$n_year)
+  data$first_yr <- data$years[1]
+  data$last_yr <- data$years[data$n_year]
+  # catch series starts after the data‑free years
+  data$first_yr_catch <- data$years[n_early + 1]
 
-# extend the year vector and related indices
-data$n_year <- data$n_year + n_early
-data$years <- seq(min(data$years), by = 1, length.out = data$n_year)
-data$first_yr <- data$years[1]
-data$last_yr <- data$years[data$n_year]
-# catch series starts after the data‑free years
-data$first_yr_catch <- data$years[n_early + 1]
+  # shift CPUE time steps so they line up with the expanded year vector
+  data$cpue_data <- data$cpue_data %>%
+    mutate(ts = ts + n_early)
 
-# shift CPUE time steps so they line up with the expanded year vector
-data$cpue_data <- data$cpue_data %>%
-  mutate(ts = ts + n_early)
+  # prepend zeros along the first (year) dimension of the 3‑D catch array
+  catch_dim <- dim(data$catch_obs_ysf)
+  zeros <- array(0, dim = c(n_early, catch_dim[2], catch_dim[3]))
+  new_catch <- array(0, dim = c(catch_dim[1] + n_early,
+                                catch_dim[2], catch_dim[3]))
+  new_catch[(n_early + 1):nrow(new_catch), , ] <- data$catch_obs_ysf
 
-# prepend zeros along the first (year) dimension of the 3‑D catch array
-catch_dim <- dim(data$catch_obs_ysf)
-zeros <- array(0, dim = c(n_early, catch_dim[2], catch_dim[3]))
-new_catch <- array(0, dim = c(catch_dim[1] + n_early,
-                               catch_dim[2], catch_dim[3]))
-new_catch[(n_early + 1):nrow(new_catch), , ] <- data$catch_obs_ysf
+  data$catch_obs_ysf <- new_catch
 
-data$catch_obs_ysf <- new_catch
-
-data$lf_year <- data$lf_year + n_early
+  data$lf_year <- data$lf_year + n_early
+}
 
 # define calendar year
 calendar_years = seq(from = 1949-n_early, by = 1, length.out = data$n_year)
@@ -175,6 +176,7 @@ parameters <- list(
   log_CV1 = as.numeric(opaka_parameters$log_CV1),
   log_CV2 = as.numeric(opaka_parameters$log_CV2),
   par_sel = as.matrix(opaka_parameters$par_sel),
+  log_init_F_f = c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)),
   rdev_y = c(rep(0, n_early),opaka_parameters$rdev_y)
 )
 
@@ -220,7 +222,9 @@ map <- list(
   log_k   = factor(NA),
   log_CV1 = factor(NA),
   log_CV2 = factor(NA),
-  par_sel = factor(map_sel)
+  par_sel = factor(map_sel),
+  # log_init_F_f = as.factor(c(1, rep(NA, data$n_fishery - 1)))
+  log_init_F_f = rep(factor(NA), data$n_fishery)
   # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
 )
 ```
@@ -505,8 +509,10 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
 Inspect estimated spawning biomass trajectory from *opal* (blue) relative to the simulated 
 "truth" from the *SS3* operating model (black) and the estimated trajectory from the *SS3* 
 estimation model (red).
-The SS3 models both assumed a small level of equilibrium fishing mortality which may contribute to the discrepancy in estimated 
-scale. *opal* is currently only configured to model populations starting from an unfished equilibrium age structure.
+The base case fixes initial equilibrium fishing mortality using SS3-implied values:
+fleet 1 uses `InitF = 0.0119122` and fleets without initial catch use a negligible
+placeholder (`1e-8`). Estimating `init_F_f` can be treated as a future sensitivity
+when early composition data are informative about the initial age structure.
 
 ```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 
@@ -533,4 +539,3 @@ ggplot(spawning_biomass_est, aes(x = year)) +
   scale_y_continuous(limits = c(0, ybmax * 1.2)) +
   theme_minimal()
 ```
-

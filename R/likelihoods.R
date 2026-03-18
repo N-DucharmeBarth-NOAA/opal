@@ -144,7 +144,13 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
   idx <- 0L
   obs_offset <- 0L
   for (j in seq_len(n_f)) {
-    f <- lf_fishery_f[j]
+    f    <- lf_fishery_f[j]
+    ys   <- lf_year_fi[[j]]            # all observed years for fishery f
+  
+    # ONE matmul: [n_obs_f × n_age] %*% [n_age × n_len] → [n_obs_f × n_len]
+    catch_ya <- catch_pred_fya[f, ys, ]    # [n_obs_f × n_age]
+    pred_yl  <- catch_ya %*% t(pla)        # [n_obs_f × n_len]  ← replaces the inner loop matvecs
+
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]
     nbins <- bmax - bmin + 1L
@@ -152,8 +158,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
     for (i in seq_len(lf_n_f[j])) {
       idx <- idx + 1L
       y <- lf_year_fi[[j]][i]
-      catch_a <- catch_pred_fya[f, y, ]
-      pred <- c(pla %*% catch_a)
+      pred <- pred_yl[i, ]                 # simple row slice, no matvec
       if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
       if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
       pred <- pred[bmin:bmax]
@@ -242,12 +247,19 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
     bmax <- wf_maxbin[f]
     nbins <- bmax - bmin + 1L
     wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
+
+    # Precompute combined age->weight projection once per fishery
+    # rebin_pla: [n_wt x n_age] = wf_rebin_matrix [n_wt x n_len] %*% pla [n_len x n_age]
+    rebin_pla <- wf_rebin_matrix %*% pla
+
+    # ONE matmul per fishery: [n_obs_f x n_age] %*% [n_age x n_wt] -> [n_obs_f x n_wt]
+    ys        <- wf_year_fi[[j]]
+    catch_ya  <- catch_pred_fya[f, ys, ]        # [n_obs_f x n_age]
+    pred_yw   <- catch_ya %*% t(rebin_pla)      # [n_obs_f x n_wt]
+
     for (i in seq_len(wf_n_f[j])) {
       idx <- idx + 1L
-      y <- wf_year_fi[[j]][i]
-      catch_a <- catch_pred_fya[f, y, ]
-      pred_at_length <- c(pla %*% catch_a)
-      pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
+      pred_at_weight <- pred_yw[i, ]            # simple row slice, no matvec
       if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
       if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
       pred <- pred_at_weight[bmin:bmax]
