@@ -51,6 +51,7 @@ theme_set(theme_bw())
 if (identical(Sys.getenv("CI"), "true")) {
   mcmc_fit <- readRDS(system.file("extdata", "mcmc_fit.rds", package = "opal"))
   eval_mcmc <- FALSE
+  n_chains_mcmc <- 8
 }
 ```
 
@@ -487,7 +488,6 @@ MCMC workers.
 
 ```{r mcmc-sampling, eval=eval_mcmc}
 #| output: false
-n_chains_mcmc <- 8
 mcmc_fit <- SparseNUTS::sample_snuts(
   obj         = obj_sim,
   globals     = bet_globals(),
