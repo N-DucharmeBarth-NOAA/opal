@@ -34,7 +34,8 @@
 #'   \code{return_hist = TRUE}: a named list with elements \code{dyn} and
 #'   \code{hist_sbio}.
 #' @importFrom SparseNUTS extract_samples
-#' @importFrom stats optimHess plogis qlogis rnorm
+#' @importFrom stats optimHess plogis rnorm
+#' @importFrom RTMB qlogis
 #' @importFrom utils txtProgressBar setTxtProgressBar
 #' @export
 #'

@@ -114,7 +114,8 @@ get_parameters <- function(data) {
     par_log_sel_5 = par_sel[[5]], 
     par_log_sel_6 = par_sel[[6]],
     par_log_sel_7 = par_sel[[7]], 
-    par_rdev_y = Reps
+    par_rdev_y = Reps,
+    log_init_F_f = rep(log(1e-8), data$n_fishery)
   )
   
   return(parameters)
@@ -145,6 +146,7 @@ get_map <- function(parameters) {
   map[["par_sel_rho_a"]] <- factor(rep(NA, length(parameters$par_sel_rho_a)))
   map[["par_log_sel_sigma"]] <- factor(rep(NA, length(parameters$par_log_sel_sigma)))
   map[["par_log_sel_4"]] <- factor(matrix(NA, nrow = nrow(parameters$par_log_sel_4), ncol = ncol(parameters$par_log_sel_4)))
+  map[["log_init_F_f"]] <- factor(rep(NA, length(parameters$log_init_F_f)))
   # map[["par_rec_dev_y"]] <- factor(rep(NA, length(parameters$par_rdev_y)))
   return(map)
 }
@@ -190,6 +192,9 @@ get_bounds <- function(obj, parameters) {
   Upr[grep("par_log_sigma_r", names(obj$par))] <- log(2.0)
   Lwr[grep("par_log_h", names(obj$par))] <- log(0.21)
   Upr[grep("par_log_h", names(obj$par))] <- log(1.0)
+  # Keep initial F positive; upper cap F <= 3 follows the requested broad bound.
+  Lwr[grep("log_init_F_f", names(obj$par))] <- log(1e-12)
+  Upr[grep("log_init_F_f", names(obj$par))] <- log(3)
   Lwr[grep("par_rdev_y", names(obj$par))] <- rep(-5, length(parameters$par_rdev_y))
   Upr[grep("par_rdev_y", names(obj$par))] <- rep(5, length(parameters$par_rdev_y))
   
