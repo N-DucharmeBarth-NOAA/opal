@@ -62,37 +62,41 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   n_age <- length(M_a)
 
   # Unfished survivorship for R0, alpha, beta
-  rel_N0 <- numeric(n_age)
+  rel_N0 <- numeric(n_age) + B0 * 0
   rel_N0[1] <- 1
   if (n_age > 1) {
     for (a in 2:n_age) rel_N0[a] <- rel_N0[a - 1] * exp(-M_a[a - 1])
   }
   rel_N0[n_age] <- rel_N0[n_age] / (1 - exp(-M_a[n_age]))
-  R0    <- B0 / sum(spawning_potential_a * rel_N0)
+
+  SPR0  <- sum(spawning_potential_a * rel_N0)
+  R0    <- B0 / SPR0
   alpha <- (4 * h * R0) / (5 * h - 1)
   beta  <- (B0 * (1 - h)) / (5 * h - 1)
 
-  # Fished survivorship for Ninit (reduces to unfished when init_F_f ~ 0)
-  # Z_a built element-wise via overloaded [<- so values stay on the AD tape
-  Z_a <- numeric(n_age)
-  for (a in seq_len(n_age)) Z_a[a] <- M_a[a]
+  # Fished survivorship for Ninit
+  Z_a <- M_a + B0 * 0
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
     for (f in seq_along(init_F_f)) {
       Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
     }
   }
-  rel_N <- numeric(n_age)
+
+  rel_N <- numeric(n_age) + B0 * 0
   rel_N[1] <- 1
   if (n_age > 1) {
     for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-Z_a[a - 1])
   }
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
 
-  Ninit <- R0 * rel_N
+  # Fished equilibrium recruitment
+  SPR_eq <- sum(spawning_potential_a * rel_N)
+  R_eq   <- alpha - (beta / SPR_eq)
+
+  Ninit <- R_eq * rel_N
+
   if (!is.null(init_rdev_a)) {
-    # Default to full lognormal bias correction when no explicit initial ramp is provided.
     if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(1.0, n_age)
-    # Match get_recruitment(): exp(rdev - bias_adj * 0.5 * sigma_r^2)
     for (a in seq_len(n_age)) {
       Ninit[a] <- Ninit[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
     }

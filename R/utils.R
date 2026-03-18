@@ -226,7 +226,7 @@ get_par_table <- function(obj, parameters, map,
   # --- Filter rows based on `include` ---------------------------------------
 
   if (include == "core") {
-    out <- out[!out$fixed & out$group != "rdev_y", , drop = FALSE]
+    out <- out[!out$fixed & out$group != "rdev_y" & out$group != "init_rdev_a", , drop = FALSE]
   } else if (include == "all_est") {
     out <- out[!out$fixed, , drop = FALSE]
   }

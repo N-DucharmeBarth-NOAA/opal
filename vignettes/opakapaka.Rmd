@@ -154,6 +154,7 @@ data(opaka_parameters)
 # In the SS3 vector, rdev_y[1] is the 1949 deviation; here it seeds the initial
 # age-0 cohort, while later years are shifted into the modeled rdev_y time series.
 init_rdev_a <- rep(0.0, data$n_age)
+init_rdev_a = rev(c(0.0206807,0.00321579,0.00372620,0.0043174,0.00500263,0.00579674,0.00671727,0.00778422,0.00902081,0.0104539,0.0121143,0.0140375,0.0162641,0.0188404,0.0218182,0.0252561,0.0292182,0.0337726,0.0389898,0.0449362,0.0516662,0.0592049,0.0675236,0.0764992,0.0858443,0.0950047,0.102706,0.107687,0.107712,0.0998349,0.0808137,0.0482339,0.00234443,-0.0517563,-0.102395,-0.131458,-0.121101,-0.0714826,-0.00742166,-0.0109308,-0.0385029,0.0366483,0.0165105,-0.166906))
 # Remaining initial ages start at equilibrium and are estimated via init_rdev_a.
 init_rdev_a[1] <- opaka_parameters$rdev_y[1]
 
@@ -161,7 +162,7 @@ init_rdev_a[1] <- opaka_parameters$rdev_y[1]
 rdev_y_shifted <- c(opaka_parameters$rdev_y[2:length(opaka_parameters$rdev_y)], 0.0)
 
 parameters <- list(
-  log_B0 = 15,
+  log_B0 = 9,
   log_h = as.numeric(opaka_parameters$log_h),
   log_sigma_r = as.numeric(opaka_parameters$log_sigma_r),
   log_cpue_q = as.numeric(opaka_parameters$log_cpue_q),
@@ -225,6 +226,7 @@ map <- list(
   par_sel = factor(map_sel),
   # log_init_F_f = as.factor(c(1, rep(NA, data$n_fishery - 1))),
   log_init_F_f = rep(factor(NA), data$n_fishery),
+  # init_rdev_a = rep(factor(NA), data$n_age)
   init_rdev_a = as.factor(seq_len(data$n_age))
   # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
 )
@@ -238,6 +240,7 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 ```{r make-adfun, echo=TRUE, message=FALSE}
 # data$lf_switch <- 0 # skip length comps initially (removal only)
 data$lf_switch <- 1L # multinomial likelihood
+# data$cpue_switch <- 0L
 # Can set random = "rdev_y" to treat recruitment deviations as random effects, but start with fixed effects for simplicity
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))

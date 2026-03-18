@@ -113,7 +113,8 @@ opal_model <- function(parameters, data) {
   maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
   M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
   fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
-  spawning_potential_a <- maturity_a * fecundity_a
+  spawning_potential_l <- maturity * fecundity
+  spawning_potential_a <- resolve_bio_vector(spawning_potential_l, n_age, n_len, pla, "spawning_potential")
 
   # Selectivity ----
 
