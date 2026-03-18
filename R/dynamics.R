@@ -40,6 +40,10 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #'   fishery.
 #' @param sel_fa an optional matrix of selectivity-at-age with dimensions
 #'   \code{[n_fishery, n_age]}.
+#' @param init_rdev_a an optional \code{vector} of initial age deviations.
+#' @param sigma_r recruitment standard deviation used in lognormal correction.
+#' @param init_bias_adj_a an optional \code{vector} of bias adjustment scalars
+#'   for initial age deviations.
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
@@ -51,7 +55,9 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #' @export
 #'
 get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
-                                init_F_f = NULL, sel_fa = NULL) {
+                                init_F_f = NULL, sel_fa = NULL,
+                                init_rdev_a = NULL, sigma_r = 0.6,
+                                init_bias_adj_a = NULL) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
 
@@ -82,7 +88,15 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   }
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
 
-  return(list(Ninit = R0 * rel_N, R0 = R0, alpha = alpha, beta = beta))
+  Ninit <- R0 * rel_N
+  if (!is.null(init_rdev_a)) {
+    if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(1.0, n_age)
+    for (a in seq_len(n_age)) {
+      Ninit[a] <- Ninit[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
+    }
+  }
+
+  return(list(Ninit = Ninit, R0 = R0, alpha = alpha, beta = beta))
 }
 
 #' Population dynamics

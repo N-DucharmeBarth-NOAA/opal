@@ -109,55 +109,33 @@ data <- prep_lf_data(data, lf_wide,
                      lf_var_adjust = var_adjust_scalars)
 ```
 
-## Add data free years
-
-Add "data free" years at the model start to allow the population to depart from the
-steady-state age structure without influencing the likelihood.  This requires
-adjusting every time‑series array so that the first `n_early` years are blank
-(zeros) and any time-step columns/rows are shifted accordingly.
-
-```{r add-data-free, echo=TRUE, message=FALSE}
-# number of years of data to prepend
-n_early <- 43
-if(n_early > 0) {
-  # extend the year vector and related indices
-  data$n_year <- data$n_year + n_early
-  data$years <- seq(min(data$years), by = 1, length.out = data$n_year)
-  data$first_yr <- data$years[1]
-  data$last_yr <- data$years[data$n_year]
-  # catch series starts after the data‑free years
-  data$first_yr_catch <- data$years[n_early + 1]
-
-  # shift CPUE time steps so they line up with the expanded year vector
-  data$cpue_data <- data$cpue_data %>%
-    mutate(ts = ts + n_early)
-
-  # prepend zeros along the first (year) dimension of the 3‑D catch array
-  catch_dim <- dim(data$catch_obs_ysf)
-  zeros <- array(0, dim = c(n_early, catch_dim[2], catch_dim[3]))
-  new_catch <- array(0, dim = c(catch_dim[1] + n_early,
-                                catch_dim[2], catch_dim[3]))
-  new_catch[(n_early + 1):nrow(new_catch), , ] <- data$catch_obs_ysf
-
-  data$catch_obs_ysf <- new_catch
-
-  data$lf_year <- data$lf_year + n_early
-}
-
-# define calendar year
-calendar_years = seq(from = 1949-n_early, by = 1, length.out = data$n_year)
-```
-
-## Add SS3 style recruitment bias adjustment ramp
+## Set up SS3-style bias ramps
 
 ```{r add-bias-ramp, echo=TRUE, message=FALSE}
-  data$do_rec_bias_ramp <- 1
-  data$bias_adj_y <- get_bias_adj_vector(
-    years = data$first_yr:data$last_yr,
-    do_rec_bias_ramp = data$do_rec_bias_ramp,
-    bias_years = c(26,69,116.88,117.43),
-    max_bias_adj = 0.869
-  )
+# 1. INITIAL COHORTS (1906 to 1949)
+# Data ages are 1-based, so 1949 - (age - 1) gives the birth year.
+# Age_a = 1 (bio age 0) -> Born in 1949.
+# Age_a = 44 (bio age 43) -> Born in 1906.
+init_cohort_years <- 1949 - (data$age_a - 1)
+
+data$init_bias_adj_a <- get_bias_adj_vector(
+  years = init_cohort_years,
+  do_rec_bias_ramp = 1,
+  bias_years = c(1931, 1974, 2021.88, 2022.43),
+  max_bias_adj = 0.869
+)
+
+# 2. TIME SERIES COHORTS (1950 to 2024)
+# Because rdev_y[1] generates recruits for year 2 (1950),
+# the time-series bias ramp must evaluate 1950 to 2024.
+calendar_years <- 1949 + data$years
+
+data$bias_adj_y <- get_bias_adj_vector(
+  years = calendar_years,
+  do_rec_bias_ramp = 1,
+  bias_years = c(1931, 1974, 2021.88, 2022.43),
+  max_bias_adj = 0.869
+)
 ```
 
 # Model setup
@@ -171,6 +149,13 @@ object:
 
 ```{r get-pars, echo=TRUE, message=FALSE}
 data(opaka_parameters)
+
+# Route 1949 dev to the initial age structure (age 0)
+init_rdev_a <- rep(0.0, data$n_age)
+init_rdev_a[1] <- opaka_parameters$rdev_y[1]
+
+# Shift 1950-2023 into rdev_y and add 0.0 for terminal/forecast year 2024
+rdev_y_shifted <- c(opaka_parameters$rdev_y[2:75], 0.0)
 
 parameters <- list(
   log_B0 = 15,
@@ -188,7 +173,8 @@ parameters <- list(
   log_CV2 = as.numeric(opaka_parameters$log_CV2),
   par_sel = as.matrix(opaka_parameters$par_sel),
   log_init_F_f = c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)),
-  rdev_y = c(rep(0, n_early),opaka_parameters$rdev_y)
+  rdev_y = rdev_y_shifted,
+  init_rdev_a = init_rdev_a
 )
 
 # convert ss3 parameters to opal parameters (selectivity)
@@ -209,7 +195,7 @@ evaluate_priors(parameters = parameters, priors = data$priors)
 
 Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 `factor(NA)` are fixed at their initial values. For the initial run, we fix
-most parameters and estimate only `log_B0`, `log_cpue_q`, and `rdev_y`:
+most parameters and estimate only `log_B0`, `log_cpue_q`, `rdev_y`, and `init_rdev_a`:
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
@@ -234,8 +220,9 @@ map <- list(
   log_CV1 = factor(NA),
   log_CV2 = factor(NA),
   par_sel = factor(map_sel),
-  # log_init_F_f = as.factor(c(1, rep(NA, data$n_fishery - 1)))
-  log_init_F_f = rep(factor(NA), data$n_fishery)
+  # log_init_F_f = as.factor(c(1, rep(NA, data$n_fishery - 1))),
+  log_init_F_f = rep(factor(NA), data$n_fishery),
+  init_rdev_a = as.factor(seq_len(data$n_age))
   # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
 )
 ```
@@ -274,6 +261,8 @@ Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.001)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
+Lwr[grep("init_rdev_a", names(obj$par))] <- rep(-5, data$n_age)
+Upr[grep("init_rdev_a", names(obj$par))] <- rep(5, data$n_age)
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 

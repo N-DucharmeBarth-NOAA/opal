@@ -2,7 +2,9 @@ utils::globalVariables(c(
   "log_B0", "log_h", "log_sigma_r", "sigma_r", 
   "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
   "rdev_y", 
+  "init_rdev_a",
   "bias_adj_y",
+  "init_bias_adj_a",
   "log_init_F_f",
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
@@ -75,7 +77,9 @@ opal_model <- function(parameters, data) {
   if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
   if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
+  if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
   if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
+  if (!exists("init_bias_adj_a", inherits = FALSE)) init_bias_adj_a <- rep(1.0, n_age)
 
   # Growth module ----
 
@@ -120,13 +124,15 @@ opal_model <- function(parameters, data) {
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
+  sigma_r <- exp(log_sigma_r)
   init_F_f <- exp(log_init_F_f)
   init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a,
-                              init_F_f = init_F_f, sel_fa = sel_fya[, 1, ])
+                              init_F_f = init_F_f, sel_fa = sel_fya[, 1, ],
+                              init_rdev_a = init_rdev_a, sigma_r = sigma_r,
+                              init_bias_adj_a = init_bias_adj_a)
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta
-  sigma_r <- exp(log_sigma_r)
 
 
   dyn <- do_dynamics(data, parameters,
@@ -146,6 +152,7 @@ opal_model <- function(parameters, data) {
   # Priors ----
 
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
+  lp_init_rec <- get_recruitment_prior(init_rdev_a, sigma_r)
   if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
     lp_prior <- evaluate_priors(parameters, priors)
   } else {
@@ -207,7 +214,7 @@ opal_model <- function(parameters, data) {
     lp_wf <- 0
   }
   # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+  nll <- lp_prior + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
   
   # Reporting ----
 
@@ -217,6 +224,7 @@ opal_model <- function(parameters, data) {
   REPORT(lp_prior)
   REPORT(lp_penalty)
   REPORT(lp_rec)
+  REPORT(lp_init_rec)
   REPORT(lp_cpue)
   REPORT(lp_lf)
   REPORT(lp_wf)
@@ -232,6 +240,7 @@ opal_model <- function(parameters, data) {
   REPORT(M_a)
   REPORT(weight_fya_mod)
   REPORT(init_F_f)
+  REPORT(init_rdev_a)
 
   return(nll)
 }
