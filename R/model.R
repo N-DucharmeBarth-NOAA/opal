@@ -119,9 +119,8 @@ opal_model <- function(parameters, data) {
   B0 <- exp(log_B0)
   h <- exp(log_h)
   init_F_f <- exp(log_init_F_f)
-  sel_fa <- matrix(sel_fya[, 1, ], nrow = n_fishery, ncol = n_age)
   init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a,
-                              init_F_f = init_F_f, sel_fa = sel_fa)
+                              init_F_f = init_F_f, sel_fa = sel_fya[, 1, ])
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta

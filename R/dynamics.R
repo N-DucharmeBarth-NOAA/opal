@@ -20,7 +20,7 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
     for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-M_a[a - 1])
   }
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-M_a[n_age]))
-  R0 <- B0 / sum(spawning_potential_a * rel_N)
+  R0    <- B0 / sum(spawning_potential_a * rel_N)
   alpha <- (4 * h * R0) / (5 * h - 1)
   beta  <- (B0 * (1 - h)) / (5 * h - 1)
   return(list(rel_N = rel_N, R0 = R0, alpha = alpha, beta = beta))
@@ -53,10 +53,23 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
                                 init_F_f = NULL, sel_fa = NULL) {
   "[<-" <- ADoverload("[<-")
-  unfished <- get_unfished_init(B0 = B0, h = h, M_a = M_a,
-                                spawning_potential_a = spawning_potential_a)
   n_age <- length(M_a)
-  Z_a <- M_a
+
+  # Unfished survivorship for R0, alpha, beta
+  rel_N0 <- numeric(n_age)
+  rel_N0[1] <- 1
+  if (n_age > 1) {
+    for (a in 2:n_age) rel_N0[a] <- rel_N0[a - 1] * exp(-M_a[a - 1])
+  }
+  rel_N0[n_age] <- rel_N0[n_age] / (1 - exp(-M_a[n_age]))
+  R0    <- B0 / sum(spawning_potential_a * rel_N0)
+  alpha <- (4 * h * R0) / (5 * h - 1)
+  beta  <- (B0 * (1 - h)) / (5 * h - 1)
+
+  # Fished survivorship for Ninit (reduces to unfished when init_F_f ~ 0)
+  # Z_a built element-wise via overloaded [<- so values stay on the AD tape
+  Z_a <- numeric(n_age)
+  for (a in seq_len(n_age)) Z_a[a] <- M_a[a]
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
     for (f in seq_along(init_F_f)) {
       Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
@@ -68,8 +81,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
     for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-Z_a[a - 1])
   }
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
-  return(list(Ninit = unfished$R0 * rel_N, R0 = unfished$R0,
-              alpha = unfished$alpha, beta = unfished$beta))
+
+  return(list(Ninit = R0 * rel_N, R0 = R0, alpha = alpha, beta = beta))
 }
 
 #' Population dynamics
