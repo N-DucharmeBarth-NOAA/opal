@@ -27,9 +27,19 @@ jobs:
         with:
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-renv@v2
+      - name: Cache renv packages
+        uses: actions/cache@v4
         with:
-          cache-version: 1
+          path: ~/.local/share/renv
+          key: renv-ubuntu-latest-${{ hashFiles('renv.lock') }}
+          restore-keys: renv-ubuntu-latest-
+
+      - name: Restore renv environment
+        run: |
+          install.packages("renv")
+          renv::install("rapidjsonr")
+          renv::restore()
+        shell: Rscript {0}
 
       - name: Install opal package
         run: renv::install(".")

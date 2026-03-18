@@ -1,0 +1,596 @@
+---
+title: "LF Likelihood Benchmark: Loop vs Batched"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{LF Likelihood Benchmark: Loop vs Batched}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+This vignette benchmarks two implementations of the length-composition
+likelihood on the RTMB AD tape:
+
+- **Loop** — old implementation: one `n_age`-length matrix-vector product
+  _per observation_ (`catch_a %*% t(pla)`, recorded as `n_age × n_len`
+  scalar multiply-adds per obs on the CppAD tape).
+- **Batched** — current implementation: one `[n_obs_f × n_age]` matrix
+  multiply _per fishery_ (`catch_ya %*% t(pla)`), letting BLAS handle the
+  inner loop and compressing the tape to a single DGEMM operation per fishery.
+
+Two data subsets are crossed with the two implementations:
+
+| Subset | Fisheries | Obs-rows |
+|--------|-----------|----------|
+| Small  | 8 & 9     | ~210     |
+| Full   | all 7 LF  | ~568     |
+
+The benchmark model is intentionally minimal: it estimates double-normal
+selectivities (`sel_type_f = 2`) for the active fisheries, computes
+catch-at-age from fixed baseline numbers-at-age and estimated selectivity,
+then evaluates the LF likelihood. The full population dynamics are bypassed so
+all AD tape work comes from the selectivity-to-likelihood pipeline. `obj$fn()`
+and `obj$gr()` are timed with `bench::mark`.
+
+# Setup
+
+```{r load-pkg, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(RTMB)
+library(bench)
+library(opal)
+```
+
+## Load raw data
+
+```{r load-data, message=FALSE}
+data(wcpo_bet_data)
+data(wcpo_bet_lf)
+data(opal_baseline_data)
+data(opal_baseline_parameters)
+data(opal_baseline_map)
+
+base_data <- wcpo_bet_data
+if (is.null(base_data$n_index))           base_data$n_index <- 1L
+if (is.null(base_data$cpue_data$index))   base_data$cpue_data$index <- rep(1L, nrow(base_data$cpue_data))
+```
+
+## Build wide-format LF table
+
+```{r lf-wide}
+lf_wide <- wcpo_bet_lf |>
+  tidyr::pivot_wider(
+    id_cols     = c(fishery, year, month, ts),
+    names_from  = bin,
+    values_from = value,
+    values_fill = 0
+  ) |>
+  dplyr::arrange(fishery, ts)
+
+lf_fish_all   <- sort(unique(wcpo_bet_lf$fishery))
+lf_fish_small <- c(8L, 9L)
+
+cat("All LF fisheries:   ", lf_fish_all, "\n")
+cat("Small subset (F8+9):", lf_fish_small, "\n")
+```
+
+## Prepare LF data subsets
+
+```{r prep-lf}
+d_small <- prep_lf_data(base_data, lf_wide,
+                        lf_keep_fisheries = lf_fish_small,
+                        lf_switch         = 1L)
+
+d_full  <- prep_lf_data(base_data, lf_wide,
+                        lf_keep_fisheries = lf_fish_all,
+                        lf_switch         = 1L)
+
+cat("Small: n_lf =", d_small$n_lf, "obs-rows,",
+    length(d_small$lf_fishery_f), "fisheries\n")
+cat("Full:  n_lf =", d_full$n_lf,  "obs-rows,",
+    length(d_full$lf_fishery_f),  "fisheries\n")
+```
+
+## Extract MLE quantities from baseline
+
+Build the baseline model once (no optimisation) to get the MLE PLA matrix and
+numbers-at-age. These are passed as fixed data to the mini benchmark model so
+that the AD tape only records selectivity and likelihood operations.
+
+```{r baseline-build, message=FALSE}
+# Guard missing fields (opal_baseline_data may pre-date n_index)
+bld <- opal_baseline_data
+if (is.null(bld$n_index))         bld$n_index <- 1L
+if (is.null(bld$cpue_data$index)) bld$cpue_data$index <- rep(1L, nrow(bld$cpue_data))
+
+base_pars <- opal_baseline_parameters
+base_pars$log_cpue_q     <- rep(as.numeric(base_pars$log_cpue_q),     bld$n_index)
+base_pars$cpue_creep     <- rep(as.numeric(base_pars$cpue_creep),     bld$n_index)
+base_pars$log_cpue_tau   <- rep(as.numeric(base_pars$log_cpue_tau),   bld$n_index)
+base_pars$log_cpue_omega <- rep(as.numeric(base_pars$log_cpue_omega), bld$n_index)
+
+base_map <- opal_baseline_map
+base_map$cpue_creep     <- factor(rep(NA, bld$n_index))
+base_map$log_cpue_tau   <- factor(rep(NA, bld$n_index))
+base_map$log_cpue_omega <- factor(rep(NA, bld$n_index))
+
+obj_base <- MakeADFun(func       = cmb(opal_model, bld),
+                      parameters = base_pars,
+                      map        = base_map)
+invisible(obj_base$fn(obj_base$par))
+rep_base     <- obj_base$report()
+par_mle      <- obj_base$env$parList(obj_base$env$last.par.best)
+```
+
+```{r extract-mle}
+# PLA at MLE growth parameters (plain double, off the tape)
+L1_mle  <- exp(par_mle$log_L1)
+L2_mle  <- exp(par_mle$log_L2)
+mu_a_mle <- get_growth(base_data$n_age, base_data$A1, base_data$A2,
+                       L1_mle, L2_mle, par_mle$log_k)
+sd_a_mle <- get_sd_at_age(mu_a_mle, L1_mle, L2_mle,
+                          par_mle$log_CV1, par_mle$log_CV2)
+pla_mle  <- get_pla(opal_baseline_data$len_lower,
+                    opal_baseline_data$len_upper,
+                    mu_a_mle, sd_a_mle)
+
+# numbers-at-age from baseline dynamics (plain double, off the tape)
+number_ysa_mle <- rep_base$number_ysa
+
+cat("pla_mle dim:      ", dim(pla_mle), "\n")
+cat("number_ysa dim:   ", dim(number_ysa_mle), "\n")
+```
+
+# Loop implementation
+
+`get_length_like_loop` is structurally identical to the current
+`get_length_like` except the batched fishery-level matmul is replaced by a
+per-observation matrix-vector product. This is what the code looked like before
+the batching optimisation.
+
+```{r def-loop-like}
+get_length_like_loop <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
+                                 catch_pred_fya, pla,
+                                 lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,
+                                 lf_minbin, lf_maxbin, removal_switch_f,
+                                 lf_switch, n_len, n_lf, log_lf_tau) {
+  "[<-" <- ADoverload("[<-")
+  "c"   <- ADoverload("c")
+
+  n_f    <- length(lf_n_f)
+  lf_pred <- vector("list", n_f)
+  lp     <- numeric(n_lf)
+
+  if (lf_switch == 1) lf_obs_flat <- OBS(lf_obs_flat)
+  if (lf_switch == 2) lf_obs_prop <- OBS(lf_obs_prop)
+  if (lf_switch == 3) lf_obs_ints <- OBS(lf_obs_ints)
+
+  idx        <- 0L
+  obs_offset <- 0L
+
+  for (j in seq_len(n_f)) {
+    f     <- lf_fishery_f[j]
+    bmin  <- lf_minbin[f]
+    bmax  <- lf_maxbin[f]
+    nbins <- bmax - bmin + 1L
+    lf_pred[[j]] <- matrix(0, lf_n_f[j], nbins)
+
+    for (i in seq_len(lf_n_f[j])) {
+      idx <- idx + 1L
+      y   <- lf_year_fi[[j]][i]
+
+      # ---- LOOP: one [n_age]-length matvec per observation ----
+      catch_a <- catch_pred_fya[f, y, ]       # [n_age] row vector
+      pred    <- c(catch_a %*% t(pla))         # [n_len] via row × matrix
+      # ----------------------------------------------------------
+
+      if (bmin > 1)    pred[bmin] <- sum(pred[1:bmin])
+      if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
+      pred <- pred[bmin:bmax]
+      pred <- pred + 1e-8
+      pred <- pred / sum(pred)
+      lf_pred[[j]][i, ] <- pred
+
+      n_i <- lf_n_fi[[j]][i]
+      if (removal_switch_f[f] == 0 & n_i > 0) {
+        if (lf_switch == 1) {
+          obs_i   <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
+          lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
+        }
+        if (lf_switch == 2) {
+          obs_i   <- lf_obs_prop[(obs_offset + 1):(obs_offset + nbins)]
+          alpha_i <- pred * n_i * exp(log_lf_tau[f])
+          lp[idx] <- -RTMBdist::ddirichlet(x = obs_i, alpha = alpha_i, log = TRUE)
+        }
+        if (lf_switch == 3) {
+          obs_i   <- lf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
+          alpha_i <- pred * exp(log_lf_tau[f])
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_i, alpha = alpha_i, log = TRUE)
+        }
+      }
+      obs_offset <- obs_offset + nbins
+    }
+  }
+
+  REPORT(lf_pred)
+  return(lp)
+}
+```
+
+# Mini benchmark model
+
+A factory that returns a thin RTMB model using the supplied LF likelihood
+function. Parameters on the tape are double-normal selectivities (`par_sel`)
+for the active fisheries. `number_ysa` and `pla` are fixed (off-tape) data,
+so every tape operation comes from the selectivity computation and the LF
+likelihood.
+
+`catch_pred_fya[f, y, ] = number_ysa_fixed[y, 1, ] × sel_fya[f, y, ]` is a
+proportional catch-at-age that preserves the age-composition shape without
+requiring full population dynamics.
+
+```{r make-bench-fn}
+make_lf_bench_fn <- function(lf_like_fn) {
+  force(lf_like_fn)
+  function(parameters, data) {
+    "[<-" <- ADoverload("[<-")
+    "c"   <- ADoverload("c")
+    getAll(data, parameters, warn = FALSE)
+
+    # Selectivity from par_sel (on tape) × PLA (fixed, off tape)
+    sel_fya <- get_selectivity(data, par_sel, pla_fixed, len_mid)
+
+    # Proportional catch-at-age: N_y × sel_f,y  (no dynamics)
+    catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+    for (f in seq_len(n_fishery)) {
+      for (y in seq_len(n_year)) {
+        catch_pred_fya[f, y, ] <- number_ysa_fixed[y, 1, ] * sel_fya[f, y, ]
+      }
+    }
+
+    lf_year_fi <- split(lf_year, lf_fishery)
+    lf_n_fi    <- split(lf_n,    lf_fishery)
+
+    lp <- lf_like_fn(
+      lf_obs_flat      = lf_obs_flat,
+      lf_obs_ints      = lf_obs_ints,
+      lf_obs_prop      = lf_obs_prop,
+      catch_pred_fya   = catch_pred_fya,
+      pla              = pla_fixed,
+      lf_n_f           = lf_n_f,
+      lf_fishery_f     = lf_fishery_f,
+      lf_year_fi       = lf_year_fi,
+      lf_n_fi          = lf_n_fi,
+      lf_minbin        = lf_minbin,
+      lf_maxbin        = lf_maxbin,
+      removal_switch_f = removal_switch_f,
+      lf_switch        = lf_switch,
+      n_len            = n_len,
+      n_lf             = n_lf,
+      log_lf_tau       = log_lf_tau
+    )
+    return(sum(lp))
+  }
+}
+```
+
+## Build data lists
+
+```{r build-data}
+# Add fixed (off-tape) arrays and double-normal flag to each data subset
+add_bench_fields <- function(d) {
+  d$pla_fixed        <- pla_mle
+  d$number_ysa_fixed <- number_ysa_mle
+  d$sel_type_f       <- rep(2L, d$n_fishery)   # double-normal for all fisheries
+  d
+}
+
+d_small_b <- add_bench_fields(d_small)
+d_full_b  <- add_bench_fields(d_full)
+```
+
+## Build parameters and maps
+
+```{r build-pars-maps}
+# All par_sel start at zero (double-normal at default centre/shape)
+params_bench <- list(
+  par_sel    = matrix(0, nrow = base_data$n_fishery, ncol = 6),
+  log_lf_tau = rep(0, base_data$n_fishery)
+)
+
+# Fix par_sel rows not belonging to the active fisheries; fix all log_lf_tau
+make_bench_map <- function(n_fishery, active_fisheries) {
+  idx_mat <- matrix(seq_len(n_fishery * 6), n_fishery, 6)
+  idx_mat[setdiff(seq_len(n_fishery), active_fisheries), ] <- NA
+  list(
+    par_sel    = factor(idx_mat),
+    log_lf_tau = factor(rep(NA, n_fishery))
+  )
+}
+
+map_small <- make_bench_map(base_data$n_fishery, lf_fish_small)
+map_full  <- make_bench_map(base_data$n_fishery, lf_fish_all)
+
+cat("Small: estimating", sum(!is.na(map_small$par_sel)),
+    "par_sel params (", length(lf_fish_small), "fisheries × 6)\n")
+cat("Full:  estimating", sum(!is.na(map_full$par_sel)),
+    "par_sel params (", length(lf_fish_all), "fisheries × 6)\n")
+```
+
+## Build four MakeADFun objects
+
+```{r build-adfun, message=FALSE}
+fn_loop    <- make_lf_bench_fn(get_length_like_loop)
+fn_batched <- make_lf_bench_fn(get_length_like)
+
+t_build <- system.time({
+  obj_loop_small    <- MakeADFun(func = cmb(fn_loop,    d_small_b),
+                                 parameters = params_bench, map = map_small)
+  obj_batched_small <- MakeADFun(func = cmb(fn_batched, d_small_b),
+                                 parameters = params_bench, map = map_small)
+  obj_loop_full     <- MakeADFun(func = cmb(fn_loop,    d_full_b),
+                                 parameters = params_bench, map = map_full)
+  obj_batched_full  <- MakeADFun(func = cmb(fn_batched, d_full_b),
+                                 parameters = params_bench, map = map_full)
+})
+cat("MakeADFun × 4 build time:", round(t_build["elapsed"], 1), "sec\n")
+```
+
+## Parameter counts and NLL check
+
+```{r nll-check}
+cat("Small (F8+9): ", length(obj_loop_small$par),  "active params\n")
+cat("Full (7 fish.):", length(obj_loop_full$par), "active params\n")
+
+cat("\nNLL at default params (loop == batched?):\n")
+cat("  loop_small   :", obj_loop_small$fn(obj_loop_small$par),    "\n")
+cat("  batched_small:", obj_batched_small$fn(obj_batched_small$par), "\n")
+cat("  loop_full    :", obj_loop_full$fn(obj_loop_full$par),      "\n")
+cat("  batched_full :", obj_batched_full$fn(obj_batched_full$par),  "\n")
+```
+
+## Warm up AD tapes
+
+The first call after `MakeADFun` constructs the tape; all subsequent calls
+replay it. Warm up before timing.
+
+```{r warmup}
+for (obj in list(obj_loop_small, obj_batched_small,
+                 obj_loop_full,  obj_batched_full)) {
+  invisible(obj$fn(obj$par))
+  invisible(obj$gr(obj$par))
+}
+```
+
+# Benchmarks
+
+## `obj$fn()` — forward pass
+
+```{r bench-fn}
+bm_fn <- bench::mark(
+  loop_small    = obj_loop_small$fn(obj_loop_small$par),
+  batched_small = obj_batched_small$fn(obj_batched_small$par),
+  loop_full     = obj_loop_full$fn(obj_loop_full$par),
+  batched_full  = obj_batched_full$fn(obj_batched_full$par),
+  iterations    = 50,
+  check         = FALSE
+)
+bm_fn[, c("expression", "min", "median", "itr/sec", "total_time")]
+```
+
+## `obj$gr()` — reverse-mode gradient
+
+Reverse-mode AD cost is determined by tape size (total recorded scalar
+operations). Batching reduces the number of operations the tape must replay.
+
+```{r bench-gr}
+bm_gr <- bench::mark(
+  loop_small    = obj_loop_small$gr(obj_loop_small$par),
+  batched_small = obj_batched_small$gr(obj_batched_small$par),
+  loop_full     = obj_loop_full$gr(obj_loop_full$par),
+  batched_full  = obj_batched_full$gr(obj_batched_full$par),
+  iterations    = 50,
+  check         = FALSE
+)
+bm_gr[, c("expression", "min", "median", "itr/sec", "total_time")]
+```
+
+## Plain-R timing (outside AD tape)
+
+Call both implementations as ordinary R functions with double (non-AD)
+inputs. This shows the raw algorithmic cost before any AD overhead is added.
+
+```{r bench-plain-r}
+# Pre-compute catch_pred_fya at default par_sel = 0 for each subset
+sel_ref_s <- get_selectivity(d_small_b, params_bench$par_sel,
+                             pla_mle, d_small_b$len_mid)
+cpf_s <- array(0, c(d_small_b$n_fishery, d_small_b$n_year, d_small_b$n_age))
+for (f in seq_len(d_small_b$n_fishery))
+  for (y in seq_len(d_small_b$n_year))
+    cpf_s[f, y, ] <- number_ysa_mle[y, 1, ] * sel_ref_s[f, y, ]
+
+sel_ref_f <- get_selectivity(d_full_b, params_bench$par_sel,
+                             pla_mle, d_full_b$len_mid)
+cpf_f <- array(0, c(d_full_b$n_fishery, d_full_b$n_year, d_full_b$n_age))
+for (f in seq_len(d_full_b$n_fishery))
+  for (y in seq_len(d_full_b$n_year))
+    cpf_f[f, y, ] <- number_ysa_mle[y, 1, ] * sel_ref_f[f, y, ]
+
+make_plain_args <- function(d, cpf) {
+  list(
+    lf_obs_flat      = d$lf_obs_flat,
+    lf_obs_ints      = d$lf_obs_ints,
+    lf_obs_prop      = d$lf_obs_prop,
+    catch_pred_fya   = cpf,
+    pla              = pla_mle,
+    lf_n_f           = d$lf_n_f,
+    lf_fishery_f     = d$lf_fishery_f,
+    lf_year_fi       = split(d$lf_year, d$lf_fishery),
+    lf_n_fi          = split(d$lf_n,    d$lf_fishery),
+    lf_minbin        = d$lf_minbin,
+    lf_maxbin        = d$lf_maxbin,
+    removal_switch_f = d$removal_switch_f,
+    lf_switch        = d$lf_switch,
+    n_len            = d$n_len,
+    n_lf             = d$n_lf,
+    log_lf_tau       = rep(0, d$n_fishery)
+  )
+}
+
+args_s <- make_plain_args(d_small_b, cpf_s)
+args_f <- make_plain_args(d_full_b,  cpf_f)
+
+bm_plain <- bench::mark(
+  loop_small_r    = do.call(get_length_like_loop, args_s),
+  batched_small_r = do.call(get_length_like,      args_s),
+  loop_full_r     = do.call(get_length_like_loop, args_f),
+  batched_full_r  = do.call(get_length_like,      args_f),
+  iterations      = 100,
+  check           = FALSE
+)
+bm_plain[, c("expression", "min", "median", "itr/sec", "total_time")]
+```
+
+# Summary
+
+```{r summary-table}
+fn_med <- as.numeric(bm_fn$median)
+gr_med <- as.numeric(bm_gr$median)
+r_med  <- as.numeric(bm_plain$median)
+
+n_lf_vec <- c(d_small_b$n_lf, d_small_b$n_lf,
+              d_full_b$n_lf,  d_full_b$n_lf)
+
+res <- data.frame(
+  config      = c("loop_small", "batched_small", "loop_full", "batched_full"),
+  n_lf        = n_lf_vec,
+  plain_ms    = round(r_med  * 1e3, 2),
+  fn_ms       = round(fn_med * 1e3, 2),
+  gr_ms       = round(gr_med * 1e3, 2),
+  gr_fn_ratio = round(gr_med / fn_med, 1)
+)
+
+# Speedup of batched relative to loop within each data-size pair
+res$fn_speedup <- c(1, round(fn_med[1] / fn_med[2], 2),
+                    1, round(fn_med[3] / fn_med[4], 2))
+res$gr_speedup <- c(1, round(gr_med[1] / gr_med[2], 2),
+                    1, round(gr_med[3] / gr_med[4], 2))
+print(res)
+```
+
+## Interpretation guide
+
+- **`plain_ms`** — wall-clock cost with no AD, measuring raw R/BLAS algorithmic
+  cost. The ratio `fn_ms / plain_ms` reveals per-call AD tape overhead relative
+  to plain R.
+- **`fn_ms`** — forward pass cost on the RTMB tape. Scales roughly with `n_lf`
+  and with the number of free parameters driving the tape (here: `par_sel`
+  for active fisheries).
+- **`gr_ms`** — reverse-mode gradient cost. This is determined by the total
+  number of elementary scalar operations recorded on the CppAD tape during
+  the forward pass. RTMB uses CppAD's operator-overloading AD: **matrix
+  multiply records each scalar multiply-add individually**, not as a compact
+  DGEMM node. The loop and batched implementations therefore produce tapes of
+  identical size for the LF likelihood itself.
+- **`gr/fn ratio`** — expected to be ~2–5× for a compact tape. A ratio ≫ 5×
+  indicates the tape is large relative to the raw computation, i.e., dominated
+  by many chained scalar operations.
+- **`fn_speedup` / `gr_speedup`** — speedup of batched over loop within the
+  same data size. Any plain-R speedup from batching (fewer BLAS calls) does
+  not transfer to the AD gradient because the tape size is unchanged.
+
+## AD tape operation count
+
+Both implementations record identical numbers of scalar multiply-adds for the
+LF matmul step, because RTMB/CppAD does not use atomic DGEMM tape nodes:
+
+```{r tape-estimate}
+n_a     <- base_data$n_age
+n_l     <- base_data$n_len
+n_obs_s <- d_small_b$n_lf
+n_obs_f <- d_full_b$n_lf
+n_fish_s <- length(lf_fish_small)
+n_fish_f <- length(lf_fish_all)
+
+cat("Scalar multiply-adds on CppAD tape — LF matmul (same for loop and batched):\n")
+cat("  small:", n_obs_s, "obs ×", n_a, "ages ×", n_l, "bins =",
+    format(n_obs_s * n_a * n_l, big.mark = ","), "ops\n")
+cat("  full: ", n_obs_f, "obs ×", n_a, "ages ×", n_l, "bins =",
+    format(n_obs_f * n_a * n_l, big.mark = ","), "ops\n")
+
+cat("\nR-level %*% calls (this IS reduced by batching):\n")
+cat("  loop small:   ", n_obs_s, "calls (one per obs)\n")
+cat("  batched small:", n_fish_s, "calls (one per fishery)\n")
+cat("  loop full:    ", n_obs_f, "calls (one per obs)\n")
+cat("  batched full: ", n_fish_f, "calls (one per fishery)\n")
+
+cat("\nDominant tape cost (sel_fya loop, shared by both implementations):\n")
+cat(" ", base_data$n_fishery, "fisheries ×", base_data$n_year, "years =",
+    base_data$n_fishery * base_data$n_year,
+    "double-normal evaluations + N×sel products\n")
+```
+
+# Results and Discussion
+
+```{r results-discussion}
+fn_speedup_small <- round(fn_med[1] / fn_med[2], 2)
+fn_speedup_full  <- round(fn_med[3] / fn_med[4], 2)
+gr_speedup_small <- round(gr_med[1] / gr_med[2], 2)
+gr_speedup_full  <- round(gr_med[3] / gr_med[4], 2)
+plain_speedup_small <- round(r_med[1] / r_med[2], 2)
+plain_speedup_full  <- round(r_med[3] / r_med[4], 2)
+gr_fn_loop_small    <- round(gr_med[1] / fn_med[1], 0)
+gr_fn_loop_full     <- round(gr_med[3] / fn_med[3], 0)
+
+cat("Plain-R speedup  (batched/loop) — small:", plain_speedup_small, "x   full:", plain_speedup_full, "x\n")
+cat("fn()    speedup  (batched/loop) — small:", fn_speedup_small,    "x   full:", fn_speedup_full, "x\n")
+cat("gr()    speedup  (batched/loop) — small:", gr_speedup_small,    "x   full:", gr_speedup_full, "x\n")
+cat("gr/fn ratio (loop) — small:", gr_fn_loop_small, "x   full:", gr_fn_loop_full, "x\n")
+```
+
+## What the benchmark shows
+
+**Plain-R (no AD):** batching does deliver a modest speedup
+(`r plain_speedup_small`× small, `r plain_speedup_full`× full) by reducing
+the number of R-level `%*%` calls from one per observation to one per fishery,
+allowing BLAS to operate on larger matrices.
+
+**AD gradient — no improvement from batching:** the `gr()` speedup is
+effectively 1× (or even slightly negative) for both subset sizes. This is the
+key result. RTMB uses CppAD's operator-overloading AD, which records **every
+scalar multiply-add individually** — there is no compact DGEMM node on the
+tape. Whether the matmul is spelled as `n_obs` individual row-vector products
+or one `[n_obs × n_age]` block multiply, CppAD records the same
+`n_obs × n_age × n_len` scalar operations either way. The tape size, and
+therefore the reverse-mode sweep time, is identical.
+
+**Where is the tape time actually spent?** The very high `gr/fn` ratio
+(~`r gr_fn_loop_small`× small, ~`r gr_fn_loop_full`× full) confirms the tape
+is expensive. In this benchmark model, `catch_pred_fya = N × sel_fya` is
+computed inside a double loop over all `n_fishery × n_year` combinations with
+`par_sel` on the tape, making the double-normal selectivity evaluation the
+dominant tape cost — not the LF matmul at all.
+
+## Implications for optimisation
+
+| Approach | Plain-R gain | AD gradient gain | Recommended? |
+|---|---|---|---|
+| Batch LF matmul per fishery | Yes (~`r plain_speedup_full`×) | No | For plain-R use only |
+| Reduce `sel_fya` tape ops | N/A | Yes (dominant cost) | High priority |
+| Use CppAD atomic DGEMM | N/A | Would help | Not available in RTMB |
+| Reduce active fisheries | Proportional | Proportional | Use `lf_keep_fisheries` |
+
+To reduce gradient cost meaningfully, the target is the `sel_fya` loop
+(`n_fishery × n_year` double-normal evaluations on the AD tape), not the
+LF matmul. The batching refactor is still worth keeping because it reduces
+R-overhead in the forward pass and improves BLAS efficiency when running the
+model outside the AD tape (e.g., plain-R diagnostics and posterior predictive
+checks in `do_dynamics()`).
