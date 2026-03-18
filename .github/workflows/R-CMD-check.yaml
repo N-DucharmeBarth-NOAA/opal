@@ -57,8 +57,8 @@ jobs:
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
-        with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual", "--no-build-vignettes")'
-          args: 'c("--no-vignettes")'
-          error-on: '"error"'
+              with:
+                upload-snapshots: true
+                build_args: 'c("--no-manual", "--no-build-vignettes")'
+                args: 'c("--no-manual", "--no-vignettes")'
+                error-on: '"error"'
