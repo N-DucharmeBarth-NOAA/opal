@@ -51,6 +51,7 @@ jobs:
       - name: Restore renv environment
         run: |
           install.packages("renv")
+          renv::install("rapidjsonr")
           renv::restore()
           renv::install("rcmdcheck")
         shell: Rscript {0}
