@@ -90,7 +90,9 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 
   Ninit <- R0 * rel_N
   if (!is.null(init_rdev_a)) {
+    # Default to full lognormal bias correction when no explicit initial ramp is provided.
     if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(1.0, n_age)
+    # Match get_recruitment(): exp(rdev - bias_adj * 0.5 * sigma_r^2)
     for (a in seq_len(n_age)) {
       Ninit[a] <- Ninit[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
     }

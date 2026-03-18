@@ -150,12 +150,15 @@ object:
 ```{r get-pars, echo=TRUE, message=FALSE}
 data(opaka_parameters)
 
-# Route 1949 dev to the initial age structure (age 0)
+# Route 1949 dev to biological age 0, which is index 1 in opal's 1-based age vector.
+# In the SS3 vector, rdev_y[1] is the 1949 deviation; here it seeds the initial
+# age-0 cohort, while later years are shifted into the modeled rdev_y time series.
 init_rdev_a <- rep(0.0, data$n_age)
+# Remaining initial ages start at equilibrium and are estimated via init_rdev_a.
 init_rdev_a[1] <- opaka_parameters$rdev_y[1]
 
 # Shift 1950-2023 into rdev_y and add 0.0 for terminal/forecast year 2024
-rdev_y_shifted <- c(opaka_parameters$rdev_y[2:75], 0.0)
+rdev_y_shifted <- c(opaka_parameters$rdev_y[2:length(opaka_parameters$rdev_y)], 0.0)
 
 parameters <- list(
   log_B0 = 15,
