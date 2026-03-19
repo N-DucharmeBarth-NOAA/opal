@@ -43,6 +43,7 @@ for initial age deviations.}
 A list containing:
 \describe{
 \item{Ninit}{Initial numbers-at-age (vector).}
+\item{Ninit0}{Initial unfished numbers-at-age (vector).}
 \item{R0}{Unfished recruitment (scalar).}
 \item{alpha}{BH alpha parameter.}
 \item{beta}{BH beta parameter.}

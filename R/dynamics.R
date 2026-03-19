@@ -78,9 +78,14 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   # Fished survivorship for Ninit
   Z_a <- M_a + B0 * 0
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
-    for (f in seq_along(init_F_f)) {
-      Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
-    }
+      if (is.null(dim(sel_fa))) {
+        ## single fishery sel_fa may be passed as vector, not matrix
+        Z_a <- Z_a + init_F_f[1L] * sel_fa
+      } else {
+        for (f in seq_along(init_F_f)) {
+          Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
+        }
+      }
   }
 
   rel_N <- numeric(n_age) + B0 * 0

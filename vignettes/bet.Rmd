@@ -514,10 +514,83 @@ plot_catch(data = data, obj = obj, plot_resid = TRUE)
 Inspect estimated spawning biomass trajectory:
 
 ```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-plot(obj$report()$spawning_biomass_y, type = "l",
-     xlab = "Time step", ylab = "Spawning biomass (mt)",
-     main = "Estimated spawning biomass trajectory",
-     ylim = c(0, max(obj$report()$spawning_biomass_y) * 1.2))
+# Use sdreport output for uncertainty (Report from `sdreport(obj)`).
+# Report$value and Report$sd are named vectors with repeated spawning_biomass_y entries.
+sb_name <- "spawning_biomass_y"
+sb_idx <- which(names(Report$value) == sb_name)
+sb_mean <- Report$value[sb_idx]
+sb_sd   <- Report$sd[sb_idx]
+
+# Build data frame with uncertainty intervals computed under a lognormal assumption
+sb_df <- data.frame(
+  year = seq_along(sb_mean),
+  mean = sb_mean,
+  sd = sb_sd
+) %>%
+  mutate(
+    # lognormal parameters via delta method
+    log_mu = log(mean^2 / sqrt(mean^2 + sd^2)),
+    log_sigma = sqrt(log(1 + (sd^2 / mean^2))),
+    median = exp(log_mu),
+    lower50 = exp(log_mu - 0.6745 * log_sigma),
+    upper50 = exp(log_mu + 0.6745 * log_sigma),
+    lower95 = exp(log_mu - 1.96 * log_sigma),
+    upper95 = exp(log_mu + 1.96 * log_sigma)
+  )
+
+# Plot with ribbon bands (lognormal-centered)
+ggplot(sb_df, aes(x = year)) +
+  geom_ribbon(aes(ymin = lower95, ymax = upper95), fill = "steelblue", alpha = 0.15) +
+  geom_ribbon(aes(ymin = lower50, ymax = upper50), fill = "steelblue", alpha = 0.30) +
+  geom_line(aes(y = median), colour = "blue", size = 1) +
+  labs(
+    x = "Time step",
+    y = "Spawning biomass (mt)",
+    title = "Estimated spawning biomass trajectory",
+    subtitle = "Median with lognormal 50% and 95% uncertainty intervals"
+  ) +
+  theme_minimal()
+```
+
+Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
+
+```{r opt-spdep, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+# Use sdreport output for uncertainty (Report from `sdreport(obj)`).
+# Report$value and Report$sd are named vectors with repeated dynamic_depletion_y entries.
+sb_name <- "dynamic_depletion_y"
+sb_idx <- which(names(Report$value) == sb_name)
+sb_mean <- Report$value[sb_idx]
+sb_sd   <- Report$sd[sb_idx]
+
+# Build data frame with uncertainty intervals computed under a lognormal assumption
+sb_df <- data.frame(
+  year = seq_along(sb_mean),
+  mean = sb_mean,
+  sd = sb_sd
+) %>%
+  mutate(
+    # lognormal parameters via delta method
+    log_mu = log(mean^2 / sqrt(mean^2 + sd^2)),
+    log_sigma = sqrt(log(1 + (sd^2 / mean^2))),
+    median = exp(log_mu),
+    lower50 = exp(log_mu - 0.6745 * log_sigma),
+    upper50 = exp(log_mu + 0.6745 * log_sigma),
+    lower95 = exp(log_mu - 1.96 * log_sigma),
+    upper95 = exp(log_mu + 1.96 * log_sigma)
+  )
+
+# Plot with ribbon bands (lognormal-centered)
+ggplot(sb_df, aes(x = year)) +
+  geom_ribbon(aes(ymin = lower95, ymax = upper95), fill = "steelblue", alpha = 0.15) +
+  geom_ribbon(aes(ymin = lower50, ymax = upper50), fill = "steelblue", alpha = 0.30) +
+  geom_line(aes(y = median), colour = "blue", size = 1) +
+  labs(
+    x = "Time step",
+    y = "Dynamic depletion (SB/SBF=0)",
+    title = "Estimated dynamic depletion trajectory",
+    subtitle = "Median with lognormal 50% and 95% uncertainty intervals"
+  ) +
+  theme_minimal()
 ```
 
 ## Selectivity
