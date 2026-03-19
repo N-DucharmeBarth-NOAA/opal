@@ -47,6 +47,7 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
+#'   \item{Ninit0}{Initial unfished numbers-at-age (vector).}
 #'   \item{R0}{Unfished recruitment (scalar).}
 #'   \item{alpha}{BH alpha parameter.}
 #'   \item{beta}{BH beta parameter.}
@@ -77,9 +78,14 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   # Fished survivorship for Ninit
   Z_a <- M_a + B0 * 0
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
-    for (f in seq_along(init_F_f)) {
-      Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
-    }
+      if (is.null(dim(sel_fa))) {
+        ## single fishery sel_fa may be passed as vector, not matrix
+        Z_a <- Z_a + init_F_f[1L] * sel_fa
+      } else {
+        for (f in seq_along(init_F_f)) {
+          Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
+        }
+      }
   }
 
   rel_N <- numeric(n_age) + B0 * 0
@@ -94,15 +100,17 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   R_eq   <- alpha - (beta / SPR_eq)
 
   Ninit <- R_eq * rel_N
+  Ninit0 <- R0 * rel_N0
 
   if (!is.null(init_rdev_a)) {
     if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(1.0, n_age)
     for (a in seq_len(n_age)) {
       Ninit[a] <- Ninit[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
+      Ninit0[a] <- Ninit0[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
     }
   }
 
-  return(list(Ninit = Ninit, R0 = R0, alpha = alpha, beta = beta))
+  return(list(Ninit = Ninit, Ninit0 = Ninit0, R0 = R0, alpha = alpha, beta = beta))
 }
 
 #' Population dynamics
@@ -144,6 +152,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #'   propagate if growth is ever estimated.
 #' @param init_number_a Numeric vector of length \code{n_age}. Initial
 #'   equilibrium numbers-at-age (from \code{\link{get_initial_numbers}}).
+#' @param init_number0_a Numeric vector of length \code{n_age}. Initial
+#'   unfished equilibrium numbers-at-age (from \code{\link{get_initial_numbers}}).
 #' @param sel_fya Numeric array \code{[n_fishery, n_year, n_age]}.
 #'   Fishery-specific selectivity at age by year (from
 #'   \code{\link{get_selectivity}}).
@@ -152,8 +162,12 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #' @return A named list with:
 #' \describe{
 #'   \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
+#'   \item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 #'   \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
 #'   \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
+#'   \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
+#'   \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
+#'   \item{dynamic_depletion_y}{Dynamic depletion trajectory \code{spawning_biomass_y / spawning_biomass0_y}.}
 #' }
 #' @importFrom RTMB ADoverload
 #' @export
@@ -161,7 +175,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
                         M_a, spawning_potential_a, weight_fya,
-                        init_number_a, sel_fya, bias_adj_y = NULL) {
+                        init_number_a, init_number0_a, sel_fya, bias_adj_y = NULL) {
   
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
@@ -174,6 +188,10 @@ do_dynamics <- function(data, parameters,
   number_ysa[1, 1,] <- init_number_a
   spawning_biomass_y <- numeric(n_year + 1)
   spawning_biomass_y[1] <- sum(number_ysa[1, 1,] * spawning_potential_a)
+  number0_ysa <- array(0, dim = c(n_year + 1, n_season, n_age))
+  number0_ysa[1, 1,] <- init_number0_a
+  spawning_biomass0_y <- numeric(n_year + 1)
+  spawning_biomass0_y[1] <- sum(number0_ysa[1, 1,] * spawning_potential_a)
   hrate_ysa  <- array(0, dim = c(n_year + 1, n_season, n_age))
   hrate_ysfa  <- array(0, dim = c(n_year + 1, n_season, n_fishery, n_age))
   catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
@@ -232,25 +250,39 @@ do_dynamics <- function(data, parameters,
       }
       if (s < n_season) {
         number_ysa[y, s + 1,] <- number_ysa[y, s,] * (1 - hrate_ysa[y, s,]) * S_a
+        number0_ysa[y, s + 1,] <- number0_ysa[y, s,] * S_a
       }
     }
 
     number_ysa[y + 1, 1, 2:n_age] <- number_ysa[y, n_season, 1:n_age1] * (1 - hrate_ysa[y, n_season, 1:n_age1]) * S_a[1:n_age1]
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
     spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * spawning_potential_a)
+    number0_ysa[y + 1, 1, 2:n_age] <- number0_ysa[y, n_season, 1:n_age1] * S_a[1:n_age1]
+    number0_ysa[y + 1, 1, n_age] <- number0_ysa[y + 1, 1, n_age] + (number0_ysa[y, n_season, n_age] * S_a[n_age])
+    spawning_biomass0_y[y + 1] <- sum(number0_ysa[y + 1, 1,] * spawning_potential_a)
 
     number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
+    number0_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass0_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
   }
+  dynamic_depletion_y <- spawning_biomass_y / spawning_biomass0_y
   
   REPORT(catch_pred_ysf)
   REPORT(catch_pred_fya)
   REPORT(hrate_ysa)
   REPORT(hrate_ysfa)
+  REPORT(number0_ysa)
   REPORT(spawning_biomass_y)
+  REPORT(spawning_biomass0_y)
+  REPORT(dynamic_depletion_y)
   RTMB::ADREPORT(spawning_biomass_y)
+  RTMB::ADREPORT(spawning_biomass0_y)
+  RTMB::ADREPORT(dynamic_depletion_y)
   
-  return(list(number_ysa = number_ysa, lp_penalty = lp_penalty,
-              catch_pred_fya = catch_pred_fya))
+  return(list(number_ysa = number_ysa, number0_ysa = number0_ysa, lp_penalty = lp_penalty,
+              catch_pred_fya = catch_pred_fya,
+              spawning_biomass_y = spawning_biomass_y,
+              spawning_biomass0_y = spawning_biomass0_y,
+              dynamic_depletion_y = dynamic_depletion_y))
 }
 
 #' Harvest rate calculation

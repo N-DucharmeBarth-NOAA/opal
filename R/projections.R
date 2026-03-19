@@ -192,6 +192,7 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
       spawning_potential_a = spa_mle,
       weight_fya           = proj_weight_fya,
       init_number_a        = rep$number_ysa[data$n_year + 1, 1, ],
+      init_number0_a       = rep$number0_ysa[data$n_year + 1, 1, ],
       sel_fya              = sel_fya[i, , , ]
     )
 
