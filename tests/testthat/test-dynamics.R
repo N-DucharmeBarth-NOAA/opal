@@ -23,8 +23,9 @@ test_that("get_initial_numbers returns correct list elements", {
   spawning_potential_a <- c(0, 0.2, 0.6, 1.0, 1.0)
 
   init <- get_initial_numbers(B0, h, M_a, spawning_potential_a)
-  expect_named(init, c("Ninit", "R0", "alpha", "beta"))
+  expect_named(init, c("Ninit", "Ninit0", "R0", "alpha", "beta"))
   expect_equal(length(init$Ninit), length(M_a))
+  expect_equal(length(init$Ninit0), length(M_a))
   expect_true(init$R0 > 0)
   expect_true(init$alpha > 0)
   expect_true(init$beta > 0)
@@ -62,6 +63,7 @@ test_that("do_dynamics returns expected dimensions with no fishing", {
     M_a = M_a, spawning_potential_a = spawning_potential_a,
     weight_fya = array(1, dim = c(1, data$n_year, data$n_age)),
     init_number_a = init$Ninit,
+    init_number0_a = init$Ninit0,
     sel_fya = array(1, dim = c(1, data$n_year, data$n_age))
   )
 
@@ -90,6 +92,7 @@ test_that("do_dynamics catch-at-age sums to observed catch in numbers", {
     M_a = M_a, spawning_potential_a = spawning_potential_a,
     weight_fya = array(1, dim = c(1, data$n_year, data$n_age)),
     init_number_a = init$Ninit,
+    init_number0_a = init$Ninit0,
     sel_fya = array(1, dim = c(1, data$n_year, data$n_age))
   )
 

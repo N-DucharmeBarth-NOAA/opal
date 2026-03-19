@@ -173,7 +173,8 @@ if (exists("spawning_potential", inherits = FALSE)) {
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
                      M_a = M_a, spawning_potential_a = spawning_potential_a, weight_fya = weight_fya_mod,
-                     init_number_a = init$Ninit, sel_fya = sel_fya, bias_adj_y = bias_adj_y)
+                     init_number_a = init$Ninit, init_number0_a = init$Ninit0,
+                     sel_fya = sel_fya, bias_adj_y = bias_adj_y)
 
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
