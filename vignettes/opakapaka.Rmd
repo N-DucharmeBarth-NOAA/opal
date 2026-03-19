@@ -706,12 +706,7 @@ parameters_ss3$log_sigma_r <- log(0.52)
 # CPUE catchability (from ss.par Q_parm)
 parameters_ss3$log_cpue_q <- c(-3.77275156733, -6.25323305447)
 
-# Recruitment deviations: use SS3's full recdev2 vector
-# recdev2 covers the 22 early-period devs (ages) + 75 main-period devs
-# init_rdev_a: reversed early devs (already set in the parameter block above)
-# rdev_y: shifted main devs (already set in the parameter block above)
-# These should already match SS3 from the original parameter setup, but
-# ensure they are the unmodified SS3 values:
+# Recruitment deviations: use SS3's full recdev vector
 ss3_recdev2 <- c(0.0675235702971, 0.0764991539955, 0.0858442617148,
   0.0950046747340, 0.102706450120, 0.107687329214, 0.107711705598,
   0.0998349181169, 0.0808136660096, 0.0482338925745, 0.00234443377404,
@@ -744,9 +739,6 @@ ss3_recdev2 <- c(0.0675235702971, 0.0764991539955, 0.0858442617148,
   0.0478985480312, -0.0919462212626, -0.825992698686, 0.225426831222,
   -0.711467818125, 0.447979718775, 0.00000000000)
 
-# First 22 values of recdev2 are the initial age devs (reverse into init_rdev_a)
-# The remaining values are the main time-series devs
-# init_rdev_a[1] gets the 1949 dev (first of recdev2 after the early devs)
 ss3_early <- c(0.0206807064789, 0.00321579077358, 0.00372620421544,
   0.00431740128909, 0.00500263165771, 0.00579673718936, 0.00671727050323,
   0.00778421989329, 0.00902081267571, 0.0104539317083, 0.0121143194944,
@@ -765,6 +757,90 @@ parameters_ss3$par_sel <- parameters$par_sel
 
 # Initial F
 parameters_ss3$log_init_F_f <- c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1))
+
+# ---- Platoon-weighted selectivity-at-age override ----
+# SS3's Asel2 report gives the realised selectivity-at-age for each fleet and
+# platoon (morph), already accounting for the interaction between length-based
+# selectivity and platoon-specific growth. The platoon-weighted selectivity is:
+#   sel_f(a) = sum_p [ frac_p * sel_p(a) ]
+# This bypasses the PLA-based length-to-age conversion, which uses a single
+# continuous normal distribution rather than SS3's discrete platoon structure.
+
+platoon_frac <- c(0.15, 0.70, 0.15)
+
+# Fleet 1 (Comm) - logistic selectivity, Asel2 by platoon (ages 0-43)
+sel1_p1 <- c(0, 0.000117529, 0.0634736, 0.757875, 0.984164, 0.998816,
+             0.999854, 0.999972, 0.999992, 0.999997, 0.999999, 0.999999,
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+sel1_p2 <- c(0, 0.000406706, 0.224962, 0.942633, 0.998291, 0.999908,
+             0.999991, 0.999998, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+             1, 1, 1, 1, 1, 1)
+sel1_p3 <- c(0, 0.00140518, 0.525563, 0.990882, 0.999834, 0.999993,
+             0.999999, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+             1, 1, 1, 1)
+
+# Fleet 2 (Non_comm) - wider logistic selectivity, Asel2 by platoon
+sel2_p1 <- c(0, 0.011022, 0.101411, 0.393307, 0.7059, 0.869541, 0.937458,
+             0.966084, 0.979288, 0.986007, 0.989736, 0.99196, 0.993365,
+             0.994295, 0.994934, 0.995385, 0.995711, 0.99595, 0.996129,
+             0.996264, 0.996367, 0.996445, 0.996506, 0.996552, 0.996589,
+             0.996617, 0.996639, 0.996656, 0.996669, 0.99668, 0.996688,
+             0.996694, 0.996699, 0.996703, 0.996707, 0.996709, 0.996711,
+             0.996712, 0.996714, 0.996714, 0.996715, 0.996716, 0.996716,
+             0.996717)
+sel2_p2 <- c(0, 0.0173491, 0.173036, 0.570606, 0.845014, 0.943516,
+             0.97597, 0.987934, 0.993013, 0.995458, 0.996764, 0.99752,
+             0.997988, 0.998293, 0.998499, 0.998643, 0.998747, 0.998823,
+             0.998879, 0.998921, 0.998953, 0.998978, 0.998997, 0.999011,
+             0.999022, 0.999031, 0.999038, 0.999043, 0.999048, 0.999051,
+             0.999053, 0.999055, 0.999057, 0.999058, 0.999059, 0.99906,
+             0.99906, 0.999061, 0.999061, 0.999061, 0.999062, 0.999062,
+             0.999062, 0.999062)
+sel2_p3 <- c(0, 0.0271976, 0.278252, 0.732191, 0.926606, 0.977093,
+             0.991117, 0.99581, 0.997681, 0.998544, 0.998989, 0.999241,
+             0.999394, 0.999492, 0.999558, 0.999603, 0.999636, 0.999659,
+             0.999677, 0.99969, 0.9997, 0.999707, 0.999713, 0.999717,
+             0.999721, 0.999724, 0.999726, 0.999727, 0.999729, 0.99973,
+             0.99973, 0.999731, 0.999731, 0.999732, 0.999732, 0.999732,
+             0.999733, 0.999733, 0.999733, 0.999733, 0.999733, 0.999733,
+             0.999733, 0.999733)
+
+# Fleet 3 (ResFish) - domed double-normal selectivity, Asel2 by platoon
+sel3_p1 <- c(0, 0.995148, 1, 0.995113, 0.825043, 0.530483, 0.348864,
+             0.266527, 0.231338, 0.215751, 0.208344, 0.20454, 0.202437,
+             0.201195, 0.200421, 0.199916, 0.199573, 0.199333, 0.199162,
+             0.199037, 0.198944, 0.198875, 0.198822, 0.198782, 0.198751,
+             0.198727, 0.198709, 0.198694, 0.198683, 0.198674, 0.198668,
+             0.198662, 0.198658, 0.198655, 0.198652, 0.19865, 0.198649,
+             0.198648, 0.198647, 0.198646, 0.198645, 0.198645, 0.198644,
+             0.198644)
+sel3_p2 <- c(0, 0.999966, 0.999999, 0.948685, 0.591236, 0.331622,
+             0.239112, 0.211244, 0.202601, 0.199629, 0.198474, 0.197966,
+             0.197719, 0.197586, 0.19751, 0.197463, 0.197432, 0.197412,
+             0.197397, 0.197387, 0.19738, 0.197374, 0.19737, 0.197367,
+             0.197365, 0.197363, 0.197362, 0.197361, 0.19736, 0.197359,
+             0.197359, 0.197358, 0.197358, 0.197358, 0.197357, 0.197357,
+             0.197357, 0.197357, 0.197357, 0.197357, 0.197357, 0.197357,
+             0.197357, 0.197357)
+sel3_p3 <- c(0, 1, 0.999903, 0.800767, 0.381609, 0.235649, 0.205139,
+             0.199136, 0.197813, 0.197466, 0.197357, 0.197317, 0.1973,
+             0.197292, 0.197287, 0.197285, 0.197283, 0.197282, 0.197281,
+             0.197281, 0.197281, 0.19728, 0.19728, 0.19728, 0.19728,
+             0.19728, 0.19728, 0.19728, 0.19728, 0.19728, 0.19728,
+             0.19728, 0.19728, 0.19728, 0.19728, 0.19728, 0.19728,
+             0.19728, 0.19728, 0.19728, 0.19728, 0.19728, 0.19728,
+             0.19728)
+
+# Platoon-weighted selectivity-at-age by fleet
+sel_fa <- matrix(0, nrow = 3, ncol = 44)
+sel_fa[1, ] <- platoon_frac[1] * sel1_p1 + platoon_frac[2] * sel1_p2 + platoon_frac[3] * sel1_p3
+sel_fa[2, ] <- platoon_frac[1] * sel2_p1 + platoon_frac[2] * sel2_p2 + platoon_frac[3] * sel2_p3
+sel_fa[3, ] <- platoon_frac[1] * sel3_p1 + platoon_frac[2] * sel3_p2 + platoon_frac[3] * sel3_p3
+
+data$sel_fa_external <- sel_fa
 
 # ---- Fix ALL parameters (no estimation) ----
 map_fixed <- list(
@@ -787,36 +863,59 @@ map_fixed <- list(
   init_rdev_a  = factor(rep(NA, data$n_age))
 )
 
-# ---- Build and evaluate (no optimization) ----
+# ---- Build and evaluate: without selectivity override ----
+data_no_sel <- data
+data_no_sel$sel_fa_external <- NULL
+obj_check_nosel <- MakeADFun(func = cmb(opal_model, data_no_sel),
+                             parameters = parameters_ss3, map = map_fixed)
+rep_check_nosel <- obj_check_nosel$report()
+
+# ---- Build and evaluate: with selectivity override ----
 obj_check <- MakeADFun(func = cmb(opal_model, data),
                        parameters = parameters_ss3, map = map_fixed)
 rep_check <- obj_check$report()
 
-cat("B0:", rep_check$B0, "\n")
-cat("R0:", rep_check$R0, "\n")
-cat("SPR0 (B0/R0):", rep_check$B0 / rep_check$R0, "\n")
-cat("Initial SSB:", rep_check$spawning_biomass_y[1], "\n")
+cat("Without selectivity override:\n")
+cat("  B0:", rep_check_nosel$B0, " R0:", rep_check_nosel$R0,
+    " SPR0:", rep_check_nosel$B0 / rep_check_nosel$R0, "\n")
+cat("With selectivity override:\n")
+cat("  B0:", rep_check$B0, " R0:", rep_check$R0,
+    " SPR0:", rep_check$B0 / rep_check$R0, "\n\n")
 
-# ---- Comparison: opal dynamics at SS3 MLEs vs SS3 trajectories ----
+# Maximum absolute difference in spawning biomass
+ssb_diff <- abs(rep_check$spawning_biomass_y[1:data$n_year] -
+                rep_check_nosel$spawning_biomass_y[1:data$n_year])
+cat("Max |SSB difference| between PLA and platoon selectivity:",
+    round(max(ssb_diff), 1), "\n")
+
+# ---- Comparison plot ----
 data(opaka_truth)
 
-ssb_check <- data.frame(
+ssb_nosel <- data.frame(
   year = calendar_years,
-  estimate = rep_check$spawning_biomass_y[1:data$n_year]
+  estimate = rep_check_nosel$spawning_biomass_y[1:data$n_year],
+  model = "opal (PLA selectivity)"
 )
+ssb_sel <- data.frame(
+  year = calendar_years,
+  estimate = rep_check$spawning_biomass_y[1:data$n_year],
+  model = "opal (platoon selectivity)"
+)
+ssb_df <- rbind(ssb_nosel, ssb_sel)
 
-ybmax <- max(ssb_check$estimate,
+ybmax <- max(ssb_df$estimate,
              opaka_truth$om$sprseries$SSB,
              opaka_truth$em$sprseries$SSB, na.rm = TRUE)
 
 ggplot() +
-  geom_line(data = ssb_check, aes(x = year, y = estimate, colour = "opal (SS3 MLEs)"),
+  geom_line(data = ssb_df, aes(x = year, y = estimate, colour = model),
             linewidth = 1) +
   geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
             aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
   geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
             aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
-  scale_colour_manual(values = c("opal (SS3 MLEs)" = "darkorange",
+  scale_colour_manual(values = c("opal (PLA selectivity)" = "steelblue",
+                                 "opal (platoon selectivity)" = "darkorange",
                                  "SS3 OM" = "black",
                                  "SS3 EM" = "red")) +
   labs(x = "Year", y = "Spawning biomass",

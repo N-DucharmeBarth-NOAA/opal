@@ -143,8 +143,17 @@ if (exists("spawning_potential", inherits = FALSE)) {
 
   # Selectivity ----
 
-  # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
-  sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+  if (exists("sel_fa_external", inherits = FALSE)) {
+    sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+    for (f in seq_len(n_fishery)) {
+      for (y in seq_len(n_year)) {
+        sel_fya[f, y, ] <- sel_fa_external[f, ]
+      }
+    }
+  } else {
+    # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
+    sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+  }
 
   # Main population loop ----
 
