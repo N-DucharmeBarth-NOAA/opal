@@ -158,12 +158,33 @@ test_that("init_F_f recovers analytic depletion for single plus-group age", {
   M_single <- 0.3
   init_F <- 0.1
   Z <- M_single + init_F
-  init <- get_initial_numbers(B0 = 1000, h = 0.75, M_a = M_single,
+  h <- 0.75
+  init <- get_initial_numbers(B0 = 1000, h = h, M_a = M_single,
                               spawning_potential_a = 1,
                               init_F_f = init_F,
                               sel_fa = matrix(1, nrow = 1, ncol = 1))
-  expected_relN_unfished <- 1 / (1 - exp(-M_single))
-  expected_R0 <- 1000 / expected_relN_unfished
-  expected_relN_fished <- 1 / (1 - exp(-Z))
-  expect_equal(init$Ninit, expected_R0 * expected_relN_fished, tolerance = 1e-10)
+  phi_0 <- 1 / (1 - exp(-M_single))
+  expected_R0 <- 1000 / phi_0
+  phi_F <- 1 / (1 - exp(-Z))
+  
+  # Beverton-Holt equilibrium recruitment R_eq
+  expected_Req <- expected_R0 * (4 * h * phi_F - phi_0 * (1 - h)) / (phi_F * (5 * h - 1))
+  
+  expect_equal(as.numeric(init$Ninit), expected_Req * phi_F, tolerance = 1e-10)
+})
+
+test_that("init_F_f recovers analytic depletion for single plus-group age (h=1)", {
+  M_single <- 0.3
+  init_F <- 0.1
+  Z <- M_single + init_F
+  init <- get_initial_numbers(B0 = 1000, h = 1.0, M_a = M_single,
+                              spawning_potential_a = 1,
+                              init_F_f = init_F,
+                              sel_fa = matrix(1, nrow = 1, ncol = 1))
+  phi_0 <- 1 / (1 - exp(-M_single))
+  expected_R0 <- 1000 / phi_0
+  phi_F <- 1 / (1 - exp(-Z))
+  
+  # For h=1, recruitment is independent of spanning biomass, so R_eq = R0
+  expect_equal(as.numeric(init$Ninit), expected_R0 * phi_F, tolerance = 1e-10)
 })

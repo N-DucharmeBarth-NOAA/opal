@@ -115,7 +115,8 @@ get_parameters <- function(data) {
     par_log_sel_6 = par_sel[[6]],
     par_log_sel_7 = par_sel[[7]], 
     par_rdev_y = Reps,
-    log_init_F_f = rep(log(1e-8), data$n_fishery)
+    log_init_F_f = rep(log(1e-8), data$n_fishery),
+    init_rdev_a = rep(0.0, data$n_age)
   )
   
   return(parameters)
@@ -147,6 +148,7 @@ get_map <- function(parameters) {
   map[["par_log_sel_sigma"]] <- factor(rep(NA, length(parameters$par_log_sel_sigma)))
   map[["par_log_sel_4"]] <- factor(matrix(NA, nrow = nrow(parameters$par_log_sel_4), ncol = ncol(parameters$par_log_sel_4)))
   map[["log_init_F_f"]] <- factor(rep(NA, length(parameters$log_init_F_f)))
+  map[["init_rdev_a"]] <- factor(rep(NA, length(parameters$init_rdev_a)))
   # map[["par_rec_dev_y"]] <- factor(rep(NA, length(parameters$par_rdev_y)))
   return(map)
 }
@@ -197,6 +199,8 @@ get_bounds <- function(obj, parameters) {
   Upr[grep("log_init_F_f", names(obj$par))] <- log(3)
   Lwr[grep("par_rdev_y", names(obj$par))] <- rep(-5, length(parameters$par_rdev_y))
   Upr[grep("par_rdev_y", names(obj$par))] <- rep(5, length(parameters$par_rdev_y))
+  Lwr[grep("init_rdev_a", names(obj$par))] <- rep(-5, length(parameters$init_rdev_a))
+  Upr[grep("init_rdev_a", names(obj$par))] <- rep(5, length(parameters$init_rdev_a))
   
   check_bounds(opt = obj, lower = Lwr, upper = Upr)
   

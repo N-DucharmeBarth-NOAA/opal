@@ -10,7 +10,10 @@ get_initial_numbers(
   M_a,
   spawning_potential_a,
   init_F_f = NULL,
-  sel_fa = NULL
+  sel_fa = NULL,
+  init_rdev_a = NULL,
+  sigma_r = 0.6,
+  init_bias_adj_a = NULL
 )
 }
 \arguments{
@@ -28,6 +31,13 @@ fishery.}
 
 \item{sel_fa}{an optional matrix of selectivity-at-age with dimensions
 \code{[n_fishery, n_age]}.}
+
+\item{init_rdev_a}{an optional \code{vector} of initial age deviations.}
+
+\item{sigma_r}{recruitment standard deviation used in lognormal correction.}
+
+\item{init_bias_adj_a}{an optional \code{vector} of bias adjustment scalars
+for initial age deviations.}
 }
 \value{
 A list containing:

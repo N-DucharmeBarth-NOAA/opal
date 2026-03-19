@@ -731,9 +731,9 @@ hist_ribbon <- function(hist_sbio, label, n_show) {
   do.call(rbind, lapply(idx2, function(t) {
     v <- hist_sbio[, t]
     data.frame(timestep = t,
-               med  = median(v),
-               lo50 = quantile(v, 0.25), hi50 = quantile(v, 0.75),
-               lo90 = quantile(v, 0.05), hi90 = quantile(v, 0.95),
+               med  = median(v, na.rm = TRUE),
+               lo50 = quantile(v, 0.25, na.rm = TRUE), hi50 = quantile(v, 0.75, na.rm = TRUE),
+               lo90 = quantile(v, 0.05, na.rm = TRUE), hi90 = quantile(v, 0.95, na.rm = TRUE),
                method = label)
   }))
 }
@@ -743,15 +743,19 @@ df_hist_ribbon <- rbind(df_hist_mvn, df_hist_mcmc)
 
 # Projection quantile ribbons (proj_year = 0 is the bridge / join point)
 df_ribbon <- df_all |>
+  # Some MCMC draws can produce NA SBIO values (e.g. when a draw yields an
+  # invalid initial state); drop them so quantile() doesn't error.
+  filter(!is.na(sbio)) |>
   group_by(method, proj_year) |>
   summarise(
-    med  = median(sbio),
-    lo50 = quantile(sbio, 0.25),
-    hi50 = quantile(sbio, 0.75),
-    lo90 = quantile(sbio, 0.05),
-    hi90 = quantile(sbio, 0.95),
+    med  = median(sbio, na.rm = TRUE),
+    lo50 = quantile(sbio, 0.25, na.rm = TRUE),
+    hi50 = quantile(sbio, 0.75, na.rm = TRUE),
+    lo90 = quantile(sbio, 0.05, na.rm = TRUE),
+    hi90 = quantile(sbio, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) |>
+  filter(!is.na(med)) |>
   mutate(timestep = data_sim$n_year + 1 + proj_year)
 
 hist_zoom <- hist_df[hist_df$timestep > (data_sim$n_year + 1 - n_hist_show), ]
@@ -785,13 +789,15 @@ df_ribbon_mvn_dep <- df_ribbon |>
 # MCMC projection depletion: per-draw B0
 df_ribbon_mcmc_dep <- df_mcmc |>
   mutate(sbio = sbio / B0_mcmc[iter]) |>
+  filter(!is.na(sbio)) |>
   group_by(method, proj_year) |>
   summarise(
-    med  = median(sbio),
-    lo50 = quantile(sbio, 0.25), hi50 = quantile(sbio, 0.75),
-    lo90 = quantile(sbio, 0.05), hi90 = quantile(sbio, 0.95),
+    med  = median(sbio, na.rm = TRUE),
+    lo50 = quantile(sbio, 0.25, na.rm = TRUE), hi50 = quantile(sbio, 0.75, na.rm = TRUE),
+    lo90 = quantile(sbio, 0.05, na.rm = TRUE), hi90 = quantile(sbio, 0.95, na.rm = TRUE),
     .groups = "drop"
   ) |>
+  filter(!is.na(med)) |>
   mutate(timestep = data_sim$n_year + 1 + proj_year)
 
 df_ribbon_dep <- rbind(df_ribbon_mvn_dep, df_ribbon_mcmc_dep)
@@ -1047,15 +1053,16 @@ horizons or more variable catch scenarios will produce wider bands.
 # Numerical summary at the end of the projection
 df_all |>
   filter(proj_year == n_proj) |>
+  filter(!is.na(sbio)) |>
   group_by(method) |>
   summarise(
-    mean   = mean(sbio),
-    sd     = sd(sbio),
-    p05    = quantile(sbio, 0.05),
-    p25    = quantile(sbio, 0.25),
-    median = median(sbio),
-    p75    = quantile(sbio, 0.75),
-    p95    = quantile(sbio, 0.95),
+    mean   = mean(sbio, na.rm = TRUE),
+    sd     = sd(sbio, na.rm = TRUE),
+    p05    = quantile(sbio, 0.05, na.rm = TRUE),
+    p25    = quantile(sbio, 0.25, na.rm = TRUE),
+    median = median(sbio, na.rm = TRUE),
+    p75    = quantile(sbio, 0.75, na.rm = TRUE),
+    p95    = quantile(sbio, 0.95, na.rm = TRUE),
     .groups = "drop"
   )
 ```

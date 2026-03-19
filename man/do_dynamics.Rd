@@ -17,7 +17,8 @@ do_dynamics(
   spawning_potential_a,
   weight_fya,
   init_number_a,
-  sel_fya
+  sel_fya,
+  bias_adj_y = NULL
 )
 }
 \arguments{
@@ -60,6 +61,9 @@ equilibrium numbers-at-age (from \code{\link{get_initial_numbers}}).}
 \item{sel_fya}{Numeric array \code{[n_fishery, n_year, n_age]}.
 Fishery-specific selectivity at age by year (from
 \code{\link{get_selectivity}}).}
+
+\item{bias_adj_y}{Numeric vector of length \code{n_year}. Recruitment bias
+adjustment scalar by year.}
 }
 \value{
 A named list with:

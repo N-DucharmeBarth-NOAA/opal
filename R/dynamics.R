@@ -40,6 +40,10 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #'   fishery.
 #' @param sel_fa an optional matrix of selectivity-at-age with dimensions
 #'   \code{[n_fishery, n_age]}.
+#' @param init_rdev_a an optional \code{vector} of initial age deviations.
+#' @param sigma_r recruitment standard deviation used in lognormal correction.
+#' @param init_bias_adj_a an optional \code{vector} of bias adjustment scalars
+#'   for initial age deviations.
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
@@ -51,38 +55,54 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #' @export
 #'
 get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
-                                init_F_f = NULL, sel_fa = NULL) {
+                                init_F_f = NULL, sel_fa = NULL,
+                                init_rdev_a = NULL, sigma_r = 0.6,
+                                init_bias_adj_a = NULL) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
 
   # Unfished survivorship for R0, alpha, beta
-  rel_N0 <- numeric(n_age)
+  rel_N0 <- numeric(n_age) + B0 * 0
   rel_N0[1] <- 1
   if (n_age > 1) {
     for (a in 2:n_age) rel_N0[a] <- rel_N0[a - 1] * exp(-M_a[a - 1])
   }
   rel_N0[n_age] <- rel_N0[n_age] / (1 - exp(-M_a[n_age]))
-  R0    <- B0 / sum(spawning_potential_a * rel_N0)
+
+  SPR0  <- sum(spawning_potential_a * rel_N0)
+  R0    <- B0 / SPR0
   alpha <- (4 * h * R0) / (5 * h - 1)
   beta  <- (B0 * (1 - h)) / (5 * h - 1)
 
-  # Fished survivorship for Ninit (reduces to unfished when init_F_f ~ 0)
-  # Z_a built element-wise via overloaded [<- so values stay on the AD tape
-  Z_a <- numeric(n_age)
-  for (a in seq_len(n_age)) Z_a[a] <- M_a[a]
+  # Fished survivorship for Ninit
+  Z_a <- M_a + B0 * 0
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
     for (f in seq_along(init_F_f)) {
       Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
     }
   }
-  rel_N <- numeric(n_age)
+
+  rel_N <- numeric(n_age) + B0 * 0
   rel_N[1] <- 1
   if (n_age > 1) {
     for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-Z_a[a - 1])
   }
   rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
 
-  return(list(Ninit = R0 * rel_N, R0 = R0, alpha = alpha, beta = beta))
+  # Fished equilibrium recruitment
+  SPR_eq <- sum(spawning_potential_a * rel_N)
+  R_eq   <- alpha - (beta / SPR_eq)
+
+  Ninit <- R_eq * rel_N
+
+  if (!is.null(init_rdev_a)) {
+    if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(1.0, n_age)
+    for (a in seq_len(n_age)) {
+      Ninit[a] <- Ninit[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
+    }
+  }
+
+  return(list(Ninit = Ninit, R0 = R0, alpha = alpha, beta = beta))
 }
 
 #' Population dynamics
@@ -127,6 +147,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #' @param sel_fya Numeric array \code{[n_fishery, n_year, n_age]}.
 #'   Fishery-specific selectivity at age by year (from
 #'   \code{\link{get_selectivity}}).
+#' @param bias_adj_y Numeric vector of length \code{n_year}. Recruitment bias
+#'   adjustment scalar by year.
 #' @return A named list with:
 #' \describe{
 #'   \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
@@ -139,11 +161,12 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
                         M_a, spawning_potential_a, weight_fya,
-                        init_number_a, sel_fya) {
+                        init_number_a, sel_fya, bias_adj_y = NULL) {
   
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
+  if (is.null(bias_adj_y)) bias_adj_y <- rep(1.0, n_year)
   fy <- first_yr_catch - first_yr + 1
   n_age1 <- n_age - 1
   S_a <- exp(-M_a / n_season)
@@ -216,7 +239,7 @@ do_dynamics <- function(data, parameters,
     number_ysa[y + 1, 1, n_age] <- number_ysa[y + 1, 1, n_age] + (number_ysa[y, n_season, n_age] * (1 - hrate_ysa[y, n_season, n_age]) * S_a[n_age])
     spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1,] * spawning_potential_a)
 
-    number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r)
+    number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
   }
   
   REPORT(catch_pred_ysf)

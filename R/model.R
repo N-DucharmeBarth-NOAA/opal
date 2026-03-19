@@ -2,6 +2,9 @@ utils::globalVariables(c(
   "log_B0", "log_h", "log_sigma_r", "sigma_r", 
   "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
   "rdev_y", 
+  "init_rdev_a",
+  "bias_adj_y",
+  "init_bias_adj_a",
   "log_init_F_f",
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
@@ -74,6 +77,10 @@ opal_model <- function(parameters, data) {
   if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
   if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
+  if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
+  if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
+  if (!exists("init_bias_adj_a", inherits = FALSE)) init_bias_adj_a <- rep(1.0, n_age)
+  if (!exists("sex_ratio", inherits = FALSE)) sex_ratio <- rep(1.0, n_age)
 
   # Growth module ----
 
@@ -90,47 +97,83 @@ opal_model <- function(parameters, data) {
   # Shared PLA — computed once and reused for weight, maturity, selectivity
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
 
-  # Module 3: Weight-at-length → weight-at-age
+# Module 3: Weight-at-age ----
+# If a pre-computed weight vector is supplied in the data , use it directly via resolve_bio_vector.
+# This allows age-basis vectors (length n_age) to pass through unchanged,
+# or length-basis vectors (length n_len) to be converted via the PLA.
+# Otherwise, derive weight-at-age internally from the length-weight
+# relationship and the PLA.
+if (exists("weight", inherits = FALSE)) {
+  weight_a <- resolve_bio_vector(weight, n_age, n_len, pla, "weight")
+} else {
   wt_at_len <- get_weight_at_length(len_mid, lw_a, lw_b)
   weight_a  <- c(t(pla) %*% wt_at_len)
-  # Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
-  weight_fya_mod <- array(0, dim = c(n_fishery, n_year, n_age))
-  for (f in seq_len(n_fishery)) {
-    for (y in seq_len(n_year)) {
-      weight_fya_mod[f, y, ] <- weight_a
-    }
-  }
+}
 
-  # Module 4: Resolve biology vectors to age-basis via PLA ----
-  # Accepts either age-basis (length n_age) or length-basis (length n_len) vectors.
-  # Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
-  maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
-  M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
-  fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
-  spawning_potential_a <- maturity_a * fecundity_a
+# Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
+weight_fya_mod <- array(0, dim = c(n_fishery, n_year, n_age))
+for (f in seq_len(n_fishery)) {
+  for (y in seq_len(n_year)) {
+    weight_fya_mod[f, y, ] <- weight_a
+  }
+}
+
+# Module 4: Resolve biology vectors to age-basis via PLA ----
+# Accepts either age-basis (length n_age) or length-basis (length n_len)
+# vectors. Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
+maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
+M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
+fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
+sex_ratio_a <- resolve_bio_vector(sex_ratio, n_age, n_len, pla, "sex_ratio")
+
+# Spawning potential-at-age ----
+# If a pre-computed spawning_potential vector is supplied in the data (e.g.,
+# platoon-weighted and sex-ratio-adjusted average from SS3), use it directly
+# via resolve_bio_vector.
+#
+# Otherwise, compute spawning potential from its components:
+#   spawning_potential_a = sex_ratio_a * maturity_a * fecundity_a
+# where sex_ratio is the fraction female at age (typically 0.5 for all ages).
+# This requires a sex_ratio vector in the data object.
+if (exists("spawning_potential", inherits = FALSE)) {
+  spawning_potential_a <- resolve_bio_vector(spawning_potential, n_age, n_len, pla, "spawning_potential")
+} else {
+  spawning_potential_a <- sex_ratio_a * maturity_a * fecundity_a
+}
 
   # Selectivity ----
 
-  # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
-  sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+  if (exists("sel_fa_external", inherits = FALSE)) {
+    sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+    for (f in seq_len(n_fishery)) {
+      for (y in seq_len(n_year)) {
+        sel_fya[f, y, ] <- sel_fa_external[f, ]
+      }
+    }
+  } else {
+    # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
+    sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+  }
 
   # Main population loop ----
 
   B0 <- exp(log_B0)
   h <- exp(log_h)
+  sigma_r <- exp(log_sigma_r)
   init_F_f <- exp(log_init_F_f)
   init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a,
-                              init_F_f = init_F_f, sel_fa = sel_fya[, 1, ])
+                              init_F_f = init_F_f, sel_fa = sel_fya[, 1, ],
+                              init_rdev_a = init_rdev_a, sigma_r = sigma_r,
+                              init_bias_adj_a = init_bias_adj_a)
   R0 <- init$R0
   alpha <- init$alpha
   beta <- init$beta
-  sigma_r <- exp(log_sigma_r)
 
 
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
                      M_a = M_a, spawning_potential_a = spawning_potential_a, weight_fya = weight_fya_mod,
-                     init_number_a = init$Ninit, sel_fya = sel_fya)
+                     init_number_a = init$Ninit, sel_fya = sel_fya, bias_adj_y = bias_adj_y)
 
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
@@ -144,6 +187,7 @@ opal_model <- function(parameters, data) {
   # Priors ----
 
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
+  lp_init_rec <- get_recruitment_prior(init_rdev_a, sigma_r)
   if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
     lp_prior <- evaluate_priors(parameters, priors)
   } else {
@@ -205,7 +249,7 @@ opal_model <- function(parameters, data) {
     lp_wf <- 0
   }
   # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+  nll <- lp_prior + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
   
   # Reporting ----
 
@@ -215,6 +259,7 @@ opal_model <- function(parameters, data) {
   REPORT(lp_prior)
   REPORT(lp_penalty)
   REPORT(lp_rec)
+  REPORT(lp_init_rec)
   REPORT(lp_cpue)
   REPORT(lp_lf)
   REPORT(lp_wf)
@@ -230,6 +275,7 @@ opal_model <- function(parameters, data) {
   REPORT(M_a)
   REPORT(weight_fya_mod)
   REPORT(init_F_f)
+  REPORT(init_rdev_a)
 
   return(nll)
 }
