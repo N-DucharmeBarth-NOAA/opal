@@ -157,6 +157,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #' @return A named list with:
 #' \describe{
 #'   \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
+#'   \item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 #'   \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
 #'   \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
 #'   \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
@@ -169,7 +170,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 do_dynamics <- function(data, parameters,
                         B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
                         M_a, spawning_potential_a, weight_fya,
-                        init_number_a, init_number0_a = init_number_a, sel_fya, bias_adj_y = NULL) {
+                        init_number_a, init_number0_a, sel_fya, bias_adj_y = NULL) {
   
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
@@ -264,6 +265,7 @@ do_dynamics <- function(data, parameters,
   REPORT(catch_pred_fya)
   REPORT(hrate_ysa)
   REPORT(hrate_ysfa)
+  REPORT(number0_ysa)
   REPORT(spawning_biomass_y)
   REPORT(spawning_biomass0_y)
   REPORT(dynamic_depletion_y)
@@ -271,7 +273,7 @@ do_dynamics <- function(data, parameters,
   RTMB::ADREPORT(spawning_biomass0_y)
   RTMB::ADREPORT(dynamic_depletion_y)
   
-  return(list(number_ysa = number_ysa, lp_penalty = lp_penalty,
+  return(list(number_ysa = number_ysa, number0_ysa = number0_ysa, lp_penalty = lp_penalty,
               catch_pred_fya = catch_pred_fya,
               spawning_biomass_y = spawning_biomass_y,
               spawning_biomass0_y = spawning_biomass0_y,
