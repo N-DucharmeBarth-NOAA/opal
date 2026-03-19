@@ -45,6 +45,12 @@ data(opaka_data)
 data <- opaka_data
 if (is.null(data$n_index)) data$n_index <- 2L
 names(data)
+
+# set ages to anchor growth curve (since SS3 indexs from 0 to 43, but opal uses 1-based indexing)
+data$A1 <- 0
+data$A2 <- data$A1 + (data$n_age-1)
+data$min_age <- 0
+ages <- data$age_a <- seq(data$min_age, by = 1, length.out = data$n_age)
 ```
 
 Key dimensions of the data:
@@ -63,8 +69,6 @@ contained in the data object. Unlike the BET case study where M varies with
 age, opakapaka uses a constant M = 0.135 across all ages.
 
 ```{r plot-biology, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-ages <- data$age_a
-
 # Natural mortality
 ggplot(data.frame(age = ages, M = data$M), aes(x = age, y = M)) +
   geom_line() + geom_point(size = 0.8) +
@@ -79,6 +83,9 @@ ggplot(data.frame(length = len_mid, maturity = data$maturity),
   geom_line() + geom_point() +
   labs(x = "Length (cm)", y = "Maturity",
        title = "Maturity-at-Length (logistic, Mat50 = 40.7 cm)")
+
+# define sex ratio vector
+data$sex_ratio <- rep(1, data$n_age)
 ```
 
 ## Length composition data
@@ -128,7 +135,7 @@ data$init_bias_adj_a <- get_bias_adj_vector(
 # 2. TIME SERIES COHORTS (1950 to 2024)
 # Because rdev_y[1] generates recruits for year 2 (1950),
 # the time-series bias ramp must evaluate 1950 to 2024.
-calendar_years <- 1949 + data$years
+calendar_years <- (1949-1) + data$years
 
 data$bias_adj_y <- get_bias_adj_vector(
   years = calendar_years,
@@ -542,6 +549,281 @@ ggplot(spawning_biomass_est, aes(x = year)) +
   geom_line(data=subset(opaka_truth$em$sprseries, Yr %in% calendar_years), aes(x=Yr, y=SSB), colour = "red", linewidth = 1) +
   labs(x = "Year", y = "Spawning biomass",
     title = "Estimated spawning biomass trajectory") +
-  scale_y_continuous(limits = c(0, ybmax * 1.2)) +
+  # scale_y_continuous(limits = c(0, ybmax * 1.2)) +
   theme_minimal()
+```
+
+```{r platoon-correction, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+# ---- Save the default (PLA-based) opal estimate for comparison ----
+spawning_biomass_default <- spawning_biomass_est
+spawning_biomass_default$model <- "opal (PLA)"
+
+# ---- Platoon-weighted biology from SS3 report ----
+# SS3 uses 3 discrete growth platoons (slow/medium/fast) with weights
+# 0.15/0.70/0.15 and a within/between stdev ratio of 0.7. The effective
+# weight-at-age and spawning potential-at-age differ from a single growth
+# track (opal's PLA) due to Jensen's inequality: the non-linear length-weight
+# (w = a*L^b) and logistic maturity curves mean the platoon-weighted average
+# is not equal to the value at mean length. To verify that opal's population
+# dynamics are correct, we override these two vectors with platoon-averaged
+# values extracted from the SS3 Biology_at_age report table.
+
+platoon_frac <- c(0.15, 0.70, 0.15)
+frac_female  <- 1
+
+# Wt_Beg by platoon (ages 0-43, from SS3 Biology_at_age_in_endyr)
+wt_p1 <- c(0.00297429, 0.09807, 0.356455, 0.737394, 1.17746, 1.62494, 2.04639,
+            2.42401, 2.75098, 3.02731, 3.25674, 3.44476, 3.59732, 3.72019,
+            3.81859, 3.89703, 3.95937, 4.00876, 4.04783, 4.07867, 4.103,
+            4.12216, 4.13725, 4.14912, 4.15845, 4.16579, 4.17155, 4.17608,
+            4.17964, 4.18244, 4.18463, 4.18636, 4.18771, 4.18878, 4.18961,
+            4.19027, 4.19078, 4.19118, 4.1915, 4.19175, 4.19195, 4.1921,
+            4.19222, 4.19235)
+wt_p2 <- c(0.00378997, 0.121547, 0.441813, 0.913989, 1.45946, 2.01411, 2.5365,
+            3.00456, 3.40985, 3.75236, 4.03675, 4.2698, 4.4589, 4.6112,
+            4.73316, 4.8304, 4.90766, 4.96889, 5.01731, 5.05555, 5.0857,
+            5.10945, 5.12815, 5.14286, 5.15443, 5.16353, 5.17067, 5.17629,
+            5.1807, 5.18417, 5.18689, 5.18902, 5.1907, 5.19202, 5.19305,
+            5.19387, 5.1945, 5.19501, 5.1954, 5.19571, 5.19595, 5.19614,
+            5.19629, 5.19645)
+wt_p3 <- c(0.00463342, 0.148504, 0.539825, 1.11676, 1.78326, 2.46098, 3.09928,
+            3.67119, 4.16641, 4.58492, 4.9324, 5.21716, 5.44822, 5.63431,
+            5.78334, 5.90215, 5.99655, 6.07137, 6.13053, 6.17725, 6.21409,
+            6.24311, 6.26596, 6.28394, 6.29807, 6.30919, 6.31792, 6.32478,
+            6.33017, 6.33441, 6.33773, 6.34034, 6.34239, 6.344, 6.34527,
+            6.34626, 6.34704, 6.34765, 6.34813, 6.34851, 6.3488, 6.34904,
+            6.34922, 6.34942)
+
+# Mat*Fecund by platoon (ages 0-43, from SS3 Biology_at_age_in_endyr)
+mf_p1 <- c(0, 0, 0, 0.00337726, 0.730569, 1.5984, 2.04555, 2.42397, 2.75098,
+            3.02731, 3.25674, 3.44476, 3.59732, 3.72019, 3.81859, 3.89703,
+            3.95937, 4.00876, 4.04783, 4.07867, 4.103, 4.12216, 4.13725,
+            4.14912, 4.15845, 4.16579, 4.17155, 4.17608, 4.17964, 4.18244,
+            4.18463, 4.18636, 4.18771, 4.18878, 4.18961, 4.19027, 4.19078,
+            4.19118, 4.1915, 4.19175, 4.19195, 4.1921, 4.19222, 4.19235)
+mf_p2 <- c(0, 0, 0, 0.0840252, 1.38406, 2.01357, 2.5365, 3.00456, 3.40985,
+            3.75236, 4.03675, 4.2698, 4.4589, 4.6112, 4.73316, 4.8304,
+            4.90766, 4.96889, 5.01731, 5.05555, 5.0857, 5.10945, 5.12815,
+            5.14286, 5.15443, 5.16353, 5.17067, 5.17629, 5.1807, 5.18417,
+            5.18689, 5.18902, 5.1907, 5.19202, 5.19305, 5.19387, 5.1945,
+            5.19501, 5.1954, 5.19571, 5.19595, 5.19614, 5.19629, 5.19645)
+mf_p3 <- c(0, 0, 0.000000273, 0.542148, 1.78033, 2.46098, 3.09928, 3.67119,
+            4.16641, 4.58492, 4.9324, 5.21716, 5.44822, 5.63431, 5.78334,
+            5.90215, 5.99655, 6.07137, 6.13053, 6.17725, 6.21409, 6.24311,
+            6.26596, 6.28394, 6.29807, 6.30919, 6.31792, 6.32478, 6.33017,
+            6.33441, 6.33773, 6.34034, 6.34239, 6.344, 6.34527, 6.34626,
+            6.34704, 6.34765, 6.34813, 6.34851, 6.3488, 6.34904, 6.34922,
+            6.34942)
+
+# Platoon-weighted weight-at-age
+data$weight <- platoon_frac[1] * wt_p1 +
+               platoon_frac[2] * wt_p2 +
+               platoon_frac[3] * wt_p3
+
+# Platoon-weighted spawning potential-at-age (scaled by fraction female)
+data$spawning_potential <- frac_female * (platoon_frac[1] * mf_p1 +
+                                          platoon_frac[2] * mf_p2 +
+                                          platoon_frac[3] * mf_p3)
+
+# ---- Rebuild and refit with platoon-corrected biology ----
+obj2 <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+
+opt2 <- nlminb(start = obj2$par, objective = obj2$fn, gradient = obj2$gr,
+               hessian = obj2$he, lower = Lwr, upper = Upr, control = control)
+opt2 <- nlminb(start = opt2$par, objective = obj2$fn, gradient = obj2$gr,
+               hessian = obj2$he, lower = Lwr, upper = Upr, control = control)
+opt2 <- nlminb(start = opt2$par, objective = obj2$fn, gradient = obj2$gr,
+               hessian = obj2$he, lower = Lwr, upper = Upr, control = control)
+
+cat("Convergence:", opt2$convergence, "\n")
+cat("Max gradient:", max(abs(obj2$gr())), "\n")
+
+Report2 <- RTMB::sdreport(obj2)
+rep2 <- obj2$report()
+
+# ---- Extract platoon-corrected spawning biomass ----
+spawning_biomass_corrected <- as.data.frame(
+  summary(Report2)[which(rownames(summary(Report2)) == "spawning_biomass_y"),
+                   c("Estimate", "Std. Error")])
+colnames(spawning_biomass_corrected) <- c("estimate", "std_error")
+spawning_biomass_corrected <- spawning_biomass_corrected[1:data$n_year, ]
+spawning_biomass_corrected$year  <- calendar_years
+spawning_biomass_corrected$lower <- spawning_biomass_corrected$estimate - 1.96 * spawning_biomass_corrected$std_error
+spawning_biomass_corrected$upper <- spawning_biomass_corrected$estimate + 1.96 * spawning_biomass_corrected$std_error
+spawning_biomass_corrected$model <- "opal (platoon-corrected)"
+
+# ---- Comparison plot ----
+data(opaka_truth)
+
+opal_df <- rbind(spawning_biomass_default, spawning_biomass_corrected)
+
+ybmax <- max(opal_df$upper,
+             opaka_truth$om$sprseries$SSB,
+             opaka_truth$em$sprseries$SSB, na.rm = TRUE)
+
+ggplot(opal_df, aes(x = year)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = model), alpha = 0.2) +
+  geom_line(aes(y = estimate, colour = model), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB), colour = "black", linewidth = 1) +
+  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB), colour = "red", linewidth = 1) +
+  scale_colour_manual(values = c("opal (PLA)" = "steelblue",
+                                 "opal (platoon-corrected)" = "darkorange")) +
+  scale_fill_manual(values = c("opal (PLA)" = "steelblue",
+                               "opal (platoon-corrected)" = "darkorange")) +
+  labs(x = "Year", y = "Spawning biomass",
+       title = "Estimated spawning biomass trajectory",
+       subtitle = "Black = SS3 OM truth, Red = SS3 EM, Coloured = opal estimates",
+       colour = NULL, fill = NULL) +
+  scale_y_continuous(limits = c(0, ybmax * 1.2)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r dynamics-check, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+# ---- Dynamics diagnostic: fix all parameters at SS3 MLE values ----
+# This isolates opal's population dynamics from estimation differences.
+# If the forward projection matches SS3, the dynamics are correct and any
+# gap in the estimated model is due to parameter estimation (different
+# likelihood surface, selectivity parameterization, etc.). If the projection
+# doesn't match, a structural issue remains.
+
+# SS3 MLE values from ss.par and derived quantities
+# SS3's SSB_Virgin = 4639.1, ln(R0) = 5.65608, h = 0.76, sigma_r = 0.52
+# SS3's init_F[1] = 0.0119122, Q_parm = c(-3.773, -6.253)
+
+# Build parameter list with all values at SS3 MLEs
+parameters_ss3 <- parameters  # start from the current parameter list
+
+# B0: SS3's SSB_Virgin = 4639.1
+parameters_ss3$log_B0 <- log(4639.1)
+
+# Steepness, sigma_r (already set from opaka_parameters, but be explicit)
+parameters_ss3$log_h <- log(0.76)
+parameters_ss3$log_sigma_r <- log(0.52)
+
+# CPUE catchability (from ss.par Q_parm)
+parameters_ss3$log_cpue_q <- c(-3.77275156733, -6.25323305447)
+
+# Recruitment deviations: use SS3's full recdev2 vector
+# recdev2 covers the 22 early-period devs (ages) + 75 main-period devs
+# init_rdev_a: reversed early devs (already set in the parameter block above)
+# rdev_y: shifted main devs (already set in the parameter block above)
+# These should already match SS3 from the original parameter setup, but
+# ensure they are the unmodified SS3 values:
+ss3_recdev2 <- c(0.0675235702971, 0.0764991539955, 0.0858442617148,
+  0.0950046747340, 0.102706450120, 0.107687329214, 0.107711705598,
+  0.0998349181169, 0.0808136660096, 0.0482338925745, 0.00234443377404,
+  -0.0517563213031, -0.102395434864, -0.131458254996, -0.121100670313,
+  -0.0714825835398, -0.00742166036481, -0.0109308396989, -0.0385028902033,
+  0.0366483160551, 0.0165104920249, -0.166905707226,
+  0.684759008019, -0.00129318028442, 0.291954545496, -0.502105154386,
+  -0.395132761139, 0.289343271935, -0.288480831619, -0.490309035200,
+  -0.212366196568, 0.161892641109, -0.0209673906075, -0.297262261087,
+  0.329268521456, 0.00878056067047, -0.0597345841788, -0.635158118155,
+  0.121730487831, 0.564895487490, -0.412552483484, 0.492195882830,
+  0.863050417304, -0.262592196252, -0.580724697255, 0.192426722416,
+  0.470346549222, -0.450985027130, 0.468806143351, -0.0970889237156,
+  0.125657219706, -0.590564615592, -0.206902651435, 0.212391740136,
+  -0.786327541142, -0.942202604456, -0.479537926647, -0.910561752327,
+  -0.338249154939, -1.08143122504, 0.610318451176, -0.116085865688,
+  -1.00403426050, -0.0967824207922, 0.241495871563, 0.381401207516,
+  -0.162517483700, 0.164175327286, 0.739150845802, -0.283843490207,
+  -0.324836661861, -0.297336491801, -0.566398458638, -0.553810264824,
+  -0.00857108423637, -0.0751868745470, 0.339022613392, 0.0187206379281,
+  0.633372740779, 0.675976465171, 0.134831485765, 0.429015103446,
+  0.00483559599714, -0.953917944860, -0.848588067707, -0.0919670526641,
+  -0.820322333684, -0.134672436697, 0.936671897697, 0.135185903985,
+  -0.301177900173, -0.988301462145, -0.138899249513, 0.785829523698,
+  -0.674385690767, 0.751722180103, 0.352211358296, 0.853371113276,
+  -0.348627551973, -0.514856812016, -0.157533901109, -0.175313077136,
+  0.212151760383, 0.110769041131, 0.126998013037, -0.349623955515,
+  0.287222081367, 0.166718339864, 0.263616100771, -0.514692520633,
+  0.543032699532, 0.148610562305, 0.0741026805708, -0.0379144746966,
+  0.0478985480312, -0.0919462212626, -0.825992698686, 0.225426831222,
+  -0.711467818125, 0.447979718775, 0.00000000000)
+
+# First 22 values of recdev2 are the initial age devs (reverse into init_rdev_a)
+# The remaining values are the main time-series devs
+# init_rdev_a[1] gets the 1949 dev (first of recdev2 after the early devs)
+ss3_early <- c(0.0206807064789, 0.00321579077358, 0.00372620421544,
+  0.00431740128909, 0.00500263165771, 0.00579673718936, 0.00671727050323,
+  0.00778421989329, 0.00902081267571, 0.0104539317083, 0.0121143194944,
+  0.0140374805236, 0.0162641224184, 0.0188404004022, 0.0218181611323,
+  0.0252560947069, 0.0292181862911, 0.0337726098165, 0.0389897504158,
+  0.0449362496360, 0.0516661790666, 0.0592048886170)
+
+parameters_ss3$init_rdev_a <- rev(c(ss3_early, ss3_recdev2[1:22]))
+parameters_ss3$init_rdev_a[1] <- ss3_recdev2[22]  # 1949 dev at age 0
+
+# Time-series rdevs: recdev2[23:end] are 1950 onwards, plus 0.0 for terminal
+parameters_ss3$rdev_y <- c(ss3_recdev2[23:length(ss3_recdev2)], 0.0)
+
+# Selectivity: use the converted SS3 values (already in parameters$par_sel)
+parameters_ss3$par_sel <- parameters$par_sel
+
+# Initial F
+parameters_ss3$log_init_F_f <- c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1))
+
+# ---- Fix ALL parameters (no estimation) ----
+map_fixed <- list(
+  log_B0       = factor(NA),
+  log_h        = factor(NA),
+  log_sigma_r  = factor(NA),
+  log_cpue_q   = factor(rep(NA, length(parameters_ss3$log_cpue_q))),
+  cpue_creep   = factor(rep(NA, data$n_index)),
+  log_cpue_tau = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
+  log_lf_tau   = factor(rep(NA, length(parameters_ss3$log_lf_tau))),
+  log_L1       = factor(NA),
+  log_L2       = factor(NA),
+  log_k        = factor(NA),
+  log_CV1      = factor(NA),
+  log_CV2      = factor(NA),
+  par_sel      = factor(rep(NA, length(parameters_ss3$par_sel))),
+  log_init_F_f = factor(rep(NA, data$n_fishery)),
+  rdev_y       = factor(rep(NA, length(parameters_ss3$rdev_y))),
+  init_rdev_a  = factor(rep(NA, data$n_age))
+)
+
+# ---- Build and evaluate (no optimization) ----
+obj_check <- MakeADFun(func = cmb(opal_model, data),
+                       parameters = parameters_ss3, map = map_fixed)
+rep_check <- obj_check$report()
+
+cat("B0:", rep_check$B0, "\n")
+cat("R0:", rep_check$R0, "\n")
+cat("SPR0 (B0/R0):", rep_check$B0 / rep_check$R0, "\n")
+cat("Initial SSB:", rep_check$spawning_biomass_y[1], "\n")
+
+# ---- Comparison: opal dynamics at SS3 MLEs vs SS3 trajectories ----
+data(opaka_truth)
+
+ssb_check <- data.frame(
+  year = calendar_years,
+  estimate = rep_check$spawning_biomass_y[1:data$n_year]
+)
+
+ybmax <- max(ssb_check$estimate,
+             opaka_truth$om$sprseries$SSB,
+             opaka_truth$em$sprseries$SSB, na.rm = TRUE)
+
+ggplot() +
+  geom_line(data = ssb_check, aes(x = year, y = estimate, colour = "opal (SS3 MLEs)"),
+            linewidth = 1) +
+  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
+  scale_colour_manual(values = c("opal (SS3 MLEs)" = "darkorange",
+                                 "SS3 OM" = "black",
+                                 "SS3 EM" = "red")) +
+  labs(x = "Year", y = "Spawning biomass",
+       title = "Dynamics diagnostic: opal at SS3 MLE parameters",
+       subtitle = "No estimation — all parameters fixed at SS3 values",
+       colour = NULL) +
+  scale_y_continuous(limits = c(0, ybmax * 1.2)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 ```

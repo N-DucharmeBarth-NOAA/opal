@@ -80,6 +80,7 @@ opal_model <- function(parameters, data) {
   if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
   if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
   if (!exists("init_bias_adj_a", inherits = FALSE)) init_bias_adj_a <- rep(1.0, n_age)
+  if (!exists("sex_ratio", inherits = FALSE)) sex_ratio <- rep(1.0, n_age)
 
   # Growth module ----
 
@@ -96,25 +97,49 @@ opal_model <- function(parameters, data) {
   # Shared PLA — computed once and reused for weight, maturity, selectivity
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
 
-  # Module 3: Weight-at-length → weight-at-age
+# Module 3: Weight-at-age ----
+# If a pre-computed weight vector is supplied in the data , use it directly via resolve_bio_vector.
+# This allows age-basis vectors (length n_age) to pass through unchanged,
+# or length-basis vectors (length n_len) to be converted via the PLA.
+# Otherwise, derive weight-at-age internally from the length-weight
+# relationship and the PLA.
+if (exists("weight", inherits = FALSE)) {
+  weight_a <- resolve_bio_vector(weight, n_age, n_len, pla, "weight")
+} else {
   wt_at_len <- get_weight_at_length(len_mid, lw_a, lw_b)
   weight_a  <- c(t(pla) %*% wt_at_len)
-  # Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
-  weight_fya_mod <- array(0, dim = c(n_fishery, n_year, n_age))
-  for (f in seq_len(n_fishery)) {
-    for (y in seq_len(n_year)) {
-      weight_fya_mod[f, y, ] <- weight_a
-    }
-  }
+}
 
-  # Module 4: Resolve biology vectors to age-basis via PLA ----
-  # Accepts either age-basis (length n_age) or length-basis (length n_len) vectors.
-  # Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
-  maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
-  M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
-  fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
-  spawning_potential_l <- maturity * fecundity
-  spawning_potential_a <- resolve_bio_vector(spawning_potential_l, n_age, n_len, pla, "spawning_potential")
+# Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
+weight_fya_mod <- array(0, dim = c(n_fishery, n_year, n_age))
+for (f in seq_len(n_fishery)) {
+  for (y in seq_len(n_year)) {
+    weight_fya_mod[f, y, ] <- weight_a
+  }
+}
+
+# Module 4: Resolve biology vectors to age-basis via PLA ----
+# Accepts either age-basis (length n_age) or length-basis (length n_len)
+# vectors. Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
+maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
+M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
+fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
+sex_ratio_a <- resolve_bio_vector(sex_ratio, n_age, n_len, pla, "sex_ratio")
+
+# Spawning potential-at-age ----
+# If a pre-computed spawning_potential vector is supplied in the data (e.g.,
+# platoon-weighted and sex-ratio-adjusted average from SS3), use it directly
+# via resolve_bio_vector.
+#
+# Otherwise, compute spawning potential from its components:
+#   spawning_potential_a = sex_ratio_a * maturity_a * fecundity_a
+# where sex_ratio is the fraction female at age (typically 0.5 for all ages).
+# This requires a sex_ratio vector in the data object.
+if (exists("spawning_potential", inherits = FALSE)) {
+  spawning_potential_a <- resolve_bio_vector(spawning_potential, n_age, n_len, pla, "spawning_potential")
+} else {
+  spawning_potential_a <- sex_ratio_a * maturity_a * fecundity_a
+}
 
   # Selectivity ----
 
