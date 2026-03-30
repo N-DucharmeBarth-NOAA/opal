@@ -25,6 +25,9 @@
 #'   Applied after proportions are computed so that observed compositions are
 #'   unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 #'   feature.
+#' @param wf_addtocomp small non-negative numeric constant added to observed
+#'   composition proportions after tail compression and before renormalisation.
+#'   This robustifies zero bins. Default \code{1e-08}.
 #' @return data list with the following weight composition elements appended:
 #'   \describe{
 #'     \item{\code{wf_switch}}{Passed through from the argument.}
@@ -41,6 +44,8 @@
 #'       (for Dirichlet-multinomial, \code{wf_switch = 3}).}
 #'     \item{\code{wf_obs_prop}}{Flattened numeric vector of normalised
 #'       proportions (for Dirichlet, \code{wf_switch = 2}).}
+#'     \item{\code{wf_addtocomp}}{Stored value of the add-to-composition
+#'       constant used to robustify observed composition bins.}
 #'     \item{\code{wf_n}}{Numeric vector of sample sizes per observation row.}
 #'     \item{\code{wf_fishery}}{Integer vector of fishery index per observation
 #'       row.}
@@ -59,7 +64,8 @@
 prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
                          wf_switch = 1L, wf_minbin = NULL,
                          wf_maxbin = NULL, wf_var_adjust = NULL,
-                         wf_cap = NULL) {
+                         wf_cap = NULL,
+                         wf_addtocomp = 1e-08) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -163,6 +169,8 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
       if (bmin > 1)           obs[bmin] <- sum(obs[1:bmin])
       if (bmax < n_wt_local)  obs[bmax] <- sum(obs[bmax:n_wt_local])
       obs     <- obs[bmin:bmax]
+      obs     <- obs + wf_addtocomp
+      obs     <- obs / sum(obs)
       m[i, ]  <- obs * wf_n_fi[[j]][i]
     }
     wf_obs_list[[j]] <- m
@@ -181,11 +189,12 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   data$wf_obs_prop <- unlist(lapply(wf_obs_list, function(m) {
     props <- t(apply(m, 1, function(row) {
       p <- row / sum(row)
-      p <- p + 1e-8
+      p <- p + wf_addtocomp
       p / sum(p)
     }))
     as.numeric(t(props))
   }))
+  data$wf_addtocomp <- wf_addtocomp
 
   return(data)
 }

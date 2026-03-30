@@ -235,3 +235,41 @@ test_that("wt_lower, wt_upper, wt_mid, wt_bin_edges are consistent with scalars"
   expect_equal(d$wt_bin_edges[1], d$wt_lower[1])
   expect_equal(d$wt_bin_edges[d$n_wt + 1], d$wt_upper[d$n_wt])
 })
+
+test_that("wf_addtocomp is stored on data and matches the input", {
+  d <- make_wf_data(wf_addtocomp = 1e-3)
+  expect_equal(d$wf_addtocomp, 1e-3)
+})
+
+test_that("wf_addtocomp > 0 gives strictly positive wf_obs_flat bins", {
+  d <- make_wf_data(wf_addtocomp = 1e-3)
+  expect_true(all(d$wf_obs_flat > 0))
+})
+
+test_that("wf_obs_flat row sums equal effective sample sizes after addtocomp", {
+  d <- make_wf_data(wf_addtocomp = 1e-3)
+
+  offset <- 0L
+  for (j in seq_along(d$wf_fishery_f)) {
+    f <- d$wf_fishery_f[j]
+    nbins <- d$wf_maxbin[f] - d$wf_minbin[f] + 1L
+    n_obs <- d$wf_n_f[j]
+    rows <- split(seq_len(d$n_wf), d$wf_fishery)[[as.character(f)]]
+    for (i in seq_len(n_obs)) {
+      idx <- (offset + 1L):(offset + nbins)
+      expect_equal(sum(d$wf_obs_flat[idx]), d$wf_n[rows[i]], tolerance = 1e-8)
+      offset <- offset + nbins
+    }
+  }
+})
+
+test_that("wf_addtocomp = 0 keeps some zero bins in wf_obs_flat", {
+  d <- make_wf_data(wf_addtocomp = 0)
+  expect_true(any(d$wf_obs_flat == 0))
+})
+
+test_that("wf_obs_prop depends on wf_addtocomp", {
+  d_small <- make_wf_data(wf_addtocomp = 1e-8)
+  d_large <- make_wf_data(wf_addtocomp = 1e-2)
+  expect_false(isTRUE(all.equal(d_small$wf_obs_prop, d_large$wf_obs_prop)))
+})

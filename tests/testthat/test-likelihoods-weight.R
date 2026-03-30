@@ -90,9 +90,10 @@ test_that("predicted weight proportions sum to 1", {
   wf_rebin_matrix <- matrix(0, n_wt, n_len)
   for (w in seq_len(n_wt)) wf_rebin_matrix[w, ((w - 1) * 2 + 1):(w * 2)] <- 1
 
+  addtocomp <- 1e-8
   pred_at_length <- c(pla %*% catch_a)
   pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
-  pred <- (pred_at_weight + 1e-8) / sum(pred_at_weight + 1e-8)
+  pred <- (pred_at_weight + addtocomp) / sum(pred_at_weight + addtocomp)
   expect_equal(sum(pred), 1.0, tolerance = 1e-10)
 })
 
@@ -220,4 +221,21 @@ test_that("mass conservation through rebin: sum(pred_at_weight) ~ sum(pred_at_le
   pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
 
   expect_equal(sum(pred_at_weight), sum(pred_at_length), tolerance = 1e-10)
+})
+
+test_that("wf_addtocomp argument changes multinomial NLL", {
+  # Use sparse obs so zero/near-zero bins have leverage under addtocomp
+  obs_sparse <- rep(0, 10)
+  obs_sparse[c(3, 7)] <- c(0.6, 0.4)
+
+  s_default <- make_wf_args(wf_switch = 1, obs_row = obs_sparse)
+  # Make the predictions non-uniform so +0.1 actually changes proportion shape! 
+  s_default$catch_pred_fya[ , , 1:5] <- 5
+
+  s_custom  <- s_default
+  s_custom$wf_addtocomp <- 0.1
+
+  lp_default <- do.call(get_weight_like, s_default)
+  lp_custom  <- do.call(get_weight_like, s_custom)
+  expect_false(isTRUE(all.equal(lp_default, lp_custom)))
 })

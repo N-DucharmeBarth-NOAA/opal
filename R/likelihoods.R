@@ -111,6 +111,9 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
 #' @param n_len integer number of length bins.
 #' @param n_lf integer total number of length composition observations.
 #' @param log_lf_tau numeric vector `[n_fishery]` of log-scale variance adjustment parameters.
+#' @param lf_addtocomp small non-negative numeric constant added to predicted
+#'   proportions before normalisation to robustify zero bins. Default
+#'   \code{1e-08}.
 #' @return a \code{numeric} vector of negative log-likelihood contributions, one per observation.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
@@ -122,13 +125,14 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
 #         #   # Small constant added to both terms for numerical safety and exact
 #         #   # cancellation at perfect fit.
 #         #   n_eff <- lf_n[i] * exp(log_lf_tau[f])
-#         #   lp[i] <- -n_eff * sum(obs * log(pred + 1e-8))
-#         #   lp[i] <- lp[i] + n_eff * sum(obs * log(obs + 1e-8))
+#         #   lp[i] <- -n_eff * sum(obs * log(pred + lf_addtocomp))
+#         #   lp[i] <- lp[i] + n_eff * sum(obs * log(obs + lf_addtocomp))
 get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
                             catch_pred_fya, pla,
                             lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,
                             lf_minbin, lf_maxbin, removal_switch_f,
-                            lf_switch, n_len, n_lf, log_lf_tau) {
+                            lf_switch, n_len, n_lf, log_lf_tau,
+                            lf_addtocomp = 1e-08) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   
@@ -162,7 +166,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
       if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
       if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
       pred <- pred[bmin:bmax]
-      pred <- pred + 1e-8
+      pred <- pred + lf_addtocomp
       pred <- pred / sum(pred)
       lf_pred[[j]][i, ] <- pred
       n_i <- lf_n_fi[[j]][i]
@@ -217,6 +221,9 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param n_wt integer number of weight bins.
 #' @param n_wf integer total number of WF observations.
 #' @param log_wf_tau numeric vector `[n_fishery]` log-scale variance adjustment.
+#' @param wf_addtocomp small non-negative numeric constant added to predicted
+#'   proportions before normalisation to robustify zero bins. Default
+#'   \code{1e-08}.
 #' @return numeric vector of negative log-likelihood contributions, one per observation.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
@@ -226,7 +233,8 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             catch_pred_fya, pla, wf_rebin_matrix,
                             wf_n_f, wf_fishery_f, wf_year_fi, wf_n_fi,
                             wf_minbin, wf_maxbin, removal_switch_f,
-                            wf_switch, n_wt, n_wf, log_wf_tau) {
+                            wf_switch, n_wt, n_wf, log_wf_tau,
+                            wf_addtocomp = 1e-08) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
 
@@ -263,7 +271,7 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
       if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
       if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
       pred <- pred_at_weight[bmin:bmax]
-      pred <- pred + 1e-8
+      pred <- pred + wf_addtocomp
       pred <- pred / sum(pred)
       wf_pred[[j]][i, ] <- pred
       n_i <- wf_n_fi[[j]][i]
