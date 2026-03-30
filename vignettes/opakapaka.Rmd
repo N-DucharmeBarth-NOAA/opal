@@ -61,6 +61,9 @@ data <- opaka_data
 if (is.null(data$n_index)) data$n_index <- 2L
 names(data)
 
+# remove priors
+data$priors <- NULL
+
 # set ages to anchor growth curve (since SS3 indexs from 0 to 43, but opal uses 1-based indexing)
 data$A1 <- 0
 data$A2 <- data$A1 + (data$n_age-1)
@@ -1028,3 +1031,77 @@ ggplot() +
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
+
+```{r dynamics-estimate, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+# ---- Dynamics estimate: optimize B0, init / time rec devs, and init F ----
+map_est <- map_fixed
+map_est$log_B0 <- NULL
+# map_est$rdev_y <- NULL
+# map_est$init_rdev_a <- NULL
+# map_est$log_init_F_f <- factor(c(1, rep(NA, data$n_fishery - 1)))
+
+# Build object using opal PLA model (no external selectivity override)
+obj_est <- MakeADFun(func = cmb(opal_model, data_no_sel),
+                     parameters = parameters_ss3,
+                     map = map_est)
+
+# Parameter bounds (relevant parameters only)
+Lwr <- rep(-Inf, length(obj_est$par))
+Upr <- rep(Inf, length(obj_est$par))
+Lwr[grep("log_B0", names(obj_est$par))] <- log(1)
+Upr[grep("log_B0", names(obj_est$par))] <- log(exp(22))
+Lwr[grep("rdev_y", names(obj_est$par))] <- rep(-5, length(grep("rdev_y", names(obj_est$par))))
+Upr[grep("rdev_y", names(obj_est$par))] <- rep(5, length(grep("rdev_y", names(obj_est$par))))
+Lwr[grep("init_rdev_a", names(obj_est$par))] <- rep(-5, data$n_age)
+Upr[grep("init_rdev_a", names(obj_est$par))] <- rep(5, data$n_age)
+Lwr[grep("log_init_F_f", names(obj_est$par))] <- log(1e-12)
+Upr[grep("log_init_F_f", names(obj_est$par))] <- log(3)
+
+# Optimize (2-stage run for stability)
+control <- list(eval.max = 10000, iter.max = 10000)
+opt_est <- nlminb(start = obj_est$par, objective = obj_est$fn,
+                  gradient = obj_est$gr, lower = Lwr, upper = Upr,
+                  control = control)
+opt_est <- nlminb(start = opt_est$par, objective = obj_est$fn,
+                  gradient = obj_est$gr, lower = Lwr, upper = Upr,
+                  control = control)
+
+cat("estimation convergence:", opt_est$convergence, "\n")
+cat("max gradient:", max(abs(obj_est$gr())), "\n")
+
+rep_est <- obj_est$report()
+
+ssb_est <- data.frame(
+  year = calendar_years,
+  estimate = rep_est$spawning_biomass_y[1:data$n_year],
+  model = "opal (PLA estimated)"
+)
+
+ssb_df_est <- rbind(ssb_df, ssb_est)
+
+ybmax_est <- max(ssb_df_est$estimate,
+                 opaka_truth$om$sprseries$SSB,
+                 opaka_truth$em$sprseries$SSB,
+                 na.rm = TRUE)
+
+# Extended comparison plot
+ggplot() +
+  geom_line(data = ssb_df_est, aes(x = year, y = estimate, colour = model), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
+  scale_colour_manual(values = c("opal (PLA selectivity)" = "steelblue",
+                                 "opal (platoon selectivity)" = "darkorange",
+                                 "opal (PLA estimated)" = "green4",
+                                 "SS3 OM" = "black",
+                                 "SS3 EM" = "red")) +
+  labs(x = "Year", y = "Spawning biomass",
+       title = "Dynamics diagnostic + estimation comparison",
+       subtitle = "Fixed SS3 MLE (PLA/platoon) vs estimated PLA fit",
+       colour = NULL) +
+  scale_y_continuous(limits = c(0, ybmax_est * 1.2)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
