@@ -224,9 +224,16 @@ test_that("mass conservation through rebin: sum(pred_at_weight) ~ sum(pred_at_le
 })
 
 test_that("wf_addtocomp argument changes multinomial NLL", {
-  s_default <- make_wf_args(wf_switch = 1)
-  s_custom  <- make_wf_args(wf_switch = 1)
-  s_custom$wf_addtocomp <- 1e-3
+  # Use sparse obs so zero/near-zero bins have leverage under addtocomp
+  obs_sparse <- rep(0, 10)
+  obs_sparse[c(3, 7)] <- c(0.6, 0.4)
+
+  s_default <- make_wf_args(wf_switch = 1, obs_row = obs_sparse)
+  # Make the predictions non-uniform so +0.1 actually changes proportion shape! 
+  s_default$catch_pred_fya[ , , 1:5] <- 5
+
+  s_custom  <- s_default
+  s_custom$wf_addtocomp <- 0.1
 
   lp_default <- do.call(get_weight_like, s_default)
   lp_custom  <- do.call(get_weight_like, s_custom)
