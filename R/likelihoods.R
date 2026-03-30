@@ -125,8 +125,8 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
 #         #   # Small constant added to both terms for numerical safety and exact
 #         #   # cancellation at perfect fit.
 #         #   n_eff <- lf_n[i] * exp(log_lf_tau[f])
-#         #   lp[i] <- -n_eff * sum(obs * log(pred + 1e-08))
-#         #   lp[i] <- lp[i] + n_eff * sum(obs * log(obs + 1e-08))
+#         #   lp[i] <- -n_eff * sum(obs * log(pred + lf_addtocomp))
+#         #   lp[i] <- lp[i] + n_eff * sum(obs * log(obs + lf_addtocomp))
 get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
                             catch_pred_fya, pla,
                             lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,

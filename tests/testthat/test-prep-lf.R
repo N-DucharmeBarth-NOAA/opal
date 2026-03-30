@@ -104,7 +104,7 @@ test_that("lf_obs_flat[1:200] matches known values", {
      0.00000000,  0.00000000,  0.00000000,  0.00000000,  0.00000000
   )
 
-  expect_equal(d$lf_obs_flat[1:200], expected_flat, tolerance = 1e-4)
+  expect_equal(d$lf_obs_flat[1:200], expected_flat, tolerance = 1e-5)
 })
 
 # ---- 3. Golden-output regression: lf_obs_prop[1:200] -------------------------
