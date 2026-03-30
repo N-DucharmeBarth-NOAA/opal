@@ -12,7 +12,8 @@ prep_wf_data(
   wf_minbin = NULL,
   wf_maxbin = NULL,
   wf_var_adjust = NULL,
-  wf_cap = NULL
+  wf_cap = NULL,
+  wf_addtocomp = 1e-08
 )
 }
 \arguments{
@@ -43,6 +44,10 @@ effective sample size is capped: \eqn{n_i = \min(n_i, \text{wf\_cap})}.
 Applied after proportions are computed so that observed compositions are
 unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 feature.}
+
+\item{wf_addtocomp}{small non-negative numeric constant added to observed
+composition proportions after tail compression and before renormalisation.
+This robustifies zero bins. Default \code{1e-08}.}
 }
 \value{
 data list with the following weight composition elements appended:
@@ -61,6 +66,8 @@ multinomial, \code{wf_switch = 1}).}
 (for Dirichlet-multinomial, \code{wf_switch = 3}).}
 \item{\code{wf_obs_prop}}{Flattened numeric vector of normalised
 proportions (for Dirichlet, \code{wf_switch = 2}).}
+\item{\code{wf_addtocomp}}{Stored value of the add-to-composition
+constant used to robustify observed composition bins.}
 \item{\code{wf_n}}{Numeric vector of sample sizes per observation row.}
 \item{\code{wf_fishery}}{Integer vector of fishery index per observation
 row.}
