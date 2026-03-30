@@ -136,7 +136,8 @@ var_adjust_scalars <- 1 / rep(1, data$n_fishery)
 
 data <- prep_lf_data(data, lf_wide,
                      lf_keep_fisheries = c(1, 3),
-                     lf_var_adjust = var_adjust_scalars)
+                     lf_var_adjust = var_adjust_scalars,
+                     lf_addtocomp = 1e-10)
 ```
 
 ## Set up SS3-style bias ramps
