@@ -36,6 +36,9 @@
 #'   Applied after proportions are computed so that observed compositions are
 #'   unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 #'   feature.
+#' @param lf_addtocomp small non-negative numeric constant added to observed
+#'   composition proportions after tail compression and before renormalisation.
+#'   This robustifies zero bins. Default \code{1e-08}.
 #'
 #' @return The input \code{data} list with the following elements appended or
 #'   updated:
@@ -69,6 +72,8 @@
 #'       (for Dirichlet-multinomial, \code{lf_switch = 3}).}
 #'     \item{\code{lf_obs_prop}}{Flattened numeric vector of normalised
 #'       proportions (for Dirichlet, \code{lf_switch = 2}).}
+#'     \item{\code{lf_addtocomp}}{Stored value of the add-to-composition
+#'       constant used to robustify observed composition bins.}
 #'     \item{\code{lf_nbins}}{Number of bins used in each observation (scalar,
 #'       derived from the first fishery's min/max bin setting).}
 #'   }
@@ -88,7 +93,8 @@ prep_lf_data <- function(data,
                          lf_minbin         = NULL,
                          lf_maxbin         = NULL,
                          lf_var_adjust     = NULL,
-                         lf_cap            = NULL) {
+                         lf_cap            = NULL,
+                         lf_addtocomp      = 1e-08) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -176,6 +182,8 @@ prep_lf_data <- function(data,
       if (bmin > 1)          obs[bmin] <- sum(obs[1:bmin])
       if (bmax < n_len_local) obs[bmax] <- sum(obs[bmax:n_len_local])
       obs     <- obs[bmin:bmax]
+      obs     <- obs + lf_addtocomp
+      obs     <- obs / sum(obs)
       m[i, ]  <- obs * lf_n_fi[[j]][i]
     }
     lf_obs_list[[j]] <- m
@@ -197,11 +205,12 @@ prep_lf_data <- function(data,
   data$lf_obs_prop <- unlist(lapply(lf_obs_list, function(m) {
     props <- t(apply(m, 1, function(row) {
       p <- row / sum(row)
-      p <- p + 1e-8
+      p <- p + lf_addtocomp
       p / sum(p)
     }))
     as.numeric(t(props))
   }))
+  data$lf_addtocomp <- lf_addtocomp
 
   # Number of bins per observation (scalar; same for all obs when bmin/bmax are uniform)
   data$lf_nbins <- ncol(lf_obs_list[[1]])

@@ -104,7 +104,7 @@ test_that("lf_obs_flat[1:200] matches known values", {
      0.00000000,  0.00000000,  0.00000000,  0.00000000,  0.00000000
   )
 
-  expect_equal(d$lf_obs_flat[1:200], expected_flat, tolerance = 1e-5)
+  expect_equal(d$lf_obs_flat[1:200], expected_flat, tolerance = 1e-4)
 })
 
 # ---- 3. Golden-output regression: lf_obs_prop[1:200] -------------------------
@@ -308,4 +308,42 @@ test_that("lf_var_adjust is stored on data and matches the input", {
   adjust <- seq(0.5, length.out = d$n_fishery, by = 0.1)
   d2     <- make_lf_data(lf_var_adjust = adjust)
   expect_equal(d2$lf_var_adjust, adjust)
+})
+
+test_that("lf_addtocomp is stored on data and matches the input", {
+  d <- make_lf_data(lf_addtocomp = 1e-3)
+  expect_equal(d$lf_addtocomp, 1e-3)
+})
+
+test_that("lf_addtocomp > 0 gives strictly positive lf_obs_flat bins", {
+  d <- make_lf_data(lf_addtocomp = 1e-3)
+  expect_true(all(d$lf_obs_flat > 0))
+})
+
+test_that("lf_obs_flat row sums equal effective sample sizes after addtocomp", {
+  d <- make_lf_data(lf_addtocomp = 1e-3)
+
+  offset <- 0L
+  for (j in seq_along(d$lf_fishery_f)) {
+    f <- d$lf_fishery_f[j]
+    nbins <- d$lf_maxbin[f] - d$lf_minbin[f] + 1L
+    n_obs <- d$lf_n_f[j]
+    rows <- split(seq_len(d$n_lf), d$lf_fishery)[[as.character(f)]]
+    for (i in seq_len(n_obs)) {
+      idx <- (offset + 1L):(offset + nbins)
+      expect_equal(sum(d$lf_obs_flat[idx]), d$lf_n[rows[i]], tolerance = 1e-8)
+      offset <- offset + nbins
+    }
+  }
+})
+
+test_that("lf_addtocomp = 0 keeps some zero bins in lf_obs_flat", {
+  d <- make_lf_data(lf_addtocomp = 0)
+  expect_true(any(d$lf_obs_flat == 0))
+})
+
+test_that("lf_obs_prop depends on lf_addtocomp", {
+  d_small <- make_lf_data(lf_addtocomp = 1e-8)
+  d_large <- make_lf_data(lf_addtocomp = 1e-2)
+  expect_false(isTRUE(all.equal(d_small$lf_obs_prop, d_large$lf_obs_prop)))
 })

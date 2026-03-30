@@ -16,12 +16,12 @@ utils::globalVariables(c(
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_data", "n_index",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_maxbin", "lf_obs", "lf_n",
-  "lf_var_adj",
+  "lf_var_adj", "lf_addtocomp",
   "wf_switch", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",
   "wf_n_f", "wf_fishery_f", "wf_fishery", "wf_year", "wf_n",
   "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
   "wt_bin_start", "wt_bin_width",
-  "log_wf_tau",
+  "log_wf_tau", "wf_addtocomp",
   "priors"
 ))
 
@@ -74,8 +74,10 @@ opal_model <- function(parameters, data) {
   if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
   if (!exists("lf_switch",  inherits = FALSE)) lf_switch   <- 0L
   if (!exists("n_lf",       inherits = FALSE)) n_lf        <- 0L
+  if (!exists("lf_addtocomp", inherits = FALSE)) lf_addtocomp <- 1e-08
   if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
   if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
+  if (!exists("wf_addtocomp", inherits = FALSE)) wf_addtocomp <- 1e-08
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
   if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
   if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
@@ -220,7 +222,8 @@ if (exists("spawning_potential", inherits = FALSE)) {
       removal_switch_f = removal_switch_f,
       lf_switch = lf_switch,
       n_len = n_len,
-      n_lf = n_lf, log_lf_tau = log_lf_tau
+      n_lf = n_lf, log_lf_tau = log_lf_tau,
+      lf_addtocomp = lf_addtocomp
     )
   } else {
     lp_lf <- 0
@@ -244,7 +247,8 @@ if (exists("spawning_potential", inherits = FALSE)) {
       wf_switch = wf_switch,
       n_wt = n_wt,
       n_wf = n_wf,
-      log_wf_tau = log_wf_tau
+      log_wf_tau = log_wf_tau,
+      wf_addtocomp = wf_addtocomp
     )
   } else {
     lp_wf <- 0
