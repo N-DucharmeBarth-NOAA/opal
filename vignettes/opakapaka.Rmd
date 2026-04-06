@@ -1036,11 +1036,12 @@ ggplot() +
 # ---- Dynamics estimate: optimize B0, init / time rec devs, and init F ----
 map_est <- map_fixed
 map_est$log_B0 <- NULL
+map_est$log_cpue_q <- NULL
 # map_est$rdev_y <- NULL
 # map_est$init_rdev_a <- NULL
 # map_est$log_init_F_f <- factor(c(1, rep(NA, data$n_fishery - 1)))
 
-# Build object using opal PLA model (no external selectivity override)
+# Build object using opal PLA model (with selectivity override)
 obj_est <- MakeADFun(func = cmb(opal_model, data_no_sel),
                      parameters = parameters_ss3,
                      map = map_est)
@@ -1074,7 +1075,7 @@ rep_est <- obj_est$report()
 ssb_est <- data.frame(
   year = calendar_years,
   estimate = rep_est$spawning_biomass_y[1:data$n_year],
-  model = "opal (PLA estimated)"
+  model = "opal (platoon estimated)"
 )
 
 ssb_df_est <- rbind(ssb_df, ssb_est)
@@ -1093,7 +1094,7 @@ ggplot() +
             aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
   scale_colour_manual(values = c("opal (PLA selectivity)" = "steelblue",
                                  "opal (platoon selectivity)" = "darkorange",
-                                 "opal (PLA estimated)" = "green4",
+                                 "opal (platoon estimated)" = "green4",
                                  "SS3 OM" = "black",
                                  "SS3 EM" = "red")) +
   labs(x = "Year", y = "Spawning biomass",
