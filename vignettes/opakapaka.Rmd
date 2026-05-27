@@ -256,8 +256,8 @@ at values from the SS3 OM.
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-map_sel[1,1:2 ] <- c(1,2) # Comm fleet selectivity parameters
-map_sel[3,c(1,4,6) ] <- c(3,4,5) # Comm fleet selectivity parameters
+# map_sel[1,1:2 ] <- c(1,2) # Comm fleet selectivity parameters
+# map_sel[3,c(1,4,6) ] <- c(3,4,5) # Comm fleet selectivity parameters
 map_sel = as.vector(map_sel)
 
 map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
@@ -280,8 +280,8 @@ map <- list(
   # log_init_F_f = as.factor(c(1, rep(NA, data$n_fishery - 1))),
   log_init_F_f = rep(factor(NA), data$n_fishery),
   # init_rdev_a = rep(factor(NA), data$n_age)
-  init_rdev_a = as.factor(seq_len(data$n_age))
-  # rdev_y = as.factor(rep(NA, length(parameters$rdev_y)))
+  init_rdev_a = as.factor(seq_len(data$n_age)),
+  rdev_y = as.factor(seq_len(length(parameters$rdev_y)))
 )
 ```
 
@@ -291,8 +291,8 @@ Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-# data$lf_switch <- 0 # skip length comps initially (removal only)
-data$lf_switch <- 1L # multinomial likelihood
+data$lf_switch <- 0 # skip length comps initially (removal only)
+# data$lf_switch <- 1L # multinomial likelihood
 # data$cpue_switch <- 0L
 # Can set random = "rdev_y" to treat recruitment deviations as random effects, but start with fixed effects for simplicity
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
@@ -596,7 +596,6 @@ ybmax <- max(spawning_biomass_est$upper,
              obj$report()$spawning_biomass_y,
              opaka_truth$om$sprseries$SSB,
              opaka_truth$em$sprseries$SSB,
-             opaka_truth$em_no_platoon$sprseries$SSB,
              na.rm = TRUE)
 
 ggplot(spawning_biomass_est, aes(x = year)) +
@@ -604,187 +603,39 @@ ggplot(spawning_biomass_est, aes(x = year)) +
   geom_line(aes(y = estimate), colour = "steelblue", linewidth = 1) +
   geom_line(data=subset(opaka_truth$om$sprseries, Yr %in% calendar_years), aes(x=Yr, y=SSB), colour = "black", linewidth = 1) +
   geom_line(data=subset(opaka_truth$em$sprseries, Yr %in% calendar_years), aes(x=Yr, y=SSB), colour = "red", linewidth = 1) +
-  geom_line(data=subset(opaka_truth$em_no_platoon$sprseries, Yr %in% calendar_years), aes(x=Yr, y=SSB), colour = "darkgreen", linewidth = 1) +
   labs(x = "Year", y = "Spawning biomass",
        title = "Estimated spawning biomass trajectory",
-       subtitle = "Black = SS3 OM truth, Red = SS3 EM, Dark green = SS3 EM (no platoon), Coloured = opal estimates") +
+       subtitle = "Black = SS3 OM truth, Red = SS3 EM, Coloured = opal estimates") +
   # scale_y_continuous(limits = c(0, ybmax * 1.2)) +
   theme_minimal()
 ```
 
-## Platoon-corrected estimation
-
-SS3's 3-platoon structure (weights 0.15/0.70/0.15, within/between stdev
-ratio 0.7) creates effective weight-at-age and spawning-potential-at-age
-values that differ from opal's single-track PLA approximation. This arises
-from Jensen's inequality: because the length-weight relationship (w = aL^b)
-and logistic maturity curve are non-linear, the platoon-weighted average at
-each age is not equal to the value computed at mean length.
-
-To quantify this effect, we override opal's internally derived weight and
-spawning potential vectors with platoon-weighted averages extracted from
-SS3's Biology_at_age report table. The model is then re-estimated with these
-corrected inputs. This sensitivity does not change the estimated selectivity
-or likelihood structure — it isolates the impact of the platoon
-approximation on biological scaling.
-
-```{r platoon-correction, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
-# ---- Save the default (PLA-based) opal estimate for comparison ----
-spawning_biomass_default <- spawning_biomass_est
-spawning_biomass_default$model <- "opal (PLA)"
-
-# ---- Platoon-weighted biology from SS3 report ----
-# SS3 uses 3 discrete growth platoons (slow/medium/fast) with weights
-# 0.15/0.70/0.15 and a within/between stdev ratio of 0.7. The effective
-# weight-at-age and spawning potential-at-age differ from a single growth
-# track (opal's PLA) due to Jensen's inequality: the non-linear length-weight
-# (w = a*L^b) and logistic maturity curves mean the platoon-weighted average
-# is not equal to the value at mean length. To verify that opal's population
-# dynamics are correct, we override these two vectors with platoon-averaged
-# values extracted from the SS3 Biology_at_age report table.
-
-platoon_frac <- c(0.15, 0.70, 0.15)
-frac_female  <- 1
-
-# Wt_Beg by platoon (ages 0-43, from SS3 Biology_at_age_in_endyr)
-wt_p1 <- c(0.00297429, 0.09807, 0.356455, 0.737394, 1.17746, 1.62494, 2.04639,
-            2.42401, 2.75098, 3.02731, 3.25674, 3.44476, 3.59732, 3.72019,
-            3.81859, 3.89703, 3.95937, 4.00876, 4.04783, 4.07867, 4.103,
-            4.12216, 4.13725, 4.14912, 4.15845, 4.16579, 4.17155, 4.17608,
-            4.17964, 4.18244, 4.18463, 4.18636, 4.18771, 4.18878, 4.18961,
-            4.19027, 4.19078, 4.19118, 4.1915, 4.19175, 4.19195, 4.1921,
-            4.19222, 4.19235)
-wt_p2 <- c(0.00378997, 0.121547, 0.441813, 0.913989, 1.45946, 2.01411, 2.5365,
-            3.00456, 3.40985, 3.75236, 4.03675, 4.2698, 4.4589, 4.6112,
-            4.73316, 4.8304, 4.90766, 4.96889, 5.01731, 5.05555, 5.0857,
-            5.10945, 5.12815, 5.14286, 5.15443, 5.16353, 5.17067, 5.17629,
-            5.1807, 5.18417, 5.18689, 5.18902, 5.1907, 5.19202, 5.19305,
-            5.19387, 5.1945, 5.19501, 5.1954, 5.19571, 5.19595, 5.19614,
-            5.19629, 5.19645)
-wt_p3 <- c(0.00463342, 0.148504, 0.539825, 1.11676, 1.78326, 2.46098, 3.09928,
-            3.67119, 4.16641, 4.58492, 4.9324, 5.21716, 5.44822, 5.63431,
-            5.78334, 5.90215, 5.99655, 6.07137, 6.13053, 6.17725, 6.21409,
-            6.24311, 6.26596, 6.28394, 6.29807, 6.30919, 6.31792, 6.32478,
-            6.33017, 6.33441, 6.33773, 6.34034, 6.34239, 6.344, 6.34527,
-            6.34626, 6.34704, 6.34765, 6.34813, 6.34851, 6.3488, 6.34904,
-            6.34922, 6.34942)
-
-# Mat*Fecund by platoon (ages 0-43, from SS3 Biology_at_age_in_endyr)
-mf_p1 <- c(0, 0, 0, 0.00337726, 0.730569, 1.5984, 2.04555, 2.42397, 2.75098,
-            3.02731, 3.25674, 3.44476, 3.59732, 3.72019, 3.81859, 3.89703,
-            3.95937, 4.00876, 4.04783, 4.07867, 4.103, 4.12216, 4.13725,
-            4.14912, 4.15845, 4.16579, 4.17155, 4.17608, 4.17964, 4.18244,
-            4.18463, 4.18636, 4.18771, 4.18878, 4.18961, 4.19027, 4.19078,
-            4.19118, 4.1915, 4.19175, 4.19195, 4.1921, 4.19222, 4.19235)
-mf_p2 <- c(0, 0, 0, 0.0840252, 1.38406, 2.01357, 2.5365, 3.00456, 3.40985,
-            3.75236, 4.03675, 4.2698, 4.4589, 4.6112, 4.73316, 4.8304,
-            4.90766, 4.96889, 5.01731, 5.05555, 5.0857, 5.10945, 5.12815,
-            5.14286, 5.15443, 5.16353, 5.17067, 5.17629, 5.1807, 5.18417,
-            5.18689, 5.18902, 5.1907, 5.19202, 5.19305, 5.19387, 5.1945,
-            5.19501, 5.1954, 5.19571, 5.19595, 5.19614, 5.19629, 5.19645)
-mf_p3 <- c(0, 0, 0.000000273, 0.542148, 1.78033, 2.46098, 3.09928, 3.67119,
-            4.16641, 4.58492, 4.9324, 5.21716, 5.44822, 5.63431, 5.78334,
-            5.90215, 5.99655, 6.07137, 6.13053, 6.17725, 6.21409, 6.24311,
-            6.26596, 6.28394, 6.29807, 6.30919, 6.31792, 6.32478, 6.33017,
-            6.33441, 6.33773, 6.34034, 6.34239, 6.344, 6.34527, 6.34626,
-            6.34704, 6.34765, 6.34813, 6.34851, 6.3488, 6.34904, 6.34922,
-            6.34942)
-
-# Platoon-weighted weight-at-age
-data$weight <- platoon_frac[1] * wt_p1 +
-               platoon_frac[2] * wt_p2 +
-               platoon_frac[3] * wt_p3
-
-# Platoon-weighted spawning potential-at-age (scaled by fraction female)
-data$spawning_potential <- frac_female * (platoon_frac[1] * mf_p1 +
-                                          platoon_frac[2] * mf_p2 +
-                                          platoon_frac[3] * mf_p3)
-
-# ---- Rebuild and refit with platoon-corrected biology ----
-obj2 <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
-
-opt2 <- nlminb(start = obj2$par, objective = obj2$fn, gradient = obj2$gr,
-               hessian = obj2$he, lower = Lwr, upper = Upr, control = control)
-opt2 <- nlminb(start = opt2$par, objective = obj2$fn, gradient = obj2$gr,
-               hessian = obj2$he, lower = Lwr, upper = Upr, control = control)
-opt2 <- nlminb(start = opt2$par, objective = obj2$fn, gradient = obj2$gr,
-               hessian = obj2$he, lower = Lwr, upper = Upr, control = control)
-
-cat("Convergence:", opt2$convergence, "\n")
-cat("Max gradient:", max(abs(obj2$gr())), "\n")
-
-Report2 <- RTMB::sdreport(obj2)
-rep2 <- obj2$report()
-
-# ---- Extract platoon-corrected spawning biomass ----
-spawning_biomass_corrected <- as.data.frame(
-  summary(Report2)[which(rownames(summary(Report2)) == "spawning_biomass_y"),
-                   c("Estimate", "Std. Error")])
-colnames(spawning_biomass_corrected) <- c("estimate", "std_error")
-spawning_biomass_corrected <- spawning_biomass_corrected[1:data$n_year, ]
-spawning_biomass_corrected$year  <- calendar_years
-spawning_biomass_corrected$lower <- spawning_biomass_corrected$estimate - 1.96 * spawning_biomass_corrected$std_error
-spawning_biomass_corrected$upper <- spawning_biomass_corrected$estimate + 1.96 * spawning_biomass_corrected$std_error
-spawning_biomass_corrected$model <- "opal (platoon-corrected)"
-
-# ---- Comparison plot ----
-data(opaka_truth)
-
-opal_df <- rbind(spawning_biomass_default, spawning_biomass_corrected)
-
-ybmax <- max(opal_df$upper,
-             opaka_truth$om$sprseries$SSB,
-             opaka_truth$em$sprseries$SSB, na.rm = TRUE)
-
-ggplot(opal_df, aes(x = year)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = model), alpha = 0.2) +
-  geom_line(aes(y = estimate, colour = model), linewidth = 1) +
-  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
-            aes(x = Yr, y = SSB), colour = "black", linewidth = 1) +
-  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
-            aes(x = Yr, y = SSB), colour = "red", linewidth = 1) +
-  scale_colour_manual(values = c("opal (PLA)" = "steelblue",
-                                 "opal (platoon-corrected)" = "darkorange")) +
-  scale_fill_manual(values = c("opal (PLA)" = "steelblue",
-                               "opal (platoon-corrected)" = "darkorange")) +
-  labs(x = "Year", y = "Spawning biomass",
-       title = "Estimated spawning biomass trajectory",
-       subtitle = "Black = SS3 OM truth, Red = SS3 EM, Coloured = opal estimates",
-       colour = NULL, fill = NULL) +
-  scale_y_continuous(limits = c(0, ybmax * 1.2)) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-```
-
 ## Dynamics diagnostic
 
-The definitive test of opal's population dynamics engine is a forward
-projection with all parameters fixed at SS3's MLE values — no estimation
-involved. If the resulting spawning biomass trajectory matches SS3, any
-remaining gap in the freely estimated model is attributable to differences
-in the optimization surface rather than errors in the dynamics code.
+To understand where opal's estimates differ from SS3, we build a sequence of
+four model variants that progressively relax constraints:
 
-This diagnostic is run twice: once using opal's default PLA-based
-selectivity-at-age, and once with platoon-weighted selectivity extracted
-from SS3's Asel2 report table. The comparison isolates the contribution of
-selectivity platoon effects to the dynamics-level discrepancy.
+1. **`obj`** (ASPM-R): The main opal assessment model structured as an age-structured production model (ASPM) and only fitting to the index. $B_0$, CPUE
+   catchabilities, all 44 initial age-structure deviations (`init_rdev_a`), and 74 annual recruitment deviations (`rdev_y`)
+   are freely estimated. Selectivity is computed through opal's PLA mechanism
+   using SS3-derived length selectivity parameters.
 
-Three sources of structural difference between opal and SS3 are addressed
-by these overrides:
+2. **`obj_check_nosel`** (PLA selectivity; scale fixed): All parameters are
+   fixed at SS3's MLE values, with selectivity computed via opal's
+   probability-of-length-at-age (PLA) integration. If the trajectory matches SS3, any remaining gap in `obj`
+   is an estimation-level difference.
 
-1. **Weight-at-age**: SS3 computes weight separately for each platoon
-   before averaging; opal integrates weight over a continuous length
-   distribution via the PLA.
-2. **Spawning potential-at-age**: Same platoon-averaging effect, compounded
-   by the logistic maturity curve.
-3. **Selectivity-at-age**: Length-based selectivity curves interact with
-   platoon-specific growth, producing different effective selectivity at
-   young ages where the platoon spread is widest.
+3. **`obj_check`** (SS3 selectivity; scale fixed): Same as above but with SS3's
+   exact age-selectivity matrix (from the `AGE_SELEX` report) injected directly,
+   bypassing PLA. Comparing to `obj_check_nosel` reveals how much of any gap is
+   attributable to the PLA approximation vs. other model structure.
 
-With all three corrections applied and parameters fixed at SS3 MLEs, opal's
-trajectory closely tracks the SS3 EM, confirming that the core population
-dynamics (survivorship, Beverton-Holt recruitment, harvest rate calculation,
-bias adjustment) are implemented correctly.
+4. **`obj_est`** (PLA selectivity; scale estimated): Starting from SS3's MLE
+   values, $B_0$ and CPUE catchabilities are freely re-estimated while all other
+   parameters (growth, selectivity, recruitment deviations) remain fixed at SS3
+   values. This isolates the effect of estimating scale from the SS3 MLE starting
+   point.
+
 
 ```{r dynamics-check, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
 # ---- Dynamics diagnostic: fix all parameters at SS3 MLE values ----
@@ -795,61 +646,57 @@ bias adjustment) are implemented correctly.
 # doesn't match, a structural issue remains.
 
 # SS3 MLE values from ss.par and derived quantities
-# SS3's SSB_Virgin = 4639.1, ln(R0) = 5.65608, h = 0.76, sigma_r = 0.52
-# SS3's init_F[1] = 0.0119122, Q_parm = c(-3.773, -6.253)
+# SS3's SSB_Virgin = 4785.86, ln(R0) = 5.67638520257, h = 0.76, sigma_r = 0.52
+# SS3's init_F[1] = 0.0119122, Q_parm = c(-3.74414655161, -6.23387027572)
 
 # Build parameter list with all values at SS3 MLEs
 parameters_ss3 <- parameters  # start from the current parameter list
 
-# B0: SS3's SSB_Virgin = 4639.1
-parameters_ss3$log_B0 <- log(4639.1)
+# B0: SS3's SSB_Virgin = 4785.86 
+parameters_ss3$log_B0 <- log(4785.86)
 
-# Steepness, sigma_r (already set from opaka_parameters, but be explicit)
-parameters_ss3$log_h <- log(0.76)
-parameters_ss3$log_sigma_r <- log(0.52)
+# Steepness, sigma_r 
+parameters_ss3$log_h <- log(0.76) 
+parameters_ss3$log_sigma_r <- log(0.52) 
 
-# CPUE catchability (from ss.par Q_parm)
-parameters_ss3$log_cpue_q <- c(-3.77275156733, -6.25323305447)
+# CPUE catchability (from ss.par LnQ_base)
+parameters_ss3$log_cpue_q <- c(-3.74414655161, -6.23387027572) 
 
 # Recruitment deviations: use SS3's full recdev vector
-ss3_recdev2 <- c(0.0675235702971, 0.0764991539955, 0.0858442617148,
-  0.0950046747340, 0.102706450120, 0.107687329214, 0.107711705598,
-  0.0998349181169, 0.0808136660096, 0.0482338925745, 0.00234443377404,
-  -0.0517563213031, -0.102395434864, -0.131458254996, -0.121100670313,
-  -0.0714825835398, -0.00742166036481, -0.0109308396989, -0.0385028902033,
-  0.0366483160551, 0.0165104920249, -0.166905707226,
-  0.684759008019, -0.00129318028442, 0.291954545496, -0.502105154386,
-  -0.395132761139, 0.289343271935, -0.288480831619, -0.490309035200,
-  -0.212366196568, 0.161892641109, -0.0209673906075, -0.297262261087,
-  0.329268521456, 0.00878056067047, -0.0597345841788, -0.635158118155,
-  0.121730487831, 0.564895487490, -0.412552483484, 0.492195882830,
-  0.863050417304, -0.262592196252, -0.580724697255, 0.192426722416,
-  0.470346549222, -0.450985027130, 0.468806143351, -0.0970889237156,
-  0.125657219706, -0.590564615592, -0.206902651435, 0.212391740136,
-  -0.786327541142, -0.942202604456, -0.479537926647, -0.910561752327,
-  -0.338249154939, -1.08143122504, 0.610318451176, -0.116085865688,
-  -1.00403426050, -0.0967824207922, 0.241495871563, 0.381401207516,
-  -0.162517483700, 0.164175327286, 0.739150845802, -0.283843490207,
-  -0.324836661861, -0.297336491801, -0.566398458638, -0.553810264824,
-  -0.00857108423637, -0.0751868745470, 0.339022613392, 0.0187206379281,
-  0.633372740779, 0.675976465171, 0.134831485765, 0.429015103446,
-  0.00483559599714, -0.953917944860, -0.848588067707, -0.0919670526641,
-  -0.820322333684, -0.134672436697, 0.936671897697, 0.135185903985,
-  -0.301177900173, -0.988301462145, -0.138899249513, 0.785829523698,
-  -0.674385690767, 0.751722180103, 0.352211358296, 0.853371113276,
-  -0.348627551973, -0.514856812016, -0.157533901109, -0.175313077136,
-  0.212151760383, 0.110769041131, 0.126998013037, -0.349623955515,
-  0.287222081367, 0.166718339864, 0.263616100771, -0.514692520633,
-  0.543032699532, 0.148610562305, 0.0741026805708, -0.0379144746966,
-  0.0478985480312, -0.0919462212626, -0.825992698686, 0.225426831222,
-  -0.711467818125, 0.447979718775, 0.00000000000)
+ss3_early <- c(
+  -0.100388081942, -0.0133231316797, -0.0205218842101, -0.0243787483951, -0.0254464045204, 
+  -0.0309043433115, -0.0323683089752, -0.0347861084933, -0.0410012292256, -0.0465287465557, 
+  -0.0483985193582, -0.0650709835384, -0.0730960186062, -0.0793601697985, -0.0916013103317, 
+  -0.0711755058129, -0.0873595560193, -0.0955446758745, -0.0806933151000, -0.0368260177671, 
+  0.00663148238291, -0.0369263951583
+) 
 
-ss3_early <- c(0.0206807064789, 0.00321579077358, 0.00372620421544,
-  0.00431740128909, 0.00500263165771, 0.00579673718936, 0.00671727050323,
-  0.00778421989329, 0.00902081267571, 0.0104539317083, 0.0121143194944,
-  0.0140374805236, 0.0162641224184, 0.0188404004022, 0.0218181611323,
-  0.0252560947069, 0.0292181862911, 0.0337726098165, 0.0389897504158,
-  0.0449362496360, 0.0516661790666, 0.0592048886170)
+ss3_recdev2 <- c(
+  0.0898798722060, -0.0919739062107, -0.0488564460371, -0.0797260689764, 1.83829650229, 
+  -0.873301204449, -0.490428267008, -0.157171136291, -0.232120826122, 0.953858054349, 
+  -0.737573581568, -1.08461065089, -0.637868159763, -0.934868322300, -1.72922585297, 
+  -0.699373643035, -2.02175315411, -2.20933860510, 1.36337011943, -1.07372072783, 
+  0.00685259273854, 0.0182242930198, 0.0427099426272, 0.0662006349269, 0.0694910737975, 
+  0.0758887519085, 0.0793469633128, 0.0726814957641, 0.0758684448321, 0.0756207512152, 
+  0.0688521101610, 0.0828900343037, 0.0715624551603, 0.0730163471792, 0.0890257135687, 
+  0.0783664017535, 0.0806897553991, -0.755963354768, -0.0525403469453, 0.666734524461, 
+  -0.511914821670, 0.600711769603, 0.483259386264, -0.124994792101, -0.628092867573, 
+  0.335410237277, 0.572806369958, -0.896710824827, 0.367139586377, -0.139086836557, 
+  -0.0176418339395, -0.313022461971, -0.284929128456, 0.297020376982, -0.545617764725, 
+  -1.20081598781, -0.482796197420, -1.15050091740, -0.183455169268, -1.27372662907, 
+  0.562755219094, -0.0884643712166, -0.678641658554, -0.181153422133, 0.223682687681, 
+  0.503069168537, -0.240753189196, 0.310816321640, 0.589877497159, -0.0449985095147, 
+  -0.525425283716, -0.102773027444, -0.810755125650, -0.0540447620912, -0.0641558428572, 
+  -0.226062803588, 0.251881337494, 0.314568302935, 0.460729603143, 0.546857137016, 
+  0.328741809160, 0.0844776134106, -0.00794988734173, -0.621421981067, -0.816127773538, 
+  -0.0339354219406, -1.25151257570, -0.245244520498, 0.978242288327, 0.0661896749837, 
+  -0.340074963625, -1.20599618914, 0.0272569302965, 0.795699552551, -0.955887084821, 
+  0.939729029175, 0.657807067048, 0.820398283059, -0.0250147568033, -0.471654518218, 
+  -0.182452156358, -0.0406356927574, 0.153207399783, -0.0964843056519, -0.0170828802073, 
+  -0.201316841963, 0.0793882544085, 0.320280198818, 0.304378032386, -0.570128219659, 
+  0.577409302896, 0.473936474269, 0.106050739082, 0.185694724022, -0.0214486454327, 
+  -0.304247844565, -0.794738878920, 0.360593778732, -0.440429885505, -0.0979735757953, 0.00000000000
+) 
 
 parameters_ss3$init_rdev_a <- rev(c(ss3_early, ss3_recdev2[1:22]))
 parameters_ss3$init_rdev_a[1] <- ss3_recdev2[22]  # 1949 dev at age 0
@@ -861,89 +708,47 @@ parameters_ss3$rdev_y <- c(ss3_recdev2[23:length(ss3_recdev2)], 0.0)
 parameters_ss3$par_sel <- parameters$par_sel
 
 # Initial F
-parameters_ss3$log_init_F_f <- c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1))
+parameters_ss3$log_init_F_f <- c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)) 
 
 # ---- Platoon-weighted selectivity-at-age override ----
-# SS3's Asel2 report gives the realised selectivity-at-age for each fleet and
-# platoon (morph), already accounting for the interaction between length-based
-# selectivity and platoon-specific growth. The platoon-weighted selectivity is:
-#   sel_f(a) = sum_p [ frac_p * sel_p(a) ]
-# This bypasses the PLA-based length-to-age conversion, which uses a single
-# continuous normal distribution rather than SS3's discrete platoon structure.
+# Values extracted from SS3 AGE_SELEX report (Asel2)
+platoon_frac <- c(1)
 
-platoon_frac <- c(0.15, 0.70, 0.15)
+# Fleet 1 (Comm) - Asel2 for single platoon (ages 0-43)
+sel1_p1 <- c(
+  0, 0.000743477, 0.28038, 0.883339, 0.988619, 0.998576, 0.999738, 0.999931, 
+  0.999976, 0.999989, 0.999994, 0.999997, 0.999998, 0.999998, 0.999999, 0.999999, 
+  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 
+  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 
+  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 
+  0.999999, 0.999999, 0.999999, 0.999999
+)
 
-# Fleet 1 (Comm) - logistic selectivity, Asel2 by platoon (ages 0-43)
-sel1_p1 <- c(0, 0.000117529, 0.0634736, 0.757875, 0.984164, 0.998816,
-             0.999854, 0.999972, 0.999992, 0.999997, 0.999999, 0.999999,
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-sel1_p2 <- c(0, 0.000406706, 0.224962, 0.942633, 0.998291, 0.999908,
-             0.999991, 0.999998, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             1, 1, 1, 1, 1, 1)
-sel1_p3 <- c(0, 0.00140518, 0.525563, 0.990882, 0.999834, 0.999993,
-             0.999999, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             1, 1, 1, 1)
+# Fleet 2 (Non_comm) - Asel2 for single platoon (ages 0-43)
+sel2_p1 <- c(
+  0, 0.0191573, 0.189067, 0.56362, 0.818265, 0.923212, 0.963411, 0.980038, 
+  0.987707, 0.991629, 0.993818, 0.99513, 0.995963, 0.996516, 0.996897, 0.997166, 
+  0.997362, 0.997505, 0.997613, 0.997694, 0.997755, 0.997803, 0.997839, 0.997867, 
+  0.997889, 0.997906, 0.997919, 0.99793, 0.997938, 0.997944, 0.997949, 0.997953, 
+  0.997956, 0.997958, 0.99796, 0.997962, 0.997963, 0.997964, 0.997964, 0.997965, 
+  0.997965, 0.997966, 0.997966, 0.997966
+)
 
-# Fleet 2 (Non_comm) - wider logistic selectivity, Asel2 by platoon
-sel2_p1 <- c(0, 0.011022, 0.101411, 0.393307, 0.7059, 0.869541, 0.937458,
-             0.966084, 0.979288, 0.986007, 0.989736, 0.99196, 0.993365,
-             0.994295, 0.994934, 0.995385, 0.995711, 0.99595, 0.996129,
-             0.996264, 0.996367, 0.996445, 0.996506, 0.996552, 0.996589,
-             0.996617, 0.996639, 0.996656, 0.996669, 0.99668, 0.996688,
-             0.996694, 0.996699, 0.996703, 0.996707, 0.996709, 0.996711,
-             0.996712, 0.996714, 0.996714, 0.996715, 0.996716, 0.996716,
-             0.996717)
-sel2_p2 <- c(0, 0.0173491, 0.173036, 0.570606, 0.845014, 0.943516,
-             0.97597, 0.987934, 0.993013, 0.995458, 0.996764, 0.99752,
-             0.997988, 0.998293, 0.998499, 0.998643, 0.998747, 0.998823,
-             0.998879, 0.998921, 0.998953, 0.998978, 0.998997, 0.999011,
-             0.999022, 0.999031, 0.999038, 0.999043, 0.999048, 0.999051,
-             0.999053, 0.999055, 0.999057, 0.999058, 0.999059, 0.99906,
-             0.99906, 0.999061, 0.999061, 0.999061, 0.999062, 0.999062,
-             0.999062, 0.999062)
-sel2_p3 <- c(0, 0.0271976, 0.278252, 0.732191, 0.926606, 0.977093,
-             0.991117, 0.99581, 0.997681, 0.998544, 0.998989, 0.999241,
-             0.999394, 0.999492, 0.999558, 0.999603, 0.999636, 0.999659,
-             0.999677, 0.99969, 0.9997, 0.999707, 0.999713, 0.999717,
-             0.999721, 0.999724, 0.999726, 0.999727, 0.999729, 0.99973,
-             0.99973, 0.999731, 0.999731, 0.999732, 0.999732, 0.999732,
-             0.999733, 0.999733, 0.999733, 0.999733, 0.999733, 0.999733,
-             0.999733, 0.999733)
-
-# Fleet 3 (ResFish) - domed double-normal selectivity, Asel2 by platoon
-sel3_p1 <- c(0, 0.995148, 1, 0.995113, 0.825043, 0.530483, 0.348864,
-             0.266527, 0.231338, 0.215751, 0.208344, 0.20454, 0.202437,
-             0.201195, 0.200421, 0.199916, 0.199573, 0.199333, 0.199162,
-             0.199037, 0.198944, 0.198875, 0.198822, 0.198782, 0.198751,
-             0.198727, 0.198709, 0.198694, 0.198683, 0.198674, 0.198668,
-             0.198662, 0.198658, 0.198655, 0.198652, 0.19865, 0.198649,
-             0.198648, 0.198647, 0.198646, 0.198645, 0.198645, 0.198644,
-             0.198644)
-sel3_p2 <- c(0, 0.999966, 0.999999, 0.948685, 0.591236, 0.331622,
-             0.239112, 0.211244, 0.202601, 0.199629, 0.198474, 0.197966,
-             0.197719, 0.197586, 0.19751, 0.197463, 0.197432, 0.197412,
-             0.197397, 0.197387, 0.19738, 0.197374, 0.19737, 0.197367,
-             0.197365, 0.197363, 0.197362, 0.197361, 0.19736, 0.197359,
-             0.197359, 0.197358, 0.197358, 0.197358, 0.197357, 0.197357,
-             0.197357, 0.197357, 0.197357, 0.197357, 0.197357, 0.197357,
-             0.197357, 0.197357)
-sel3_p3 <- c(0, 1, 0.999903, 0.800767, 0.381609, 0.235649, 0.205139,
-             0.199136, 0.197813, 0.197466, 0.197357, 0.197317, 0.1973,
-             0.197292, 0.197287, 0.197285, 0.197283, 0.197282, 0.197281,
-             0.197281, 0.197281, 0.19728, 0.19728, 0.19728, 0.19728,
-             0.19728, 0.19728, 0.19728, 0.19728, 0.19728, 0.19728,
-             0.19728, 0.19728, 0.19728, 0.19728, 0.19728, 0.19728,
-             0.19728, 0.19728, 0.19728, 0.19728, 0.19728, 0.19728,
-             0.19728)
+# Fleet 3 (ResFish) - Asel2 for single platoon (ages 0-43)
+sel3_p1 <- c(
+  0, 0.989487, 0.999614, 0.906725, 0.599267, 0.369316, 0.263631, 0.219743, 
+  0.200867, 0.192082, 0.187625, 0.185176, 0.183734, 0.182834, 0.182246, 0.181847, 
+  0.181568, 0.181367, 0.181221, 0.181112, 0.181031, 0.180969, 0.180922, 0.180885, 
+  0.180857, 0.180835, 0.180819, 0.180805, 0.180795, 0.180787, 0.180781, 0.180776, 
+  0.180772, 0.180769, 0.180767, 0.180765, 0.180763, 0.180762, 0.180761, 0.180761, 
+  0.18076, 0.18076, 0.180759, 0.180759
+)
 
 # Platoon-weighted selectivity-at-age by fleet
 sel_fa <- matrix(0, nrow = 3, ncol = 44)
-sel_fa[1, ] <- platoon_frac[1] * sel1_p1 + platoon_frac[2] * sel1_p2 + platoon_frac[3] * sel1_p3
-sel_fa[2, ] <- platoon_frac[1] * sel2_p1 + platoon_frac[2] * sel2_p2 + platoon_frac[3] * sel2_p3
-sel_fa[3, ] <- platoon_frac[1] * sel3_p1 + platoon_frac[2] * sel3_p2 + platoon_frac[3] * sel3_p3
+sel_fa[1, ] <- platoon_frac[1] * sel1_p1 
+sel_fa[2, ] <- platoon_frac[1] * sel2_p1 
+sel_fa[3, ] <- platoon_frac[1] * sel3_p1 
 
 data$sel_fa_external <- sel_fa
 
@@ -990,7 +795,7 @@ cat("  B0:", rep_check$B0, " R0:", rep_check$R0,
 # Maximum absolute difference in spawning biomass
 ssb_diff <- abs(rep_check$spawning_biomass_y[1:data$n_year] -
                 rep_check_nosel$spawning_biomass_y[1:data$n_year])
-cat("Max |SSB difference| between PLA and platoon selectivity:",
+cat("Max |SSB difference| between PLA and SS3 selectivity:",
     round(max(ssb_diff), 1), "\n")
 
 # ---- Comparison plot ----
@@ -999,14 +804,19 @@ data(opaka_truth)
 ssb_nosel <- data.frame(
   year = calendar_years,
   estimate = rep_check_nosel$spawning_biomass_y[1:data$n_year],
-  model = "opal (PLA selectivity)"
+  model = "opal (PLA selectivity; scale fixed)"
 )
 ssb_sel <- data.frame(
   year = calendar_years,
   estimate = rep_check$spawning_biomass_y[1:data$n_year],
-  model = "opal (platoon selectivity)"
+  model = "opal (SS3 selectivity; scale fixed)"
 )
-ssb_df <- rbind(ssb_nosel, ssb_sel)
+ssb_full <- data.frame(
+  year = calendar_years,
+  estimate = obj$report()$spawning_biomass_y[1:data$n_year],
+  model = "opal (ASPM-R)"
+)
+ssb_df <- rbind(ssb_nosel, ssb_sel, ssb_full)
 
 ybmax <- max(ssb_df$estimate,
              opaka_truth$om$sprseries$SSB,
@@ -1019,8 +829,9 @@ ggplot() +
             aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
   geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
             aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
-  scale_colour_manual(values = c("opal (PLA selectivity)" = "steelblue",
-                                 "opal (platoon selectivity)" = "darkorange",
+  scale_colour_manual(values = c("opal (SS3 selectivity; scale fixed)" = "steelblue",
+                                 "opal (PLA selectivity; scale fixed)" = "darkorange",
+                                 "opal (ASPM-R)" = "purple",
                                  "SS3 OM" = "black",
                                  "SS3 EM" = "red")) +
   labs(x = "Year", y = "Spawning biomass",
@@ -1075,7 +886,7 @@ rep_est <- obj_est$report()
 ssb_est <- data.frame(
   year = calendar_years,
   estimate = rep_est$spawning_biomass_y[1:data$n_year],
-  model = "opal (platoon estimated)"
+  model = "opal (PLA selectivity; scale estimated)"
 )
 
 ssb_df_est <- rbind(ssb_df, ssb_est)
@@ -1092,17 +903,258 @@ ggplot() +
             aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
   geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
             aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
-  scale_colour_manual(values = c("opal (PLA selectivity)" = "steelblue",
-                                 "opal (platoon selectivity)" = "darkorange",
-                                 "opal (platoon estimated)" = "green4",
+  scale_colour_manual(values = c("opal (PLA selectivity; scale fixed)" = "steelblue",
+                                 "opal (SS3 selectivity; scale fixed)" = "darkorange",
+                                 "opal (PLA selectivity; scale estimated)" = "green4",
+                                 "opal (ASPM-R)" = "purple",
                                  "SS3 OM" = "black",
                                  "SS3 EM" = "red")) +
   labs(x = "Year", y = "Spawning biomass",
        title = "Dynamics diagnostic + estimation comparison",
-       subtitle = "Fixed SS3 MLE (PLA/platoon) vs estimated PLA fit",
+       subtitle = "Fixed SS3 MLE (PLA/SS3 selectivity) vs estimated PLA fit",
        colour = NULL) +
   scale_y_continuous(limits = c(0, ybmax_est * 1.2)) +
   theme_minimal() +
   theme(legend.position = "bottom")
+```
+
+# Model with length compositions
+
+The ASPM-R model (`obj`) estimated $B_0$, CPUE catchabilities, and initial
+age-structure deviations, but held selectivity fixed at SS3's MLE values.
+Turning on the length composition likelihood allows the data to inform
+selectivity directly and relaxes that constraint.
+
+The new model (`obj_lf`) extends `obj` with two additional changes:
+
+- **`lf_switch = 1L`** (multinomial): length composition observations from
+  Comm (fleet 1, 1949--2023) and ResFish (fleet 3, 2017--2023) enter the
+  likelihood.
+- **Selectivity estimated** for fleets 1 and 3: the two logistic parameters
+  for Comm and all six double-normal parameters for ResFish are freed.
+  Fleet 2 (Non_comm) retains its fixed SS3 selectivity as it has no LF data.
+
+All other parameters match `obj`: $\sigma_R$, steepness, and growth remain
+fixed at SS3 values; $B_0$, catchabilities, `rdev_y`, and `init_rdev_a` are
+freely estimated.
+
+## Setup
+
+```{r lf-model-setup, echo=TRUE, message=FALSE}
+# data_no_sel has no sel_fa_external (set in dynamics-check); use it as base
+data_lf <- data_no_sel
+data_lf$lf_switch <- 1L
+
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+map_sel[1,1:2 ] <- c(1,2) # Comm fleet selectivity parameters
+map_sel[3,c(1,4,6) ] <- c(3,4,5) # Comm fleet selectivity parameters
+map_sel = as.vector(map_sel)
+
+map_lf <- map
+map_lf$par_sel <- factor(map_sel)
+```
+
+## Build the AD object
+
+```{r lf-make-adfun, echo=TRUE, message=FALSE}
+obj_lf <- MakeADFun(func = cmb(opal_model, data_lf),
+                    parameters = parameters,
+                    map = map_lf)
+unique(names(obj_lf$par))
+obj_lf$fn()   # should be finite
+```
+
+## Parameter bounds
+
+```{r lf-bounds, echo=TRUE, message=FALSE}
+Lwr_lf <- rep(-Inf, length(obj_lf$par))
+Upr_lf <- rep( Inf, length(obj_lf$par))
+
+Lwr_lf[grep("log_B0",      names(obj_lf$par))] <- log(1)
+Upr_lf[grep("log_B0",      names(obj_lf$par))] <- log(exp(22))
+Lwr_lf[grep("log_cpue_q",  names(obj_lf$par))] <- log(0.001)
+Upr_lf[grep("log_cpue_q",  names(obj_lf$par))] <- log(10)
+Lwr_lf[grep("rdev_y",      names(obj_lf$par))] <- -5
+Upr_lf[grep("rdev_y",      names(obj_lf$par))] <-  5
+Lwr_lf[grep("init_rdev_a", names(obj_lf$par))] <- -5
+Upr_lf[grep("init_rdev_a", names(obj_lf$par))] <-  5
+Lwr_lf[grep("par_sel",     names(obj_lf$par))] <- -7
+Upr_lf[grep("par_sel",     names(obj_lf$par))] <-  7
+```
+
+## Optimisation
+
+```{r lf-optimize, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt_lf <- nlminb(start = obj_lf$par, objective = obj_lf$fn,
+                 gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
+                 control = control)
+opt_lf <- nlminb(start = opt_lf$par, objective = obj_lf$fn,
+                 gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
+                 control = control)
+opt_lf <- nlminb(start = opt_lf$par, objective = obj_lf$fn,
+                 gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
+                 control = control)
+```
+
+```{r lf-convergence, echo=TRUE, message=FALSE}
+cat("Convergence:", opt_lf$convergence, "\n")
+cat("Max gradient:", max(abs(obj_lf$gr())), "\n")
+obj_lf$report()$lp_prior
+obj_lf$report()$lp_rec
+sum(obj_lf$report()$lp_cpue)
+sum(obj_lf$report()$lp_lf)
+check_estimability(obj = obj_lf)
+```
+
+## Parameter table
+
+```{r lf-par-table, echo=TRUE, message=FALSE}
+get_par_table(obj_lf, parameters, map_lf,lower = Lwr_lf, upper = Upr_lf, grad_tol = 1e-2, digits = 2L,include="all_est")
+```
+
+## Length composition fits
+
+```{r lf-data-fits, echo=TRUE, message=FALSE, fig.height=6, fig.width=9}
+lf_rep_lf  <- obj_lf$report()
+lf_pred_lf <- lf_rep_lf$lf_pred
+
+names(lf_pred_lf) <- data_lf$lf_fishery_f
+for (k in seq_along(lf_pred_lf)) colnames(lf_pred_lf[[k]]) <- data_lf$len_mid
+
+lf_year_list_lf <- split(data_lf$lf_year, data_lf$lf_fishery)
+
+df_pred_lf <- map_dfr(seq_along(lf_pred_lf), function(i) {
+  m   <- lf_pred_lf[[i]]
+  yrs <- lf_year_list_lf[[i]]
+  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+    rename(id = Var1, length = Var2) %>%
+    mutate(fishery = as.character(names(lf_pred_lf)[i]),
+           id      = as.integer(factor(id, levels = unique(id))),
+           year    = yrs[id],
+           length  = as.numeric(length))
+})
+
+df_obs_lf <- data.frame(data_lf$lf_obs_in)
+names(df_obs_lf) <- data_lf$len_mid
+df_obs_lf <- df_obs_lf %>%
+  mutate(year = data_lf$lf_year, fishery = as.character(data_lf$lf_fishery)) %>%
+  group_by(fishery) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+  mutate(length = as.numeric(length))
+
+df_lf <- left_join(df_obs_lf, df_pred_lf, by = c("id", "fishery", "length")) %>%
+  select(-year.y) %>%
+  rename(year = year.x) %>%
+  mutate(cal_year = 1948L + year)   # convert model timestep to calendar year
+
+# Fleet 1 (Comm): every 10 timesteps
+ts_comm <- seq(min(data_lf$lf_year[data_lf$lf_fishery == 1]),
+               max(data_lf$lf_year[data_lf$lf_fishery == 1]),
+               by = 10L)
+p_comm <- ggplot(df_lf %>% filter(fishery == "1", year %in% ts_comm), aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(aes(y = pred), colour = "cyan4", linewidth = 0.8) +
+  facet_wrap(~cal_year, scales = "free_y", ncol = 5) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Length composition fit: Comm (Fleet 1)",
+       subtitle = "Grey = observed, cyan = predicted") +
+  theme(strip.text = element_text(size = 7), axis.text = element_text(size = 6))
+print(p_comm)
+
+# Fleet 3 (ResFish): all available timesteps
+ts_res <- sort(unique(data_lf$lf_year[data_lf$lf_fishery == 3]))
+p_res <- ggplot(df_lf %>% filter(fishery == "3", year %in% ts_res), aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(aes(y = pred), colour = "cyan4", linewidth = 0.8) +
+  facet_wrap(~cal_year, scales = "free_y", ncol = 4) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Length composition fit: ResFish (Fleet 3)",
+       subtitle = "Grey = observed, cyan = predicted") +
+  theme(strip.text = element_text(size = 7), axis.text = element_text(size = 6))
+print(p_res)
+```
+
+## Selectivity comparison
+
+```{r lf-selectivity, echo=TRUE, message=FALSE, fig.height=4, fig.width=10}
+par_sel_lf  <- obj_lf$env$parList()$par_sel
+par_sel_obj <- obj$env$parList()$par_sel
+
+sel_comp_df <- do.call(rbind, lapply(seq_len(data_lf$n_fishery), function(f) {
+  sel_lf_l <- if (data_lf$sel_type_f[f] == 1L) {
+    sel_logistic(data_lf$len_mid, par_sel_lf[f, ])
+  } else {
+    sel_double_normal(data_lf$len_mid, par_sel_lf[f, ])
+  }
+  sel_obj_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(data$len_mid, par_sel_obj[f, ])
+  } else {
+    sel_double_normal(data$len_mid, par_sel_obj[f, ])
+  }
+  rbind(
+    data.frame(fleet = fleet_names[f], length = data_lf$len_mid,
+               selectivity = as.numeric(sel_lf_l),  model = "opal (with LF)"),
+    data.frame(fleet = fleet_names[f], length = data$len_mid,
+               selectivity = as.numeric(sel_obj_l), model = "opal (ASPM-R)")
+  )
+}))
+
+ggplot(sel_comp_df, aes(x = length, y = selectivity, colour = model)) +
+  geom_line(linewidth = 0.9) +
+  facet_wrap(~fleet, ncol = 3) +
+  scale_colour_manual(values = c("opal (with LF)" = "cyan4",
+                                 "opal (ASPM-R)"  = "purple")) +
+  labs(x = "Length (cm)", y = "Selectivity",
+       title = "Selectivity-at-length: ASPM-R vs model with LF",
+       colour = NULL) +
+  ylim(0, 1) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Spawning biomass comparison
+
+```{r lf-biomass, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+rep_lf <- obj_lf$report()
+
+ssb_lf_df <- data.frame(
+  year     = calendar_years,
+  estimate = rep_lf$spawning_biomass_y[1:data$n_year],
+  model    = "opal (with LF)"
+)
+
+ssb_df_all <- rbind(ssb_df_est, ssb_lf_df)
+
+ybmax_all <- max(ssb_df_all$estimate,
+                 opaka_truth$om$sprseries$SSB,
+                 opaka_truth$em$sprseries$SSB,
+                 na.rm = TRUE)
+
+ggplot() +
+  geom_line(data = ssb_df_all,
+            aes(x = year, y = estimate, colour = model), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
+  scale_colour_manual(values = c(
+    "opal (PLA selectivity; scale fixed)"     = "steelblue",
+    "opal (SS3 selectivity; scale fixed)"     = "darkorange",
+    "opal (PLA selectivity; scale estimated)" = "green4",
+    "opal (ASPM-R)"                           = "purple",
+    "opal (with LF)"                          = "cyan4",
+    "SS3 OM"                                  = "black",
+    "SS3 EM"                                  = "red"
+  )) +
+  labs(x = "Year", y = "Spawning biomass",
+       title = "Full model comparison",
+       subtitle = "Fixed diagnostics \u2192 ASPM-R \u2192 model with LF + estimated selectivity",
+       colour = NULL) +
+  scale_y_continuous(limits = c(0, ybmax_all * 1.2)) +
+  theme_minimal() +
+  theme(legend.position = "right")
 ```
 

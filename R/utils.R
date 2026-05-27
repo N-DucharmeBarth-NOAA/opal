@@ -133,11 +133,17 @@ get_par_table <- function(obj, parameters, map,
         # No map entry -> freely estimated, always present in obj$par
         in_obj_par[i]  <- TRUE
         obj_par_idx    <- c(obj_par_idx, i)
-      } else if (!(mv %in% seen_map_vals)) {
-        # First occurrence of this shared map level
-        in_obj_par[i]  <- TRUE
-        obj_par_idx    <- c(obj_par_idx, i)
-        seen_map_vals  <- c(seen_map_vals, mv)
+      } else {
+        # Scope the map level by group so that e.g. par_sel level "1" and
+        # init_rdev_a level "1" are treated as distinct estimated parameters,
+        # matching RTMB's per-parameter factor scoping.
+        scoped_mv <- paste0(group_vec[i], ":", mv)
+        if (!(scoped_mv %in% seen_map_vals)) {
+          # First occurrence of this group-scoped map level
+          in_obj_par[i]  <- TRUE
+          obj_par_idx    <- c(obj_par_idx, i)
+          seen_map_vals  <- c(seen_map_vals, scoped_mv)
+        }
       }
     }
   }
