@@ -23,8 +23,6 @@ Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
 ```{r load-pkg, echo=TRUE, message=FALSE}
-# library(ggplot2)
-# library(dplyr)
 library(tidyverse)
 library(opal)
 library(RTMB)
@@ -41,7 +39,6 @@ data(wcpo_bet_data)
 data <- wcpo_bet_data
 if (is.null(data$n_index)) data$n_index <- 1L
 if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpue_data))
-
 names(data)
 ```
 
@@ -64,7 +61,7 @@ ages <- data$age_a
 real_age <- ages / 4
 
 # Natural mortality
-ggplot(data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
+ggplot(data = data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
   geom_line() + geom_point() +
   labs(x = "Age (years)", y = "M (quarterly rate)",
        title = "Natural Mortality-at-Age")
@@ -72,11 +69,10 @@ ggplot(data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
 # Maturity at length
 len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
                by = data$len_bin_width, length.out = data$n_len)
-ggplot(data.frame(length = len_mid, maturity = data$maturity),
+ggplot(data.frame(length = len_mid, maturity = data$maturity), 
        aes(x = length, y = maturity)) +
   geom_line() + geom_point() +
-  labs(x = "Length (cm)", y = "Maturity",
-       title = "Maturity-at-Length")
+  labs(x = "Length (cm)", y = "Maturity", title = "Maturity-at-Length")
 ```
 
 ## Length composition data
@@ -105,7 +101,6 @@ var_adjust_scalars <- 1/rep(1,data$n_fishery)
 
 data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
                      lf_var_adjust = var_adjust_scalars)
-
 ```
 
 ## Weight composition data
@@ -293,8 +288,8 @@ Compare initial and estimated parameter values:
 
 ```{r opt-results, echo=TRUE, message=FALSE}
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
-
 ```
+
 ## Diagnostics
 
 Check that all parameters are estimable using the `check_estimability` function:
@@ -304,6 +299,7 @@ check_estimability(obj = obj)
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
+
 ```{r check-cor, echo=TRUE, message=FALSE}
 get_cor_pairs(obj = obj, threshold = 0.95)
 ```
@@ -498,10 +494,29 @@ Inspect fitted CPUE and catch:
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
-  plot(data$cpue_data$value, col = 2, pch = 16,
-      xlab = "Time step", ylab = "CPUE", main = "CPUE: observed vs predicted")
-  lines(exp(obj$simulate()$cpue_log_obs), lwd = 2, col = "gray70")
-  lines(obj$report()$cpue_pred, lwd = 2)
+  rep <- obj$report(obj$env$last.par.best)
+  
+  df <- data$cpue_data %>%
+    mutate(
+      pred  = rep$cpue_pred,
+      sigma = rep$cpue_sigma,
+      month = factor(month, levels = sort(unique(month)),
+                     labels = paste0("Month: ", sort(unique(month)))),
+      fishery = factor(fishery, labels = paste0("Fishery: ", sort(unique(fishery))))
+    )
+  
+  ggplot(df, aes(x = year)) +
+    geom_linerange(aes(ymin = exp(log(value) - sigma),
+                       ymax = exp(log(value) + sigma),
+                       color = "Observed"), alpha = 0.6) +
+    geom_point(aes(y = value, color = "Observed")) +
+    geom_line(aes(y = pred, color = "Predicted"), linewidth = 0.8) +
+    facet_grid(fishery ~ month, scales = "free_y") +
+    scale_y_continuous(limits = c(0, NA),
+                       expand = expansion(mult = c(0, 0.05))) +
+    scale_x_continuous(breaks = scales::pretty_breaks()) +
+    labs(x = "Year", y = "CPUE", color = NULL) +
+    theme(legend.position = "bottom")
 }
 ```
 
