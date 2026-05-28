@@ -65,3 +65,4 @@ inst/doc
 
 # ignore benchmark results
 profile_*.html
+.positai
