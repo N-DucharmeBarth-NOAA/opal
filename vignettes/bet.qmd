@@ -1,15 +1,16 @@
 ---
 title: "The BET model"
-output: rmarkdown::html_vignette
+format: html
 vignette: >
   %\VignetteIndexEntry{The BET model}
   %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
 editor_options: 
   chunk_output_type: console
 ---
 
-```{r, include=FALSE}
+```{r}
+#| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
@@ -22,7 +23,10 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
-```{r load-pkg, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-pkg
+#| echo: true
+#| message: false
 # library(ggplot2)
 # library(dplyr)
 library(tidyverse)
@@ -36,7 +40,10 @@ The bundled data object `wcpo_bet_data` contains all biological parameters,
 catch and CPUE observations, length structure, and prior specifications needed
 for the BET assessment model:
 
-```{r load-data, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-data
+#| echo: true
+#| message: false
 data(wcpo_bet_data)
 data <- wcpo_bet_data
 
@@ -45,7 +52,9 @@ names(data)
 
 Key dimensions of the data:
 
-```{r data-dims, echo=TRUE}
+```{r}
+#| label: data-dims
+#| echo: true
 cat("Number of ages:", data$n_age, "\n")
 cat("Number of years:", data$n_year, "\n")
 cat("Number of fisheries:", data$n_fishery, "\n")
@@ -57,7 +66,13 @@ cat("Number of length bins:", data$n_len, "\n")
 Natural mortality at age, maturity at length, and length-weight parameters are
 all contained in the data object.
 
-```{r plot-biology, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: plot-biology
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Natural mortality-at-age and maturity-at-length input curves for WCPO BET."
 ages <- data$age_a
 real_age <- ages / 4
 
@@ -82,7 +97,10 @@ ggplot(data.frame(length = len_mid, maturity = data$maturity),
 Length composition observations are loaded from the bundled `wcpo_bet_lf`
 long-format data object and transformed into model-ready arrays.
 
-```{r prep-lf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-lf
+#| echo: true
+#| message: false
 data(wcpo_bet_lf)
 
 # Pivot to wide format: one row per fishery x timestep, bins as columns
@@ -111,7 +129,10 @@ data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
 Weight composition observations are loaded from the bundled `wcpo_bet_wf`
 long-format data object and transformed into model-ready arrays.
 
-```{r prep-wf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-wf
+#| echo: true
+#| message: false
 data(wcpo_bet_wf)
 
 # Weight bin scalars (1 kg bins, 1–200 kg)
@@ -143,7 +164,10 @@ Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
 reasonable starting values. Load these from the bundled `wcpo_bet_parameters` 
 data object:
 
-```{r get-pars, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-pars
+#| echo: true
+#| message: false
 data(wcpo_bet_parameters)
 
 parameters <- list(
@@ -171,7 +195,10 @@ parameters <- list(
 Priors are specified using `get_priors()`. The data object already contains
 prior center values for growth parameters:
 
-```{r get-priors, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-priors
+#| echo: true
+#| message: false
 data$priors <- get_priors(parameters = parameters, data = data)
 evaluate_priors(parameters = parameters, priors = data$priors)
 ```
@@ -181,7 +208,10 @@ evaluate_priors(parameters = parameters, priors = data$priors)
 Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 `factor(NA)` are fixed at their initial values:
 
-```{r get-map, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-map
+#| echo: true
+#| message: false
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 map_sel[8, 1] <- NA
 map_sel[9, 1] <- NA
@@ -219,7 +249,10 @@ map <- list(
 Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
-```{r make-adfun, echo=TRUE, message=FALSE}
+```{r}
+#| label: make-adfun
+#| echo: true
+#| message: false
 data$lf_switch <- 0 # skip length comps (removal only)
 # data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
@@ -241,7 +274,13 @@ obj$gr()
 
 Inspect initial model outputs:
 
-```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: init-checks
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Initial model diagnostics showing spawning biomass trajectory and catch fit."
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Initial spawning biomass trajectory")
@@ -251,7 +290,11 @@ plot_catch(data = data, obj = obj)
 
 ## Parameter bounds
 
-```{r get-par-bounds, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-par-bounds
+#| echo: true
+#| message: false
+#| tbl-cap: "Lower and upper bounds used for model parameter optimization."
 Lwr <- rep(-Inf, length(obj$par))
 Upr <- rep(Inf, length(obj$par))
 Lwr[grep("log_B0", names(obj$par))] <- log(1)
@@ -271,7 +314,10 @@ bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 
 Optimise using the `nlminb` function, do it twice to be sure to be sure (said with Irish accent):
 
-```{r run-nlminb, echo=TRUE, results="hide"}
+```{r}
+#| label: run-nlminb
+#| echo: true
+#| results: "hide"
 control <- list(eval.max = 10000, iter.max = 10000)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
@@ -289,7 +335,11 @@ sum(obj$report()$lp_wf)
 
 Compare initial and estimated parameter values:
 
-```{r opt-results, echo=TRUE, message=FALSE}
+```{r}
+#| label: opt-results
+#| echo: true
+#| message: false
+#| tbl-cap: "Comparison of initial and estimated model parameter values with bounds and gradient checks."
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
 
 ```
@@ -297,18 +347,29 @@ get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, d
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+```{r}
+#| label: check-estimability
+#| echo: true
+#| message: false
+#| error: true
 check_estimability(obj = obj)
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
-```{r check-cor, echo=TRUE, message=FALSE}
+```{r}
+#| label: check-cor
+#| echo: true
+#| message: false
+#| tbl-cap: "Parameter pairs with absolute correlation above the diagnostic threshold."
 get_cor_pairs(obj = obj, threshold = 0.95)
 ```
 
 Calculate standard deviations of all model parameters:
 
-```{r run-sdreport, echo=TRUE, message=FALSE}
+```{r}
+#| label: run-sdreport
+#| echo: true
+#| message: false
 Report <- sdreport(obj)
 ```
 
@@ -316,7 +377,13 @@ Report <- sdreport(obj)
 
 Inspect predicted vs observed length compositions:
 
-```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
+```{r}
+#| label: lf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 6
+#| fig-width: 7
+#| fig-cap: "Observed, predicted, and simulated length compositions by year for selected fisheries."
 if (data$lf_switch == 0) {
   cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
 } else {
@@ -433,7 +500,13 @@ if (data$lf_switch == 0) {
 
 Inspect predicted vs observed weight compositions:
 
-```{r wf-diagnostics, echo=TRUE, message=FALSE, fig.height=5, fig.width=7}
+```{r}
+#| label: wf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 7
+#| fig-cap: "Observed and predicted weight compositions by year for the first fishery with weight data."
 if (data$wf_switch == 0) {
   cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
 } else {
@@ -492,7 +565,13 @@ if (data$wf_switch == 0) {
 ```
 Inspect fitted CPUE and catch:
 
-```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: opt-cpue
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Observed, predicted, and simulated CPUE time series diagnostics."
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
@@ -503,7 +582,13 @@ if (data$cpue_switch == 0) {
 }
 ```
 
-```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: opt-catch
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Observed versus predicted catch and catch residual diagnostics."
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
@@ -511,7 +596,13 @@ plot_catch(data = data, obj = obj, plot_resid = TRUE)
 
 Inspect estimated spawning biomass trajectory:
 
-```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: opt-spbio
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Estimated spawning biomass trajectory across time steps."
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Estimated spawning biomass trajectory",
@@ -522,7 +613,13 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 
 Visualise the selectivity curves by fleet (at length):
 
-```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
+```{r}
+#| label: plot-selectivity-length
+#| echo: true
+#| message: false
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Selectivity-at-Length by Fleet"
 par_sel_est <- obj$env$parList()$par_sel
 
 fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
@@ -555,7 +652,13 @@ ggplot(sel_len_df, aes(x = length, y = selectivity)) +
 
 Visualise the selectivity curves by fleet (at age):
 
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+```{r}
+#| label: plot-selectivity
+#| echo: true
+#| message: false
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: "Selectivity-at-Age by Fleet"
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
@@ -578,7 +681,13 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
 The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
 allows simulation via `obj$simulate()`. For example:
 
-```{r sim-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: sim-1
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "Observed and simulated log-CPUE series generated from the fitted model."
 if(data$cpue_switch == 0){
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
 } else {
@@ -593,7 +702,13 @@ if(data$cpue_switch == 0){
 
 OSA residuals are a replacement for Pearson residuals:
 
-```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: osa1
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: "OSA residual diagnostics for CPUE (QQ plot and residual index plot)."
 if(data$cpue_switch == 0){
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
 } else {
