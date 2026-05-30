@@ -619,7 +619,7 @@ Visualise the selectivity curves by fleet (at length):
 #| message: false
 #| fig-height: 8
 #| fig-width: 10
-#| fig-cap: "Selectivity-at-Length by Fleet"
+#| fig-cap: "Selectivity at length by fleet."
 par_sel_est <- obj$env$parList()$par_sel
 
 fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
@@ -658,7 +658,7 @@ Visualise the selectivity curves by fleet (at age):
 #| message: false
 #| fig-height: 8
 #| fig-width: 10
-#| fig-cap: "Selectivity-at-Age by Fleet"
+#| fig-cap: "Selectivity at age by fleet."
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
