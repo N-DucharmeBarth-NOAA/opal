@@ -115,7 +115,7 @@ lf_wide <- wcpo_bet_lf %>%
   arrange(fishery, ts)
 
 # define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
-var_adjust_scalars <- 1/rep(1, data$n_fishery)
+var_adjust_scalars <- rep(1, data$n_fishery)
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
 # var_adjust_scalars[c(1,4,5,6,15)] <- 1/40000
 
@@ -308,6 +308,7 @@ Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$pa
 # Lwr[grep("par_sel", names(obj$par))] <- rep(-7, length(grep("par_sel", names(obj$par))))
 # Upr[grep("par_sel", names(obj$par))] <- rep(7, length(grep("par_sel", names(obj$par))))
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
+bounds
 ```
 
 # Optimisation
