@@ -5,16 +5,16 @@
 \title{CPUE index likelihood (multi-index)}
 \usage{
 get_cpue_like(
-  data,
+  cpue_data,
   parameters,
   number_ysa,
   sel_fya,
   weight_fya,
-  creep_init = 1
+  cpue_switch = 1L
 )
 }
 \arguments{
-\item{data}{a \code{list} of data inputs. Must contain:
+\item{cpue_data}{a \code{list} of data inputs. Must contain:
 \describe{
 \item{cpue_data}{data.frame with columns \code{ts}, \code{fishery},
 \code{value}, \code{se}, \code{units}, and \code{index}.}
@@ -27,7 +27,6 @@ get_cpue_like(
 \item{log_cpue_q}{numeric vector \code{[n_index]}.}
 \item{log_cpue_tau}{numeric vector \code{[n_index]}.}
 \item{log_cpue_omega}{numeric vector \code{[n_index]}.}
-\item{cpue_creep}{numeric vector \code{[n_index]}.}
 }}
 
 \item{number_ysa}{a 3D \code{array} \verb{[n_year, n_season, n_age]} of numbers-at-age.}
@@ -36,7 +35,7 @@ get_cpue_like(
 
 \item{weight_fya}{a 3D \code{array} \verb{[n_fishery, n_year, n_age]} of weight-at-age by fishery and year.}
 
-\item{creep_init}{scalar initialization value for creeping adjustment (default 1).}
+\item{cpue_switch}{scalar initialization value for creeping adjustment (default 1).}
 }
 \value{
 numeric vector of length \code{nrow(cpue_data)} with per-observation
