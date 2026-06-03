@@ -28,48 +28,62 @@
 #' @importFrom RTMB ADoverload dnorm
 #' @export
 #' 
-get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, creep_init = 1) {
+get_cpue_like <- function(cpue_switch = 1L,
+                          cpue_data, 
+                          parameters, 
+                          number_ysa, sel_fya, weight_fya) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-  getAll(data, parameters, warn = FALSE)
+  log_cpue_q <- parameters$log_cpue_q
+  log_cpue_tau <- parameters$log_cpue_tau
+  log_cpue_omega <- parameters$log_cpue_omega
   n_cpue <- nrow(cpue_data)
-  cpue_log_pred <- lp <- numeric(n_cpue)
-  cpue_sigma <- numeric(n_cpue)
-  if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
-  if (!exists("n_index", inherits = FALSE)) n_index <- max(cpue_data$index)
+  n_index <- length(log_cpue_q)
+  cpue_log_pred <- cpue_sigma <- lp <- numeric(n_cpue)
+  # if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
+  # if (!exists("n_index", inherits = FALSE)) n_index <- max(cpue_data$index)
   for (i in seq_len(n_cpue)) {
     y <- cpue_data$ts[i]
     f <- cpue_data$fishery[i]
+    idx <- cpue_data$index[i]
     cpue_n <- number_ysa[y, 1, ] * sel_fya[f, y, ]
     if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y,] # 1=weight, 2=numbers
     sum_n <- sum(cpue_n) + 1e-6
-    idx <- cpue_data$index[i]
-    cpue_log_pred[i] <- exp(log_cpue_omega[idx]) * log(sum_n)
+    # cpue_log_pred[i] <- exp(log_cpue_omega[idx]) * log(sum_n)
+    cpue_log_pred[i] <- exp(log_cpue_omega[idx]) * log(sum_n) + log_cpue_q[idx]
   }
   for (idx in seq_len(n_index)) {
     rows <- which(cpue_data$index == idx)
-    n_idx <- length(rows)
-    if (n_idx == 0) next
-    cpue_adjust_idx <- numeric(n_idx)
-    cpue_adjust_idx[1] <- creep_init
-    if (n_idx > 1) {
-      for (j in 2:n_idx) {
-        cpue_adjust_idx[j] <- cpue_adjust_idx[j - 1] + cpue_creep[idx]
-      }
-    }
-    for (j in seq_len(n_idx)) {
-      cpue_log_pred[rows[j]] <- cpue_log_pred[rows[j]] + log(cpue_adjust_idx[j])
-    }
-    pred_idx <- cpue_log_pred[rows]
-    center <- log(mean(exp(pred_idx)))
-    for (j in seq_len(n_idx)) {
-      cpue_log_pred[rows[j]] <- pred_idx[j] - center + log_cpue_q[idx]
-    }
+    if (length(rows) == 0) next
+    centre <- log(mean(exp(cpue_log_pred[rows])))
+    cpue_log_pred[rows] <- cpue_log_pred[rows] - centre
     tau_idx <- exp(log_cpue_tau[idx])
-    for (j in seq_len(n_idx)) {
-      cpue_sigma[rows[j]] <- sqrt(cpue_data$se[rows[j]]^2 + tau_idx^2)
-    }
+    cpue_sigma[rows] <- sqrt(cpue_data$se[rows]^2 + tau_idx^2)
   }
+  # for (idx in seq_len(n_index)) {
+  #   rows <- which(cpue_data$index == idx)
+  #   n_idx <- length(rows)
+  #   if (n_idx == 0) next
+  #   cpue_adjust_idx <- numeric(n_idx)
+  #   cpue_adjust_idx[1] <- creep_init
+  #   if (n_idx > 1) {
+  #     for (j in 2:n_idx) {
+  #       cpue_adjust_idx[j] <- cpue_adjust_idx[j - 1] + cpue_creep[idx]
+  #     }
+  #   }
+  #   for (j in seq_len(n_idx)) {
+  #     cpue_log_pred[rows[j]] <- cpue_log_pred[rows[j]] + log(cpue_adjust_idx[j])
+  #   }
+  #   pred_idx <- cpue_log_pred[rows]
+  #   center <- log(mean(exp(pred_idx)))
+  #   for (j in seq_len(n_idx)) {
+  #     cpue_log_pred[rows[j]] <- pred_idx[j] - center + log_cpue_q[idx]
+  #   }
+  #   tau_idx <- exp(log_cpue_tau[idx])
+  #   for (j in seq_len(n_idx)) {
+  #     cpue_sigma[rows[j]] <- sqrt(cpue_data$se[rows[j]]^2 + tau_idx^2)
+  #   }
+  # }
   cpue_log_obs <- log(cpue_data$value)
   cpue_log_obs <- OBS(cpue_log_obs)
   if (cpue_switch > 0) {

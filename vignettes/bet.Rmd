@@ -101,11 +101,15 @@ lf_wide <- wcpo_bet_lf %>%
 # define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
 var_adjust_scalars <- 1 / rep(1,data$n_fishery)
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
-var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
+# var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
+var_adjust_scalars[] <- 1 / 40000
 
 data <- prep_lf_data(data = data, lf_wide = lf_wide, 
+                     lf_keep_fisheries = c(8),
                      # lf_keep_fisheries = c(8, 9),
                      lf_var_adjust = var_adjust_scalars)
+
+data$lf_fishery
 ```
 
 ## Weight composition data
@@ -119,7 +123,7 @@ data(wcpo_bet_wf)
 # Weight bin scalars (1 kg bins, 1–200 kg)
 data$wt_bin_start <- 1
 data$wt_bin_width <- 1
-data$n_wt         <- 200L
+data$n_wt <- 200L
 
 # Pivot to wide format: one row per fishery x timestep, bins as columns
 wf_wide <- wcpo_bet_wf |>
@@ -152,7 +156,8 @@ parameters <- list(
   log_B0 = 20,
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
-  log_cpue_q = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
+  # log_cpue_q = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
+  log_cpue_q = rep(0, 4),
   cpue_creep = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
   log_cpue_tau = rep(log(0.1), data$n_index),
   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
@@ -211,7 +216,7 @@ map <- list(
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
-  log_wf_tau = factor(rep(NA, data$n_fishery)),  # fixed initially
+  log_wf_tau = factor(rep(NA, data$n_fishery)), # fixed initially
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
@@ -225,35 +230,41 @@ map <- list(
 ## Build the AD object
 
 Using the `data`, the `parameters`, the parameter `map`, and the model
-(`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
+(`opal_model`), the AD object is created using RTMB's `MakeADFun` function.
+Optionally, we could also specify random effects here 
+(e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model 
+to check everything is working first.
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-# data$lf_switch <- 0 # skip length comps (removal only)
+data$lf_switch <- 0 # skip length comps (removal only)
 # data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
 
 # Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
 # clarity alongside the equivalent lf_switch assignment.
-# data$wf_switch <- 1 # skip weight comps (removal only)
+data$wf_switch <- 0 # skip weight comps (removal only)
 # data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
-# Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))
 obj$fn()
 obj$gr()
+
+TMB::benchmark(obj, n = 500, expr = expression(obj$gr()))
 ```
 
 Inspect initial model outputs:
 
-```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r init-checks-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Initial spawning biomass trajectory")
+```
 
+```{r init-checks-2, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot_catch(data = data, obj = obj)
 ```
 
@@ -281,6 +292,7 @@ Optimise using the `nlminb` function:
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
+control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
@@ -322,6 +334,43 @@ Report <- sdreport(obj)
 ```
 
 ## Data fits
+
+Inspect fitted CPUE and catch:
+
+```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+if (data$cpue_switch == 0) {
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
+} else {
+  rep <- obj$report(obj$env$last.par.best)
+  
+  df <- data$cpue_data %>%
+    mutate(
+      pred  = rep$cpue_pred,
+      sigma = rep$cpue_sigma,
+      month = factor(month, levels = sort(unique(month)), labels = paste0("Month: ", sort(unique(month)))),
+      fishery = factor(fishery, labels = paste0("Fishery: ", sort(unique(fishery))))
+    )
+  
+  ggplot(df, aes(x = year)) +
+    geom_linerange(aes(ymin = exp(log(value) - sigma),
+                       ymax = exp(log(value) + sigma),
+                       color = "Observed"), alpha = 0.6) +
+    geom_point(aes(y = value, color = "Observed")) +
+    geom_line(aes(y = pred, color = "Predicted"), linewidth = 0.8) +
+    facet_grid(fishery ~ month, scales = "free_y") +
+    scale_y_continuous(limits = c(0, NA),
+                       expand = expansion(mult = c(0, 0.05))) +
+    scale_x_continuous(breaks = scales::pretty_breaks()) +
+    labs(x = "Year", y = "CPUE", color = NULL) +
+    theme(legend.position = "bottom")
+}
+```
+
+```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
+plot_catch(data = data, obj = obj)
+plot_catch(data = data, obj = obj, plot_resid = TRUE)
+```
 
 Inspect predicted vs observed length compositions:
 
@@ -493,44 +542,6 @@ if (data$wf_switch == 0) {
         subtitle = "Grey bars = observed, red = predicted") +
     theme(strip.text = element_text(size = 7), axis.text  = element_text(size = 6))
 }
-```
-
-Inspect fitted CPUE and catch:
-
-```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-if (data$cpue_switch == 0) {
-  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
-} else {
-  rep <- obj$report(obj$env$last.par.best)
-  
-  df <- data$cpue_data %>%
-    mutate(
-      pred  = rep$cpue_pred,
-      sigma = rep$cpue_sigma,
-      month = factor(month, levels = sort(unique(month)),
-                     labels = paste0("Month: ", sort(unique(month)))),
-      fishery = factor(fishery, labels = paste0("Fishery: ", sort(unique(fishery))))
-    )
-  
-  ggplot(df, aes(x = year)) +
-    geom_linerange(aes(ymin = exp(log(value) - sigma),
-                       ymax = exp(log(value) + sigma),
-                       color = "Observed"), alpha = 0.6) +
-    geom_point(aes(y = value, color = "Observed")) +
-    geom_line(aes(y = pred, color = "Predicted"), linewidth = 0.8) +
-    facet_grid(fishery ~ month, scales = "free_y") +
-    scale_y_continuous(limits = c(0, NA),
-                       expand = expansion(mult = c(0, 0.05))) +
-    scale_x_continuous(breaks = scales::pretty_breaks()) +
-    labs(x = "Year", y = "CPUE", color = NULL) +
-    theme(legend.position = "bottom")
-}
-```
-
-```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
-plot_catch(data = data, obj = obj)
-plot_catch(data = data, obj = obj, plot_resid = TRUE)
 ```
 
 Inspect estimated spawning biomass trajectory:
