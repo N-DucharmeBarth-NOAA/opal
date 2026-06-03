@@ -1,6 +1,6 @@
 utils::globalVariables(c(
   "log_B0", "log_h", "sigma_r", 
-  "log_cpue_q", "cpue_creep", "log_cpue_sigma", "log_cpue_omega", 
+  "log_cpue_q", "log_cpue_omega", 
   "rdev_y", 
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
@@ -125,7 +125,7 @@ opal_model <- function(parameters, data) {
   dyn <- do_dynamics(data, parameters,
                      B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h, sigma_r = sigma_r,
                      M_a = M_a, spawning_potential_a = spawning_potential_a, weight_fya = weight_fya_mod,
-                     init_number_a = init$Ninit, sel_fya = sel_fya)
+                     init_number_a = init$Ninit, init_number0_a = init$Ninit0, sel_fya = sel_fya)
   
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
@@ -145,11 +145,8 @@ opal_model <- function(parameters, data) {
   # Likelihoods ----
   
   # CPUE likelihood ----
-  # if (cpue_switch > 0) { # already done internally
-  lp_cpue <- get_cpue_like(data, parameters, number_ysa, sel_fya, weight_fya_mod)
-  # } else {
-  #   lp_cpue <- 0
-  # }
+  lp_cpue <- get_cpue_like(cpue_data, parameters, number_ysa, sel_fya, weight_fya_mod, cpue_switch)
+  
   # Length composition likelihood ----
   if (lf_switch > 0 && n_lf > 0) {
     lp_lf <- get_length_like(

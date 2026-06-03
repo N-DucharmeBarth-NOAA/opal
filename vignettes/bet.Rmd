@@ -15,7 +15,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Introduction
 
-`opal` is an open, modular R package for fisheries stock assessment built on [RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. It includes bundled data from the western and central Pacific Ocean (WCPO) bigeye tuna (BET) stock assessment. This vignette demonstrates model setup, fitting, and diagnostics using those data.
+`opal` is an open, modular R package for fisheries stock assessment built on 
+[RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. It includes 
+bundled data from the western and central Pacific Ocean (WCPO) bigeye tuna (BET) 
+stock assessment. This vignette demonstrates model setup, fitting, and 
+diagnostics using those data.
 
 # Load inputs
 
@@ -23,8 +27,8 @@ Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
 ```{r load-pkg, echo=TRUE, message=FALSE}
-library(tidyverse)
 library(opal)
+library(tidyverse)
 library(RTMB)
 
 theme_set(theme_bw())
@@ -63,13 +67,13 @@ real_age <- ages / 4
 # Natural mortality
 ggplot(data = data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
   geom_line() + geom_point() +
-  labs(x = "Age (years)", y = "M (quarterly rate)",
+  labs(x = "Age (years)", y = "M (quarterly rate)", 
        title = "Natural Mortality-at-Age")
 
 # Maturity at length
 len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
                by = data$len_bin_width, length.out = data$n_len)
-ggplot(data.frame(length = len_mid, maturity = data$maturity), 
+ggplot(data = data.frame(length = len_mid, maturity = data$maturity), 
        aes(x = length, y = maturity)) +
   geom_line() + geom_point() +
   labs(x = "Length (cm)", y = "Maturity", title = "Maturity-at-Length")
@@ -86,7 +90,7 @@ data(wcpo_bet_lf)
 # Pivot to wide format: one row per fishery x timestep, bins as columns
 # Note: LF data exist for fisheries 8-14, but we initially use only fisheries 8 & 9
 lf_wide <- wcpo_bet_lf %>%
-  tidyr::pivot_wider(
+  pivot_wider(
     id_cols = c(fishery, year, month, ts),
     names_from = bin,
     values_from = value,
@@ -95,12 +99,17 @@ lf_wide <- wcpo_bet_lf %>%
   arrange(fishery, ts)
 
 # define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
-var_adjust_scalars <- 1/rep(1,data$n_fishery)
+var_adjust_scalars <- 1 / rep(1,data$n_fishery)
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
-# var_adjust_scalars[c(1,4,5,6,15)] <- 1/40000
+# var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
+var_adjust_scalars[] <- 1 / 40000
 
-data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(8, 9),
+data <- prep_lf_data(data = data, lf_wide = lf_wide, 
+                     lf_keep_fisheries = c(8),
+                     # lf_keep_fisheries = c(8, 9),
                      lf_var_adjust = var_adjust_scalars)
+
+data$lf_fishery
 ```
 
 ## Weight composition data
@@ -114,17 +123,17 @@ data(wcpo_bet_wf)
 # Weight bin scalars (1 kg bins, 1–200 kg)
 data$wt_bin_start <- 1
 data$wt_bin_width <- 1
-data$n_wt         <- 200L
+data$n_wt <- 200L
 
 # Pivot to wide format: one row per fishery x timestep, bins as columns
 wf_wide <- wcpo_bet_wf |>
-  tidyr::pivot_wider(
+  pivot_wider(
     id_cols     = c(fishery, year, month, ts),
     names_from  = bin,
     values_from = value,
     values_fill = 0
   ) |>
-  dplyr::arrange(fishery, ts)
+  arrange(fishery, ts)
 
 data <- prep_wf_data(data, wf_wide,
                      wf_keep_fisheries = c(2),
@@ -147,8 +156,8 @@ parameters <- list(
   log_B0 = 20,
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
-  log_cpue_q = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
-  cpue_creep = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
+  # log_cpue_q = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
+  log_cpue_q = rep(0, 4),
   log_cpue_tau = rep(log(0.1), data$n_index),
   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
@@ -180,12 +189,18 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-map_sel[8, 1] <- NA
-map_sel[9, 1] <- NA
-map_sel[8, 3] <- NA
-map_sel[9, 3] <- NA
-map_sel[8, 4] <- NA
-map_sel[9, 4] <- NA
+# map_sel[8, 1] <- NA
+# map_sel[9, 1] <- NA
+# map_sel[8, 3] <- NA
+# map_sel[9, 3] <- NA
+# map_sel[8, 4] <- NA
+# map_sel[9, 4] <- NA
+# map_sel[8, c(1, 3, 4)] <- 1:3
+# map_sel[8:14, 1] <- 1:7 # just comment these lines out if you dont want to estimate sels
+# map_sel[8:14, 3] <- 8:14
+# map_sel[8:14, 4] <- 15:21
+map_sel
+
 map_rdev <- rep(NA, length(parameters$rdev_y))
 
 map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
@@ -196,11 +211,10 @@ map <- list(
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
-  cpue_creep = factor(rep(NA, data$n_index)),
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
-  log_wf_tau = factor(rep(NA, data$n_fishery)),  # fixed initially
+  log_wf_tau = factor(rep(NA, data$n_fishery)), # fixed initially
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
@@ -214,7 +228,10 @@ map <- list(
 ## Build the AD object
 
 Using the `data`, the `parameters`, the parameter `map`, and the model
-(`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
+(`opal_model`), the AD object is created using RTMB's `MakeADFun` function.
+Optionally, we could also specify random effects here 
+(e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model 
+to check everything is working first.
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
 data$lf_switch <- 0 # skip length comps (removal only)
@@ -229,20 +246,23 @@ data$wf_switch <- 0 # skip weight comps (removal only)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
-# Optionally, we could also specify random effects here (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model to check everything is working first.
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 unique(names(obj$par))
 obj$fn()
 obj$gr()
+
+TMB::benchmark(obj, n = 500, expr = expression(obj$gr()))
 ```
 
 Inspect initial model outputs:
 
-```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r init-checks-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Initial spawning biomass trajectory")
+```
 
+```{r init-checks-2, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
 plot_catch(data = data, obj = obj)
 ```
 
@@ -266,10 +286,11 @@ bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 
 # Optimisation
 
-Optimise using the `nlminb` function, do it twice to be sure to be sure (said with Irish accent):
+Optimise using the `nlminb` function:
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
+control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
@@ -311,6 +332,43 @@ Report <- sdreport(obj)
 ```
 
 ## Data fits
+
+Inspect fitted CPUE and catch:
+
+```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+if (data$cpue_switch == 0) {
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
+} else {
+  rep <- obj$report(obj$env$last.par.best)
+  
+  df <- data$cpue_data %>%
+    mutate(
+      pred  = rep$cpue_pred,
+      sigma = rep$cpue_sigma,
+      month = factor(month, levels = sort(unique(month)), labels = paste0("Month: ", sort(unique(month)))),
+      fishery = factor(fishery, labels = paste0("Fishery: ", sort(unique(fishery))))
+    )
+  
+  ggplot(df, aes(x = year)) +
+    geom_linerange(aes(ymin = exp(log(value) - sigma),
+                       ymax = exp(log(value) + sigma),
+                       color = "Observed"), alpha = 0.6) +
+    geom_point(aes(y = value, color = "Observed")) +
+    geom_line(aes(y = pred, color = "Predicted"), linewidth = 0.8) +
+    facet_grid(fishery ~ month, scales = "free_y") +
+    scale_y_continuous(limits = c(0, NA),
+                       expand = expansion(mult = c(0, 0.05))) +
+    scale_x_continuous(breaks = scales::pretty_breaks()) +
+    labs(x = "Year", y = "CPUE", color = NULL) +
+    theme(legend.position = "bottom")
+}
+```
+
+```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
+plot_catch(data = data, obj = obj)
+plot_catch(data = data, obj = obj, plot_resid = TRUE)
+```
 
 Inspect predicted vs observed length compositions:
 
@@ -415,17 +473,17 @@ if (data$lf_switch == 0) {
           axis.text = element_text(size = 6))
 
   # ---- Plot fishery 9 ----
-  ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
-    geom_col(aes(y = obs), fill = "grey70", width = 2) +
-    geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
-              aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
-    geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
-    facet_wrap(~ year, scales = "free_y", ncol = 6) +
-    labs(x = "Length (cm)", y = "Proportion",
-        title = "Length composition: Fishery 9",
-        subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
-    theme(strip.text = element_text(size = 7),
-          axis.text = element_text(size = 6))
+  # ggplot(df %>% filter(fishery == "9", year %in% yrs_plot), aes(x = length)) +
+  #   geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  #   geom_line(data = df_sim_all %>% filter(fishery == "9", year %in% yrs_plot),
+  #             aes(y = sim, group = sim_id), colour = "steelblue", alpha = 0.3, linewidth = 0.4) +
+  #   geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
+  #   facet_wrap(~ year, scales = "free_y", ncol = 6) +
+  #   labs(x = "Length (cm)", y = "Proportion",
+  #       title = "Length composition: Fishery 9",
+  #       subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+  #   theme(strip.text = element_text(size = 7),
+  #         axis.text = element_text(size = 6))
 }
 ```
 
@@ -437,12 +495,9 @@ if (data$wf_switch == 0) {
 } else {
   wf_rep  <- obj$report()
   wf_pred <- wf_rep$wf_pred
-  wt_mid_trim <- data$wt_mid[data$wf_minbin[data$wf_fishery_f[1]]:
-                              data$wf_maxbin[data$wf_fishery_f[1]]]
-
+  wt_mid_trim <- data$wt_mid[data$wf_minbin[data$wf_fishery_f[1]]:data$wf_maxbin[data$wf_fishery_f[1]]]
   names(wf_pred) <- data$wf_fishery_f
   for (k in seq_along(wf_pred)) colnames(wf_pred[[k]]) <- wt_mid_trim
-
   wf_year_list <- split(data$wf_year, data$wf_fishery)
 
   # ---- Predicted: long data frame ----
@@ -470,60 +525,21 @@ if (data$wf_switch == 0) {
     mutate(weight = as.numeric(weight)) %>%
     filter(weight >= wt_mid_trim[1], weight <= wt_mid_trim[length(wt_mid_trim)])
 
-  df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "weight"))
+  df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "year", "weight"))
 
   # ---- Plot first fishery with WF data ----
   f_plot <- as.character(data$wf_fishery_f[1])
-  max_yrs_wf_plot <- 24  # show at most 24 time steps for readability
+  max_yrs_wf_plot <- 24 # show at most 24 time steps for readability
   yrs_wf_plot <- sort(unique(df_wf$year))[seq_len(min(max_yrs_wf_plot, length(unique(df_wf$year))))]
-  ggplot(df_wf %>% filter(fishery == f_plot, year %in% yrs_wf_plot),
-        aes(x = weight)) +
+  ggplot(df_wf %>% filter(fishery == f_plot, year %in% yrs_wf_plot), aes(x = weight)) +
     geom_col(aes(y = obs), fill = "grey70") +
     geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
     facet_wrap(~ year, scales = "free_y", ncol = 6) +
     labs(x = "Weight (kg)", y = "Proportion",
         title = paste0("Weight composition: Fishery ", f_plot),
         subtitle = "Grey bars = observed, red = predicted") +
-    theme(strip.text = element_text(size = 7),
-          axis.text  = element_text(size = 6))
+    theme(strip.text = element_text(size = 7), axis.text  = element_text(size = 6))
 }
-```
-Inspect fitted CPUE and catch:
-
-```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-if (data$cpue_switch == 0) {
-  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
-} else {
-  rep <- obj$report(obj$env$last.par.best)
-  
-  df <- data$cpue_data %>%
-    mutate(
-      pred  = rep$cpue_pred,
-      sigma = rep$cpue_sigma,
-      month = factor(month, levels = sort(unique(month)),
-                     labels = paste0("Month: ", sort(unique(month)))),
-      fishery = factor(fishery, labels = paste0("Fishery: ", sort(unique(fishery))))
-    )
-  
-  ggplot(df, aes(x = year)) +
-    geom_linerange(aes(ymin = exp(log(value) - sigma),
-                       ymax = exp(log(value) + sigma),
-                       color = "Observed"), alpha = 0.6) +
-    geom_point(aes(y = value, color = "Observed")) +
-    geom_line(aes(y = pred, color = "Predicted"), linewidth = 0.8) +
-    facet_grid(fishery ~ month, scales = "free_y") +
-    scale_y_continuous(limits = c(0, NA),
-                       expand = expansion(mult = c(0, 0.05))) +
-    scale_x_continuous(breaks = scales::pretty_breaks()) +
-    labs(x = "Year", y = "CPUE", color = NULL) +
-    theme(legend.position = "bottom")
-}
-```
-
-```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
-sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
-plot_catch(data = data, obj = obj)
-plot_catch(data = data, obj = obj, plot_resid = TRUE)
 ```
 
 Inspect estimated spawning biomass trajectory:
