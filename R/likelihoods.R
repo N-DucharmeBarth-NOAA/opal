@@ -45,11 +45,11 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
     sum_n <- sum(cpue_n) + 1e-6
     cpue_log_pred[i] <- exp(log_cpue_omega[idx]) * log(sum_n) + log_cpue_q[idx]
   }
+  centre <- log(mean(exp(cpue_log_pred)))
+  cpue_log_pred <- cpue_log_pred - centre
   for (idx in seq_len(n_index)) {
     rows <- which(cpue_data$index == idx)
     if (length(rows) == 0) next
-    centre <- log(mean(exp(cpue_log_pred[rows])))
-    cpue_log_pred[rows] <- cpue_log_pred[rows] - centre
     tau_idx <- exp(log_cpue_tau[idx])
     cpue_sigma[rows] <- sqrt(cpue_data$se[rows]^2 + tau_idx^2)
   }

@@ -219,7 +219,7 @@ map <- list(
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
-  # log_cpue_q = factor(c(NA, 1, 2, 3)),
+  log_cpue_q = factor(c(NA, 1, 2, 3)),
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
@@ -243,8 +243,8 @@ Optionally, we could also specify random effects here
 to check everything is working first.
 
 ```{r make-adfun, echo=TRUE, message=FALSE}
-data$lf_switch <- 0 # skip length comps (removal only)
-# data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 0 # skip length comps (removal only)
+data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
 
@@ -299,7 +299,7 @@ Optimise using the `nlminb` function:
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
-# control <- list(eval.max = 100, iter.max = 100)
+control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
@@ -351,24 +351,53 @@ if (data$cpue_switch == 0) {
   rep <- obj$report(obj$env$last.par.best)
   
   df <- data$cpue_data %>%
-    mutate(
-      pred  = rep$cpue_pred,
-      sigma = rep$cpue_sigma,
-      month = factor(month, levels = sort(unique(month)), labels = paste0("Month: ", sort(unique(month)))),
-      fishery = factor(fishery, labels = paste0("Fishery: ", sort(unique(fishery))))
+    mutate(obs_id = row_number(), pred = rep$cpue_pred, sigma = rep$cpue_sigma)
+  
+  # Simulations
+  n_sim <- 50
+  df_sim <- map_dfr(seq_len(n_sim), function(s) {
+    sim_log <- obj$simulate()$cpue_log_obs
+    tibble(
+      obs_id = seq_along(sim_log),
+      year = data$cpue_data$year,
+      month = data$cpue_data$month,
+      fishery = data$cpue_data$fishery,
+      sim_id = s,
+      sim = exp(sim_log)
     )
+  })
+  
+  month_levels <- sort(unique(data$cpue_data$month))
+  fish_levels <- sort(unique(data$cpue_data$fishery))
+  format_facets <- function(d) {
+    d %>%
+      mutate(
+        month = factor(month, levels = month_levels, labels = paste0("Month: ", month_levels)),
+        fishery = factor(fishery, levels = fish_levels, labels = paste0("Fishery: ", fish_levels))
+      )
+  }
+  df <- format_facets(df)
+  df_sim <- format_facets(df_sim)
   
   ggplot(df, aes(x = year)) +
+    # Simulated replicates: thin grey lines, one per sim_id
+    geom_line(data = df_sim,
+              aes(y = sim, group = sim_id),
+              colour = "grey60", alpha = 0.25, linewidth = 0.3) +
+    # Observed: points + SE bars
     geom_linerange(aes(ymin = exp(log(value) - sigma),
                        ymax = exp(log(value) + sigma),
-                       color = "Observed"), alpha = 0.6) +
-    geom_point(aes(y = value, color = "Observed")) +
-    geom_line(aes(y = pred, color = "Predicted"), linewidth = 0.8) +
+                       colour = "Observed"), alpha = 0.6) +
+    geom_point(aes(y = value, colour = "Observed")) +
+    # Predicted: bold line
+    geom_line(aes(y = pred, colour = "Predicted"), linewidth = 0.8) +
     facet_grid(fishery ~ month, scales = "free_y") +
     scale_y_continuous(limits = c(0, NA),
                        expand = expansion(mult = c(0, 0.05))) +
     scale_x_continuous(breaks = scales::pretty_breaks()) +
-    labs(x = "Year", y = "CPUE", color = NULL) +
+    scale_colour_manual(values = c(Observed = "black", Predicted = "red3")) +
+    labs(x = "Year", y = "CPUE", colour = NULL,
+         subtitle = paste0(n_sim, " posterior-predictive simulations (grey)")) +
     theme(legend.position = "bottom")
 }
 ```
@@ -578,11 +607,10 @@ sb_df <- data.frame(
     upper95 = exp(log_mu + 1.96 * log_sigma)
   )
 
-# Plot with ribbon bands (lognormal-centered)
 ggplot(sb_df, aes(x = year)) +
   geom_ribbon(aes(ymin = lower95, ymax = upper95), fill = "steelblue", alpha = 0.15) +
   geom_ribbon(aes(ymin = lower50, ymax = upper50), fill = "steelblue", alpha = 0.30) +
-  geom_line(aes(y = median), colour = "blue", size = 1) +
+  geom_line(aes(y = median), colour = "blue", linewidth = 1) +
   labs(
     x = "Time step",
     y = "Spawning biomass (mt)",
