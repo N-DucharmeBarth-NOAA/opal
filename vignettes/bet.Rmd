@@ -106,10 +106,11 @@ lf_wide <- wcpo_bet_lf %>%
   arrange(fishery, ts)
 
 # define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
-var_adjust_scalars <- 1 / rep(1,data$n_fishery)
+var_adjust_scalars <- rep(1, data$n_fishery)
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
 # var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
-var_adjust_scalars[] <- 1 / 40000
+# var_adjust_scalars[] <- 1 / 4e9
+var_adjust_scalars[] <- 40
 
 data <- prep_lf_data(data = data, lf_wide = lf_wide, 
                      lf_keep_fisheries = c(8),
@@ -117,6 +118,8 @@ data <- prep_lf_data(data = data, lf_wide = lf_wide,
                      lf_var_adjust = var_adjust_scalars)
 
 data$lf_fishery
+range(data$lf_n)      # aim for tens to low thousands per obs
+sum(data$lf_n)        # aim for ~1e4–1e5 total
 ```
 
 ## Weight composition data
@@ -196,6 +199,8 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 `factor(NA)` are fixed at their initial values:
 
 ```{r get-map, echo=TRUE, message=FALSE}
+parameters$par_sel
+
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 # map_sel[8, 1] <- NA
 # map_sel[9, 1] <- NA
@@ -203,7 +208,7 @@ map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 # map_sel[9, 3] <- NA
 # map_sel[8, 4] <- NA
 # map_sel[9, 4] <- NA
-# map_sel[8, c(1, 3, 4)] <- 1:3
+map_sel[8, c(1, 3, 4)] <- 1:3
 # map_sel[8:14, 1] <- 1:7 # just comment these lines out if you dont want to estimate sels
 # map_sel[8:14, 3] <- 8:14
 # map_sel[8:14, 4] <- 15:21
@@ -260,7 +265,7 @@ unique(names(obj$par))
 obj$fn()
 obj$gr()
 
-TMB::benchmark(obj, n = 500, expr = expression(obj$gr()))
+# TMB::benchmark(obj, n = 500, expr = expression(obj$gr()))
 ```
 
 Inspect initial model outputs:
@@ -299,7 +304,7 @@ Optimise using the `nlminb` function:
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
-control <- list(eval.max = 100, iter.max = 100)
+# control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
@@ -354,7 +359,7 @@ if (data$cpue_switch == 0) {
     mutate(obs_id = row_number(), pred = rep$cpue_pred, sigma = rep$cpue_sigma)
   
   # Simulations
-  n_sim <- 50
+  n_sim <- 25
   df_sim <- map_dfr(seq_len(n_sim), function(s) {
     sim_log <- obj$simulate()$cpue_log_obs
     tibble(
@@ -628,7 +633,7 @@ Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
 sb_name <- "dynamic_depletion_y"
 sb_idx <- which(names(Report$value) == sb_name)
 sb_mean <- Report$value[sb_idx]
-sb_sd   <- Report$sd[sb_idx]
+sb_sd <- Report$sd[sb_idx]
 
 # Build data frame with uncertainty intervals computed under a lognormal assumption
 sb_df <- data.frame(

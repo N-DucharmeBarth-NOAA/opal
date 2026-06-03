@@ -113,8 +113,7 @@ prep_lf_data <- function(data,
 
   # ---- 3b. Cap effective sample sizes ----
   if (!is.null(lf_cap)) {
-    stopifnot("lf_cap must be a positive integer" =
-                length(lf_cap) == 1L && is.numeric(lf_cap) && lf_cap > 0)
+    stopifnot("lf_cap must be a positive integer" = length(lf_cap) == 1L && is.numeric(lf_cap) && lf_cap > 0)
     lf_n <- pmin(lf_n, lf_cap)
   }
 

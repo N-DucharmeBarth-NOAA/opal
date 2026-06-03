@@ -76,8 +76,8 @@ opal_model <- function(parameters, data) {
   # Growth module ----
   
   # Back-transform growth/variability parameters
-  L1  <- exp(log_L1)
-  L2  <- exp(log_L2)
+  L1 <- exp(log_L1)
+  L2 <- exp(log_L2)
   
   # Module 1: Mean length-at-age (Schnute VB)
   mu_a <- get_growth(n_age, A1, A2, L1, L2, log_k)
