@@ -79,6 +79,13 @@ ggplot(data = data.frame(length = len_mid, maturity = data$maturity),
   labs(x = "Length (cm)", y = "Maturity", title = "Maturity-at-Length")
 ```
 
+## CPUE data
+
+```{r prep-cpue, echo=TRUE, message=FALSE}
+data$cpue_data$index <- as.integer(factor(data$cpue_data$month, levels = c(2, 5, 8, 11)))
+data$n_index <- 4L
+```
+
 ## Length composition data
 
 Length composition observations are loaded from the bundled `wcpo_bet_lf`
@@ -135,7 +142,7 @@ wf_wide <- wcpo_bet_wf |>
   ) |>
   arrange(fishery, ts)
 
-data <- prep_wf_data(data, wf_wide,
+data <- prep_wf_data(data = data, wf_wide = wf_wide,
                      wf_keep_fisheries = c(2),
                      wf_switch = 1L)
 ```
@@ -156,10 +163,11 @@ parameters <- list(
   log_B0 = 20,
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
-  # log_cpue_q = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
-  log_cpue_q = rep(0, 4),
+  log_cpue_q = rep(0, data$n_index),
   log_cpue_tau = rep(log(0.1), data$n_index),
   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
+  # log_cpue_tau = rep(log(0.1), data$n_index),
+  # log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
   log_wf_tau = rep(0, data$n_fishery),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
@@ -211,6 +219,7 @@ map <- list(
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
+  # log_cpue_q = factor(c(NA, 1, 2, 3)),
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
@@ -290,7 +299,7 @@ Optimise using the `nlminb` function:
 
 ```{r run-nlminb, echo=TRUE, results="hide"}
 control <- list(eval.max = 10000, iter.max = 10000)
-control <- list(eval.max = 100, iter.max = 100)
+# control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
