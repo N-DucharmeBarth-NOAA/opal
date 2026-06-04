@@ -213,7 +213,6 @@ parameters <- list(
   log_h = as.numeric(opaka_parameters$log_h),
   log_sigma_r = as.numeric(opaka_parameters$log_sigma_r),
   log_cpue_q = as.numeric(opaka_parameters$log_cpue_q),
-  cpue_creep = as.numeric(rep(opaka_parameters$cpue_creep, data$n_index)),
   log_cpue_tau = rep(log(0.1),data$n_index),
   log_cpue_omega = as.numeric(rep(opaka_parameters$log_cpue_omega, data$n_index)),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
@@ -267,7 +266,6 @@ map <- list(
   log_h = factor(NA),
   log_sigma_r = factor(NA),
   # log_cpue_q = factor(NA),
-  cpue_creep = as.factor(rep(NA, data$n_index)),
   log_cpue_tau = as.factor(rep(NA, data$n_index)),
   log_cpue_omega = as.factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
@@ -325,7 +323,105 @@ Upr[grep("init_rdev_a", names(obj$par))] <- rep(5, data$n_age)
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
-# Optimisation
+# ASPM
+
+The Age-Structured Production Model (ASPM) is the simplest opal variant: all
+recruitment deviations are fixed at zero, so recruitment follows the
+Beverton-Holt stock-recruitment curve exactly. The only estimated parameters
+are the population scale ($B_0$) and CPUE catchabilities. The model fits the
+two CPUE indices only; length compositions are not included.
+
+## Setup
+
+```{r aspm-setup, echo=TRUE, message=FALSE}
+# Build data object for ASPM: inherit lf_switch = 0, no sel_fa_external at this point
+data_aspm <- data
+data_aspm$cpue_switch <- 1L   # explicitly fit CPUE
+
+# Parameters: all recruitment deviations fixed at 0
+parameters_aspm <- parameters
+parameters_aspm$rdev_y     <- rep(0.0, length(parameters$rdev_y))
+parameters_aspm$init_rdev_a <- rep(0.0, data$n_age)
+
+# Map: fix rdev_y and init_rdev_a in addition to ASPM-R fixed params
+map_aspm <- map
+map_aspm$rdev_y     <- factor(rep(NA, length(parameters_aspm$rdev_y)))
+map_aspm$init_rdev_a <- factor(rep(NA, data$n_age))
+
+obj_aspm <- MakeADFun(func = cmb(opal_model, data_aspm),
+                      parameters = parameters_aspm, map = map_aspm)
+unique(names(obj_aspm$par))
+obj_aspm$fn()
+```
+
+## Parameter bounds
+
+```{r aspm-bounds, echo=TRUE, message=FALSE}
+Lwr_aspm <- rep(-Inf, length(obj_aspm$par))
+Upr_aspm <- rep( Inf, length(obj_aspm$par))
+Lwr_aspm[grep("log_B0",     names(obj_aspm$par))] <- log(1)
+Upr_aspm[grep("log_B0",     names(obj_aspm$par))] <- log(exp(22))
+Lwr_aspm[grep("log_cpue_q", names(obj_aspm$par))] <- log(0.001)
+Upr_aspm[grep("log_cpue_q", names(obj_aspm$par))] <- log(10)
+```
+
+## Optimisation
+
+```{r aspm-optimize, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt_aspm <- nlminb(start = obj_aspm$par, objective = obj_aspm$fn,
+                   gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
+                   control = control)
+opt_aspm <- nlminb(start = opt_aspm$par, objective = obj_aspm$fn,
+                   gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
+                   control = control)
+opt_aspm <- nlminb(start = opt_aspm$par, objective = obj_aspm$fn,
+                   gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
+                   control = control)
+```
+
+```{r aspm-convergence, echo=TRUE, message=FALSE}
+cat("Convergence:", opt_aspm$convergence, "\n")
+cat("Max gradient:", max(abs(obj_aspm$gr())), "\n")
+obj_aspm$report()$lp_prior
+sum(obj_aspm$report()$lp_cpue)
+```
+
+Check that all parameters are estimable using the `check_estimability` function:
+
+```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+check_estimability(obj = obj_aspm)
+```
+
+## Parameter table
+
+```{r aspm-par-table, echo=TRUE, message=FALSE}
+get_par_table(obj_aspm, parameters_aspm, map_aspm,
+              lower = Lwr_aspm, upper = Upr_aspm, grad_tol = 1e-2, digits = 2L)
+```
+
+## CPUE fit
+
+```{r aspm-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+cpue_df_aspm <- data_aspm$cpue_data %>%
+  mutate(pred = obj_aspm$report()$cpue_pred)
+
+ggplot(cpue_df_aspm, aes(x = ts, y = value)) +
+  geom_point(aes(fill = factor(index)), shape = 21, size = 3) +
+  geom_line(aes(y = pred, colour = factor(index)), linewidth = 1.25) +
+  labs(x = "Time step", y = "CPUE", colour = "Index", fill = "Index",
+       title = "ASPM: observed vs predicted CPUE") +
+  scale_colour_brewer(type = "qual", palette = "Dark2") +
+  scale_fill_brewer(type = "qual", palette = "Dark2") +
+  theme_minimal()
+```
+
+# ASPM-R
+
+The ASPM-R model extends the ASPM by freely estimating annual recruitment
+deviations (`rdev_y`) and initial age-structure deviations (`init_rdev_a`),
+allowing the model to track interannual recruitment variability. It fits the
+CPUE index only; length compositions remain off.
 
 Optimise using the `nlminb` function, run twice to ensure convergence:
 
@@ -758,7 +854,6 @@ map_fixed <- list(
   log_h        = factor(NA),
   log_sigma_r  = factor(NA),
   log_cpue_q   = factor(rep(NA, length(parameters_ss3$log_cpue_q))),
-  cpue_creep   = factor(rep(NA, data$n_index)),
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau   = factor(rep(NA, length(parameters_ss3$log_lf_tau))),
@@ -1156,5 +1251,403 @@ ggplot() +
   scale_y_continuous(limits = c(0, ybmax_all * 1.2)) +
   theme_minimal() +
   theme(legend.position = "right")
+```
+
+# Catch Curve
+
+The catch-curve model uses the same parameter structure as the opal with LF
+model (selectivity estimated for Comm and ResFish, recruitment deviations
+freely estimated) but removes the CPUE index from the likelihood. Instead,
+information about population scale comes entirely from the length composition
+data and the catch history. Because catchability ($q$) is not informed by
+any index, it is fixed at its SS3 MLE value to avoid an unidentified
+parameter.
+
+## Setup
+
+```{r cc-setup, echo=TRUE, message=FALSE}
+# Inherit lf_switch = 1L and prepared LF arrays from data_lf
+data_cc <- data_lf
+data_cc$cpue_switch <- 0L   # exclude CPUE from likelihood
+
+# Fix log_cpue_q since it is unidentified without CPUE data
+map_cc <- map_lf
+map_cc$log_cpue_q <- factor(rep(NA, length(parameters$log_cpue_q)))
+
+obj_cc <- MakeADFun(func = cmb(opal_model, data_cc),
+                    parameters = parameters,
+                    map = map_cc)
+unique(names(obj_cc$par))
+obj_cc$fn()   # should be finite
+```
+
+## Parameter bounds
+
+```{r cc-bounds, echo=TRUE, message=FALSE}
+Lwr_cc <- rep(-Inf, length(obj_cc$par))
+Upr_cc <- rep( Inf, length(obj_cc$par))
+
+Lwr_cc[grep("log_B0",      names(obj_cc$par))] <- log(1)
+Upr_cc[grep("log_B0",      names(obj_cc$par))] <- log(exp(22))
+Lwr_cc[grep("rdev_y",      names(obj_cc$par))] <- -5
+Upr_cc[grep("rdev_y",      names(obj_cc$par))] <-  5
+Lwr_cc[grep("init_rdev_a", names(obj_cc$par))] <- -5
+Upr_cc[grep("init_rdev_a", names(obj_cc$par))] <-  5
+Lwr_cc[grep("par_sel",     names(obj_cc$par))] <- -7
+Upr_cc[grep("par_sel",     names(obj_cc$par))] <-  7
+```
+
+## Optimisation
+
+```{r cc-optimize, echo=TRUE, results="hide"}
+control <- list(eval.max = 10000, iter.max = 10000)
+opt_cc <- nlminb(start = obj_cc$par, objective = obj_cc$fn,
+                 gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
+                 control = control)
+opt_cc <- nlminb(start = opt_cc$par, objective = obj_cc$fn,
+                 gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
+                 control = control)
+opt_cc <- nlminb(start = opt_cc$par, objective = obj_cc$fn,
+                 gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
+                 control = control)
+```
+
+```{r cc-convergence, echo=TRUE, message=FALSE}
+cat("Convergence:", opt_cc$convergence, "\n")
+cat("Max gradient:", max(abs(obj_cc$gr())), "\n")
+obj_cc$report()$lp_prior
+obj_cc$report()$lp_rec
+sum(obj_cc$report()$lp_lf)
+```
+
+## Diagnostics
+
+```{r cc-diagnostics, echo=TRUE, message=FALSE, error=TRUE}
+get_par_table(obj_cc, parameters, map_cc,
+              lower = Lwr_cc, upper = Upr_cc, grad_tol = 1e-2, digits = 2L,
+              include = "all_est")
+check_estimability(obj = obj_cc)
+```
+
+## Length composition fits
+
+```{r cc-lf-fits, echo=TRUE, message=FALSE, fig.height=6, fig.width=9}
+rep_cc       <- obj_cc$report()
+lf_pred_cc   <- rep_cc$lf_pred
+
+names(lf_pred_cc) <- data_cc$lf_fishery_f
+for (k in seq_along(lf_pred_cc)) colnames(lf_pred_cc[[k]]) <- data_cc$len_mid
+
+lf_year_list_cc <- split(data_cc$lf_year, data_cc$lf_fishery)
+
+df_pred_cc <- map_dfr(seq_along(lf_pred_cc), function(i) {
+  m   <- lf_pred_cc[[i]]
+  yrs <- lf_year_list_cc[[i]]
+  as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+    rename(id = Var1, length = Var2) %>%
+    mutate(fishery = as.character(names(lf_pred_cc)[i]),
+           id      = as.integer(factor(id, levels = unique(id))),
+           year    = yrs[id],
+           length  = as.numeric(length))
+})
+
+df_obs_cc <- data.frame(data_cc$lf_obs_in)
+names(df_obs_cc) <- data_cc$len_mid
+df_obs_cc <- df_obs_cc %>%
+  mutate(year = data_cc$lf_year, fishery = as.character(data_cc$lf_fishery)) %>%
+  group_by(fishery) %>%
+  mutate(id = row_number()) %>%
+  ungroup() %>%
+  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+  mutate(length = as.numeric(length))
+
+df_cc <- left_join(df_obs_cc, df_pred_cc, by = c("id", "fishery", "length")) %>%
+  select(-year.y) %>%
+  rename(year = year.x) %>%
+  mutate(cal_year = 1948L + year)
+
+# Fleet 1 (Comm): decadal subset
+ts_comm_cc <- seq(min(data_cc$lf_year[data_cc$lf_fishery == 1]),
+                  max(data_cc$lf_year[data_cc$lf_fishery == 1]),
+                  by = 10L)
+p_cc_comm <- ggplot(df_cc %>% filter(fishery == "1", year %in% ts_comm_cc),
+                    aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(aes(y = pred), colour = "darkorange", linewidth = 0.8) +
+  facet_wrap(~cal_year, scales = "free_y", ncol = 5) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Catch curve: length composition fit — Comm (Fleet 1)",
+       subtitle = "Grey = observed, orange = predicted") +
+  theme(strip.text = element_text(size = 7), axis.text = element_text(size = 6))
+print(p_cc_comm)
+
+# Fleet 3 (ResFish): all available timesteps
+ts_res_cc <- sort(unique(data_cc$lf_year[data_cc$lf_fishery == 3]))
+p_cc_res <- ggplot(df_cc %>% filter(fishery == "3", year %in% ts_res_cc),
+                   aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(aes(y = pred), colour = "darkorange", linewidth = 0.8) +
+  facet_wrap(~cal_year, scales = "free_y", ncol = 4) +
+  labs(x = "Length (cm)", y = "Proportion",
+       title = "Catch curve: length composition fit — ResFish (Fleet 3)",
+       subtitle = "Grey = observed, orange = predicted") +
+  theme(strip.text = element_text(size = 7), axis.text = element_text(size = 6))
+print(p_cc_res)
+```
+
+## Spawning biomass
+
+```{r cc-biomass, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+ssb_cc_df <- data.frame(
+  year     = calendar_years,
+  estimate = rep_cc$spawning_biomass_y[1:data$n_year],
+  model    = "opal (catch curve)"
+)
+
+ssb_df_cc <- rbind(
+  data.frame(year = calendar_years,
+             estimate = obj$report()$spawning_biomass_y[1:data$n_year],
+             model = "opal (ASPM-R)"),
+  data.frame(year = calendar_years,
+             estimate = rep_lf$spawning_biomass_y[1:data$n_year],
+             model = "opal (with LF)"),
+  ssb_cc_df
+)
+
+ybmax_cc <- max(ssb_df_cc$estimate,
+                opaka_truth$om$sprseries$SSB,
+                opaka_truth$em$sprseries$SSB, na.rm = TRUE)
+
+ggplot() +
+  geom_line(data = ssb_df_cc, aes(x = year, y = estimate, colour = model),
+            linewidth = 1) +
+  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
+  scale_colour_manual(values = c(
+    "opal (ASPM-R)"     = "purple",
+    "opal (with LF)"    = "cyan4",
+    "opal (catch curve)" = "darkorange",
+    "SS3 OM"            = "black",
+    "SS3 EM"            = "red"
+  )) +
+  labs(x = "Year", y = "Spawning biomass",
+       title = "Spawning biomass: ASPM-R vs opal with LF vs catch curve",
+       colour = NULL) +
+  scale_y_continuous(limits = c(0, ybmax_cc * 1.2)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+# Final summary
+
+This section collects the four summary plots across all primary model
+variants: ASPM (index only, no recruitment deviations), ASPM-R (index only,
+recruitment deviations estimated), catch curve (LF only, no CPUE), and
+opal with LF (index + LF, selectivity estimated). SS3 OM and SS3 EM
+trajectories are included in the biomass panel for reference.
+
+A shared colour palette is used throughout:
+
+```{r summary-palette, echo=TRUE}
+summary_colours <- c(
+  "ASPM"           = "#E69F00",  # amber
+  "ASPM-R"         = "purple",
+  "Catch curve"    = "darkorange",
+  "opal (with LF)" = "cyan4",
+  "SS3 OM"         = "black",
+  "SS3 EM"         = "red"
+)
+```
+
+## CPUE fits
+
+CPUE predicted trajectories for ASPM, ASPM-R, and opal with LF. The catch
+curve is excluded as it does not fit the CPUE index.
+
+```{r summary-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=8}
+make_cpue_df <- function(obj, model_label, cpue_data) {
+  cpue_data %>%
+    mutate(pred  = obj$report()$cpue_pred,
+           model = model_label)
+}
+
+cpue_summary <- bind_rows(
+  make_cpue_df(obj_aspm, "ASPM",           data_aspm$cpue_data),
+  make_cpue_df(obj,      "ASPM-R",          data$cpue_data),
+  make_cpue_df(obj_lf,   "opal (with LF)", data_lf$cpue_data)
+)
+
+ggplot(cpue_summary, aes(x = ts)) +
+  geom_point(data = cpue_summary %>% filter(model == "ASPM-R"),
+             aes(y = value, fill = factor(index)),
+             shape = 21, size = 2.5) +
+  geom_line(aes(y = pred, colour = model, linetype = factor(index)),
+            linewidth = 1) +
+  scale_colour_manual(values = summary_colours) +
+  scale_fill_brewer(type = "qual", palette = "Dark2") +
+  facet_wrap(~index, ncol = 2, scales = "free_y",
+             labeller = labeller(index = c("1" = "Index 1 (Comm)", "2" = "Index 2 (Survey)"))) +
+  labs(x = "Time step", y = "CPUE", colour = "Model", fill = "Index",
+       linetype = "Index",
+       title = "Summary: CPUE fits",
+       subtitle = "Points = observed; lines = model predictions") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Length composition fits
+
+Observed length compositions (grey bars) with predicted proportions from
+opal with LF (cyan) and the catch curve (orange). Shown for Comm (decadal
+subset) and all ResFish years.
+
+```{r summary-lf, echo=TRUE, message=FALSE, fig.height=7, fig.width=10}
+# Build long-format predicted LF for both models, labelled
+build_lf_pred_df <- function(obj_x, data_x, model_label) {
+  pred_list <- obj_x$report()$lf_pred
+  names(pred_list) <- data_x$lf_fishery_f
+  for (k in seq_along(pred_list)) colnames(pred_list[[k]]) <- data_x$len_mid
+  yr_list <- split(data_x$lf_year, data_x$lf_fishery)
+  map_dfr(seq_along(pred_list), function(i) {
+    m   <- pred_list[[i]]
+    yrs <- yr_list[[i]]
+    as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
+      rename(id = Var1, length = Var2) %>%
+      mutate(fishery   = as.character(names(pred_list)[i]),
+             id        = as.integer(factor(id, levels = unique(id))),
+             year      = yrs[id],
+             cal_year  = 1948L + year,
+             length    = as.numeric(length),
+             model     = model_label)
+  })
+}
+
+df_pred_sum_lf <- build_lf_pred_df(obj_lf, data_lf, "opal (with LF)")
+df_pred_sum_cc <- build_lf_pred_df(obj_cc, data_cc, "Catch curve")
+df_pred_summary <- bind_rows(df_pred_sum_lf, df_pred_sum_cc)
+
+# Observed (use data_lf; same obs for both models)
+df_obs_sum <- data.frame(data_lf$lf_obs_in)
+names(df_obs_sum) <- data_lf$len_mid
+df_obs_sum <- df_obs_sum %>%
+  mutate(year = data_lf$lf_year, fishery = as.character(data_lf$lf_fishery)) %>%
+  group_by(fishery) %>% mutate(id = row_number()) %>% ungroup() %>%
+  pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
+  mutate(length = as.numeric(length), cal_year = 1948L + year)
+
+# Comm: decadal years
+ts_comm_sum <- seq(min(data_lf$lf_year[data_lf$lf_fishery == 1]),
+                   max(data_lf$lf_year[data_lf$lf_fishery == 1]), by = 10L)
+obs_comm <- df_obs_sum %>% filter(fishery == "1", year %in% ts_comm_sum)
+pred_comm <- df_pred_summary %>% filter(fishery == "1", year %in% ts_comm_sum)
+
+p_sum_comm <- ggplot(obs_comm, aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(data = pred_comm,
+            aes(y = pred, colour = model), linewidth = 0.8) +
+  scale_colour_manual(values = c("opal (with LF)" = "cyan4",
+                                 "Catch curve"    = "darkorange")) +
+  facet_wrap(~cal_year, scales = "free_y", ncol = 5) +
+  labs(x = "Length (cm)", y = "Proportion", colour = "Model",
+       title = "Summary: LF fits — Comm (Fleet 1, decadal)") +
+  theme(strip.text = element_text(size = 7),
+        axis.text  = element_text(size = 6),
+        legend.position = "bottom")
+print(p_sum_comm)
+
+# ResFish: all years
+ts_res_sum <- sort(unique(data_lf$lf_year[data_lf$lf_fishery == 3]))
+obs_res  <- df_obs_sum %>% filter(fishery == "3", year %in% ts_res_sum)
+pred_res <- df_pred_summary %>% filter(fishery == "3", year %in% ts_res_sum)
+
+p_sum_res <- ggplot(obs_res, aes(x = length)) +
+  geom_col(aes(y = obs), fill = "grey70", width = 2) +
+  geom_line(data = pred_res,
+            aes(y = pred, colour = model), linewidth = 0.8) +
+  scale_colour_manual(values = c("opal (with LF)" = "cyan4",
+                                 "Catch curve"    = "darkorange")) +
+  facet_wrap(~cal_year, scales = "free_y", ncol = 4) +
+  labs(x = "Length (cm)", y = "Proportion", colour = "Model",
+       title = "Summary: LF fits — ResFish (Fleet 3, all years)") +
+  theme(strip.text = element_text(size = 7),
+        axis.text  = element_text(size = 6),
+        legend.position = "bottom")
+print(p_sum_res)
+```
+
+## Spawning biomass
+
+```{r summary-biomass, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+ssb_summary <- bind_rows(
+  data.frame(year = calendar_years,
+             estimate = obj_aspm$report()$spawning_biomass_y[1:data$n_year],
+             model = "ASPM"),
+  data.frame(year = calendar_years,
+             estimate = obj$report()$spawning_biomass_y[1:data$n_year],
+             model = "ASPM-R"),
+  data.frame(year = calendar_years,
+             estimate = rep_cc$spawning_biomass_y[1:data$n_year],
+             model = "Catch curve"),
+  data.frame(year = calendar_years,
+             estimate = rep_lf$spawning_biomass_y[1:data$n_year],
+             model = "opal (with LF)")
+)
+
+ybmax_sum <- max(ssb_summary$estimate,
+                 opaka_truth$om$sprseries$SSB,
+                 opaka_truth$em$sprseries$SSB, na.rm = TRUE)
+
+ggplot() +
+  geom_line(data = ssb_summary,
+            aes(x = year, y = estimate, colour = model), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$om$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 OM"), linewidth = 1) +
+  geom_line(data = subset(opaka_truth$em$sprseries, Yr %in% calendar_years),
+            aes(x = Yr, y = SSB, colour = "SS3 EM"), linewidth = 1) +
+  scale_colour_manual(values = summary_colours) +
+  labs(x = "Year", y = "Spawning biomass",
+       title = "Summary: spawning biomass trajectories",
+       colour = NULL) +
+  scale_y_continuous(limits = c(0, ybmax_sum * 1.2)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Dynamic depletion
+
+Dynamic depletion ($B_t / B_{0,\text{dynamic}}$) for each opal model variant.
+The SS3 OM and SS3 EM are not shown as their depletion is defined relative to
+a different reference point and is not directly comparable to opal's
+`dynamic_depletion_y` metric.
+
+```{r summary-depletion, echo=TRUE, message=FALSE, fig.height=4, fig.width=8}
+dep_summary <- bind_rows(
+  data.frame(year = calendar_years,
+             depletion = obj_aspm$report()$dynamic_depletion_y[1:data$n_year],
+             model = "ASPM"),
+  data.frame(year = calendar_years,
+             depletion = obj$report()$dynamic_depletion_y[1:data$n_year],
+             model = "ASPM-R"),
+  data.frame(year = calendar_years,
+             depletion = rep_cc$dynamic_depletion_y[1:data$n_year],
+             model = "Catch curve"),
+  data.frame(year = calendar_years,
+             depletion = rep_lf$dynamic_depletion_y[1:data$n_year],
+             model = "opal (with LF)")
+)
+
+ggplot(dep_summary, aes(x = year, y = depletion, colour = model)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 0.4, linetype = "dashed", colour = "grey50") +
+  scale_colour_manual(values = summary_colours) +
+  labs(x = "Year", y = expression(B[t] / B[0*","*dynamic]),
+       title = "Summary: dynamic depletion trajectories",
+       subtitle = "Dashed line = 40% depletion reference",
+       colour = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 ```
 
