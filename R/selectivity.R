@@ -83,25 +83,19 @@ sel_double_normal <- function(x, par) {
   # --- Compute selectivity ---
   t1 <- x - peak
   t2 <- x - peak2
-
   join1 <- 1 / (1 + exp(-(20 / (1 + abs(t1))) * t1))
   join2 <- 1 / (1 + exp(-(20 / (1 + abs(t2))) * t2))
-
   asc <- point1 + (1 - point1) * (exp(-t1^2 / upselex) - t1min) / (1 - t1min)
   dsc <- 1 + (point2 - 1) * (exp(-t2^2 / downselex) - 1) / (t2min - 1)
-
   sel <- rep(NA_real_, length(x))
   idx <- (j1 + 1):j2
-  sel[idx] <- asc[idx] * (1 - join1[idx]) +
-    join1[idx] * (1 - join2[idx] + dsc[idx] * join2[idx])
-
+  sel[idx] <- asc[idx] * (1 - join1[idx]) + join1[idx] * (1 - join2[idx] + dsc[idx] * join2[idx])
   if (startbin > 1) {
     sel[1:startbin] <- (x[1:startbin] / x[startbin])^2 * sel[startbin]
   }
   if (j2 < length(x)) {
     sel[(j2 + 1):length(x)] <- sel[j2]
   }
-
   return(sel)
 }
 
