@@ -35,7 +35,7 @@ get_cpue_like(
 
 \item{weight_fya}{a 3D \code{array} \verb{[n_fishery, n_year, n_age]} of weight-at-age by fishery and year.}
 
-\item{cpue_switch}{scalar initialization value for creeping adjustment (default 1).}
+\item{cpue_switch}{boolean flag to calculate the cpue likelihood.}
 }
 \value{
 numeric vector of length \code{nrow(cpue_data)} with per-observation
