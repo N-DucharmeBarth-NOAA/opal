@@ -21,7 +21,7 @@
 #' @param number_ysa a 3D \code{array} `[n_year, n_season, n_age]` of numbers-at-age.
 #' @param sel_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of selectivity by fishery, year, and age.
 #' @param weight_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of weight-at-age by fishery and year.
-#' @param cpue_switch scalar initialization value for creeping adjustment (default 1).
+#' @param cpue_switch boolean flag to calculate the cpue likelihood.
 #' @return numeric vector of length \code{nrow(cpue_data)} with per-observation
 #'   negative log-likelihood contributions.
 #' @importFrom RTMB ADoverload dnorm OBS REPORT
@@ -34,7 +34,8 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
   log_cpue_tau <- parameters$log_cpue_tau
   log_cpue_omega <- parameters$log_cpue_omega
   n_cpue <- nrow(cpue_data)
-  n_index <- length(log_cpue_q)
+  if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
+  if (!exists("n_index", inherits = FALSE)) n_index <- max(cpue_data$index)
   cpue_log_pred <- cpue_sigma <- lp <- numeric(n_cpue)
   for (i in seq_len(n_cpue)) {
     y <- cpue_data$ts[i]
