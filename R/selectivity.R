@@ -222,8 +222,8 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
 
       par_sel[f, 1] <- (ss3_peak - mu_len) / sd_len        # a: peak location
       par_sel[f, 2] <- ss3_top_logit                         # b: plateau (same space)
-      par_sel[f, 3] <- ss3_ascend_se - log(sd_len)           # c: ascending width
-      par_sel[f, 4] <- ss3_descend_se - log(sd_len)          # d: descending width
+      par_sel[f, 3] <- ss3_ascend_se - 2 * log(sd_len)           # c: ascending width
+      par_sel[f, 4] <- ss3_descend_se - 2 * log(sd_len)          # d: descending width
 
       # Handle start_logit = -999 (SS3 convention for "fix at 0")
       if (ss3_start_logit <= -999) {
@@ -275,8 +275,8 @@ convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
     } else {
       result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
       result$top_logit_or_width[f] <- par_sel[f, 2]
-      result$ascend_se[f] <- par_sel[f, 3] + log(sd_len)
-      result$descend_se[f] <- par_sel[f, 4] + log(sd_len)
+      result$ascend_se[f]  <- par_sel[f, 3] + 2 * log(sd_len)
+      result$descend_se[f] <- par_sel[f, 4] + 2 * log(sd_len)
       result$start_logit[f] <- par_sel[f, 5]
       result$end_logit[f] <- par_sel[f, 6]
     }
