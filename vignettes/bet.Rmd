@@ -2,10 +2,10 @@
 title: "The BET model"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{The BET model}
+%\VignetteIndexEntry{The BET model}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
-editor_options: 
+  editor_options: 
   chunk_output_type: console
 ---
 
@@ -77,6 +77,12 @@ ggplot(data = data.frame(length = len_mid, maturity = data$maturity),
        aes(x = length, y = maturity)) +
   geom_line() + geom_point() +
   labs(x = "Length (cm)", y = "Maturity", title = "Maturity-at-Length")
+
+fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
+                 "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
+                 "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
+                 "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
+                 "S01_INDEX")
 ```
 
 ## CPUE data
@@ -109,10 +115,10 @@ unique(lf_wide$fishery)
 
 # define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
 var_adjust_scalars <- rep(1, data$n_fishery)
+var_adjust_scalars[] <- 80
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
 # var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
 # var_adjust_scalars[] <- 1 / 4e9
-var_adjust_scalars[] <- 40
 
 data <- prep_lf_data(data = data, lf_wide = lf_wide, 
                      # lf_keep_fisheries = c(8),
@@ -120,8 +126,8 @@ data <- prep_lf_data(data = data, lf_wide = lf_wide,
                      lf_var_adjust = var_adjust_scalars)
 
 data$lf_fishery
-range(data$lf_n)      # aim for tens to low thousands per obs
-sum(data$lf_n)        # aim for ~1e4–1e5 total
+range(data$lf_n) # aim for tens to low thousands per obs
+sum(data$lf_n) # aim for ~1e4–1e5 total
 ```
 
 ## Weight composition data
@@ -150,7 +156,7 @@ wf_wide <- wcpo_bet_wf |>
 unique(wf_wide$fishery)
 
 data <- prep_wf_data(data = data, wf_wide = wf_wide,
-                     wf_keep_fisheries = c(10),
+                     wf_keep_fisheries = c(1),
                      wf_switch = 1L)
 ```
 
@@ -166,25 +172,25 @@ data object:
 ```{r get-pars, echo=TRUE, message=FALSE}
 data(wcpo_bet_parameters)
 
-# parameters <- list(
-#   log_B0 = 20,
-#   log_h = as.numeric(wcpo_bet_parameters$log_h),
-#   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
-#   log_cpue_q = rep(0, data$n_index),
-#   log_cpue_tau = rep(log(0.1), data$n_index),
-#   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
-#   # log_cpue_tau = rep(log(0.1), data$n_index),
-#   # log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
-#   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
-#   log_wf_tau = rep(0, data$n_fishery),
-#   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
-#   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
-#   log_k = as.numeric(wcpo_bet_parameters$log_k),
-#   log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
-#   log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
-#   par_sel = as.matrix(wcpo_bet_parameters$par_sel),
-#   rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
-# )
+parameters <- list(
+  log_B0 = 20,
+  log_h = as.numeric(wcpo_bet_parameters$log_h),
+  log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
+  log_cpue_q = rep(0, data$n_index),
+  log_cpue_tau = rep(log(0.1), data$n_index),
+  log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
+  # log_cpue_tau = rep(log(0.1), data$n_index),
+  # log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
+  log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
+  log_wf_tau = rep(0, data$n_fishery),
+  log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
+  log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
+  log_k = as.numeric(wcpo_bet_parameters$log_k),
+  log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
+  log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
+  par_sel = as.matrix(wcpo_bet_parameters$par_sel),
+  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
+)
 # par_sel <- wcpo_bet_parameters$par_sel
 # par_sel[8, 1:4] <- c(-1.045259109, -15.000000000, -8.951023664, 1.291962014)
 # 
@@ -208,6 +214,7 @@ data(wcpo_bet_parameters)
 
 load("pars.rda")
 parameters <- obj1$env$parList(obj1$env$last.par.best)
+# parameters$par_sel[8,] <- as.matrix(wcpo_bet_parameters$par_sel)[8,]
 ```
 
 ## Priors
@@ -227,18 +234,24 @@ Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 
 ```{r get-map, echo=TRUE, message=FALSE}
 parameters$par_sel
+wcpo_bet_parameters$par_sel
 
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-map_sel[8, 1:4] <- 1:4 # peak, plateau, asc-width, desc-width
-map_sel[9, 1:4] <- 5:8 # peak, plateau, asc-width, desc-width
-map_sel[10, 1:4] <- 9:12 # peak, plateau, asc-width, desc-width
-map_sel[11, 1:4] <- 13:16 # peak, plateau, asc-width, desc-width
-map_sel[12, 1:4] <- 17:20 # peak, plateau, asc-width, desc-width
-map_sel[13, 1:4] <- 21:24 # peak, plateau, asc-width, desc-width
-map_sel[14, 1:4] <- 25:28 # peak, plateau, asc-width, desc-width
-# map_sel[8:14, 1] <- 1:7 # just comment these lines out if you dont want to estimate sels
-# map_sel[8:14, 3] <- 8:14
-# map_sel[8:14, 4] <- 15:21
+
+# peak is postion of left end
+
+# 8-14 is LFs
+map_sel[8, c(1, 3, 4)] <- 1:3 # peak, plateau, asc-width, desc-width
+map_sel[9, c(1, 3, 4)] <- 4:6 # peak, plateau, asc-width, desc-width
+map_sel[10, c(1, 3, 4)] <- 7:9 # peak, plateau, asc-width, desc-width
+map_sel[11, 1:2] <- 10:11 # peak, plateau, asc-width, desc-width
+map_sel[12, c(1, 3, 4)] <- 12:14 # peak, plateau, asc-width, desc-width
+map_sel[13, c(1, 3, 4)] <- 15:17 # peak, plateau, asc-width, desc-width
+map_sel[14, c(1, 3, 4)] <- 18:20 # peak, plateau, asc-width, desc-width
+
+# 1-7 & 15 is WFs
+# map_sel[1, c(1, 3, 4, 6)] <- 29:32
+
 map_sel
 
 map_rdev <- rep(NA, length(parameters$rdev_y))
@@ -255,7 +268,7 @@ map <- list(
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
-  log_wf_tau = factor(rep(NA, data$n_fishery)), # fixed initially
+  log_wf_tau = factor(rep(NA, data$n_fishery)),
   log_L1  = factor(NA),
   log_L2  = factor(NA),
   log_k   = factor(NA),
@@ -288,6 +301,7 @@ data$wf_switch <- 0 # skip weight comps (removal only)
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+obj$par
 unique(names(obj$par))
 obj$fn()
 obj$gr()
@@ -317,10 +331,10 @@ Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
 Lwr[grep("log_lf_tau", names(obj$par))] <- rep(-9, length(grep("log_lf_tau", names(obj$par))))
 Upr[grep("log_lf_tau", names(obj$par))] <- rep(9, length(grep("log_lf_tau", names(obj$par))))
-Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
-Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
 Lwr[grep("par_sel", names(obj$par))] <- rep(-15, length(grep("par_sel", names(obj$par))))
 Upr[grep("par_sel", names(obj$par))] <- rep(15, length(grep("par_sel", names(obj$par))))
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
@@ -343,7 +357,8 @@ obj$report()$lp_rec
 sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
 sum(obj$report()$lp_wf)
-# obj1 <- obj
+check_estimability(obj = obj)
+obj1 <- obj
 save(obj1, file = "pars.rda")
 ```
 
@@ -351,6 +366,155 @@ Compare initial and estimated parameter values:
 
 ```{r opt-results, echo=TRUE, message=FALSE}
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
+```
+
+## Selectivity
+
+Visualise the selectivity curves by fleet (at length):
+
+```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
+par_sel_est  <- obj$env$parList()$par_sel
+par_sel_orig <- wcpo_bet_parameters$par_sel
+
+map_sel_mat <- matrix(map$par_sel, nrow = nrow(par_sel_est), ncol = ncol(par_sel_est))
+fishery_estimated <- apply(map_sel_mat, 1, function(row) any(!is.na(row)))
+
+sel_est_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
+  sel_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(len_mid, par_sel_est[f, ])
+  } else {
+    sel_double_normal(len_mid, par_sel_est[f, ])
+  }
+  data.frame(
+    fishery = f,
+    fleet_name = fleet_names[f],
+    length = len_mid,
+    selectivity = as.numeric(sel_l),
+    estimated = fishery_estimated[f]
+  )
+}))
+
+sel_orig_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
+  sel_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(len_mid, par_sel_orig[f, ])
+  } else {
+    sel_double_normal(len_mid, par_sel_orig[f, ])
+  }
+  data.frame(
+    fishery = f,
+    fleet_name = fleet_names[f],
+    length = len_mid,
+    selectivity = as.numeric(sel_l)
+  )
+}))
+
+ggplot(data = sel_est_df, aes(x = length, y = selectivity, colour = estimated)) +
+  geom_line() +
+  geom_line(
+    data = sel_orig_df,
+    aes(x = length, y = selectivity),
+    inherit.aes = FALSE,
+    colour = "black",
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  facet_wrap(fleet_name ~ ., ncol = 4) +
+  labs(x = "Length (cm)", y = "Selectivity") +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+Visualise the selectivity curves by fleet (at age):
+
+```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+rep <- obj$report()
+sel_fya <- rep$sel_fya
+
+sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
+sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
+  sel_fya[sel_df$fishery[i], 1, sel_df$age[i]]
+})
+sel_df$real_age <- sel_df$age / 4
+sel_df$fleet_name <- fleet_names[sel_df$fishery]
+
+ggplot(sel_df, aes(x = real_age, y = selectivity)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 4) +
+  labs(x = "Age (years)", y = "Selectivity") +
+  ylim(0, 1)
+```
+
+Build a long-format table of selectivity parameters.
+
+```{r sel-par-table, echo=TRUE, message=FALSE}
+# Three sources to compare side by side:
+#   1. Initial values used to build obj   (parameters$par_sel)
+#   2. Bundled reference values            (wcpo_bet_parameters$par_sel)
+#   3. Estimated / mapped status           (map$par_sel)
+#
+# par_sel is [n_fishery x 6] with columns (a, b, c, d, e, f) for double-normal
+# or (par1, par2) for logistic (cols 3-6 ignored). `factor(map_sel)` flattens
+# matrices column-major, so wrap the map vector back into the same shape.
+
+n_f <- nrow(parameters$par_sel)
+n_p <- ncol(parameters$par_sel)
+col_lbls <- c("a (peak)", "b (plateau)", "c (asc width)", "d (desc width)", "e (init sel)", "f (final sel)")
+
+# Estimated/fixed status from the map
+map_sel_mat <- if (is.null(map$par_sel)) {
+  matrix(seq_len(n_f * n_p), n_f, n_p) # everything estimated if no map
+} else {
+  matrix(map$par_sel, n_f, n_p)
+}
+estimated_mat <- !is.na(map_sel_mat)
+
+# Reference values (may not have row/col names — assume same shape)
+ref_mat <- as.matrix(wcpo_bet_parameters$par_sel)
+stopifnot("wcpo_bet_parameters$par_sel must match parameters$par_sel shape" = all(dim(ref_mat) == c(n_f, n_p)))
+
+# Selectivity type (logistic = 1, double-normal = 2)
+sel_type_lbl <- ifelse(data$sel_type_f == 1L, "logistic", "double-normal")
+
+# For logistic fisheries, columns 3-6 are unused -> NA-out for clarity
+init_mat <- parameters$par_sel
+for (f in seq_len(n_f)) {
+  if (data$sel_type_f[f] == 1L) {
+    init_mat[f, 3:6] <- NA
+    ref_mat[f, 3:6] <- NA
+    estimated_mat[f, 3:6] <- FALSE
+  }
+}
+
+# Assemble long table
+sel_par_tbl <- tibble(
+  fishery    = rep(seq_len(n_f), times = n_p),
+  fleet_name = rep(fleet_names[seq_len(n_f)], times = n_p),
+  sel_type   = rep(sel_type_lbl, times = n_p),
+  param      = rep(col_lbls, each = n_f),
+  init       = as.numeric(init_mat),
+  reference  = as.numeric(ref_mat),
+  estimated  = as.vector(estimated_mat)
+) %>%
+  mutate(diff = init - reference) %>%
+  arrange(fishery, match(param, col_lbls))
+
+sel_par_tbl %>%
+  mutate(
+    init      = ifelse(is.na(init),      "—", formatC(init,      digits = 3, format = "f")),
+    reference = ifelse(is.na(reference), "—", formatC(reference, digits = 3, format = "f")),
+    diff      = ifelse(is.na(diff),      "—", formatC(diff,      digits = 3, format = "f")),
+    estimated = ifelse(estimated, "✓", "")
+  ) %>%
+  select(Fleet = fleet_name,
+         Type = sel_type,
+         Param = param,
+         Initial = init,
+         `Reference (bundled)` = reference,
+         `Δ (init − ref)` = diff,
+         `Est?` = estimated) %>%
+  knitr::kable(
+    caption = "Selectivity parameter values: initial vs. bundled reference, with map status.",
+    align   = c("l", "l", "l", "r", "r", "r", "c")
+  )
 ```
 
 ## Diagnostics
@@ -460,7 +624,7 @@ if (data$lf_switch == 0) {
   # Name the list elements and columns
   names(lf_pred) <- data$lf_fishery_f
   for (k in seq_along(lf_pred)) colnames(lf_pred[[k]]) <- data$len_mid
-
+  
   # Helper: convert a flat OBS vector back to list-of-matrices (proportions)
   flat_to_list <- function(v, lf_n_f, nbins) {
     out <- vector("list", length(lf_n_f))
@@ -475,10 +639,10 @@ if (data$lf_switch == 0) {
     }
     out
   }
-
+  
   # Split year index by fishery (must match length of lf_year)
   lf_year_list <- split(data$lf_year, data$lf_fishery)
-
+  
   # ---- Predicted: long data frame ----
   df_pred <- map_dfr(seq_along(lf_pred), function(i) {
     m <- lf_pred[[i]]
@@ -486,11 +650,11 @@ if (data$lf_switch == 0) {
     as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
       rename(id = Var1, length = Var2) %>%
       mutate(fishery = names(lf_pred)[i],
-            id = as.integer(factor(id, levels = unique(id))),
-            year = yrs[id],
-            length = as.numeric(length))
+             id = as.integer(factor(id, levels = unique(id))),
+             year = yrs[id],
+             length = as.numeric(length))
   })
-
+  
   # ---- Observed: long data frame ----
   df_obs <- data.frame(data$lf_obs_in)
   names(df_obs) <- data$len_mid
@@ -501,7 +665,7 @@ if (data$lf_switch == 0) {
     ungroup() %>%
     pivot_longer(cols = -c(year, fishery, id), names_to = "length", values_to = "obs") %>%
     mutate(length = as.numeric(length))
-
+  
   # ---- Simulations: generate n_sim draws and convert to long format ----
   n_sim <- 5
   df_sim_all <- map_dfr(seq_len(n_sim), function(s) {
@@ -523,23 +687,24 @@ if (data$lf_switch == 0) {
       as.data.frame.table(m, responseName = "sim", stringsAsFactors = FALSE) %>%
         rename(id = Var1, length = Var2) %>%
         mutate(fishery = names(sim_list)[i],
-              id = as.integer(factor(id, levels = unique(id))),
-              year = yrs[id],
-              length = as.numeric(length),
-              sim_id = s)
+               id = as.integer(factor(id, levels = unique(id))),
+               year = yrs[id],
+               length = as.numeric(length),
+               sim_id = s)
     })
   })
   df_sim_all <- df_sim_all %>% mutate(year = ts_to_label(year))
-
+  
   df <- left_join(df_obs, df_pred, by = c("id", "fishery", "length")) %>%
     select(-year.y) %>%
     # rename(year = year.x) %>% 
     mutate(year = ts_to_label(year.x))
-
+  
   # yrs_plot <- 146:188
   # yrs_plot <- ts_to_label(146:188)
   yrs_plot <- sample(ts_to_label(unique(data$lf_year)), 20)
-  fishery_plot <- "11" # 8:14
+  yrs_plot <- ts_to_label(unique(data$lf_year))
+  fishery_plot <- "14" # 8:14
   ggplot(df %>% filter(fishery == fishery_plot, year %in% yrs_plot), aes(x = length)) +
     geom_col(aes(y = obs), fill = "grey70", width = 2) +
     geom_line(data = df_sim_all %>% filter(fishery == fishery_plot, year %in% yrs_plot),
@@ -547,8 +712,8 @@ if (data$lf_switch == 0) {
     geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
     facet_wrap(~ year, scales = "free_y", ncol = 6) +
     labs(x = "Length (cm)", y = "Proportion",
-        title = paste0("Length composition: Fishery ", fishery_plot),
-        subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
+         title = paste0("Length composition: Fishery ", fishery_plot),
+         subtitle = "Grey bars = observed, red = predicted, blue = simulated") +
     theme(strip.text = element_text(size = 7), axis.text = element_text(size = 6))
 }
 ```
@@ -567,31 +732,31 @@ if (data$wf_switch == 0) {
   wf_year_list <- split(data$wf_year, data$wf_fishery)
   # ---- Predicted: long data frame ----
   df_wf_pred <- map_dfr(seq_along(wf_pred), function(i) {
-    m   <- wf_pred[[i]]
+    m <- wf_pred[[i]]
     yrs <- wf_year_list[[i]]
     as.data.frame.table(m, responseName = "pred", stringsAsFactors = FALSE) %>%
       rename(id = Var1, weight = Var2) %>%
       mutate(fishery = names(wf_pred)[i],
-            id = as.integer(factor(id, levels = unique(id))),
-            year = yrs[id],
-            weight = as.numeric(weight))
+             id = as.integer(factor(id, levels = unique(id))),
+             year = yrs[id],
+             weight = as.numeric(weight))
   })
-
+  
   # ---- Observed: long data frame (first WF fishery only for this plot) ----
   df_wf_obs <- data.frame(data$wf_obs_in[
     seq_len(data$wf_n_f[1]), , drop = FALSE])
   names(df_wf_obs) <- data$wt_mid
   df_wf_obs <- df_wf_obs %>%
     mutate(year    = wf_year_list[[1]],
-          fishery = as.character(data$wf_fishery_f[1])) %>%
+           fishery = as.character(data$wf_fishery_f[1])) %>%
     mutate(id = row_number()) %>%
     pivot_longer(cols = -c(year, fishery, id),
-                names_to = "weight", values_to = "obs") %>%
+                 names_to = "weight", values_to = "obs") %>%
     mutate(weight = as.numeric(weight)) %>%
     filter(weight >= wt_mid_trim[1], weight <= wt_mid_trim[length(wt_mid_trim)])
-
+  
   df_wf <- left_join(df_wf_obs, df_wf_pred, by = c("id", "fishery", "year", "weight"))
-
+  
   # ---- Plot first fishery with WF data ----
   f_plot <- as.character(data$wf_fishery_f[1])
   max_yrs_wf_plot <- 24 # show at most 24 time steps for readability
@@ -601,8 +766,8 @@ if (data$wf_switch == 0) {
     geom_line(aes(y = pred), colour = "red3", linewidth = 0.7) +
     facet_wrap(~ year, scales = "free_y", ncol = 6) +
     labs(x = "Weight (kg)", y = "Proportion",
-        title = paste0("Weight composition: Fishery ", f_plot),
-        subtitle = "Grey bars = observed, red = predicted") +
+         title = paste0("Weight composition: Fishery ", f_plot),
+         subtitle = "Grey bars = observed, red = predicted") +
     theme(strip.text = element_text(size = 7), axis.text  = element_text(size = 6))
 }
 ```
@@ -643,8 +808,7 @@ ggplot(sb_df, aes(x = year)) +
     y = "Spawning biomass (mt)",
     title = "Estimated spawning biomass trajectory",
     subtitle = "Median with lognormal 50% and 95% uncertainty intervals"
-  ) +
-  theme_minimal()
+  )
 ```
 
 Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
@@ -684,66 +848,7 @@ ggplot(data = sb_df, aes(x = year)) +
     y = "Dynamic depletion (SB/SBF=0)",
     title = "Estimated dynamic depletion trajectory",
     subtitle = "Median with lognormal 50% and 95% uncertainty intervals"
-  ) +
-  theme_minimal()
-```
-
-## Selectivity
-
-Visualise the selectivity curves by fleet (at length):
-
-```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
-par_sel_est <- obj$env$parList()$par_sel
-map_sel_mat <- matrix(map$par_sel, nrow = nrow(par_sel_est), ncol = ncol(par_sel_est))
-fishery_estimated <- apply(map_sel_mat, 1, function(row) any(!is.na(row)))
-
-fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
-                 "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
-                 "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
-                 "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
-                 "S01_INDEX")
-
-sel_len_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
-  par_f <- par_sel_est[f, ]
-  sel_l <- if (data$sel_type_f[f] == 1L) {
-    sel_logistic(len_mid, par_f)
-  } else {
-    sel_double_normal(len_mid, par_f)
-  }
-  data.frame(
-    fishery = f,
-    fleet_name = fleet_names[f],
-    length = len_mid,
-    selectivity = as.numeric(sel_l),
-    estimated = fishery_estimated[f]
   )
-}))
-
-ggplot(data = sel_len_df, aes(x = length, y = selectivity, colour = estimated)) +
-  geom_line() +
-  facet_wrap(fleet_name ~ ., ncol = 4) +
-  labs(x = "Length (cm)", y = "Selectivity") +
-  ylim(0, 1)
-```
-
-Visualise the selectivity curves by fleet (at age):
-
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
-rep <- obj$report()
-sel_fya <- rep$sel_fya
-
-sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
-sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
-  sel_fya[sel_df$fishery[i], 1, sel_df$age[i]]
-})
-sel_df$real_age <- sel_df$age / 4
-sel_df$fleet_name <- fleet_names[sel_df$fishery]
-
-ggplot(sel_df, aes(x = real_age, y = selectivity)) +
-  geom_line() +
-  facet_wrap(~fleet_name, ncol = 4) +
-  labs(x = "Age (years)", y = "Selectivity") +
-  ylim(0, 1)
 ```
 
 # Simulation
@@ -775,7 +880,7 @@ if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
 } else {
   osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
-                            method = "oneStepGeneric", trace = FALSE)
+                             method = "oneStepGeneric", trace = FALSE)
   for (idx in seq_len(data$n_index)) {
     rows <- which(data$cpue_data$index == idx)
     qqnorm(osa_cpue$res[rows], main = paste0("Index ", idx, ": OSA QQ"))

@@ -89,8 +89,7 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
 #' @param n_lf integer total number of length composition observations.
 #' @param log_lf_tau numeric vector `[n_fishery]` of log-scale variance adjustment parameters.
 #' @param lf_addtocomp small non-negative numeric constant added to predicted
-#'   proportions before normalisation to robustify zero bins. Default
-#'   \code{1e-08}.
+#'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
 #' @return a \code{numeric} vector of negative log-likelihood contributions, one per observation.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
@@ -166,7 +165,6 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
       obs_offset <- obs_offset + nbins
     }
   }
-  
   REPORT(lf_pred)
   return(lp)
 }
@@ -199,8 +197,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param n_wf integer total number of WF observations.
 #' @param log_wf_tau numeric vector `[n_fishery]` log-scale variance adjustment.
 #' @param wf_addtocomp small non-negative numeric constant added to predicted
-#'   proportions before normalisation to robustify zero bins. Default
-#'   \code{1e-08}.
+#'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
 #' @return numeric vector of negative log-likelihood contributions, one per observation.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
@@ -214,7 +211,6 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             wf_addtocomp = 1e-08) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-
   n_f <- length(wf_n_f)
   wf_pred <- vector("list", n_f)
   lp <- numeric(n_wf)
@@ -232,19 +228,16 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
     bmax <- wf_maxbin[f]
     nbins <- bmax - bmin + 1L
     wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
-
     # Precompute combined age->weight projection once per fishery
     # rebin_pla: [n_wt x n_age] = wf_rebin_matrix [n_wt x n_len] %*% pla [n_len x n_age]
     rebin_pla <- wf_rebin_matrix %*% pla
-
     # ONE matmul per fishery: [n_obs_f x n_age] %*% [n_age x n_wt] -> [n_obs_f x n_wt]
-    ys        <- wf_year_fi[[j]]
-    catch_ya  <- catch_pred_fya[f, ys, ]        # [n_obs_f x n_age]
-    pred_yw   <- catch_ya %*% t(rebin_pla)      # [n_obs_f x n_wt]
-
+    ys <- wf_year_fi[[j]]
+    catch_ya <- catch_pred_fya[f, ys, ] # [n_obs_f x n_age]
+    pred_yw <- catch_ya %*% t(rebin_pla) # [n_obs_f x n_wt]
     for (i in seq_len(wf_n_f[j])) {
       idx <- idx + 1L
-      pred_at_weight <- pred_yw[i, ]            # simple row slice, no matvec
+      pred_at_weight <- pred_yw[i, ] # simple row slice, no matvec
       if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
       if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
       pred <- pred_at_weight[bmin:bmax]
@@ -271,7 +264,6 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
       obs_offset <- obs_offset + nbins
     }
   }
-
   REPORT(wf_pred)
   return(lp)
 }

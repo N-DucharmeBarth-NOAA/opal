@@ -68,11 +68,11 @@ opal_model <- function(parameters, data) {
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
   if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
-  if (!exists("lf_switch",  inherits = FALSE)) lf_switch   <- 0L
-  if (!exists("n_lf",       inherits = FALSE)) n_lf        <- 0L
+  if (!exists("lf_switch", inherits = FALSE)) lf_switch <- 0L
+  if (!exists("n_lf", inherits = FALSE)) n_lf <- 0L
   if (!exists("lf_addtocomp", inherits = FALSE)) lf_addtocomp <- 1e-08
-  if (!exists("wf_switch",  inherits = FALSE)) wf_switch   <- 0L
-  if (!exists("n_wf",       inherits = FALSE)) n_wf        <- 0L
+  if (!exists("wf_switch", inherits = FALSE)) wf_switch <- 0L
+  if (!exists("n_wf", inherits = FALSE)) n_wf <- 0L
   if (!exists("wf_addtocomp", inherits = FALSE)) wf_addtocomp <- 1e-08
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
   if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
@@ -83,8 +83,8 @@ opal_model <- function(parameters, data) {
   # Growth module ----
 
   # Back-transform growth/variability parameters
-  L1  <- exp(log_L1)
-  L2  <- exp(log_L2)
+  L1 <- exp(log_L1)
+  L2 <- exp(log_L2)
 
   # Module 1: Mean length-at-age (Schnute VB)
   mu_a <- get_growth(n_age, A1, A2, L1, L2, log_k)
@@ -105,7 +105,7 @@ opal_model <- function(parameters, data) {
     weight_a <- resolve_bio_vector(weight, n_age, n_len, pla, "weight")
   } else {
     wt_at_len <- get_weight_at_length(len_mid, lw_a, lw_b)
-    weight_a  <- c(t(pla) %*% wt_at_len)
+    weight_a <- c(t(pla) %*% wt_at_len)
   }
 
   # Replicate weight across fisheries and years (AD-safe: use loop + [<- overload)
@@ -119,7 +119,7 @@ opal_model <- function(parameters, data) {
   # Module 4: Resolve biology vectors to age-basis via PLA ----
   # Accepts either age-basis (length n_age) or length-basis (length n_len)
   # vectors. Length-basis vectors are converted using: vec_a = t(pla) %*% vec_l
-  maturity_a  <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
+  maturity_a <- resolve_bio_vector(maturity, n_age, n_len, pla, "maturity")
   M_a <- resolve_bio_vector(M, n_age, n_len, pla, "M")
   fecundity_a <- resolve_bio_vector(fecundity, n_age, n_len, pla, "fecundity")
   sex_ratio_a <- resolve_bio_vector(sex_ratio, n_age, n_len, pla, "sex_ratio")

@@ -64,8 +64,8 @@ sel_double_normal <- function(x, par) {
   f <- par[6]
   # --- Transform parameters from real line to natural scale ---
   peak       <- mu + a * sd
-  upselex    <- exp(c) * sd
-  downselex  <- exp(d) * sd
+  upselex    <- exp(c) * sd^2
+  downselex  <- exp(d) * sd^2
   point1     <- 1 / (1 + exp(-e))
   point2     <- 1 / (1 + exp(-f))
 
