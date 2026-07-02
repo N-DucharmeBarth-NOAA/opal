@@ -1,11 +1,13 @@
 ---
 title: "The BET model"
-output: rmarkdown::html_vignette
+format: html
+execute:
+  eval: false
 vignette: >
-%\VignetteIndexEntry{The BET model}
+  %\VignetteIndexEntry{The BET model}
   %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
-  editor_options: 
+  %\VignetteEngine{quarto::html}
+editor_options: 
   chunk_output_type: console
 ---
 
@@ -190,30 +192,6 @@ parameters <- list(
   par_sel = as.matrix(wcpo_bet_parameters$par_sel),
   rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
 )
-# par_sel <- wcpo_bet_parameters$par_sel
-# par_sel[8, 1:4] <- c(-1.045259109, -15.000000000, -8.951023664, 1.291962014)
-# 
-# parameters <- list(
-#   log_B0 = 13.75,
-#   log_h = as.numeric(wcpo_bet_parameters$log_h),
-#   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
-#   log_cpue_q = c(0, -0.183176484, -0.151073743, 0.032212328),
-#   log_cpue_tau = rep(log(0.1), data$n_index),
-#   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
-#   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
-#   log_wf_tau = rep(0, data$n_fishery),
-#   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
-#   log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
-#   log_k = as.numeric(wcpo_bet_parameters$log_k),
-#   log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
-#   log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
-#   par_sel = par_sel,
-#   rdev_y = as.numeric(obj$env$last.par.best[names(obj$env$last.par.best) %in% "rdev_y"])
-# )
-
-load("pars.rda")
-# parameters <- obj1$env$parList(obj1$env$last.par.best)
-# parameters$par_sel <- as.matrix(wcpo_bet_parameters$par_sel)
 ```
 
 ## Priors
@@ -400,8 +378,6 @@ sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
 sum(obj$report()$lp_wf)
 check_estimability(obj = obj)
-obj1 <- obj
-save(obj1, file = "pars.rda")
 ```
 
 Compare initial and estimated parameter values:

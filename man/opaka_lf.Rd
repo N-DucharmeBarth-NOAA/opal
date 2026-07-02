@@ -9,7 +9,7 @@ A data.table with 7 columns:
 year (integer), month (integer), ts (integer), fishery (numeric),
 bin (numeric), value (numeric), week (numeric).
 Multiple rows per fishery-year (one per 5 cm length bin). Total rows = 1394
-(82 observation-years \times 17 bins).
+(82 observation-years x 17 bins).
 }
 \source{
 Extracted from Stock Synthesis 3 data file (\code{data_echo.ss_new}).
@@ -32,7 +32,7 @@ length bins.
 \item Parse length composition observations from SS3 data file
 (\code{data_echo.ss_new})
 \item Extract proportions and sample sizes by fleet-year
-\item Convert proportions to pseudo-counts (proportion \times Nsamp)
+\item Convert proportions to pseudo-counts (proportion x Nsamp)
 \item Reshape to long format (one row per fishery-year-length bin)
 \item Truncate to historical period (1949-2023)
 }
@@ -48,7 +48,7 @@ length bins.
 Numeric.}
 \item{bin}{Length bin lower edge (cm). 5 cm bins: 5, 10, 15, ..., 85.
 Numeric.}
-\item{value}{Pseudo-count (proportion \times Nsamp) in this length bin.
+\item{value}{Pseudo-count (proportion x Nsamp) in this length bin.
 Numeric.}
 \item{week}{Temporal indicator (always 1). Numeric.}
 }
@@ -69,7 +69,7 @@ size of 60 per year.}
 
 \itemize{
 \item Data length bins are 5 cm wide (5, 10, 15, ..., 85 cm), giving 17 bins
-\item Values are pseudo-counts derived from SS3 proportions \times Nsamp
+\item Values are pseudo-counts derived from SS3 proportions x Nsamp
 \item Sum of values across bins per fishery-year gives the effective sample size
 \item Very small pseudo-counts (< 1e-10) represent SS3's numerical zeros
 and should be treated as absent observations

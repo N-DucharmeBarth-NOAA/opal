@@ -24,7 +24,7 @@ get_initial_numbers(
 \item{M_a}{a \code{vector} of natural mortality at age.}
 
 \item{spawning_potential_a}{a \code{vector} of spawning potential at age
-(maturity × fecundity).}
+(maturity x fecundity).}
 
 \item{init_F_f}{an optional \code{vector} of initial fishing mortality by
 fishery.}

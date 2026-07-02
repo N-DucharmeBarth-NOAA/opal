@@ -7,10 +7,11 @@
 #' @param h Beverton-Holt steepness parameter.
 #' @param M_a a \code{vector} of natural mortality at age.
 #' @param spawning_potential_a a \code{vector} of spawning potential at age
-#'   (maturity × fecundity).
+#'   (maturity x fecundity).
 #' @return A list with \code{rel_N}, \code{R0}, \code{alpha}, and \code{beta}.
 #' @importFrom RTMB ADoverload
 #' @keywords internal
+#' 
 get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
@@ -35,7 +36,7 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #' @param h Beverton-Holt steepness parameter.
 #' @param M_a a \code{vector} of natural mortality at age.
 #' @param spawning_potential_a a \code{vector} of spawning potential at age
-#'   (maturity × fecundity).
+#'   (maturity x fecundity).
 #' @param init_F_f an optional \code{vector} of initial fishing mortality by
 #'   fishery.
 #' @param sel_fa an optional matrix of selectivity-at-age with dimensions
@@ -115,8 +116,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 
 #' Population dynamics
 #'
-#' Runs the core age- and season-structured population dynamics loop for bigeye
-#' tuna. Starts from initial equilibrium numbers (derived from B0 and h),
+#' Runs the core age- and season-structured population dynamics loop. Starts
+#' from initial equilibrium numbers (derived from B0 and h),
 #' applies seasonal harvest, natural mortality, spawning, and recruitment
 #' (Beverton-Holt with log-normal deviates), and computes predicted catches and
 #' harvest rates.
@@ -145,7 +146,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #' @param M_a Numeric vector of length \code{n_age}. Natural mortality at age.
 #'   Passed explicitly so AD gradients propagate if M is ever estimated.
 #' @param spawning_potential_a Numeric vector of length \code{n_age}. Spawning
-#'   potential at age (maturity × fecundity). Passed explicitly so AD gradients
+#'   potential at age (maturity x fecundity). Passed explicitly so AD gradients
 #'   propagate if growth is ever estimated.
 #' @param weight_fya Numeric array \code{[n_fishery, n_year, n_age]}. Mean
 #'   weight at age by fishery and year.  Passed explicitly so AD gradients

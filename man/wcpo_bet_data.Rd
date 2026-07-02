@@ -29,7 +29,7 @@ stock assessment modeling of western central Pacific bigeye tuna.
 \item{n_age}{Number of age classes (40).}
 \item{n_season}{Number of seasons per year (1).}
 \item{n_fishery}{Number of fisheries/fleets (15).}
-\item{n_year}{Number of years in model (268, equivalent to 67 years × 4 quarters).}
+\item{n_year}{Number of years in model (268, equivalent to 67 years x 4 quarters).}
 \item{first_yr}{First year designation in model (1, representing 1952).}
 \item{last_yr}{Last year designation in model (268, representing 2018).}
 \item{years}{Vector of model years (1:268).}
@@ -47,7 +47,7 @@ stock assessment modeling of western central Pacific bigeye tuna.
 \item{first_yr_catch}{First year with catch data (1).}
 \item{catch_units_f}{Numeric vector of unit codes by fishery (15 elements).
 1 = metric tons (fisheries 8-14), 2 = thousands of fish (fisheries 1-7, 15).}
-\item{catch_obs_ysf}{Three-dimensional array of observed catch (268 years × 1 season × 15 fisheries).
+\item{catch_obs_ysf}{Three-dimensional array of observed catch (268 years x 1 season x 15 fisheries).
 Dimensions follow (year, season, fishery). Units follow catch_units_f.}
 }
 

@@ -12,3 +12,6 @@
 ^Meta$
 ^\.positai$
 ^\.claude$
+^inst/scripts$
+^inst/scripts/bns_perf\.data$
+^inst/scripts/bns_perf\.data\.old$

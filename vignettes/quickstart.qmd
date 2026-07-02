@@ -1,9 +1,11 @@
 ---
 title: "Quickstart Guide"
-output: rmarkdown::html_vignette
+format: html
+execute:
+  eval: false
 vignette: >
   %\VignetteIndexEntry{Quickstart Guide}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
 

@@ -1,10 +1,12 @@
 ---
 title: "'Opakapaka case study: benchmarking opal against Stock Synthesis 3"
-output: rmarkdown::html_vignette
+format: html
+execute:
+  eval: false
 vignette: >
   %\VignetteIndexEntry{'Opakapaka case study: benchmarking opal against Stock Synthesis 3}
   %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
 editor_options: 
   chunk_output_type: console
 ---
@@ -389,7 +391,7 @@ sum(obj_aspm$report()$lp_cpue)
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+```{r aspm-check-estimability, echo=TRUE, message=FALSE, error = TRUE}
 check_estimability(obj = obj_aspm)
 ```
 
@@ -452,7 +454,7 @@ get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, d
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+```{r opt-check-estimability, echo=TRUE, message=FALSE, error = TRUE}
 check_estimability(obj = obj)
 ```
 

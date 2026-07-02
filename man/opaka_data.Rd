@@ -52,7 +52,7 @@ mapping to SS3 ages 0-43 (opal age \code{i} = SS3 age \code{i - 1}).}
 \item{catch_units_f}{Numeric vector of unit codes by fishery (3 elements).
 All fisheries use units = 1 (biomass).}
 \item{catch_obs_ysf}{Three-dimensional array of observed catch
-(75 years \times 1 season \times 3 fisheries). Dimensions follow
+(75 years x 1 season x 3 fisheries). Dimensions follow
 (year, season, fishery). Fleet 3 (ResFish survey) has zero catch.}
 }
 

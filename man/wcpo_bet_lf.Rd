@@ -41,7 +41,7 @@ Observations are organized by fishery, year, month, and 2 cm length bins.
 \describe{
 \item{year}{Calendar year (1952-2018). Integer.}
 \item{month}{Fishing quarter month (2, 5, 8, 11 representing Q1-Q4 approx.). Numeric.}
-\item{ts}{Model timestep number (1-268 for 67 years × 4 quarters). Integer.}
+\item{ts}{Model timestep number (1-268 for 67 years x 4 quarters). Integer.}
 \item{fishery}{MFCL fleet index (1-15). Numeric.}
 \item{bin}{Length bin lower edge (cm). 2 cm bins: 10, 12, 14, ... 198. Numeric.}
 \item{value}{Observed count of fish in this length bin. Numeric.}

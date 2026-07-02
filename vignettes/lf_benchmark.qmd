@@ -1,10 +1,12 @@
 ---
 title: "LF Likelihood Benchmark: Loop vs Batched"
-output: rmarkdown::html_vignette
+format: html
+execute:
+  eval: false
 vignette: >
   %\VignetteIndexEntry{LF Likelihood Benchmark: Loop vs Batched}
   %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
 editor_options:
   chunk_output_type: console
 ---
@@ -558,8 +560,7 @@ cat("gr/fn ratio (loop) — small:", gr_fn_loop_small, "x   full:", gr_fn_loop_f
 
 ## What the benchmark shows
 
-**Plain-R (no AD):** batching does deliver a modest speedup
-(`r plain_speedup_small`× small, `r plain_speedup_full`× full) by reducing
+**Plain-R (no AD):** batching can deliver a modest speedup by reducing
 the number of R-level `%*%` calls from one per observation to one per fishery,
 allowing BLAS to operate on larger matrices.
 
@@ -573,8 +574,8 @@ or one `[n_obs × n_age]` block multiply, CppAD records the same
 therefore the reverse-mode sweep time, is identical.
 
 **Where is the tape time actually spent?** The very high `gr/fn` ratio
-(~`r gr_fn_loop_small`× small, ~`r gr_fn_loop_full`× full) confirms the tape
-is expensive. In this benchmark model, `catch_pred_fya = N × sel_fya` is
+confirms the tape is expensive. In this benchmark model,
+`catch_pred_fya = N × sel_fya` is
 computed inside a double loop over all `n_fishery × n_year` combinations with
 `par_sel` on the tape, making the double-normal selectivity evaluation the
 dominant tape cost — not the LF matmul at all.
@@ -583,7 +584,7 @@ dominant tape cost — not the LF matmul at all.
 
 | Approach | Plain-R gain | AD gradient gain | Recommended? |
 |---|---|---|---|
-| Batch LF matmul per fishery | Yes (~`r plain_speedup_full`×) | No | For plain-R use only |
+| Batch LF matmul per fishery | Yes | No | For plain-R use only |
 | Reduce `sel_fya` tape ops | N/A | Yes (dominant cost) | High priority |
 | Use CppAD atomic DGEMM | N/A | Would help | Not available in RTMB |
 | Reduce active fisheries | Proportional | Proportional | Use `lf_keep_fisheries` |

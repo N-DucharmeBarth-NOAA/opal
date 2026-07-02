@@ -14,7 +14,7 @@ get_unfished_init(B0, h, M_a, spawning_potential_a)
 \item{M_a}{a \code{vector} of natural mortality at age.}
 
 \item{spawning_potential_a}{a \code{vector} of spawning potential at age
-(maturity × fecundity).}
+(maturity x fecundity).}
 }
 \value{
 A list with \code{rel_N}, \code{R0}, \code{alpha}, and \code{beta}.

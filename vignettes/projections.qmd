@@ -1,10 +1,12 @@
 ---
 title: "Projections and uncertainty: MVN vs MCMC"
-output: rmarkdown::html_vignette
+format: html
+execute:
+  eval: false
 vignette: >
   %\VignetteIndexEntry{Projections and uncertainty: MVN vs MCMC}
   %\VignetteEncoding{UTF-8}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
 editor_options: 
   chunk_output_type: console
 ---
@@ -385,11 +387,11 @@ knitr::kable(scalar_params,
              caption   = "MLE estimates and Hessian-based 95% confidence intervals.")
 ```
 
-The recruitment deviates `rdev_y` cover `r data_sim$n_year` model years, but
-the first `r n_gen` years (one generation time) are fixed at zero — the
-population is assumed to be at unfished equilibrium during that spin-up period.
-The remaining `r data_sim$n_year - n_gen` deviates are freely estimated, each
-centred on zero with prior `sd = sigma_r = `r round(rep_sim$sigma_r, 2)``.
+The recruitment deviates `rdev_y` cover the model years, but the first
+generation-time block is fixed at zero — the population is assumed to be at
+unfished equilibrium during that spin-up period. The remaining deviates are
+freely estimated, each centred on zero with the recruitment standard deviation
+prior.
 
 ```{r rdev-plot}
 #| fig-height: 3.5
@@ -486,7 +488,7 @@ Run a No-U-Turn sampler (NUTS) chain via `SparseNUTS`.  The `bet_globals()`
 call exports all helper functions needed for likelihood evaluation inside the
 MCMC workers.
 
-```{r mcmc-sampling, eval=eval_mcmc}
+```{r mcmc-sampling, eval=FALSE}
 #| output: false
 mcmc_fit <- SparseNUTS::sample_snuts(
   obj         = obj_sim,

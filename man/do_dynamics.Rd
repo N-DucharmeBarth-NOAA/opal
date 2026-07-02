@@ -49,7 +49,7 @@ deviations.}
 Passed explicitly so AD gradients propagate if M is ever estimated.}
 
 \item{spawning_potential_a}{Numeric vector of length \code{n_age}. Spawning
-potential at age (maturity × fecundity). Passed explicitly so AD gradients
+potential at age (maturity x fecundity). Passed explicitly so AD gradients
 propagate if growth is ever estimated.}
 
 \item{weight_fya}{Numeric array \code{[n_fishery, n_year, n_age]}. Mean
@@ -82,8 +82,8 @@ A named list with:
 }
 }
 \description{
-Runs the core age- and season-structured population dynamics loop for bigeye
-tuna. Starts from initial equilibrium numbers (derived from B0 and h),
+Runs the core age- and season-structured population dynamics loop. Starts
+from initial equilibrium numbers (derived from B0 and h),
 applies seasonal harvest, natural mortality, spawning, and recruitment
 (Beverton-Holt with log-normal deviates), and computes predicted catches and
 harvest rates.

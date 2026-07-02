@@ -51,7 +51,7 @@ length 2: -3.773 (Comm fleet), -6.253 (ResFish survey).}
 
 \strong{Selectivity parameters:}
 \describe{
-\item{par_sel}{Selectivity parameters matrix (3 fisheries \times 6 columns).
+\item{par_sel}{Selectivity parameters matrix (3 fisheries x 6 columns).
 \itemize{
 \item{Fleet 1 (Comm)}: Logistic. Cols 1-2 = inflection (36.1 cm),
 95\\% width (4.08 cm). Cols 3-6 unused.

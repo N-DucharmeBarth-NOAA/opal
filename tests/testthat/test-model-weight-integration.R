@@ -13,7 +13,7 @@ make_synthetic_full_data <- function(wf_switch = 1L, lf_switch = 1L) {
   # Add minimal LF composition for 1 fishery, 2 years
   if (lf_switch > 0L) {
     d$lf_switch <- lf_switch
-    d$n_lf <- 2L  # 1 fishery × 2 years
+    d$n_lf <- 2L  # 1 fishery x 2 years
     d$lf_year    <- c(1L, 2L)  # 1-based model timestep indices, not calendar years
     d$lf_season  <- c(1L, 1L)
     d$lf_fishery <- c(1L, 1L)
@@ -21,7 +21,7 @@ make_synthetic_full_data <- function(wf_switch = 1L, lf_switch = 1L) {
     d$lf_n_f <- 2L        # fishery 1 has 2 observations
     d$lf_minbin  <- c(1L, 1L)
     d$lf_maxbin  <- c(15L, 15L)
-    # Flat vector of observations (2 obs × 15 bins)
+    # Flat vector of observations (2 obs x 15 bins)
     d$lf_obs     <- c(rep(1, 15), rep(1, 15))  # uniform counts
     d$lf_n       <- c(15, 15)  # total counts per observation
     d$lf_var_adj <- c(1.0, 1.0)
@@ -40,7 +40,7 @@ make_synthetic_full_data <- function(wf_switch = 1L, lf_switch = 1L) {
     d$wf_fishery <- c(1L, 1L)
     d$wf_minbin  <- c(1L, 1L)
     d$wf_maxbin  <- c(15L, 15L)  # Match n_len = 15
-    # Flat vector of observations (2 obs × 15 bins)
+    # Flat vector of observations (2 obs x 15 bins)
     d$wf_obs_flat <- c(rep(1, 15), rep(1, 15))
     d$wf_obs_ints <- c(rep(15L, 15), rep(15L, 15))  # denom for Dirichlet
     d$wf_obs_prop <- d$wf_obs_flat / c(15, 15)
@@ -154,7 +154,7 @@ make_synthetic_data <- function() {
     lw_a = 0.00001,
     lw_b = 3.0,
     
-    # Catch observations (2 years × 1 season × 2 fisheries)
+    # Catch observations (2 years x 1 season x 2 fisheries)
     catch_obs_ysf = array(c(100, 200, 150, 180), dim = c(2, 1, 2)),
     catch_units_f = c(1L, 1L),  # 1 = weight, 2 = numbers
     removal_switch_f = c(0L, 0L),  # 0 = use composition data, 1 = skip (removal only)
@@ -270,6 +270,14 @@ obj_full   <- make_obj(d_full, params_full, map_full)
 
 test_that("obj$fn() is finite with LF and WF data active", {
   expect_true(is.finite(obj_full$fn()))
+})
+
+test_that("opal_model objective includes all reported likelihood components", {
+  nll <- obj_full$fn()
+  rep <- obj_full$report()
+  expected <- rep$lp_prior + rep$lp_penalty + rep$lp_rec + rep$lp_init_rec +
+    sum(rep$lp_cpue) + sum(rep$lp_lf) + sum(rep$lp_wf)
+  expect_equal(nll, expected, tolerance = 1e-8)
 })
 
 test_that("obj$gr() is finite with LF and WF data active", {

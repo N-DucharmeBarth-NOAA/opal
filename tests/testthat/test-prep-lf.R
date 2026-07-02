@@ -1,7 +1,7 @@
 # Tests for prep_lf_data()
 
 # Shared fixture ----------------------------------------------------------------
-# Mirrors the setup in vignettes/bet.Rmd: load wcpo_bet_data + wcpo_bet_lf,
+# Mirrors the setup in vignettes/bet.qmd: load wcpo_bet_data + wcpo_bet_lf,
 # pivot to wide format, and call prep_lf_data() with lf_keep_fisheries = c(8, 9).
 
 make_lf_data <- function(lf_keep_fisheries = c(8, 9), ...) {

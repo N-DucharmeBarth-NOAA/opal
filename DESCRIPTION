@@ -43,10 +43,11 @@ Suggests:
     bench,
     here,
     htmlwidgets,
+    posterior,
     profmem,
     profvis
 Config/testthat/edition: 3
-VignetteBuilder: knitr, quarto
+VignetteBuilder: quarto
 URL: https://n-ducharmebarth-noaa.github.io/opal/
 Depends: 
     R (>= 3.5)

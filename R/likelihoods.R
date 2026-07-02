@@ -30,13 +30,42 @@
 get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya, cpue_switch = 1L) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
+  data_n_index <- NULL
+  if (is.list(cpue_data) && !is.data.frame(cpue_data) && !is.null(cpue_data$cpue_data)) {
+    if (!is.null(cpue_data$cpue_switch)) cpue_switch <- cpue_data$cpue_switch
+    data_n_index <- cpue_data$n_index
+    cpue_data <- cpue_data$cpue_data
+  }
   log_cpue_q <- parameters$log_cpue_q
   log_cpue_tau <- parameters$log_cpue_tau
   log_cpue_omega <- parameters$log_cpue_omega
+  cpue_creep <- parameters$cpue_creep
   n_cpue <- nrow(cpue_data)
   if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
-  if (!exists("n_index", inherits = FALSE)) n_index <- max(cpue_data$index)
-  cpue_log_pred <- cpue_sigma <- lp <- numeric(n_cpue)
+  n_index <- max(
+    cpue_data$index,
+    length(log_cpue_q),
+    length(log_cpue_tau),
+    length(log_cpue_omega),
+    if (is.null(cpue_creep)) 1L else length(cpue_creep),
+    if (is.null(data_n_index)) 1L else data_n_index
+  )
+  if (is.null(cpue_creep)) cpue_creep <- rep(0, n_index)
+  if (length(log_cpue_q) == 1L && n_index > 1L) log_cpue_q <- rep(log_cpue_q, n_index)
+  if (length(log_cpue_tau) == 1L && n_index > 1L) log_cpue_tau <- rep(log_cpue_tau, n_index)
+  if (length(log_cpue_omega) == 1L && n_index > 1L) log_cpue_omega <- rep(log_cpue_omega, n_index)
+  if (length(cpue_creep) == 1L && n_index > 1L) cpue_creep <- rep(cpue_creep, n_index)
+  cpue_log_pred <- cpue_adjust <- cpue_sigma <- lp <- numeric(n_cpue)
+  for (idx in seq_len(n_index)) {
+    rows <- which(cpue_data$index == idx)
+    if (length(rows) == 0) next
+    cpue_adjust[rows[1]] <- 1
+    if (length(rows) > 1) {
+      for (j in 2:length(rows)) {
+        cpue_adjust[rows[j]] <- cpue_adjust[rows[j - 1]] + cpue_creep[idx]
+      }
+    }
+  }
   for (i in seq_len(n_cpue)) {
     y <- cpue_data$ts[i]
     f <- cpue_data$fishery[i]
@@ -44,13 +73,13 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
     cpue_n <- number_ysa[y, 1, ] * sel_fya[f, y, ]
     if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y,] # 1=weight, 2=numbers
     sum_n <- sum(cpue_n) + 1e-6
-    cpue_log_pred[i] <- exp(log_cpue_omega[idx]) * log(sum_n) + log_cpue_q[idx]
+    cpue_log_pred[i] <- log(cpue_adjust[i]) + exp(log_cpue_omega[idx]) * log(sum_n)
   }
-  centre <- log(mean(exp(cpue_log_pred)))
-  cpue_log_pred <- cpue_log_pred - centre
   for (idx in seq_len(n_index)) {
     rows <- which(cpue_data$index == idx)
     if (length(rows) == 0) next
+    centre <- log(mean(exp(cpue_log_pred[rows])))
+    cpue_log_pred[rows] <- cpue_log_pred[rows] - centre + log_cpue_q[idx]
     tau_idx <- exp(log_cpue_tau[idx])
     cpue_sigma[rows] <- sqrt(cpue_data$se[rows]^2 + tau_idx^2)
   }
@@ -127,9 +156,9 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
     f    <- lf_fishery_f[j]
     ys   <- lf_year_fi[[j]]            # all observed years for fishery f
   
-    # ONE matmul: [n_obs_f × n_age] %*% [n_age × n_len] → [n_obs_f × n_len]
-    catch_ya <- catch_pred_fya[f, ys, ]    # [n_obs_f × n_age]
-    pred_yl  <- catch_ya %*% t(pla)        # [n_obs_f × n_len]  ← replaces the inner loop matvecs
+    # ONE matmul: [n_obs_f x n_age] %*% [n_age x n_len] -> [n_obs_f x n_len]
+    catch_ya <- catch_pred_fya[f, ys, ]    # [n_obs_f x n_age]
+    pred_yl  <- catch_ya %*% t(pla)        # [n_obs_f x n_len], replaces the inner loop matvecs
 
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]

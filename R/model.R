@@ -1,6 +1,7 @@
 utils::globalVariables(c(
   "log_B0", "log_h", "log_sigma_r", "sigma_r", 
   "log_cpue_q", "log_cpue_omega",  
+  "cpue_creep",
   "rdev_y", 
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
@@ -240,8 +241,7 @@ opal_model <- function(parameters, data) {
   } else {
     lp_wf <- 0
   }
-  # nll <- lp_prior + lp_penalty + lp_rec + sum(lp_cpue) + sum(lp_lf)
-  nll <- lp_prior + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+  nll <- lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
   
   # Reporting ----
   

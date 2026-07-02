@@ -13,7 +13,7 @@
 #'   \item{n_age}{Number of age classes (40).}
 #'   \item{n_season}{Number of seasons per year (1).}
 #'   \item{n_fishery}{Number of fisheries/fleets (15).}
-#'   \item{n_year}{Number of years in model (268, equivalent to 67 years × 4 quarters).}
+#'   \item{n_year}{Number of years in model (268, equivalent to 67 years x 4 quarters).}
 #'   \item{first_yr}{First year designation in model (1, representing 1952).}
 #'   \item{last_yr}{Last year designation in model (268, representing 2018).}
 #'   \item{years}{Vector of model years (1:268).}
@@ -31,7 +31,7 @@
 #'   \item{first_yr_catch}{First year with catch data (1).}
 #'   \item{catch_units_f}{Numeric vector of unit codes by fishery (15 elements).
 #'     1 = metric tons (fisheries 8-14), 2 = thousands of fish (fisheries 1-7, 15).}
-#'   \item{catch_obs_ysf}{Three-dimensional array of observed catch (268 years × 1 season × 15 fisheries).
+#'   \item{catch_obs_ysf}{Three-dimensional array of observed catch (268 years x 1 season x 15 fisheries).
 #'     Dimensions follow (year, season, fishery). Units follow catch_units_f.}
 #' }
 #'
@@ -149,7 +149,7 @@
 #'
 #' **Selectivity parameters:**
 #' \describe{
-#'   \item{par_sel}{Selectivity parameters matrix (15 fisheries × 6 columns).
+#'   \item{par_sel}{Selectivity parameters matrix (15 fisheries x 6 columns).
 #'     Rows represent different fisheries/fleets, columns represent selectivity
 #'     curve parameters (e.g., inflection point, slope for logistic curves or
 #'     parameters for double-normal curves).}
@@ -205,7 +205,7 @@
 #' \describe{
 #'   \item{year}{Calendar year (1952-2018). Integer.}
 #'   \item{month}{Fishing quarter month (2, 5, 8, 11 representing Q1-Q4 approx.). Numeric.}
-#'   \item{ts}{Model timestep number (1-268 for 67 years × 4 quarters). Integer.}
+#'   \item{ts}{Model timestep number (1-268 for 67 years x 4 quarters). Integer.}
 #'   \item{fishery}{MFCL fleet index (1-15). Numeric.}
 #'   \item{bin}{Length bin lower edge (cm). 2 cm bins: 10, 12, 14, ... 198. Numeric.}
 #'   \item{value}{Observed count of fish in this length bin. Numeric.}
@@ -263,7 +263,7 @@
 #' \describe{
 #'   \item{year}{Calendar year (1952-2018). Integer.}
 #'   \item{month}{Fishing quarter month (2, 5, 8, 11 representing Q1-Q4 approx.). Numeric.}
-#'   \item{ts}{Model timestep number (1-268 for 67 years × 4 quarters). Integer.}
+#'   \item{ts}{Model timestep number (1-268 for 67 years x 4 quarters). Integer.}
 #'   \item{fishery}{MFCL fleet index (1-15). Numeric.}
 #'   \item{bin}{Weight bin (kg). 1 kg bins: 1, 2, 3, ... 200. Integer.}
 #'   \item{value}{Observations in this weight bin. Numeric.}
@@ -301,7 +301,7 @@
 #'
 #' A saved reference run for the WCPO bigeye tuna assessment that documents the
 #' objective, gradient, and RTMB report output used by the
-#' `vignettes/baseline.Rmd` workflow to detect numerical regressions and timing
+#' `vignettes/baseline.qmd` workflow to detect numerical regressions and timing
 #' changes before and after refactors.
 #'
 #' @details
@@ -329,7 +329,7 @@
 #' @format A named list accessible via `data(opal_baseline)` and
 #'   packaged as `data/opal_baseline.rda`.
 #'
-#' @source `vignettes/baseline.Rmd` (the "Save or compare" chunk) which
+#' @source `vignettes/baseline.qmd` (the "Save or compare" chunk) which
 #'   reproduces the reference run saved to `data/opal_baseline.rda`.
 #'
 #' @examples
@@ -345,21 +345,21 @@
 #'
 #' The full data list used for testing in the opal baseline model.
 #'
-#' @source \code{vignettes/baseline.Rmd}
+#' @source \code{vignettes/baseline.qmd}
 "opal_baseline_data"
 
 #' Opal Baseline Parameters
 #'
 #' The full parameter list used for testing in the opal baseline model.
 #'
-#' @source \code{vignettes/baseline.Rmd}
+#' @source \code{vignettes/baseline.qmd}
 "opal_baseline_parameters"
 
 #' Opal Baseline Map
 #'
 #' The parameter map used for testing in the opal baseline model.
 #'
-#' @source \code{vignettes/baseline.Rmd}
+#' @source \code{vignettes/baseline.qmd}
 "opal_baseline_map"
 
 #' 'Opakapaka Stock Assessment Data
@@ -398,7 +398,7 @@
 #'   \item{catch_units_f}{Numeric vector of unit codes by fishery (3 elements).
 #'     All fisheries use units = 1 (biomass).}
 #'   \item{catch_obs_ysf}{Three-dimensional array of observed catch
-#'     (75 years \times 1 season \times 3 fisheries). Dimensions follow
+#'     (75 years x 1 season x 3 fisheries). Dimensions follow
 #'     (year, season, fishery). Fleet 3 (ResFish survey) has zero catch.}
 #' }
 #'
@@ -546,7 +546,7 @@
 #'
 #' **Selectivity parameters:**
 #' \describe{
-#'   \item{par_sel}{Selectivity parameters matrix (3 fisheries \times 6 columns).
+#'   \item{par_sel}{Selectivity parameters matrix (3 fisheries x 6 columns).
 #'     \itemize{
 #'       \item{Fleet 1 (Comm)}: Logistic. Cols 1-2 = inflection (36.1 cm),
 #'         95\% width (4.08 cm). Cols 3-6 unused.
@@ -611,7 +611,7 @@
 #'   \item Parse length composition observations from SS3 data file
 #'     (\code{data_echo.ss_new})
 #'   \item Extract proportions and sample sizes by fleet-year
-#'   \item Convert proportions to pseudo-counts (proportion \times Nsamp)
+#'   \item Convert proportions to pseudo-counts (proportion x Nsamp)
 #'   \item Reshape to long format (one row per fishery-year-length bin)
 #'   \item Truncate to historical period (1949-2023)
 #' }
@@ -626,7 +626,7 @@
 #'     Numeric.}
 #'   \item{bin}{Length bin lower edge (cm). 5 cm bins: 5, 10, 15, ..., 85.
 #'     Numeric.}
-#'   \item{value}{Pseudo-count (proportion \times Nsamp) in this length bin.
+#'   \item{value}{Pseudo-count (proportion x Nsamp) in this length bin.
 #'     Numeric.}
 #'   \item{week}{Temporal indicator (always 1). Numeric.}
 #' }
@@ -645,7 +645,7 @@
 #'
 #' \itemize{
 #'   \item Data length bins are 5 cm wide (5, 10, 15, ..., 85 cm), giving 17 bins
-#'   \item Values are pseudo-counts derived from SS3 proportions \times Nsamp
+#'   \item Values are pseudo-counts derived from SS3 proportions x Nsamp
 #'   \item Sum of values across bins per fishery-year gives the effective sample size
 #'   \item Very small pseudo-counts (< 1e-10) represent SS3's numerical zeros
 #'     and should be treated as absent observations
@@ -655,7 +655,7 @@
 #'   year (integer), month (integer), ts (integer), fishery (numeric),
 #'   bin (numeric), value (numeric), week (numeric).
 #'   Multiple rows per fishery-year (one per 5 cm length bin). Total rows = 1394
-#'   (82 observation-years \times 17 bins).
+#'   (82 observation-years x 17 bins).
 #'
 #' @source Extracted from Stock Synthesis 3 data file (\code{data_echo.ss_new}).
 #'   Historical period only (1949-2023).
