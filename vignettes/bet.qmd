@@ -69,14 +69,16 @@ cat("Number of length bins:", data$n_len, "\n")
 ## Biological inputs
 
 Natural mortality at age, maturity at length, and length-weight parameters are
-all contained in the data object.
+all contained in the data object. The two primary biological inputs are plotted
+below.
 
 ```{r}
-#| label: plot-biology
+#| label: fig-biology
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Natural mortality-at-age and maturity-at-length used in the BET model.
 ages <- data$age_a
 real_age <- ages / 4
 
@@ -221,16 +223,17 @@ parameters <- list(
 
 The bundled `wcpo_bet_parameters$par_sel` values are already on the
 opal/RTMB real-line scale used by `sel_logistic()` and
-`sel_double_normal()`. For checking against SS3, the table below converts those
-values back to the SS3 reporting scale.
+`sel_double_normal()`. For checking against SS3, @tbl-selectivity-scale converts
+those values back to the SS3 reporting scale.
 
 ```{r}
-#| label: check-selectivity-scale
+#| label: tbl-selectivity-scale
 #| echo: true
 #| message: false
+#| tbl-cap: BET selectivity parameters converted back to SS3 scale.
 convert_rtmb_selex_to_ss3(parameters$par_sel, data$sel_type_f, data$len_mid) %>%
   mutate(across(where(is.numeric), ~ round(.x, 3))) %>%
-  knitr::kable(caption = "BET selectivity parameters converted back to SS3 scale.")
+  knitr::kable()
 ```
 
 ## Priors
@@ -331,25 +334,28 @@ obj$gr()
 # TMB::benchmark(obj, n = 500, expr = expression(obj$gr()))
 ```
 
-Inspect initial model outputs:
+Inspect initial model outputs. The initial biomass trajectory is shown in
+@fig-init-biomass, and the predicted catch checks are shown in @fig-init-catch.
 
 ```{r}
-#| label: init-checks-1
+#| label: fig-init-biomass
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Initial spawning biomass trajectory before optimization.
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Initial spawning biomass trajectory")
 ```
 
 ```{r}
-#| label: init-checks-2
+#| label: fig-init-catch
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Initial predicted catch by fleet compared with observed catch.
 plot_catch(data = data, obj = obj)
 ```
 
@@ -387,7 +393,7 @@ for (f in seq_len(data$n_fishery)) {
     Lwr[idx[1]] <- (5   - mu_len) / sd_len
     Upr[idx[1]] <- (200 - mu_len) / sd_len
 
-    Lwr[idx[2]] <- log(1e-6 / sd_len)   # avoid log(0)
+    Lwr[idx[2]] <- log(1e-6 / sd_len) # avoid log(0)
     Upr[idx[2]] <- log(500  / sd_len)
 
     # unused logistic slots
@@ -408,7 +414,7 @@ for (f in seq_len(data$n_fishery)) {
     Lwr[idx[4]] <- -7 - shift
     Upr[idx[4]] <-  7 - shift
 
-    Lwr[idx[5]] <- -9    # practical bound (instead of -999)
+    Lwr[idx[5]] <- -9 # practical bound (instead of -999)
     Upr[idx[5]] <-  9
     Lwr[idx[6]] <- -9
     Upr[idx[6]] <-  9
@@ -456,15 +462,15 @@ get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, d
 
 ## Selectivity
 
-Visualise the selectivity curves by fleet (at length):
+Visualise the selectivity-at-length curves by fleet in @fig-selectivity-length.
 
 ```{r}
-#| label: plot-selectivity-length
+#| label: fig-selectivity-length
 #| echo: true
 #| message: false
 #| fig-height: 8
 #| fig-width: 10
-#| fig-cap: Selectivity-at-Length by Fleet
+#| fig-cap: Selectivity-at-length by fleet. Coloured lines use the current parameter values; dashed black lines show the bundled reference.
 par_sel_est  <- obj$env$parList(obj$env$last.par.best)$par_sel
 par_sel_orig <- wcpo_bet_parameters$par_sel
 
@@ -515,15 +521,15 @@ ggplot(data = sel_est_df, aes(x = length, y = selectivity, colour = estimated)) 
   coord_cartesian(ylim = c(0, 1))
 ```
 
-Visualise the selectivity curves by fleet (at age):
+The corresponding selectivity-at-age curves are shown in @fig-selectivity-age.
 
 ```{r}
-#| label: plot-selectivity
+#| label: fig-selectivity-age
 #| echo: true
 #| message: false
 #| fig-height: 8
 #| fig-width: 10
-#| fig-cap: Selectivity-at-Age by Fleet
+#| fig-cap: Selectivity-at-age by fleet after integrating length selectivity over the age-length key.
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
@@ -541,12 +547,13 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
   ylim(0, 1)
 ```
 
-Build a long-format table of selectivity parameters.
+@tbl-sel-par summarises the selectivity parameter values and the map status.
 
 ```{r}
-#| label: sel-par-table
+#| label: tbl-sel-par
 #| echo: true
 #| message: false
+#| tbl-cap: Selectivity parameter values, bundled reference values, and map status.
 # Three sources to compare side by side:
 #   1. Initial values used to build obj   (parameters$par_sel)
 #   2. Bundled reference values            (wcpo_bet_parameters$par_sel)
@@ -613,7 +620,6 @@ sel_par_tbl %>%
          `Δ (init − ref)` = diff,
          `Est?` = estimated) %>%
   knitr::kable(
-    caption = "Selectivity parameter values: initial vs. bundled reference, with map status.",
     align   = c("l", "l", "l", "r", "r", "r", "c")
   )
 ```
@@ -653,14 +659,16 @@ Report <- sdreport(obj)
 
 ## Data fits
 
-Inspect fitted CPUE and catch:
+Inspect fitted CPUE and catch. CPUE fits are shown in @fig-cpue-fit; catch fits
+and residuals are plotted below.
 
 ```{r}
-#| label: opt-cpue
+#| label: fig-cpue-fit
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Observed and predicted CPUE by fishery and quarter, with simulated replicate series.
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
@@ -713,24 +721,26 @@ if (data$cpue_switch == 0) {
 ```
 
 ```{r}
-#| label: opt-catch
+#| label: fig-catch-fit
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Predicted catch and catch residual diagnostics for the initial model state.
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
 ```
 
-Inspect predicted vs observed length compositions:
+Inspect predicted vs observed length compositions in @fig-lf-diagnostics.
 
 ```{r}
-#| label: lf-diagnostics
+#| label: fig-lf-diagnostics
 #| echo: true
 #| message: false
 #| fig-height: 6
 #| fig-width: 7
+#| fig-cap: Observed, predicted, and simulated length composition proportions for the selected fishery.
 # Convert model timestep -> "YYYY Qn" label
 ts_to_label <- function(ts, first_yr = 1952, n_season = 4) {
   yr <- first_yr + (ts - 1L) %/% n_season
@@ -841,14 +851,16 @@ if (data$lf_switch == 0) {
 }
 ```
 
-Inspect predicted vs observed weight compositions:
+Inspect predicted vs observed weight compositions when the weight-composition
+likelihood is enabled.
 
 ```{r}
-#| label: wf-diagnostics
+#| label: fig-wf-diagnostics
 #| echo: true
 #| message: false
 #| fig-height: 5
 #| fig-width: 7
+#| fig-cap: Observed and predicted weight composition proportions for the first active weight-composition fishery.
 if (data$wf_switch == 0) {
   cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
 } else {
@@ -903,11 +915,12 @@ if (data$wf_switch == 0) {
 Inspect estimated spawning biomass trajectory:
 
 ```{r}
-#| label: opt-spbio
+#| label: fig-opt-spbio
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Estimated spawning biomass with lognormal 50% and 95% uncertainty intervals.
 #| eval: false
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated spawning_biomass_y entries.
@@ -948,11 +961,12 @@ ggplot(sb_df, aes(x = year)) +
 Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
 
 ```{r}
-#| label: opt-spdep
+#| label: fig-opt-spdep
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Estimated dynamic depletion with lognormal 50% and 95% uncertainty intervals.
 #| eval: false
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated dynamic_depletion_y entries.
@@ -994,14 +1008,16 @@ ggplot(data = sb_df, aes(x = year)) +
 # Simulation
 
 The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
-allows simulation via `obj$simulate()`. For example:
+allows simulation via `obj$simulate()`. The plots below compare observed,
+predicted, and simulated log-CPUE.
 
 ```{r}
-#| label: sim-1
+#| label: fig-cpue-sim
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: Observed, predicted, and simulated log-CPUE by index.
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
 } else {
@@ -1021,11 +1037,12 @@ if (data$cpue_switch == 0) {
 OSA residuals are a replacement for Pearson residuals:
 
 ```{r}
-#| label: osa1
+#| label: fig-osa-residuals
 #| echo: true
 #| message: false
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: One-step-ahead CPUE residual QQ and residual-index diagnostics.
 #| eval: false
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
