@@ -201,6 +201,12 @@ data object:
 #| echo: true
 #| message: false
 data(wcpo_bet_parameters)
+par_sel_start <- as.matrix(wcpo_bet_parameters$par_sel)
+
+# BET double-normal width starts are stored on the SS3-style width scale.
+# opal's double-normal uses exp(width) * sd(length)^2, so shift width
+# columns by log(sd(length)) before passing them to sel_double_normal().
+par_sel_start[, 3:4] <- par_sel_start[, 3:4] - log(sd(data$len_mid))
 
 parameters <- list(
   log_B0 = 20,
@@ -216,15 +222,15 @@ parameters <- list(
   log_k = as.numeric(wcpo_bet_parameters$log_k),
   log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
   log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
-  par_sel = as.matrix(wcpo_bet_parameters$par_sel),
+  par_sel = par_sel_start,
   rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
 )
 ```
 
-The bundled `wcpo_bet_parameters$par_sel` values are already on the
-opal/RTMB real-line scale used by `sel_logistic()` and
-`sel_double_normal()`. For checking against SS3, @tbl-selectivity-scale converts
-those values back to the SS3 reporting scale.
+The bundled `wcpo_bet_parameters$par_sel` values are converted to the
+opal/RTMB real-line scale used by `sel_logistic()` and `sel_double_normal()`
+before fitting. For checking against SS3, @tbl-selectivity-scale converts the
+starting values back to the SS3 reporting scale.
 
 ```{r}
 #| label: tbl-selectivity-scale
@@ -327,6 +333,7 @@ data$wf_switch <- 0 # skip weight comps (removal only)
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+obj$env$tracemgc <- FALSE
 obj$par
 unique(names(obj$par))
 obj$fn()
