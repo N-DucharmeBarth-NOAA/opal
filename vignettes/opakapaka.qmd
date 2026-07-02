@@ -11,7 +11,8 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r, include=FALSE}
+```{r}
+#| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
@@ -38,7 +39,10 @@ research fishery survey (ResFish).
 Load the `opal` package and the `RTMB` dependency. The `tidyverse` package is
 used for data manipulation and plotting.
 
-```{r load-pkg, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-pkg
+#| echo: true
+#| message: false
 library(tidyverse)
 library(opal)
 library(RTMB)
@@ -57,7 +61,10 @@ age-structured biology vectors align correctly with SS3, we set `A1 = 0`
 redefine `age_a` accordingly. The `min_age` field is passed to
 `get_growth()` so that the age sequence starts at 0 rather than 1.
 
-```{r load-data, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-data
+#| echo: true
+#| message: false
 data(opaka_data)
 data <- opaka_data
 if (is.null(data$n_index)) data$n_index <- 2L
@@ -75,7 +82,9 @@ ages <- data$age_a <- seq(data$min_age, by = 1, length.out = data$n_age)
 
 Key dimensions of the data:
 
-```{r data-dims, echo=TRUE}
+```{r}
+#| label: data-dims
+#| echo: true
 cat("Number of ages:", data$n_age, "\n")
 cat("Number of years:", data$n_year, "\n")
 cat("Number of fisheries:", data$n_fishery, "\n")
@@ -96,7 +105,12 @@ spawning biomass (matching SS3's reported SSB_Virgin), so the per-recruit
 spawning potential does not require an additional sex-ratio multiplier. See
 the dynamics diagnostic section for further discussion.
 
-```{r plot-biology, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: plot-biology
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 # Natural mortality
 ggplot(data.frame(age = ages, M = data$M), aes(x = age, y = M)) +
   geom_line() + geom_point(size = 0.8) +
@@ -123,7 +137,10 @@ long-format data object and transformed into model-ready arrays. Data are
 available for two fleets: Comm (fleet 1, 1949–2023) and ResFish (fleet 3,
 2017–2023). Fleet 2 (Non_comm) has no length composition data.
 
-```{r prep-lf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-lf
+#| echo: true
+#| message: false
 data(opaka_lf)
 
 # Pivot to wide format: one row per fishery x timestep, bins as columns
@@ -160,7 +177,10 @@ Two ramps are constructed: one for the initial age cohorts (birth years
 cohorts (1949–2023, applied via `bias_adj_y`). Both use the SS3 EM's
 estimated ramp parameters.
 
-```{r add-bias-ramp, echo=TRUE, message=FALSE}
+```{r}
+#| label: add-bias-ramp
+#| echo: true
+#| message: false
 # 1. INITIAL COHORTS (1906 to 1949)
 # Data ages are 1-based, so 1949 - (age - 1) gives the birth year.
 # Age_a = 1 (bio age 0) -> Born in 1949.
@@ -196,7 +216,10 @@ Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
 from the SS3 estimates. Load these from the bundled `opaka_parameters` data
 object:
 
-```{r get-pars, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-pars
+#| echo: true
+#| message: false
 data(opaka_parameters)
 
 # Route 1949 dev to biological age 0, which is index 1 in opal's 1-based age vector.
@@ -238,7 +261,10 @@ parameters$par_sel = convert_ss3_selex_to_rtmb(parameters$par_sel, data$sel_type
 Priors are specified using `get_priors()`. The data object already contains
 prior center values for growth parameters:
 
-```{r get-priors, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-priors
+#| echo: true
+#| message: false
 data$priors <- get_priors(parameters = parameters, data = data)
 evaluate_priors(parameters = parameters, priors = data$priors)
 ```
@@ -255,7 +281,10 @@ and selected selectivity parameters for the Comm and ResFish fleets.
 Steepness, $\sigma_R$, growth parameters, and some selectivity parameters are fixed
 at values from the SS3 OM.
 
-```{r get-map, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-map
+#| echo: true
+#| message: false
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 # map_sel[1,1:2 ] <- c(1,2) # Comm fleet selectivity parameters
 # map_sel[3,c(1,4,6) ] <- c(3,4,5) # Comm fleet selectivity parameters
@@ -290,7 +319,10 @@ map <- list(
 Using the `data`, the `parameters`, the parameter `map`, and the model
 (`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
 
-```{r make-adfun, echo=TRUE, message=FALSE}
+```{r}
+#| label: make-adfun
+#| echo: true
+#| message: false
 data$lf_switch <- 0 # skip length comps initially (removal only)
 # data$lf_switch <- 1L # multinomial likelihood
 # data$cpue_switch <- 0L
@@ -303,7 +335,12 @@ obj$gr()
 
 Inspect initial model outputs:
 
-```{r init-checks, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: init-checks
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass",
      main = "Initial spawning biomass trajectory")
@@ -311,7 +348,10 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 
 ## Parameter bounds
 
-```{r get-par-bounds, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-par-bounds
+#| echo: true
+#| message: false
 Lwr <- rep(-Inf, length(obj$par))
 Upr <- rep(Inf, length(obj$par))
 Lwr[grep("log_B0", names(obj$par))] <- log(1)
@@ -335,7 +375,10 @@ two CPUE indices only; length compositions are not included.
 
 ## Setup
 
-```{r aspm-setup, echo=TRUE, message=FALSE}
+```{r}
+#| label: aspm-setup
+#| echo: true
+#| message: false
 # Build data object for ASPM: inherit lf_switch = 0, no sel_fa_external at this point
 data_aspm <- data
 data_aspm$cpue_switch <- 1L   # explicitly fit CPUE
@@ -358,7 +401,10 @@ obj_aspm$fn()
 
 ## Parameter bounds
 
-```{r aspm-bounds, echo=TRUE, message=FALSE}
+```{r}
+#| label: aspm-bounds
+#| echo: true
+#| message: false
 Lwr_aspm <- rep(-Inf, length(obj_aspm$par))
 Upr_aspm <- rep( Inf, length(obj_aspm$par))
 Lwr_aspm[grep("log_B0",     names(obj_aspm$par))] <- log(1)
@@ -369,7 +415,10 @@ Upr_aspm[grep("log_cpue_q", names(obj_aspm$par))] <- log(10)
 
 ## Optimisation
 
-```{r aspm-optimize, echo=TRUE, results="hide"}
+```{r}
+#| label: aspm-optimize
+#| echo: true
+#| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
 opt_aspm <- nlminb(start = obj_aspm$par, objective = obj_aspm$fn,
                    gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
@@ -382,7 +431,10 @@ opt_aspm <- nlminb(start = opt_aspm$par, objective = obj_aspm$fn,
                    control = control)
 ```
 
-```{r aspm-convergence, echo=TRUE, message=FALSE}
+```{r}
+#| label: aspm-convergence
+#| echo: true
+#| message: false
 cat("Convergence:", opt_aspm$convergence, "\n")
 cat("Max gradient:", max(abs(obj_aspm$gr())), "\n")
 obj_aspm$report()$lp_prior
@@ -391,20 +443,32 @@ sum(obj_aspm$report()$lp_cpue)
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r aspm-check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+```{r}
+#| label: aspm-check-estimability
+#| echo: true
+#| message: false
+#| error: true
 check_estimability(obj = obj_aspm)
 ```
 
 ## Parameter table
 
-```{r aspm-par-table, echo=TRUE, message=FALSE}
+```{r}
+#| label: aspm-par-table
+#| echo: true
+#| message: false
 get_par_table(obj_aspm, parameters_aspm, map_aspm,
               lower = Lwr_aspm, upper = Upr_aspm, grad_tol = 1e-2, digits = 2L)
 ```
 
 ## CPUE fit
 
-```{r aspm-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: aspm-cpue
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 cpue_df_aspm <- data_aspm$cpue_data %>%
   mutate(pred = obj_aspm$report()$cpue_pred)
 
@@ -427,7 +491,10 @@ CPUE index only; length compositions remain off.
 
 Optimise using the `nlminb` function, run twice to ensure convergence:
 
-```{r run-nlminb, echo=TRUE, results="hide"}
+```{r}
+#| label: run-nlminb
+#| echo: true
+#| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
@@ -446,7 +513,10 @@ sum(obj$report()$lp_lf)
 
 Compare initial and estimated parameter values:
 
-```{r opt-results, echo=TRUE, message=FALSE}
+```{r}
+#| label: opt-results
+#| echo: true
+#| message: false
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
 ```
 
@@ -454,20 +524,30 @@ get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, d
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r opt-check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+```{r}
+#| label: opt-check-estimability
+#| echo: true
+#| message: false
+#| error: true
 check_estimability(obj = obj)
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95)
 using the `get_cor_pairs` function:
 
-```{r check-cor, echo=TRUE, message=FALSE}
+```{r}
+#| label: check-cor
+#| echo: true
+#| message: false
 get_cor_pairs(obj = obj, threshold = 0.95)
 ```
 
 Calculate standard deviations of all model parameters:
 
-```{r run-sdreport, echo=TRUE, message=FALSE}
+```{r}
+#| label: run-sdreport
+#| echo: true
+#| message: false
 Report <- RTMB::sdreport(obj)
 ```
 
@@ -476,7 +556,12 @@ Report <- RTMB::sdreport(obj)
 The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
 allows simulation via `obj$simulate()`.
 
-```{r simulate, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: simulate
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 set.seed(42)
 sims <- replicate(20, obj$simulate()$cpue_log_obs, simplify = FALSE)
 
@@ -507,7 +592,12 @@ base_plot +
 The length compositions are also set up using RTMB's `OBS` mechanism inside the model, which
 allows simulation via `obj$simulate()`.
 
-```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
+```{r}
+#| label: lf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 6
+#| fig-width: 7
 if (data$lf_switch == 0) {
   cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
 } else {
@@ -614,7 +704,13 @@ if (data$lf_switch == 0) {
 
 Visualise the selectivity curves by fleet (at length):
 
-```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=4, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
+```{r}
+#| label: plot-selectivity-length
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 10
+#| fig-cap: Selectivity-at-Length by Fleet
 par_sel_est <- obj$env$parList()$par_sel
 
 fleet_names <- c("Comm", "Non_comm", "ResFish")
@@ -643,7 +739,13 @@ ggplot(sel_len_df, aes(x = length, y = selectivity)) +
 
 Visualise the selectivity curves by fleet (at age):
 
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=4, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+```{r}
+#| label: plot-selectivity
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 10
+#| fig-cap: Selectivity-at-Age by Fleet
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
@@ -677,7 +779,12 @@ Opal's estimated trajectory tracks the SS3 EM (no platoon) closely in shape,
 with a persistent negative bias in scale of approximately 10–20%. This bias
 is an estimation-level difference, not a structural dynamics error, as
 demonstrated by the dynamics diagnostic below.
-```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: opt-spbio
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 
 spawning_biomass_est <- as.data.frame(summary(Report)[which(rownames(summary(Report)) == "spawning_biomass_y"), c("Estimate","Std. Error")])
 colnames(spawning_biomass_est) <- c("estimate", "std_error")
@@ -735,7 +842,12 @@ four model variants that progressively relax constraints:
    point.
 
 
-```{r dynamics-check, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+```{r}
+#| label: dynamics-check
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 8
 # ---- Dynamics diagnostic: fix all parameters at SS3 MLE values ----
 # This isolates opal's population dynamics from estimation differences.
 # If the forward projection matches SS3, the dynamics are correct and any
@@ -940,7 +1052,12 @@ ggplot() +
   theme(legend.position = "bottom")
 ```
 
-```{r dynamics-estimate, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+```{r}
+#| label: dynamics-estimate
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 8
 # ---- Dynamics estimate: optimize B0, init / time rec devs, and init F ----
 map_est <- map_fixed
 map_est$log_B0 <- NULL
@@ -1037,7 +1154,10 @@ freely estimated.
 
 ## Setup
 
-```{r lf-model-setup, echo=TRUE, message=FALSE}
+```{r}
+#| label: lf-model-setup
+#| echo: true
+#| message: false
 # data_no_sel has no sel_fa_external (set in dynamics-check); use it as base
 data_lf <- data_no_sel
 data_lf$lf_switch <- 1L
@@ -1053,7 +1173,10 @@ map_lf$par_sel <- factor(map_sel)
 
 ## Build the AD object
 
-```{r lf-make-adfun, echo=TRUE, message=FALSE}
+```{r}
+#| label: lf-make-adfun
+#| echo: true
+#| message: false
 obj_lf <- MakeADFun(func = cmb(opal_model, data_lf),
                     parameters = parameters,
                     map = map_lf)
@@ -1063,7 +1186,10 @@ obj_lf$fn()   # should be finite
 
 ## Parameter bounds
 
-```{r lf-bounds, echo=TRUE, message=FALSE}
+```{r}
+#| label: lf-bounds
+#| echo: true
+#| message: false
 Lwr_lf <- rep(-Inf, length(obj_lf$par))
 Upr_lf <- rep( Inf, length(obj_lf$par))
 
@@ -1081,7 +1207,10 @@ Upr_lf[grep("par_sel",     names(obj_lf$par))] <-  7
 
 ## Optimisation
 
-```{r lf-optimize, echo=TRUE, results="hide"}
+```{r}
+#| label: lf-optimize
+#| echo: true
+#| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
 opt_lf <- nlminb(start = obj_lf$par, objective = obj_lf$fn,
                  gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
@@ -1094,7 +1223,10 @@ opt_lf <- nlminb(start = opt_lf$par, objective = obj_lf$fn,
                  control = control)
 ```
 
-```{r lf-convergence, echo=TRUE, message=FALSE}
+```{r}
+#| label: lf-convergence
+#| echo: true
+#| message: false
 cat("Convergence:", opt_lf$convergence, "\n")
 cat("Max gradient:", max(abs(obj_lf$gr())), "\n")
 obj_lf$report()$lp_prior
@@ -1106,13 +1238,21 @@ check_estimability(obj = obj_lf)
 
 ## Parameter table
 
-```{r lf-par-table, echo=TRUE, message=FALSE}
+```{r}
+#| label: lf-par-table
+#| echo: true
+#| message: false
 get_par_table(obj_lf, parameters, map_lf,lower = Lwr_lf, upper = Upr_lf, grad_tol = 1e-2, digits = 2L,include="all_est")
 ```
 
 ## Length composition fits
 
-```{r lf-data-fits, echo=TRUE, message=FALSE, fig.height=6, fig.width=9}
+```{r}
+#| label: lf-data-fits
+#| echo: true
+#| message: false
+#| fig-height: 6
+#| fig-width: 9
 lf_rep_lf  <- obj_lf$report()
 lf_pred_lf <- lf_rep_lf$lf_pred
 
@@ -1176,7 +1316,12 @@ print(p_res)
 
 ## Selectivity comparison
 
-```{r lf-selectivity, echo=TRUE, message=FALSE, fig.height=4, fig.width=10}
+```{r}
+#| label: lf-selectivity
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 10
 par_sel_lf  <- obj_lf$env$parList()$par_sel
 par_sel_obj <- obj$env$parList()$par_sel
 
@@ -1214,7 +1359,12 @@ ggplot(sel_comp_df, aes(x = length, y = selectivity, colour = model)) +
 
 ## Spawning biomass comparison
 
-```{r lf-biomass, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+```{r}
+#| label: lf-biomass
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 8
 rep_lf <- obj_lf$report()
 
 ssb_lf_df <- data.frame(
@@ -1267,7 +1417,10 @@ parameter.
 
 ## Setup
 
-```{r cc-setup, echo=TRUE, message=FALSE}
+```{r}
+#| label: cc-setup
+#| echo: true
+#| message: false
 # Inherit lf_switch = 1L and prepared LF arrays from data_lf
 data_cc <- data_lf
 data_cc$cpue_switch <- 0L   # exclude CPUE from likelihood
@@ -1285,7 +1438,10 @@ obj_cc$fn()   # should be finite
 
 ## Parameter bounds
 
-```{r cc-bounds, echo=TRUE, message=FALSE}
+```{r}
+#| label: cc-bounds
+#| echo: true
+#| message: false
 Lwr_cc <- rep(-Inf, length(obj_cc$par))
 Upr_cc <- rep( Inf, length(obj_cc$par))
 
@@ -1301,7 +1457,10 @@ Upr_cc[grep("par_sel",     names(obj_cc$par))] <-  7
 
 ## Optimisation
 
-```{r cc-optimize, echo=TRUE, results="hide"}
+```{r}
+#| label: cc-optimize
+#| echo: true
+#| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
 opt_cc <- nlminb(start = obj_cc$par, objective = obj_cc$fn,
                  gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
@@ -1314,7 +1473,10 @@ opt_cc <- nlminb(start = opt_cc$par, objective = obj_cc$fn,
                  control = control)
 ```
 
-```{r cc-convergence, echo=TRUE, message=FALSE}
+```{r}
+#| label: cc-convergence
+#| echo: true
+#| message: false
 cat("Convergence:", opt_cc$convergence, "\n")
 cat("Max gradient:", max(abs(obj_cc$gr())), "\n")
 obj_cc$report()$lp_prior
@@ -1324,7 +1486,11 @@ sum(obj_cc$report()$lp_lf)
 
 ## Diagnostics
 
-```{r cc-diagnostics, echo=TRUE, message=FALSE, error=TRUE}
+```{r}
+#| label: cc-diagnostics
+#| echo: true
+#| message: false
+#| error: true
 get_par_table(obj_cc, parameters, map_cc,
               lower = Lwr_cc, upper = Upr_cc, grad_tol = 1e-2, digits = 2L,
               include = "all_est")
@@ -1333,7 +1499,12 @@ check_estimability(obj = obj_cc)
 
 ## Length composition fits
 
-```{r cc-lf-fits, echo=TRUE, message=FALSE, fig.height=6, fig.width=9}
+```{r}
+#| label: cc-lf-fits
+#| echo: true
+#| message: false
+#| fig-height: 6
+#| fig-width: 9
 rep_cc       <- obj_cc$report()
 lf_pred_cc   <- rep_cc$lf_pred
 
@@ -1399,7 +1570,12 @@ print(p_cc_res)
 
 ## Spawning biomass
 
-```{r cc-biomass, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+```{r}
+#| label: cc-biomass
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 8
 ssb_cc_df <- data.frame(
   year     = calendar_years,
   estimate = rep_cc$spawning_biomass_y[1:data$n_year],
@@ -1452,7 +1628,9 @@ trajectories are included in the biomass panel for reference.
 
 A shared colour palette is used throughout:
 
-```{r summary-palette, echo=TRUE}
+```{r}
+#| label: summary-palette
+#| echo: true
 summary_colours <- c(
   "ASPM"           = "#E69F00",  # amber
   "ASPM-R"         = "purple",
@@ -1468,7 +1646,12 @@ summary_colours <- c(
 CPUE predicted trajectories for ASPM, ASPM-R, and opal with LF. The catch
 curve is excluded as it does not fit the CPUE index.
 
-```{r summary-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=8}
+```{r}
+#| label: summary-cpue
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 8
 make_cpue_df <- function(obj, model_label, cpue_data) {
   cpue_data %>%
     mutate(pred  = obj$report()$cpue_pred,
@@ -1505,7 +1688,12 @@ Observed length compositions (grey bars) with predicted proportions from
 opal with LF (cyan) and the catch curve (orange). Shown for Comm (decadal
 subset) and all ResFish years.
 
-```{r summary-lf, echo=TRUE, message=FALSE, fig.height=7, fig.width=10}
+```{r}
+#| label: summary-lf
+#| echo: true
+#| message: false
+#| fig-height: 7
+#| fig-width: 10
 # Build long-format predicted LF for both models, labelled
 build_lf_pred_df <- function(obj_x, data_x, model_label) {
   pred_list <- obj_x$report()$lf_pred
@@ -1581,7 +1769,12 @@ print(p_sum_res)
 
 ## Spawning biomass
 
-```{r summary-biomass, echo=TRUE, message=FALSE, fig.height=5, fig.width=8}
+```{r}
+#| label: summary-biomass
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 8
 ssb_summary <- bind_rows(
   data.frame(year = calendar_years,
              estimate = obj_aspm$report()$spawning_biomass_y[1:data$n_year],
@@ -1624,7 +1817,12 @@ The SS3 OM and SS3 EM are not shown as their depletion is defined relative to
 a different reference point and is not directly comparable to opal's
 `dynamic_depletion_y` metric.
 
-```{r summary-depletion, echo=TRUE, message=FALSE, fig.height=4, fig.width=8}
+```{r}
+#| label: summary-depletion
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 8
 dep_summary <- bind_rows(
   data.frame(year = calendar_years,
              depletion = obj_aspm$report()$dynamic_depletion_y[1:data$n_year],

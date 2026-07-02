@@ -25,7 +25,9 @@ it. The workflow has two modes controlled by the `compare` flag:
 
 Set the flag here before knitting:
 
-```{r config, echo=TRUE}
+```{r}
+#| label: config
+#| echo: true
 compare       <- TRUE
 
 # Use here::here() to resolve paths from the project root reliably
@@ -38,7 +40,10 @@ bench_iters              <- 20
 
 # Load inputs
 
-```{r load-pkg, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-pkg
+#| echo: true
+#| message: false
 library(dplyr)
 library(RTMB)
 library(bench)
@@ -46,7 +51,10 @@ library(here)
 library(opal)
 ```
 
-```{r load-data, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-data
+#| echo: true
+#| message: false
 data(wcpo_bet_data)
 data <- wcpo_bet_data
 if (is.null(data$n_index)) data$n_index <- 1L
@@ -55,7 +63,10 @@ if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpu
 
 ## Length composition data
 
-```{r prep-lf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-lf
+#| echo: true
+#| message: false
 data(wcpo_bet_lf)
 
 lf_wide <- wcpo_bet_lf %>%
@@ -77,7 +88,10 @@ data$lf_switch <- 1L
 
 ## Weight composition data
 
-```{r prep-wf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-wf
+#| echo: true
+#| message: false
 data(wcpo_bet_wf)
 
 data$wt_bin_start <- 1
@@ -102,7 +116,10 @@ data <- prep_wf_data(data, wf_wide,
 
 ## Parameters
 
-```{r get-pars, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-pars
+#| echo: true
+#| message: false
 data(wcpo_bet_parameters)
 
 parameters <- list(
@@ -127,13 +144,19 @@ parameters <- list(
 
 ## Priors
 
-```{r get-priors, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-priors
+#| echo: true
+#| message: false
 data$priors <- get_priors(parameters = parameters, data = data)
 ```
 
 ## Parameter map
 
-```{r get-map, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-map
+#| echo: true
+#| message: false
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 
 map <- list(
@@ -155,7 +178,10 @@ map <- list(
 
 ## Build the AD object
 
-```{r make-adfun, echo=TRUE, message=FALSE}
+```{r}
+#| label: make-adfun
+#| echo: true
+#| message: false
 t_build <- system.time({
   obj <- MakeADFun(func = cmb(opal_model, data),
                    parameters = parameters, map = map)
@@ -166,7 +192,9 @@ cat("Estimated parameters:", length(obj$par), "\n")
 
 # Evaluate and benchmark
 
-```{r evaluate, echo=TRUE}
+```{r}
+#| label: evaluate
+#| echo: true
 set.seed(123)
 t_fn <- system.time(nll <- obj$fn(obj$par))
 t_gr <- system.time(gr  <- obj$gr(obj$par))
@@ -179,7 +207,9 @@ cat("gr/fn ratio:", round(t_gr["elapsed"] / max(t_fn["elapsed"], 1e-6), 1), "x\n
 
 Stable timing via `bench::mark`:
 
-```{r bench, echo=TRUE}
+```{r}
+#| label: bench
+#| echo: true
 par1 <- obj$par
 # need to perturb the parameters slightly to avoid caching effects
 bm <- bench::mark(
@@ -193,7 +223,9 @@ bm[, c("expression", "min", "median", "itr/sec")]
 
 # Likelihood component breakdown
 
-```{r nll-breakdown, echo=TRUE}
+```{r}
+#| label: nll-breakdown
+#| echo: true
 cat("lp_prior:  ", round(rep$lp_prior, 4), "\n")
 cat("lp_penalty:", round(rep$lp_penalty, 4), "\n")
 cat("lp_rec:    ", round(rep$lp_rec, 4), "\n")
@@ -208,7 +240,9 @@ cat("Total NLL: ", round(nll, 4), "\n")
 
 # Save or compare
 
-```{r save-or-compare, echo=TRUE}
+```{r}
+#| label: save-or-compare
+#| echo: true
 if (!compare) {
   # ---- Save baseline ----
   baseline <- list(

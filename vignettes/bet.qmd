@@ -11,7 +11,8 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r, include=FALSE}
+```{r}
+#| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
@@ -28,7 +29,10 @@ diagnostics using those data.
 Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
 used for plotting.
 
-```{r load-pkg, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-pkg
+#| echo: true
+#| message: false
 library(opal)
 library(tidyverse)
 library(RTMB)
@@ -40,7 +44,10 @@ The bundled data object `wcpo_bet_data` contains all biological parameters,
 catch and CPUE observations, length structure, and prior specifications needed
 for the BET assessment model:
 
-```{r load-data, echo=TRUE, message=FALSE}
+```{r}
+#| label: load-data
+#| echo: true
+#| message: false
 data(wcpo_bet_data)
 data <- wcpo_bet_data
 if (is.null(data$n_index)) data$n_index <- 1L
@@ -50,7 +57,9 @@ names(data)
 
 Key dimensions of the data:
 
-```{r data-dims, echo=TRUE}
+```{r}
+#| label: data-dims
+#| echo: true
 cat("Number of ages:", data$n_age, "\n")
 cat("Number of years:", data$n_year, "\n")
 cat("Number of fisheries:", data$n_fishery, "\n")
@@ -62,7 +71,12 @@ cat("Number of length bins:", data$n_len, "\n")
 Natural mortality at age, maturity at length, and length-weight parameters are
 all contained in the data object.
 
-```{r plot-biology, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: plot-biology
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 ages <- data$age_a
 real_age <- ages / 4
 
@@ -89,7 +103,10 @@ fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
 
 ## CPUE data
 
-```{r prep-cpue, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-cpue
+#| echo: true
+#| message: false
 data$cpue_data$index <- as.integer(factor(data$cpue_data$month, levels = c(2, 5, 8, 11)))
 data$n_index <- 4L
 ```
@@ -99,7 +116,10 @@ data$n_index <- 4L
 Length composition observations are loaded from the bundled `wcpo_bet_lf`
 long-format data object and transformed into model-ready arrays.
 
-```{r prep-lf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-lf
+#| echo: true
+#| message: false
 data(wcpo_bet_lf)
 
 # Pivot to wide format: one row per fishery x timestep, bins as columns
@@ -137,7 +157,10 @@ sum(data$lf_n) # aim for ~1e4–1e5 total
 Weight composition observations are loaded from the bundled `wcpo_bet_wf`
 long-format data object and transformed into model-ready arrays.
 
-```{r prep-wf, echo=TRUE, message=FALSE}
+```{r}
+#| label: prep-wf
+#| echo: true
+#| message: false
 data(wcpo_bet_wf)
 
 # Weight bin scalars (1 kg bins, 1–200 kg)
@@ -171,9 +194,11 @@ Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
 reasonable starting values. Load these from the bundled `wcpo_bet_parameters` 
 data object:
 
-```{r get-pars, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-pars
+#| echo: true
+#| message: false
 data(wcpo_bet_parameters)
-wcpo_bet_parameters$par_sel[, 3:4] <- wcpo_bet_parameters$par_sel[, 3:4] - log(sd(data$len_mid))
 
 parameters <- list(
   log_B0 = 20,
@@ -194,12 +219,29 @@ parameters <- list(
 )
 ```
 
+The bundled `wcpo_bet_parameters$par_sel` values are already on the
+opal/RTMB real-line scale used by `sel_logistic()` and
+`sel_double_normal()`. For checking against SS3, the table below converts those
+values back to the SS3 reporting scale.
+
+```{r}
+#| label: check-selectivity-scale
+#| echo: true
+#| message: false
+convert_rtmb_selex_to_ss3(parameters$par_sel, data$sel_type_f, data$len_mid) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3))) %>%
+  knitr::kable(caption = "BET selectivity parameters converted back to SS3 scale.")
+```
+
 ## Priors
 
 Priors are specified using `get_priors()`. The data object already contains
 prior center values for growth parameters:
 
-```{r get-priors, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-priors
+#| echo: true
+#| message: false
 data$priors <- get_priors(parameters = parameters, data = data)
 evaluate_priors(parameters = parameters, priors = data$priors)
 ```
@@ -209,7 +251,10 @@ evaluate_priors(parameters = parameters, priors = data$priors)
 Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
 `factor(NA)` are fixed at their initial values:
 
-```{r get-map, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-map
+#| echo: true
+#| message: false
 parameters$par_sel
 wcpo_bet_parameters$par_sel
 
@@ -262,7 +307,10 @@ Optionally, we could also specify random effects here
 (e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model 
 to check everything is working first.
 
-```{r make-adfun, echo=TRUE, message=FALSE}
+```{r}
+#| label: make-adfun
+#| echo: true
+#| message: false
 # data$lf_switch <- 0 # skip length comps (removal only)
 data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
@@ -285,19 +333,32 @@ obj$gr()
 
 Inspect initial model outputs:
 
-```{r init-checks-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: init-checks-1
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 plot(obj$report()$spawning_biomass_y, type = "l",
      xlab = "Time step", ylab = "Spawning biomass (mt)",
      main = "Initial spawning biomass trajectory")
 ```
 
-```{r init-checks-2, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: init-checks-2
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 plot_catch(data = data, obj = obj)
 ```
 
 ## Parameter bounds
 
-```{r get-par-bounds, echo=TRUE, message=FALSE}
+```{r}
+#| label: get-par-bounds
+#| echo: true
+#| message: false
 Lwr <- rep(-Inf, length(obj$par))
 Upr <- rep(Inf, length(obj$par))
 Lwr[grep("log_B0", names(obj$par))] <- log(1)
@@ -310,7 +371,6 @@ Lwr[grep("par_sel", names(obj$par))] <- rep(-15, length(grep("par_sel", names(ob
 Upr[grep("par_sel", names(obj$par))] <- rep(15, length(grep("par_sel", names(obj$par))))
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
-
 
 # remove generic par_sel bounds
 Lwr[grep("par_sel", names(obj$par))] <- -Inf
@@ -362,7 +422,11 @@ bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 
 Optimise using the `nlminb` function:
 
-```{r run-nlminb, echo=TRUE, results="hide", eval=FALSE}
+```{r}
+#| label: run-nlminb
+#| echo: true
+#| results: hide
+#| eval: false
 control <- list(eval.max = 10000, iter.max = 10000)
 # control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
@@ -382,7 +446,11 @@ check_estimability(obj = obj)
 
 Compare initial and estimated parameter values:
 
-```{r opt-results, echo=TRUE, message=FALSE, eval=FALSE}
+```{r}
+#| label: opt-results
+#| echo: true
+#| message: false
+#| eval: false
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
 ```
 
@@ -390,7 +458,13 @@ get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, d
 
 Visualise the selectivity curves by fleet (at length):
 
-```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
+```{r}
+#| label: plot-selectivity-length
+#| echo: true
+#| message: false
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: Selectivity-at-Length by Fleet
 par_sel_est  <- obj$env$parList(obj$env$last.par.best)$par_sel
 par_sel_orig <- wcpo_bet_parameters$par_sel
 
@@ -443,7 +517,13 @@ ggplot(data = sel_est_df, aes(x = length, y = selectivity, colour = estimated)) 
 
 Visualise the selectivity curves by fleet (at age):
 
-```{r plot-selectivity, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Age by Fleet"}
+```{r}
+#| label: plot-selectivity
+#| echo: true
+#| message: false
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: Selectivity-at-Age by Fleet
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
@@ -463,7 +543,10 @@ ggplot(sel_df, aes(x = real_age, y = selectivity)) +
 
 Build a long-format table of selectivity parameters.
 
-```{r sel-par-table, echo=TRUE, message=FALSE}
+```{r}
+#| label: sel-par-table
+#| echo: true
+#| message: false
 # Three sources to compare side by side:
 #   1. Initial values used to build obj   (parameters$par_sel)
 #   2. Bundled reference values            (wcpo_bet_parameters$par_sel)
@@ -539,19 +622,32 @@ sel_par_tbl %>%
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE, eval=FALSE}
+```{r}
+#| label: check-estimability
+#| echo: true
+#| message: false
+#| error: true
+#| eval: false
 check_estimability(obj = obj)
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
 
-```{r check-cor, echo=TRUE, message=FALSE, eval=FALSE}
+```{r}
+#| label: check-cor
+#| echo: true
+#| message: false
+#| eval: false
 get_cor_pairs(obj = obj, threshold = 0.95)
 ```
 
 Calculate standard deviations of all model parameters:
 
-```{r run-sdreport, echo=TRUE, message=FALSE, eval=FALSE}
+```{r}
+#| label: run-sdreport
+#| echo: true
+#| message: false
+#| eval: false
 Report <- sdreport(obj)
 ```
 
@@ -559,7 +655,12 @@ Report <- sdreport(obj)
 
 Inspect fitted CPUE and catch:
 
-```{r opt-cpue, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: opt-cpue
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
@@ -611,7 +712,12 @@ if (data$cpue_switch == 0) {
 }
 ```
 
-```{r opt-catch, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: opt-catch
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 sum(obj$report()$catch_pred_ysf - data$catch_obs_ysf)
 plot_catch(data = data, obj = obj)
 plot_catch(data = data, obj = obj, plot_resid = TRUE)
@@ -619,7 +725,12 @@ plot_catch(data = data, obj = obj, plot_resid = TRUE)
 
 Inspect predicted vs observed length compositions:
 
-```{r lf-diagnostics, echo=TRUE, message=FALSE, fig.height=6, fig.width=7}
+```{r}
+#| label: lf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 6
+#| fig-width: 7
 # Convert model timestep -> "YYYY Qn" label
 ts_to_label <- function(ts, first_yr = 1952, n_season = 4) {
   yr <- first_yr + (ts - 1L) %/% n_season
@@ -732,7 +843,12 @@ if (data$lf_switch == 0) {
 
 Inspect predicted vs observed weight compositions:
 
-```{r wf-diagnostics, echo=TRUE, message=FALSE, fig.height=5, fig.width=7}
+```{r}
+#| label: wf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 7
 if (data$wf_switch == 0) {
   cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
 } else {
@@ -786,7 +902,13 @@ if (data$wf_switch == 0) {
 
 Inspect estimated spawning biomass trajectory:
 
-```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7, eval=FALSE}
+```{r}
+#| label: opt-spbio
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| eval: false
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated spawning_biomass_y entries.
 sb_name <- "spawning_biomass_y"
@@ -825,7 +947,13 @@ ggplot(sb_df, aes(x = year)) +
 
 Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
 
-```{r opt-spdep, echo=TRUE, message=FALSE, fig.height=4, fig.width=7, eval=FALSE}
+```{r}
+#| label: opt-spdep
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| eval: false
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated dynamic_depletion_y entries.
 sb_name <- "dynamic_depletion_y"
@@ -868,7 +996,12 @@ ggplot(data = sb_df, aes(x = year)) +
 The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
 allows simulation via `obj$simulate()`. For example:
 
-```{r sim-1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r}
+#| label: sim-1
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
 } else {
@@ -887,7 +1020,13 @@ if (data$cpue_switch == 0) {
 
 OSA residuals are a replacement for Pearson residuals:
 
-```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7, eval=FALSE}
+```{r}
+#| label: osa1
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| eval: false
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
 } else {

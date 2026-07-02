@@ -11,7 +11,9 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r setup, include=FALSE}
+```{r}
+#| label: setup
+#| include: false
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
@@ -43,7 +45,9 @@ and `obj$gr()` are timed with `bench::mark`.
 
 # Setup
 
-```{r load-pkg, message=FALSE}
+```{r}
+#| label: load-pkg
+#| message: false
 library(dplyr)
 library(tidyr)
 library(RTMB)
@@ -53,7 +57,9 @@ library(opal)
 
 ## Load raw data
 
-```{r load-data, message=FALSE}
+```{r}
+#| label: load-data
+#| message: false
 data(wcpo_bet_data)
 data(wcpo_bet_lf)
 data(opal_baseline_data)
@@ -67,7 +73,8 @@ if (is.null(base_data$cpue_data$index))   base_data$cpue_data$index <- rep(1L, n
 
 ## Build wide-format LF table
 
-```{r lf-wide}
+```{r}
+#| label: lf-wide
 lf_wide <- wcpo_bet_lf |>
   tidyr::pivot_wider(
     id_cols     = c(fishery, year, month, ts),
@@ -86,7 +93,8 @@ cat("Small subset (F8+9):", lf_fish_small, "\n")
 
 ## Prepare LF data subsets
 
-```{r prep-lf}
+```{r}
+#| label: prep-lf
 d_small <- prep_lf_data(base_data, lf_wide,
                         lf_keep_fisheries = lf_fish_small,
                         lf_switch         = 1L)
@@ -107,7 +115,9 @@ Build the baseline model once (no optimisation) to get the MLE PLA matrix and
 numbers-at-age. These are passed as fixed data to the mini benchmark model so
 that the AD tape only records selectivity and likelihood operations.
 
-```{r baseline-build, message=FALSE}
+```{r}
+#| label: baseline-build
+#| message: false
 # Guard missing fields (opal_baseline_data may pre-date n_index)
 bld <- opal_baseline_data
 if (is.null(bld$n_index))         bld$n_index <- 1L
@@ -132,7 +142,8 @@ rep_base     <- obj_base$report()
 par_mle      <- obj_base$env$parList(obj_base$env$last.par.best)
 ```
 
-```{r extract-mle}
+```{r}
+#| label: extract-mle
 # PLA at MLE growth parameters (plain double, off the tape)
 L1_mle  <- exp(par_mle$log_L1)
 L2_mle  <- exp(par_mle$log_L2)
@@ -158,7 +169,8 @@ cat("number_ysa dim:   ", dim(number_ysa_mle), "\n")
 per-observation matrix-vector product. This is what the code looked like before
 the batching optimisation.
 
-```{r def-loop-like}
+```{r}
+#| label: def-loop-like
 get_length_like_loop <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
                                  catch_pred_fya, pla,
                                  lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,
@@ -239,7 +251,8 @@ likelihood.
 proportional catch-at-age that preserves the age-composition shape without
 requiring full population dynamics.
 
-```{r make-bench-fn}
+```{r}
+#| label: make-bench-fn
 make_lf_bench_fn <- function(lf_like_fn) {
   force(lf_like_fn)
   function(parameters, data) {
@@ -286,7 +299,8 @@ make_lf_bench_fn <- function(lf_like_fn) {
 
 ## Build data lists
 
-```{r build-data}
+```{r}
+#| label: build-data
 # Add fixed (off-tape) arrays and double-normal flag to each data subset
 add_bench_fields <- function(d) {
   d$pla_fixed        <- pla_mle
@@ -301,7 +315,8 @@ d_full_b  <- add_bench_fields(d_full)
 
 ## Build parameters and maps
 
-```{r build-pars-maps}
+```{r}
+#| label: build-pars-maps
 # All par_sel start at zero (double-normal at default centre/shape)
 params_bench <- list(
   par_sel    = matrix(0, nrow = base_data$n_fishery, ncol = 6),
@@ -329,7 +344,9 @@ cat("Full:  estimating", sum(!is.na(map_full$par_sel)),
 
 ## Build four MakeADFun objects
 
-```{r build-adfun, message=FALSE}
+```{r}
+#| label: build-adfun
+#| message: false
 fn_loop    <- make_lf_bench_fn(get_length_like_loop)
 fn_batched <- make_lf_bench_fn(get_length_like)
 
@@ -348,7 +365,8 @@ cat("MakeADFun × 4 build time:", round(t_build["elapsed"], 1), "sec\n")
 
 ## Parameter counts and NLL check
 
-```{r nll-check}
+```{r}
+#| label: nll-check
 cat("Small (F8+9): ", length(obj_loop_small$par),  "active params\n")
 cat("Full (7 fish.):", length(obj_loop_full$par), "active params\n")
 
@@ -364,7 +382,8 @@ cat("  batched_full :", obj_batched_full$fn(obj_batched_full$par),  "\n")
 The first call after `MakeADFun` constructs the tape; all subsequent calls
 replay it. Warm up before timing.
 
-```{r warmup}
+```{r}
+#| label: warmup
 for (obj in list(obj_loop_small, obj_batched_small,
                  obj_loop_full,  obj_batched_full)) {
   invisible(obj$fn(obj$par))
@@ -376,7 +395,8 @@ for (obj in list(obj_loop_small, obj_batched_small,
 
 ## `obj$fn()` — forward pass
 
-```{r bench-fn}
+```{r}
+#| label: bench-fn
 bm_fn <- bench::mark(
   loop_small    = obj_loop_small$fn(obj_loop_small$par),
   batched_small = obj_batched_small$fn(obj_batched_small$par),
@@ -393,7 +413,8 @@ bm_fn[, c("expression", "min", "median", "itr/sec", "total_time")]
 Reverse-mode AD cost is determined by tape size (total recorded scalar
 operations). Batching reduces the number of operations the tape must replay.
 
-```{r bench-gr}
+```{r}
+#| label: bench-gr
 bm_gr <- bench::mark(
   loop_small    = obj_loop_small$gr(obj_loop_small$par),
   batched_small = obj_batched_small$gr(obj_batched_small$par),
@@ -410,7 +431,8 @@ bm_gr[, c("expression", "min", "median", "itr/sec", "total_time")]
 Call both implementations as ordinary R functions with double (non-AD)
 inputs. This shows the raw algorithmic cost before any AD overhead is added.
 
-```{r bench-plain-r}
+```{r}
+#| label: bench-plain-r
 # Pre-compute catch_pred_fya at default par_sel = 0 for each subset
 sel_ref_s <- get_selectivity(d_small_b, params_bench$par_sel,
                              pla_mle, d_small_b$len_mid)
@@ -463,7 +485,8 @@ bm_plain[, c("expression", "min", "median", "itr/sec", "total_time")]
 
 # Summary
 
-```{r summary-table}
+```{r}
+#| label: summary-table
 fn_med <- as.numeric(bm_fn$median)
 gr_med <- as.numeric(bm_gr$median)
 r_med  <- as.numeric(bm_plain$median)
@@ -514,7 +537,8 @@ print(res)
 Both implementations record identical numbers of scalar multiply-adds for the
 LF matmul step, because RTMB/CppAD does not use atomic DGEMM tape nodes:
 
-```{r tape-estimate}
+```{r}
+#| label: tape-estimate
 n_a     <- base_data$n_age
 n_l     <- base_data$n_len
 n_obs_s <- d_small_b$n_lf
@@ -542,7 +566,8 @@ cat(" ", base_data$n_fishery, "fisheries ×", base_data$n_year, "years =",
 
 # Results and Discussion
 
-```{r results-discussion}
+```{r}
+#| label: results-discussion
 fn_speedup_small <- round(fn_med[1] / fn_med[2], 2)
 fn_speedup_full  <- round(fn_med[3] / fn_med[4], 2)
 gr_speedup_small <- round(gr_med[1] / gr_med[2], 2)
