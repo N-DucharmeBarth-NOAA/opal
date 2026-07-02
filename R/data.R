@@ -729,7 +729,8 @@
 #'   str(opaka_truth)
 #'   plot(opaka_truth$om$sprseries$Yr, opaka_truth$om$sprseries$SSB, type = "l")
 #'   lines(opaka_truth$em$sprseries$Yr, opaka_truth$em$sprseries$SSB, col = "red")
-#'   lines(opaka_truth$em_no_platoon$sprseries$Yr, opaka_truth$em_no_platoon$sprseries$SSB, col = "blue")
+#'   lines(opaka_truth$em_no_platoon$sprseries$Yr,
+#'         opaka_truth$em_no_platoon$sprseries$SSB, col = "blue")
 #'   # Compare CPUE
 #'   head(opaka_truth$om$cpue)
 #'   head(opaka_truth$em$cpue)

@@ -3,6 +3,7 @@
 ^opal\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^DISCLAIMER\.md$
 ^README\.Rmd$
 ^_pkgdown\.yml$
 ^docs$

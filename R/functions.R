@@ -21,10 +21,19 @@ cmb <- function(f, d) function(p) f(p, d)
 #' @export
 #' 
 check_estimability <- function(obj, h) {
+  old_tracemgc <- obj$env$tracemgc
+  obj$env$tracemgc <- FALSE
+  on.exit({
+    obj$env$tracemgc <- old_tracemgc
+  }, add = TRUE)
   ParHat <- extract_fixed(obj) # Extract fixed effects
   # Check for problems
   Gr <- obj$gr(ParHat)
-  if (any(Gr > 0.01)) stop("Some gradients are high, please improve optimization and only then use `Check_Identifiable`")
+  max_grad <- max(abs(Gr))
+  if (max_grad > 0.01) {
+    stop("Some gradients are high (max |gradient| = ", signif(max_grad, 4),
+         "); improve optimization before checking estimability.")
+  }
   # Finite-different hessian
   List <- NULL
   if (missing(h)) {

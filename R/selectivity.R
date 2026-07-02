@@ -39,10 +39,10 @@ sel_logistic <- function(len, par) {
 #'     \item{`par[2]` (b)}{Plateau width (real line). Controls the distance from peak to the
 #'       start of the descending limb via logistic transform of the available
 #'       range: `peak + bin_width + (0.99 * max(x) - peak - bin_width) / (1 + exp(-b))`.}
-#'     \item{`par[3]` (c)}{Ascending width (real line, log-space). Actual width = `exp(c) * sd(x)`.
-#'       `c = 0` gives an ascending width equal to `sd(x)`.}
-#'     \item{`par[4]` (d)}{Descending width (real line, log-space). Actual width = `exp(d) * sd(x)`.
-#'       `d = 0` gives a descending width equal to `sd(x)`.}
+#'     \item{`par[3]` (c)}{Ascending width (real line, log-space). Actual denominator =
+#'       `exp(c) * sd(x)^2`.}
+#'     \item{`par[4]` (d)}{Descending width (real line, log-space). Actual denominator =
+#'       `exp(d) * sd(x)^2`.}
 #'     \item{`par[5]` (e)}{Initial selectivity (real line, logit-space). Transformed via
 #'       `1 / (1 + exp(-e))`, so `e = 0` gives initial selectivity of 0.5,
 #'       large negative values give ~0, large positive values give ~1.}

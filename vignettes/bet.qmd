@@ -201,12 +201,14 @@ data object:
 #| echo: true
 #| message: false
 data(wcpo_bet_parameters)
-par_sel_start <- as.matrix(wcpo_bet_parameters$par_sel)
+par_sel_raw <- as.matrix(wcpo_bet_parameters$par_sel)
+par_sel_start <- par_sel_raw
 
-# BET double-normal width starts are stored on the SS3-style width scale.
-# opal's double-normal uses exp(width) * sd(length)^2, so shift width
-# columns by log(sd(length)) before passing them to sel_double_normal().
-par_sel_start[, 3:4] <- par_sel_start[, 3:4] - log(sd(data$len_mid))
+# BET double-normal width starts are stored on the legacy opal width scale.
+# The current double-normal uses exp(width) * sd(length)^2, so shift width
+# columns by log(sd(length)) to preserve the same natural-scale denominator.
+double_normal_f <- data$sel_type_f == 2L
+par_sel_start[double_normal_f, 3:4] <- par_sel_start[double_normal_f, 3:4] - log(sd(data$len_mid))
 
 parameters <- list(
   log_B0 = 20,
@@ -227,17 +229,24 @@ parameters <- list(
 )
 ```
 
-The bundled `wcpo_bet_parameters$par_sel` values are converted to the
-opal/RTMB real-line scale used by `sel_logistic()` and `sel_double_normal()`
-before fitting. For checking against SS3, @tbl-selectivity-scale converts the
-starting values back to the SS3 reporting scale.
+The bundled `wcpo_bet_parameters$par_sel` values use the legacy opal width
+scale for double-normal selectivity. They are converted to the current
+`sel_double_normal()` width scale before fitting. @tbl-selectivity-scale shows
+the raw bundled values and the converted fitting starts.
 
 ```{r}
 #| label: tbl-selectivity-scale
 #| echo: true
 #| message: false
-#| tbl-cap: BET selectivity parameters converted back to SS3 scale.
-convert_rtmb_selex_to_ss3(parameters$par_sel, data$sel_type_f, data$len_mid) %>%
+#| tbl-cap: Raw bundled selectivity parameters and opal-scale fitting starts.
+parameter_names <- c("peak", "top", "asc_width", "desc_width", "init", "final")
+bind_rows(
+  as_tibble(par_sel_raw, .name_repair = ~ parameter_names) %>%
+    mutate(fleet = row_number(), scale = "bundled"),
+  as_tibble(parameters$par_sel, .name_repair = ~ parameter_names) %>%
+    mutate(fleet = row_number(), scale = "opal_start")
+) %>%
+  relocate(fleet, scale) %>%
   mutate(across(where(is.numeric), ~ round(.x, 3))) %>%
   knitr::kable()
 ```
@@ -446,15 +455,23 @@ opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
               hessian = obj$he, lower = Lwr, upper = Upr, control = control)
-obj$fn()
-max(abs(obj$gr()))
+obj$env$tracemgc <- FALSE
+fit_nll <- obj$fn(opt$par)
+fit_grad <- max(abs(obj$gr(opt$par)))
+fit_nll
+fit_grad
 obj$report()$lp_prior
 obj$report()$lp_penalty
 obj$report()$lp_rec
 sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
 sum(obj$report()$lp_wf)
-check_estimability(obj = obj)
+if (fit_grad < 1e-2) {
+  check_estimability(obj = obj)
+} else {
+  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4),
+          ". Improve optimization first.")
+}
 ```
 
 Compare initial and estimated parameter values:
@@ -478,8 +495,8 @@ Visualise the selectivity-at-length curves by fleet in @fig-selectivity-length.
 #| fig-height: 8
 #| fig-width: 10
 #| fig-cap: Selectivity-at-length by fleet. Coloured lines use the current parameter values; dashed black lines show the bundled reference.
-par_sel_est  <- obj$env$parList(obj$env$last.par.best)$par_sel
-par_sel_orig <- wcpo_bet_parameters$par_sel
+par_sel_est <- obj$env$parList(obj$env$last.par.best)$par_sel
+par_sel_ref <- parameters$par_sel
 
 map_sel_mat <- matrix(map$par_sel, nrow = nrow(par_sel_est), ncol = ncol(par_sel_est))
 fishery_estimated <- apply(map_sel_mat, 1, function(row) any(!is.na(row)))
@@ -501,9 +518,9 @@ sel_est_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
 
 sel_orig_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
   sel_l <- if (data$sel_type_f[f] == 1L) {
-    sel_logistic(len_mid, par_sel_orig[f, ])
+    sel_logistic(len_mid, par_sel_ref[f, ])
   } else {
-    sel_double_normal(len_mid, par_sel_orig[f, ])
+    sel_double_normal(len_mid, par_sel_ref[f, ])
   }
   data.frame(
     fishery = f,
@@ -529,6 +546,9 @@ ggplot(data = sel_est_df, aes(x = length, y = selectivity, colour = estimated)) 
 ```
 
 The corresponding selectivity-at-age curves are shown in @fig-selectivity-age.
+For comparison with SS3's reported age-selectivity output, the plotted curves
+are scaled to a maximum of 1 within each fleet. The model still uses the
+unscaled PLA-integrated values in `rep$sel_fya`.
 
 ```{r}
 #| label: fig-selectivity-age
@@ -536,7 +556,7 @@ The corresponding selectivity-at-age curves are shown in @fig-selectivity-age.
 #| message: false
 #| fig-height: 8
 #| fig-width: 10
-#| fig-cap: Selectivity-at-age by fleet after integrating length selectivity over the age-length key.
+#| fig-cap: Reported selectivity-at-age by fleet after integrating length selectivity over the age-length key and scaling each fleet to a maximum of 1 for SS3-style plotting.
 rep <- obj$report()
 sel_fya <- rep$sel_fya
 
@@ -546,8 +566,12 @@ sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
 })
 sel_df$real_age <- sel_df$age / 4
 sel_df$fleet_name <- fleet_names[sel_df$fishery]
+sel_df <- sel_df %>%
+  group_by(fishery) %>%
+  mutate(selectivity_reported = selectivity / max(selectivity, na.rm = TRUE)) %>%
+  ungroup()
 
-ggplot(sel_df, aes(x = real_age, y = selectivity)) +
+ggplot(sel_df, aes(x = real_age, y = selectivity_reported)) +
   geom_line() +
   facet_wrap(~fleet_name, ncol = 4) +
   labs(x = "Age (years)", y = "Selectivity") +
@@ -641,7 +665,14 @@ Check that all parameters are estimable using the `check_estimability` function:
 #| message: false
 #| error: true
 #| eval: false
-check_estimability(obj = obj)
+obj$env$tracemgc <- FALSE
+fit_grad <- max(abs(obj$gr(obj$env$last.par.best)))
+if (fit_grad < 1e-2) {
+  check_estimability(obj = obj)
+} else {
+  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4),
+          ". Improve optimization first.")
+}
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
