@@ -267,7 +267,10 @@ evaluate_priors(parameters = parameters, priors = data$priors)
 ## Parameter map
 
 Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
-`factor(NA)` are fixed at their initial values:
+`factor(NA)` are fixed at their initial values. Recruitment deviations are
+fixed here to keep this diagnostic fit focused on scale and selectivity; freeing
+all quarterly deviations as fixed effects can create high-gradient early
+recruitment spikes and a misleading initial biomass trajectory.
 
 ```{r}
 #| label: get-map
@@ -278,14 +281,15 @@ wcpo_bet_parameters$par_sel
 
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 
-# 8-14 is LFs
-map_sel[8, c(1, 3, 4)] <- 1:3 # peak, plateau, asc-width, desc-width
-map_sel[9, c(1, 3, 4)] <- 4:6 # peak, plateau, asc-width, desc-width
-map_sel[10, c(1, 3, 4)] <- 7:9 # peak, plateau, asc-width, desc-width
-map_sel[11, 1:2] <- 10:11 # peak, plateau, asc-width, desc-width
-map_sel[12, c(1, 3, 4)] <- 12:14 # peak, plateau, asc-width, desc-width
-map_sel[13, c(1, 3, 4)] <- 15:17 # peak, plateau, asc-width, desc-width
-map_sel[14, c(1, 3, 4)] <- 18:20 # peak, plateau, asc-width, desc-width
+# 8-14 have LF data. Estimate peak and width parameters for most LF fleets.
+# F13_JP.PL is fixed at the bundled SS3-derived start because estimating it
+# pushes the peak to the lower length bound and produces an edge spike.
+map_sel[8, c(1, 3, 4)] <- 1:3 # peak, asc-width, desc-width
+map_sel[9, c(1, 3, 4)] <- 4:6 # peak, asc-width, desc-width
+map_sel[10, c(1, 3, 4)] <- 7:9 # peak, asc-width, desc-width
+map_sel[11, 1:2] <- 10:11 # logistic inflection and width
+map_sel[12, c(1, 3, 4)] <- 12:14 # peak, asc-width, desc-width
+map_sel[14, c(1, 3, 4)] <- 15:17 # peak, asc-width, desc-width
 
 # 1-7 & 15 is WFs
 # map_sel[1, c(1, 3, 4, 6)] <- 29:32
@@ -312,8 +316,8 @@ map <- list(
   log_k   = factor(NA),
   log_CV1 = factor(NA),
   log_CV2 = factor(NA),
-  par_sel = factor(map_sel)
-  # rdev_y = as.factor(map_rdev),
+  par_sel = factor(map_sel),
+  rdev_y = factor(map_rdev)
 )
 ```
 
@@ -433,14 +437,17 @@ for (f in seq_len(data$n_fishery)) {
     }
 
     # for sel_double_normal using exp(c)*sd^2 and exp(d)*sd^2:
+    # the upper width bound is slightly wider than the SS3-style default to
+    # avoid artificial convergence on the transformed denominator bound.
     shift <- 2 * log(sd_len)
+    width_log_upper <- 8
     if (!is.na(idx[3])) {
       Lwr[idx[3]] <- -7 - shift
-      Upr[idx[3]] <-  7 - shift
+      Upr[idx[3]] <-  width_log_upper - shift
     }
     if (!is.na(idx[4])) {
       Lwr[idx[4]] <- -7 - shift
-      Upr[idx[4]] <-  7 - shift
+      Upr[idx[4]] <-  width_log_upper - shift
     }
 
     if (!is.na(idx[5])) {
@@ -468,12 +475,17 @@ Optimise using the `nlminb` function:
 #| eval: false
 control <- list(eval.max = 10000, iter.max = 10000)
 # control <- list(eval.max = 100, iter.max = 100)
-opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
-              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
-opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
-              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
 obj$env$tracemgc <- FALSE
+opt <- list(par = obj$par)
+fit_grad <- Inf
+for (i in seq_len(4)) {
+  opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
+                hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+  fit_grad <- max(abs(obj$gr(opt$par)))
+  if (fit_grad < 1e-2) break
+}
 fit_nll <- obj$fn(opt$par)
+obj$env$last.par.best <- opt$par
 fit_grad <- max(abs(obj$gr(opt$par)))
 fit_nll
 fit_grad
@@ -667,9 +679,7 @@ sel_par_tbl %>%
          `Reference (bundled)` = reference,
          `Δ (init − ref)` = diff,
          `Est?` = estimated) %>%
-  knitr::kable(
-    align   = c("l", "l", "l", "r", "r", "r", "c")
-  )
+  knitr::kable(align   = c("l", "l", "l", "r", "r", "r", "c"))
 ```
 
 ## Diagnostics
