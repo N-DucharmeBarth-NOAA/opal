@@ -27,6 +27,16 @@
 #' @export
 #' 
 get_data <- function(data_in) {
+  utils::data(
+    list = c(
+      "aerial_cov", "aerial_survey", "age_freq", "catch", "catch_UA",
+      "cpue", "GTs", "HSPs", "length_freq", "length_mean", "length_sd",
+      "paly", "POPs", "tag_recaptures", "tag_releases", "tag_reporting",
+      "troll"
+    ),
+    package = "opal",
+    envir = environment()
+  )
 
   # Dimensions ----
   
@@ -54,10 +64,10 @@ get_data <- function(data_in) {
   
   # Length ----
   
-  data_in$length_mu_ysa <- get_length_at_age(length_mean = opal::length_mean)
+  data_in$length_mu_ysa <- get_length_at_age(length_mean = length_mean)
   
-  data_in$length_sd_a <- opal::length_sd$SD
-  names(data_in$length_sd_a) <- opal::length_sd$Age
+  data_in$length_sd_a <- length_sd$SD
+  names(data_in$length_sd_a) <- length_sd$Age
   
   expect_identical(dim(data_in$length_mu_ysa), 
                    as.integer(c(data_in$n_year, data_in$n_season, data_in$n_age)), 
@@ -72,10 +82,10 @@ get_data <- function(data_in) {
   
   # Catch ----
   
-  data_in$first_yr_catch <- min(opal::catch$Year)
+  data_in$first_yr_catch <- min(catch$Year)
   data_in$first_yr_catch_f <- c(1952, 1969, 1954, 1953, 1976, 1952)
-  data_in$n_catch <- nrow(opal::catch)
-  data_in$catch_year <- opal::catch$Year
+  data_in$n_catch <- nrow(catch)
+  data_in$catch_year <- catch$Year
   
   scenarios_LL1 <- data_in$scenarios_LL1 %>%
     select(Year, LL1_case = data_in$catch_LL1_case + 2) %>%
@@ -85,10 +95,10 @@ get_data <- function(data_in) {
     select(Year, surf_case = data_in$catch_surf_case + 2) %>%
     mutate(fishery = "Australia")
   
-  catch_UA <- opal::catch_UA %>%
+  catch_UA <- catch_UA %>%
     pivot_longer(cols = -Year, names_to = "fishery", values_to = "UA")
   
-  catch <- opal::catch %>%
+  catch <- catch %>%
     pivot_longer(cols = -Year, names_to = "fishery") %>%
     full_join(scenarios_LL1, by = join_by("Year", "fishery")) %>%
     full_join(scenarios_surf, by = join_by("Year", "fishery")) %>%
@@ -131,7 +141,7 @@ get_data <- function(data_in) {
   
   # POPs ----
 
-  data_in$pop_obs <- opal::POPs %>%
+  data_in$pop_obs <- POPs %>%
     filter(Comps > 0) %>%
     mutate(Cohort = Cohort - data_in$first_yr + 1) %>%
     mutate(CaptureYear = CaptureYear - data_in$first_yr + 1) %>%
@@ -142,7 +152,7 @@ get_data <- function(data_in) {
   
   # paly ----
 
-  paly <- opal::paly
+  paly <- paly
   xbins <- dim(paly)[1]
   xages <- as.character(dimnames(paly)[[2]])
   xyrs <- as.character(dimnames(paly)[[3]])
@@ -155,7 +165,7 @@ get_data <- function(data_in) {
 
   # HSPs ----
   
-  data_in$hsp_obs <- opal::HSPs %>%
+  data_in$hsp_obs <- HSPs %>%
     mutate(cohort1 = cohort1 - data_in$first_yr + 1) %>% 
     mutate(cohort2 = cohort2 - data_in$first_yr + 1) %>% 
     rowwise() %>%
@@ -166,7 +176,7 @@ get_data <- function(data_in) {
   
   # Gene tagging (GT) ----
   
-  data_in$gt_obs <- opal::GTs %>%
+  data_in$gt_obs <- GTs %>%
     mutate(RelYear = RelYear - data_in$first_yr + 1) %>% 
     mutate(RecYear = RecYear - data_in$first_yr + 1) %>% 
     mutate(RelAge = RelAge + 1) %>% # change to index
@@ -176,29 +186,29 @@ get_data <- function(data_in) {
   
   # Aerial surveys ----
   
-  data_in$aerial_years <- opal::aerial_survey$Year - data_in$first_yr + 1
-  data_in$aerial_obs <- opal::aerial_survey$Unscaled_Index
-  data_in$aerial_cv <- opal::aerial_survey$CV
-  data_in$aerial_cov <- opal::aerial_cov
+  data_in$aerial_years <- aerial_survey$Year - data_in$first_yr + 1
+  data_in$aerial_obs <- aerial_survey$Unscaled_Index
+  data_in$aerial_cv <- aerial_survey$CV
+  data_in$aerial_cov <- aerial_cov
   
   expect_equal(dim(data_in$aerial_cov), rep(length(data_in$aerial_years), 2), info = "Dimension error in aerial_cov.")
   
   # Troll surveys ----
   
-  data_in$troll_years <- opal::troll$Year - data_in$first_yr + 1
-  data_in$troll_obs <- opal::troll$Median
-  data_in$troll_sd <- opal::troll$SD
+  data_in$troll_years <- troll$Year - data_in$first_yr + 1
+  data_in$troll_obs <- troll$Median
+  data_in$troll_sd <- troll$SD
   
   # CPUE ----
   
-  data_in$cpue_years <- opal::cpue$Year - data_in$first_yr + 1
-  data_in$cpue_obs <- opal::cpue$CPUE / mean(opal::cpue$CPUE)
-  data_in$cpue_sd <- numeric(length(opal::cpue$CPUE))
+  data_in$cpue_years <- cpue$Year - data_in$first_yr + 1
+  data_in$cpue_obs <- cpue$CPUE / mean(cpue$CPUE)
+  data_in$cpue_sd <- numeric(length(cpue$CPUE))
 
   # Age-frequency ----
   
   if (is.null(data_in$af_data)) {
-    af_data <- opal::age_freq
+    af_data <- age_freq
   } else {
     af_data <- data_in$af_data
   }
@@ -333,7 +343,7 @@ get_data <- function(data_in) {
   }
   
   # if (is.null(data_in$lf_data)) {
-    lf_data <- opal::length_freq %>% filter(Fishery != 7)
+    lf_data <- length_freq %>% filter(Fishery != 7)
   # } else {
     # lf_data <- data_in$lf_data
   # }
@@ -380,7 +390,7 @@ get_data <- function(data_in) {
   
   # CPUE LFs ----
   
-  cpue_lfs <- opal::length_freq %>% filter(Fishery == 7)
+  cpue_lfs <- length_freq %>% filter(Fishery == 7)
   obs_len_freq_il <- get_lf_obs(cpue_lfs, nbins = 25) 
   ll <- seq(from = min_len, by = bin_width, length.out = nbins + 1) - 1
   
@@ -406,7 +416,7 @@ get_data <- function(data_in) {
   data_in$tag_shed_immediate <- c(0.9737, 0.9608, 1, 1, 0.9342, 0.9666)
   data_in$tag_shed_continuous <- c(0.0391, 0.0492, 0.0672, 0.0925, 0.0885, 0.1601)
   
-  data_in$tag_rep_rates_ya <- opal::tag_reporting %>%
+  data_in$tag_rep_rates_ya <- tag_reporting %>%
     filter(LL1 == data_in$catch_LL1_case, Surf == data_in$catch_surf_case) %>%
     select(-c(1:3)) %>%
     as.matrix()
@@ -417,7 +427,7 @@ get_data <- function(data_in) {
   
   scenarios_surf <- data_in$scenarios_surf
   
-  df <- opal::tag_releases %>% 
+  df <- tag_releases %>% 
     pivot_longer(3:5, names_to = "Age") %>%
     arrange(Cohort, Group, Age)
   
@@ -444,7 +454,7 @@ get_data <- function(data_in) {
     }
   }
   
-  df <- opal::tag_recaptures %>% 
+  df <- tag_recaptures %>% 
     pivot_longer(4:10, names_to = "RecAge") %>%
     arrange(Cohort, Group, RelAge, RecAge)
   

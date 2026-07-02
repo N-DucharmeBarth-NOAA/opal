@@ -2,7 +2,7 @@
 title: "The BET model"
 format: html
 execute:
-  eval: false
+  eval: true
 vignette: >
   %\VignetteIndexEntry{The BET model}
   %\VignetteEncoding{UTF-8}
@@ -362,7 +362,7 @@ bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 
 Optimise using the `nlminb` function:
 
-```{r run-nlminb, echo=TRUE, results="hide"}
+```{r run-nlminb, echo=TRUE, results="hide", eval=FALSE}
 control <- list(eval.max = 10000, iter.max = 10000)
 # control <- list(eval.max = 100, iter.max = 100)
 opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
@@ -382,7 +382,7 @@ check_estimability(obj = obj)
 
 Compare initial and estimated parameter values:
 
-```{r opt-results, echo=TRUE, message=FALSE}
+```{r opt-results, echo=TRUE, message=FALSE, eval=FALSE}
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
 ```
 
@@ -539,19 +539,19 @@ sel_par_tbl %>%
 
 Check that all parameters are estimable using the `check_estimability` function:
 
-```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE}
+```{r check-estimability, echo=TRUE, message=FALSE, error = TRUE, eval=FALSE}
 check_estimability(obj = obj)
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
 
-```{r check-cor, echo=TRUE, message=FALSE}
+```{r check-cor, echo=TRUE, message=FALSE, eval=FALSE}
 get_cor_pairs(obj = obj, threshold = 0.95)
 ```
 
 Calculate standard deviations of all model parameters:
 
-```{r run-sdreport, echo=TRUE, message=FALSE}
+```{r run-sdreport, echo=TRUE, message=FALSE, eval=FALSE}
 Report <- sdreport(obj)
 ```
 
@@ -786,7 +786,7 @@ if (data$wf_switch == 0) {
 
 Inspect estimated spawning biomass trajectory:
 
-```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r opt-spbio, echo=TRUE, message=FALSE, fig.height=4, fig.width=7, eval=FALSE}
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated spawning_biomass_y entries.
 sb_name <- "spawning_biomass_y"
@@ -825,7 +825,7 @@ ggplot(sb_df, aes(x = year)) +
 
 Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
 
-```{r opt-spdep, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r opt-spdep, echo=TRUE, message=FALSE, fig.height=4, fig.width=7, eval=FALSE}
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated dynamic_depletion_y entries.
 sb_name <- "dynamic_depletion_y"
@@ -887,7 +887,7 @@ if (data$cpue_switch == 0) {
 
 OSA residuals are a replacement for Pearson residuals:
 
-```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7}
+```{r osa1, echo=TRUE, message=FALSE, fig.height=4, fig.width=7, eval=FALSE}
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
 } else {

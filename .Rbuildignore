@@ -10,6 +10,8 @@
 ^\.github$
 ^doc$
 ^Meta$
+^vignettes/.*\.html$
+^vignettes/.*_files$
 ^\.positai$
 ^\.claude$
 ^inst/scripts$
