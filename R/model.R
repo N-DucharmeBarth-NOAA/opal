@@ -19,7 +19,7 @@ utils::globalVariables(c(
   "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
   "wt_bin_start", "wt_bin_width",
   "log_wf_tau", "wf_addtocomp",
-  "priors"
+  "priors", "sel_fa_external"
 ))
 
 #' The globals
@@ -141,9 +141,32 @@ opal_model <- function(parameters, data) {
   }
   
   # Selectivity ----
-  
-  # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
-  sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+  if (exists("sel_fa_external", inherits = FALSE) && !is.null(sel_fa_external)) {
+    sel_dims <- dim(sel_fa_external)
+    if (is.null(sel_dims)) {
+      stop("'sel_fa_external' must be a matrix or 3-D array.")
+    } else if (length(sel_dims) == 2L) {
+      if (!all(dim(sel_fa_external) == c(n_fishery, n_age))) {
+        stop("'sel_fa_external' must have dimensions [n_fishery, n_age].")
+      }
+      sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+      for (f in seq_len(n_fishery)) {
+        for (y in seq_len(n_year)) {
+          sel_fya[f, y, ] <- sel_fa_external[f, ]
+        }
+      }
+    } else if (length(sel_dims) == 3L) {
+      if (!all(sel_dims == c(n_fishery, n_year, n_age))) {
+        stop("'sel_fa_external' must have dimensions [n_fishery, n_year, n_age].")
+      }
+      sel_fya <- sel_fa_external
+    } else {
+      stop("'sel_fa_external' must be a matrix or 3-D array.")
+    }
+  } else {
+    # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
+    sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+  }
   
   # Main population loop ----
   

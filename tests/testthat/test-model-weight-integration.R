@@ -260,6 +260,48 @@ test_that("bet_globals includes get_weight_like, rebin_counts, rebin_matrix", {
   expect_true("rebin_matrix"    %in% names(g))
 })
 
+test_that("opal_model uses external selectivity-at-age when supplied", {
+  d <- make_synthetic_data()
+  external_sel <- matrix(
+    c(0.1, 0.3, 0.6, 0.9, 1.0,
+      1.0, 0.8, 0.5, 0.2, 0.1),
+    nrow = d$n_fishery,
+    ncol = d$n_age,
+    byrow = TRUE
+  )
+  d$sel_fa_external <- external_sel
+
+  obj <- make_obj(d)
+  sel_fya <- obj$report()$sel_fya
+
+  expect_equal(dim(sel_fya), c(d$n_fishery, d$n_year, d$n_age))
+  for (y in seq_len(d$n_year)) {
+    expect_equal(sel_fya[, y, ], external_sel)
+  }
+})
+
+test_that("opal_model uses year-specific external selectivity array when supplied", {
+  d <- make_synthetic_data()
+  external_sel <- array(0, dim = c(d$n_fishery, d$n_year, d$n_age))
+  external_sel[, 1, ] <- matrix(
+    c(0.1, 0.3, 0.6, 0.9, 1.0,
+      1.0, 0.8, 0.5, 0.2, 0.1),
+    nrow = d$n_fishery,
+    byrow = TRUE
+  )
+  external_sel[, 2, ] <- matrix(
+    c(0.2, 0.4, 0.7, 0.95, 1.0,
+      0.9, 0.7, 0.4, 0.15, 0.05),
+    nrow = d$n_fishery,
+    byrow = TRUE
+  )
+  d$sel_fa_external <- external_sel
+
+  obj <- make_obj(d)
+
+  expect_equal(obj$report()$sel_fya, external_sel)
+})
+
 # Tests: full model with WF data and gradient check ---------------------------
 
 # Build once, reuse across related tests (using fast synthetic data)
