@@ -171,6 +171,7 @@ data object:
 
 ```{r get-pars, echo=TRUE, message=FALSE}
 data(wcpo_bet_parameters)
+wcpo_bet_parameters$par_sel[, 3:4] <- wcpo_bet_parameters$par_sel[, 3:4] - log(sd(data$len_mid))
 
 parameters <- list(
   log_B0 = 20,
@@ -179,8 +180,6 @@ parameters <- list(
   log_cpue_q = rep(0, data$n_index),
   log_cpue_tau = rep(log(0.1), data$n_index),
   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
-  # log_cpue_tau = rep(log(0.1), data$n_index),
-  # log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
   log_wf_tau = rep(0, data$n_fishery),
   log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
@@ -213,8 +212,8 @@ parameters <- list(
 # )
 
 load("pars.rda")
-parameters <- obj1$env$parList(obj1$env$last.par.best)
-# parameters$par_sel[8,] <- as.matrix(wcpo_bet_parameters$par_sel)[8,]
+# parameters <- obj1$env$parList(obj1$env$last.par.best)
+# parameters$par_sel <- as.matrix(wcpo_bet_parameters$par_sel)
 ```
 
 ## Priors
@@ -237,8 +236,6 @@ parameters$par_sel
 wcpo_bet_parameters$par_sel
 
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
-
-# peak is postion of left end
 
 # 8-14 is LFs
 map_sel[8, c(1, 3, 4)] <- 1:3 # peak, plateau, asc-width, desc-width
@@ -335,6 +332,51 @@ Lwr[grep("par_sel", names(obj$par))] <- rep(-15, length(grep("par_sel", names(ob
 Upr[grep("par_sel", names(obj$par))] <- rep(15, length(grep("par_sel", names(obj$par))))
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
+
+
+# remove generic par_sel bounds
+Lwr[grep("par_sel", names(obj$par))] <- -Inf
+Upr[grep("par_sel", names(obj$par))] <-  Inf
+
+mu_len <- mean(data$len_mid)
+sd_len <- sd(data$len_mid)
+
+for (f in seq_len(data$n_fishery)) {
+  idx <- grep(paste0("^par_sel\\[", f, ","), names(obj$par))
+
+  if (data$sel_type_f[f] == 1L) {
+    # Logistic: inflection [5,200], width [>0,500]
+    Lwr[idx[1]] <- (5   - mu_len) / sd_len
+    Upr[idx[1]] <- (200 - mu_len) / sd_len
+
+    Lwr[idx[2]] <- log(1e-6 / sd_len)   # avoid log(0)
+    Upr[idx[2]] <- log(500  / sd_len)
+
+    # unused logistic slots
+    Lwr[idx[3:6]] <- -Inf
+    Upr[idx[3:6]] <-  Inf
+  } else {
+    # Double-normal SS3 bounds
+    Lwr[idx[1]] <- (10.1 - mu_len) / sd_len
+    Upr[idx[1]] <- (200  - mu_len) / sd_len
+
+    Lwr[idx[2]] <- -7
+    Upr[idx[2]] <-  7
+
+    # for sel_double_normal using exp(c)*sd^2 and exp(d)*sd^2:
+    shift <- 2 * log(sd_len)
+    Lwr[idx[3]] <- -7 - shift
+    Upr[idx[3]] <-  7 - shift
+    Lwr[idx[4]] <- -7 - shift
+    Upr[idx[4]] <-  7 - shift
+
+    Lwr[idx[5]] <- -9    # practical bound (instead of -999)
+    Upr[idx[5]] <-  9
+    Lwr[idx[6]] <- -9
+    Upr[idx[6]] <-  9
+  }
+}
+
 bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
 ```
 
@@ -373,7 +415,7 @@ get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, d
 Visualise the selectivity curves by fleet (at length):
 
 ```{r plot-selectivity-length, echo=TRUE, message=FALSE, fig.height=8, fig.width=10, fig.cap="Selectivity-at-Length by Fleet"}
-par_sel_est  <- obj$env$parList()$par_sel
+par_sel_est  <- obj$env$parList(obj$env$last.par.best)$par_sel
 par_sel_orig <- wcpo_bet_parameters$par_sel
 
 map_sel_mat <- matrix(map$par_sel, nrow = nrow(par_sel_est), ncol = ncol(par_sel_est))
@@ -576,25 +618,19 @@ if (data$cpue_switch == 0) {
   df <- format_facets(df)
   df_sim <- format_facets(df_sim)
   
-  ggplot(df, aes(x = year)) +
-    # Simulated replicates: thin grey lines, one per sim_id
-    geom_line(data = df_sim,
-              aes(y = sim, group = sim_id),
-              colour = "grey60", alpha = 0.25, linewidth = 0.3) +
-    # Observed: points + SE bars
+  ggplot(data = df, aes(x = year)) +
+    geom_line(data = df_sim, aes(y = sim, group = sim_id),
+              colour = "lightblue", alpha = 0.5, linewidth = 0.3) +
     geom_linerange(aes(ymin = exp(log(value) - sigma),
                        ymax = exp(log(value) + sigma),
                        colour = "Observed"), alpha = 0.6) +
     geom_point(aes(y = value, colour = "Observed")) +
-    # Predicted: bold line
     geom_line(aes(y = pred, colour = "Predicted"), linewidth = 0.8) +
     facet_grid(fishery ~ month, scales = "free_y") +
-    scale_y_continuous(limits = c(0, NA),
-                       expand = expansion(mult = c(0, 0.05))) +
+    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
     scale_x_continuous(breaks = scales::pretty_breaks()) +
     scale_colour_manual(values = c(Observed = "black", Predicted = "red3")) +
-    labs(x = "Year", y = "CPUE", colour = NULL,
-         subtitle = paste0(n_sim, " posterior-predictive simulations (grey)")) +
+    labs(x = "Year", y = "CPUE", colour = NULL, subtitle = paste0(n_sim, " posterior-predictive simulations (grey)")) +
     theme(legend.position = "bottom")
 }
 ```
