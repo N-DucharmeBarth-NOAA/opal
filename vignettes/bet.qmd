@@ -389,55 +389,72 @@ Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
 Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
 Lwr[grep("log_lf_tau", names(obj$par))] <- rep(-9, length(grep("log_lf_tau", names(obj$par))))
 Upr[grep("log_lf_tau", names(obj$par))] <- rep(9, length(grep("log_lf_tau", names(obj$par))))
-Lwr[grep("par_sel", names(obj$par))] <- rep(-15, length(grep("par_sel", names(obj$par))))
-Upr[grep("par_sel", names(obj$par))] <- rep(15, length(grep("par_sel", names(obj$par))))
 Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
 Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
-
-# remove generic par_sel bounds
-Lwr[grep("par_sel", names(obj$par))] <- -Inf
-Upr[grep("par_sel", names(obj$par))] <-  Inf
 
 mu_len <- mean(data$len_mid)
 sd_len <- sd(data$len_mid)
 
+par_labels <- names(obj$par)
+par_sel_pos <- which(names(obj$par) == "par_sel")
+par_sel_level_pos <- setNames(par_sel_pos, levels(map$par_sel))
+
 for (f in seq_len(data$n_fishery)) {
-  idx <- grep(paste0("^par_sel\\[", f, ","), names(obj$par))
+  idx <- rep(NA_integer_, ncol(map_sel))
+  for (p in seq_len(ncol(map_sel))) {
+    level <- as.character(map_sel[f, p])
+    if (!is.na(level)) {
+      idx[p] <- par_sel_level_pos[[level]]
+      par_labels[idx[p]] <- paste0("par_sel[", f, ",", p, "]")
+    }
+  }
 
   if (data$sel_type_f[f] == 1L) {
     # Logistic: inflection [5,200], width [>0,500]
-    Lwr[idx[1]] <- (5   - mu_len) / sd_len
-    Upr[idx[1]] <- (200 - mu_len) / sd_len
+    if (!is.na(idx[1])) {
+      Lwr[idx[1]] <- (5   - mu_len) / sd_len
+      Upr[idx[1]] <- (200 - mu_len) / sd_len
+    }
 
-    Lwr[idx[2]] <- log(1e-6 / sd_len) # avoid log(0)
-    Upr[idx[2]] <- log(500  / sd_len)
-
-    # unused logistic slots
-    Lwr[idx[3:6]] <- -Inf
-    Upr[idx[3:6]] <-  Inf
+    if (!is.na(idx[2])) {
+      Lwr[idx[2]] <- log(1e-6 / sd_len) # avoid log(0)
+      Upr[idx[2]] <- log(500  / sd_len)
+    }
   } else {
     # Double-normal SS3 bounds
-    Lwr[idx[1]] <- (10.1 - mu_len) / sd_len
-    Upr[idx[1]] <- (200  - mu_len) / sd_len
+    if (!is.na(idx[1])) {
+      Lwr[idx[1]] <- (10.1 - mu_len) / sd_len
+      Upr[idx[1]] <- (200  - mu_len) / sd_len
+    }
 
-    Lwr[idx[2]] <- -7
-    Upr[idx[2]] <-  7
+    if (!is.na(idx[2])) {
+      Lwr[idx[2]] <- -7
+      Upr[idx[2]] <-  7
+    }
 
     # for sel_double_normal using exp(c)*sd^2 and exp(d)*sd^2:
     shift <- 2 * log(sd_len)
-    Lwr[idx[3]] <- -7 - shift
-    Upr[idx[3]] <-  7 - shift
-    Lwr[idx[4]] <- -7 - shift
-    Upr[idx[4]] <-  7 - shift
+    if (!is.na(idx[3])) {
+      Lwr[idx[3]] <- -7 - shift
+      Upr[idx[3]] <-  7 - shift
+    }
+    if (!is.na(idx[4])) {
+      Lwr[idx[4]] <- -7 - shift
+      Upr[idx[4]] <-  7 - shift
+    }
 
-    Lwr[idx[5]] <- -9 # practical bound (instead of -999)
-    Upr[idx[5]] <-  9
-    Lwr[idx[6]] <- -9
-    Upr[idx[6]] <-  9
+    if (!is.na(idx[5])) {
+      Lwr[idx[5]] <- -9 # practical bound (instead of -999)
+      Upr[idx[5]] <-  9
+    }
+    if (!is.na(idx[6])) {
+      Lwr[idx[6]] <- -9
+      Upr[idx[6]] <-  9
+    }
   }
 }
 
-bounds <- data.frame(par = names(obj$par), lower = Lwr, upper = Upr)
+bounds <- data.frame(par = par_labels, lower = Lwr, upper = Upr)
 ```
 
 # Optimisation
@@ -466,11 +483,11 @@ obj$report()$lp_rec
 sum(obj$report()$lp_cpue)
 sum(obj$report()$lp_lf)
 sum(obj$report()$lp_wf)
+# TMBhelper::check_estimability(obj = obj)
 if (fit_grad < 1e-2) {
   check_estimability(obj = obj)
 } else {
-  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4),
-          ". Improve optimization first.")
+  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4), ". Improve optimization first.")
 }
 ```
 
