@@ -50,6 +50,9 @@ test_that("prep_wf_data attaches expected fields to data", {
   expect_true(is.integer(d$wf_minbin))
   expect_true(is.integer(d$wf_maxbin))
   expect_true(is.numeric(d$wf_var_adjust))
+  expect_true(is.list(d$wf_year_fi))
+  expect_true(is.list(d$wf_n_fi))
+  expect_true(is.list(d$wf_row_fi))
 
   # Row counts must be consistent
   expect_equal(nrow(d$wf_obs_in),     d$n_wf)
@@ -57,6 +60,9 @@ test_that("prep_wf_data attaches expected fields to data", {
   expect_equal(length(d$wf_fishery),  d$n_wf)
   expect_equal(length(d$wf_year),     d$n_wf)
   expect_equal(sum(d$wf_n_f),         d$n_wf)
+  expect_equal(d$wf_year_fi, split(d$wf_year, d$wf_fishery))
+  expect_equal(d$wf_n_fi, split(d$wf_n, d$wf_fishery))
+  expect_equal(d$wf_row_fi, split(seq_len(d$n_wf), d$wf_fishery))
 
   # Only the two requested fisheries
   expect_setequal(d$wf_fishery_f, c(6L, 7L))

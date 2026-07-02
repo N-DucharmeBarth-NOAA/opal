@@ -195,6 +195,8 @@ opal_model <- function(parameters, data) {
   
   # Length composition likelihood ----
   if (lf_switch > 0 && n_lf > 0) {
+    if (!exists("lf_year_fi", inherits = FALSE)) lf_year_fi <- split(lf_year, lf_fishery)
+    if (!exists("lf_n_fi", inherits = FALSE)) lf_n_fi <- split(lf_n, lf_fishery)
     lp_lf <- get_length_like(
       lf_obs_flat = lf_obs_flat,
       lf_obs_ints = lf_obs_ints,
@@ -203,8 +205,8 @@ opal_model <- function(parameters, data) {
       pla = pla,
       lf_n_f = lf_n_f,
       lf_fishery_f = lf_fishery_f,
-      lf_year_fi = split(lf_year, lf_fishery),
-      lf_n_fi = split(lf_n, lf_fishery),
+      lf_year_fi = lf_year_fi,
+      lf_n_fi = lf_n_fi,
       lf_minbin = lf_minbin,
       lf_maxbin = lf_maxbin,
       removal_switch_f = removal_switch_f,
@@ -218,6 +220,8 @@ opal_model <- function(parameters, data) {
   }
   # Weight composition likelihood ----
   if (wf_switch > 0 && n_wf > 0) {
+    if (!exists("wf_year_fi", inherits = FALSE)) wf_year_fi <- split(wf_year, wf_fishery)
+    if (!exists("wf_n_fi", inherits = FALSE)) wf_n_fi <- split(wf_n, wf_fishery)
     lp_wf <- get_weight_like(
       wf_obs_flat = wf_obs_flat,
       wf_obs_ints = wf_obs_ints,
@@ -227,8 +231,8 @@ opal_model <- function(parameters, data) {
       wf_rebin_matrix = wf_rebin_matrix,
       wf_n_f = wf_n_f,
       wf_fishery_f = wf_fishery_f,
-      wf_year_fi = split(wf_year, wf_fishery),
-      wf_n_fi = split(wf_n, wf_fishery),
+      wf_year_fi = wf_year_fi,
+      wf_n_fi = wf_n_fi,
       wf_minbin = wf_minbin,
       wf_maxbin = wf_maxbin,
       removal_switch_f = removal_switch_f,

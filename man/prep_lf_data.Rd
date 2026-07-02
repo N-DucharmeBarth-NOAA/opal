@@ -75,6 +75,10 @@ LF data.}
 \item{\code{lf_n_f}}{Integer vector of observation counts per fishery.}
 \item{\code{lf_year}}{Integer vector of model timestep index (1-based)
 per observation row.}
+\item{\code{lf_year_fi}, \code{lf_n_fi}, \code{lf_row_fi}}{Lists split
+by fishery containing model timesteps, effective sample sizes, and
+row indices. Precomputed so \code{opal_model()} does not rebuild them
+on every objective evaluation.}
 \item{\code{lf_season}}{Integer vector of season index (all 1).}
 \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
 \item{\code{lf_var_adjust}}{Passed through from argument; numeric vector

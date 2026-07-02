@@ -76,6 +76,10 @@ WF data.}
 \item{\code{wf_n_f}}{Integer vector of observation counts per fishery.}
 \item{\code{wf_year}}{Integer vector of model timestep per observation
 row.}
+\item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_row_fi}}{Lists split
+by fishery containing model timesteps, effective sample sizes, and
+row indices. Precomputed so \code{opal_model()} does not rebuild them
+on every objective evaluation.}
 \item{\code{wf_minbin}, \code{wf_maxbin}}{Passed through from arguments.}
 \item{\code{wf_var_adjust}}{Passed through from argument; numeric vector
 \code{[n_fishery]} of variance-adjustment divisors applied to

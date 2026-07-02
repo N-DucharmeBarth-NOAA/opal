@@ -36,6 +36,9 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_true(is.integer(d$lf_n_f))
   expect_true(is.integer(d$lf_fishery_f))
   expect_true(is.matrix(d$lf_obs_in))
+  expect_true(is.list(d$lf_year_fi))
+  expect_true(is.list(d$lf_n_fi))
+  expect_true(is.list(d$lf_row_fi))
 
   # lf_obs_flat / lf_obs_prop / lf_obs_ints must be the same length
   expect_equal(length(d$lf_obs_flat), length(d$lf_obs_prop))
@@ -48,6 +51,9 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_equal(length(d$lf_year),    d$n_lf)
   expect_equal(length(d$lf_season),  d$n_lf)
   expect_equal(sum(d$lf_n_f),        d$n_lf)
+  expect_equal(d$lf_year_fi, split(d$lf_year, d$lf_fishery))
+  expect_equal(d$lf_n_fi, split(d$lf_n, d$lf_fishery))
+  expect_equal(d$lf_row_fi, split(seq_len(d$n_lf), d$lf_fishery))
 
   # Only the two requested fisheries
   expect_setequal(d$lf_fishery_f, c(8L, 9L))

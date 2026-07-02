@@ -54,6 +54,10 @@
 #'     \item{\code{wf_n_f}}{Integer vector of observation counts per fishery.}
 #'     \item{\code{wf_year}}{Integer vector of model timestep per observation
 #'       row.}
+#'     \item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_row_fi}}{Lists split
+#'       by fishery containing model timesteps, effective sample sizes, and
+#'       row indices. Precomputed so \code{opal_model()} does not rebuild them
+#'       on every objective evaluation.}
 #'     \item{\code{wf_minbin}, \code{wf_maxbin}}{Passed through from arguments.}
 #'     \item{\code{wf_var_adjust}}{Passed through from argument; numeric vector
 #'       \code{[n_fishery]} of variance-adjustment divisors applied to
@@ -155,7 +159,11 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   n_f           <- length(wf_fishery_f)
   n_wt_local    <- ncol(data$wf_obs_in)
   wf_n_fi       <- split(data$wf_n, data$wf_fishery)
+  wf_year_fi    <- split(data$wf_year, data$wf_fishery)
   wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), data$wf_fishery)
+  data$wf_n_fi    <- wf_n_fi
+  data$wf_year_fi <- wf_year_fi
+  data$wf_row_fi  <- wf_row_fi
 
   wf_obs_list <- vector("list", n_f)
   for (j in seq_len(n_f)) {

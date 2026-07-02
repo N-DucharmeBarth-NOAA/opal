@@ -56,6 +56,10 @@
 #'     \item{\code{lf_n_f}}{Integer vector of observation counts per fishery.}
 #'     \item{\code{lf_year}}{Integer vector of model timestep index (1-based)
 #'       per observation row.}
+#'     \item{\code{lf_year_fi}, \code{lf_n_fi}, \code{lf_row_fi}}{Lists split
+#'       by fishery containing model timesteps, effective sample sizes, and
+#'       row indices. Precomputed so \code{opal_model()} does not rebuild them
+#'       on every objective evaluation.}
 #'     \item{\code{lf_season}}{Integer vector of season index (all 1).}
 #'     \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
 #'     \item{\code{lf_var_adjust}}{Passed through from argument; numeric vector
@@ -167,7 +171,11 @@ prep_lf_data <- function(data,
   n_f           <- length(lf_fishery_f)
   n_len_local   <- ncol(data$lf_obs_in)
   lf_n_fi       <- split(data$lf_n, data$lf_fishery)
+  lf_year_fi    <- split(data$lf_year, data$lf_fishery)
   lf_row_fi     <- split(seq_len(nrow(data$lf_obs_in)), data$lf_fishery)
+  data$lf_n_fi    <- lf_n_fi
+  data$lf_year_fi <- lf_year_fi
+  data$lf_row_fi  <- lf_row_fi
 
   lf_obs_list <- vector("list", n_f)
   for (j in seq_len(n_f)) {

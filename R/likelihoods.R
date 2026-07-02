@@ -251,15 +251,15 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
 
   idx <- 0L
   obs_offset <- 0L
+  # Precompute combined age-to-weight projection once per likelihood call.
+  # rebin_pla: [n_wt x n_age] = wf_rebin_matrix [n_wt x n_len] %*% pla [n_len x n_age]
+  rebin_pla <- wf_rebin_matrix %*% pla
   for (j in seq_len(n_f)) {
     f <- wf_fishery_f[j]
     bmin <- wf_minbin[f]
     bmax <- wf_maxbin[f]
     nbins <- bmax - bmin + 1L
     wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
-    # Precompute combined age->weight projection once per fishery
-    # rebin_pla: [n_wt x n_age] = wf_rebin_matrix [n_wt x n_len] %*% pla [n_len x n_age]
-    rebin_pla <- wf_rebin_matrix %*% pla
     # ONE matmul per fishery: [n_obs_f x n_age] %*% [n_age x n_wt] -> [n_obs_f x n_wt]
     ys <- wf_year_fi[[j]]
     catch_ya <- catch_pred_fya[f, ys, ] # [n_obs_f x n_age]
