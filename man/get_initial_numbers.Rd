@@ -37,7 +37,8 @@ fishery.}
 \item{sigma_r}{recruitment standard deviation used in lognormal correction.}
 
 \item{init_bias_adj_a}{an optional \code{vector} of bias adjustment scalars
-for initial age deviations.}
+for initial age deviations. Defaults to zero so fixed zero initial
+deviations do not alter the equilibrium initial age structure.}
 }
 \value{
 A list containing:

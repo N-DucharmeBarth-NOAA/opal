@@ -78,7 +78,7 @@ opal_model <- function(parameters, data) {
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
   if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
   if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
-  if (!exists("init_bias_adj_a", inherits = FALSE)) init_bias_adj_a <- rep(1.0, n_age)
+  if (!exists("init_bias_adj_a", inherits = FALSE)) init_bias_adj_a <- rep(0.0, n_age)
   if (!exists("sex_ratio", inherits = FALSE)) sex_ratio <- rep(1.0, n_age)
   
   # Growth module ----

@@ -44,7 +44,8 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #' @param init_rdev_a an optional \code{vector} of initial age deviations.
 #' @param sigma_r recruitment standard deviation used in lognormal correction.
 #' @param init_bias_adj_a an optional \code{vector} of bias adjustment scalars
-#'   for initial age deviations.
+#'   for initial age deviations. Defaults to zero so fixed zero initial
+#'   deviations do not alter the equilibrium initial age structure.
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
@@ -104,7 +105,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   Ninit0 <- R0 * rel_N0
 
   if (!is.null(init_rdev_a)) {
-    if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(1.0, n_age)
+    if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(0.0, n_age)
     for (a in seq_len(n_age)) {
       Ninit[a] <- Ninit[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
       Ninit0[a] <- Ninit0[a] * exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
