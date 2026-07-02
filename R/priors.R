@@ -36,8 +36,12 @@ get_priors <- function(parameters, data = NULL) {
   # par_sel is a matrix [n_fishery, 6] — treat as a single block
   # Normal(0, 2) is vague: allows peak to shift ~2 SD from mean length,
   # widths to vary by exp(±2) ≈ 0.14x to 7.4x the length SD, etc.
+  # Imported SS3-style matrices can use large negative sentinel values for
+  # inactive parameters. Center those entries on their fixed value so they do
+  # not add a misleading constant to the objective.
   if ("par_sel" %in% names(parameters)) {
-    priors[["par_sel"]] <- list(type = "normal", par1 = 0, par2 = 2, index = which("par_sel" == names(parameters)))
+    par_sel_mean <- ifelse(parameters$par_sel <= -100, parameters$par_sel, 0)
+    priors[["par_sel"]] <- list(type = "normal", par1 = par_sel_mean, par2 = 2, index = which("par_sel" == names(parameters)))
   }
 
   if ("log_lf_tau" %in% names(parameters)) {

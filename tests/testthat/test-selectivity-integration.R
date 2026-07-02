@@ -85,6 +85,7 @@ test_that("par_sel has correct structure and dimensions", {
 
 test_that("get_priors includes selectivity parameters", {
   par_sel <- matrix(0, nrow = 15, ncol = 6)
+  par_sel[3, 6] <- -495
   
   parameters <- list(
     log_B0 = 13,
@@ -102,7 +103,9 @@ test_that("get_priors includes selectivity parameters", {
   
   expect_true("par_sel" %in% names(priors))
   expect_equal(priors$par_sel$type, "normal")
-  expect_equal(priors$par_sel$par1, 0)
+  expect_equal(dim(priors$par_sel$par1), dim(par_sel))
+  expect_equal(priors$par_sel$par1[1, 1], 0)
+  expect_equal(priors$par_sel$par1[3, 6], -495)
   expect_equal(priors$par_sel$par2, 2)
 })
 

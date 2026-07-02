@@ -215,6 +215,7 @@ parameters <- list(
   log_h = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
   log_cpue_q = rep(0, data$n_index),
+  cpue_creep = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
   log_cpue_tau = rep(log(0.1), data$n_index),
   log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
@@ -225,7 +226,8 @@ parameters <- list(
   log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
   log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
   par_sel = par_sel_start,
-  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
+  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y),
+  init_rdev_a = rep(0, data$n_age)
 )
 ```
 
@@ -267,10 +269,12 @@ evaluate_priors(parameters = parameters, priors = data$priors)
 ## Parameter map
 
 Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
-`factor(NA)` are fixed at their initial values. Recruitment deviations are
-fixed here to keep this diagnostic fit focused on scale and selectivity; freeing
-all quarterly deviations as fixed effects can create high-gradient early
-recruitment spikes and a misleading initial biomass trajectory.
+`factor(NA)` are fixed at their initial values. Quarterly recruitment deviations
+are fixed here to keep this diagnostic fit focused on scale and selectivity;
+freeing all quarterly deviations as fixed effects can create high-gradient early
+recruitment spikes and a misleading initial biomass trajectory. Initial age
+deviations are estimated because the early CPUE observations are informative
+about the starting age structure.
 
 ```{r}
 #| label: get-map
@@ -305,8 +309,9 @@ map <- list(
   # log_B0 = factor(NA),
   log_h = factor(NA),
   log_sigma_r = factor(NA),
-  # log_cpue_q = factor(NA),
-  log_cpue_q = factor(c(NA, 1, 2, 3)),
+  # Estimate all CPUE catchabilities so each index can fit its observed scale.
+  log_cpue_q = factor(seq_len(data$n_index)),
+  cpue_creep = factor(rep(NA, data$n_index)),
   log_cpue_tau = factor(rep(NA, data$n_index)),
   log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau = factor(map_lf_tau),
@@ -317,7 +322,8 @@ map <- list(
   log_CV1 = factor(NA),
   log_CV2 = factor(NA),
   par_sel = factor(map_sel),
-  rdev_y = factor(map_rdev)
+  rdev_y = factor(map_rdev),
+  init_rdev_a = factor(seq_len(data$n_age))
 )
 ```
 
@@ -472,7 +478,7 @@ Optimise using the `nlminb` function:
 #| label: run-nlminb
 #| echo: true
 #| results: hide
-#| eval: false
+#| eval: true
 control <- list(eval.max = 10000, iter.max = 10000)
 # control <- list(eval.max = 100, iter.max = 100)
 obj$env$tracemgc <- FALSE
@@ -487,14 +493,15 @@ for (i in seq_len(4)) {
 fit_nll <- obj$fn(opt$par)
 obj$env$last.par.best <- opt$par
 fit_grad <- max(abs(obj$gr(opt$par)))
+fit_rep <- obj$report(obj$env$last.par.best)
 fit_nll
 fit_grad
-obj$report()$lp_prior
-obj$report()$lp_penalty
-obj$report()$lp_rec
-sum(obj$report()$lp_cpue)
-sum(obj$report()$lp_lf)
-sum(obj$report()$lp_wf)
+fit_rep$lp_prior
+fit_rep$lp_penalty
+fit_rep$lp_rec
+sum(fit_rep$lp_cpue)
+sum(fit_rep$lp_lf)
+sum(fit_rep$lp_wf)
 # TMBhelper::check_estimability(obj = obj)
 if (fit_grad < 1e-2) {
   check_estimability(obj = obj)
@@ -509,7 +516,7 @@ Compare initial and estimated parameter values:
 #| label: opt-results
 #| echo: true
 #| message: false
-#| eval: false
+#| eval: true
 get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
 ```
 
@@ -691,7 +698,7 @@ Check that all parameters are estimable using the `check_estimability` function:
 #| echo: true
 #| message: false
 #| error: true
-#| eval: false
+#| eval: true
 obj$env$tracemgc <- FALSE
 fit_grad <- max(abs(obj$gr(obj$env$last.par.best)))
 if (fit_grad < 1e-2) {
@@ -708,7 +715,7 @@ Look for any parameters with high correlations (absolute correlation > 0.95) usi
 #| label: check-cor
 #| echo: true
 #| message: false
-#| eval: false
+#| eval: true
 get_cor_pairs(obj = obj, threshold = 0.95)
 ```
 
@@ -718,7 +725,7 @@ Calculate standard deviations of all model parameters:
 #| label: run-sdreport
 #| echo: true
 #| message: false
-#| eval: false
+#| eval: true
 Report <- sdreport(obj)
 ```
 
@@ -745,7 +752,7 @@ if (data$cpue_switch == 0) {
   # Simulations
   n_sim <- 25
   df_sim <- map_dfr(seq_len(n_sim), function(s) {
-    sim_log <- obj$simulate()$cpue_log_obs
+    sim_log <- obj$simulate(obj$env$last.par.best)$cpue_log_obs
     tibble(
       obs_id = seq_along(sim_log),
       year = data$cpue_data$year,
@@ -986,7 +993,7 @@ Inspect estimated spawning biomass trajectory:
 #| fig-height: 4
 #| fig-width: 7
 #| fig-cap: Estimated spawning biomass with lognormal 50% and 95% uncertainty intervals.
-#| eval: false
+#| eval: true
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated spawning_biomass_y entries.
 sb_name <- "spawning_biomass_y"
@@ -1032,7 +1039,7 @@ Inspect estimated dynamic depletion ($SB/SB_{F=0}$) trajectory:
 #| fig-height: 4
 #| fig-width: 7
 #| fig-cap: Estimated dynamic depletion with lognormal 50% and 95% uncertainty intervals.
-#| eval: false
+#| eval: true
 # Use sdreport output for uncertainty (Report from `sdreport(obj)`).
 # Report$value and Report$sd are named vectors with repeated dynamic_depletion_y entries.
 sb_name <- "dynamic_depletion_y"
@@ -1091,8 +1098,8 @@ if (data$cpue_switch == 0) {
     plot(log(data$cpue_data$value[rows]), col = 2, pch = 16,
          xlab = "Observation", ylab = "log(CPUE)",
          main = paste0("Index ", idx, ": Observed vs predicted CPUE"))
-    lines(log(obj$report()$cpue_pred[rows]), lwd = 2)
-    for (s in 1:5) lines(obj$simulate()$cpue_log_obs[rows], col = "gray70")
+    lines(log(obj$report(obj$env$last.par.best)$cpue_pred[rows]), lwd = 2)
+    for (s in 1:5) lines(obj$simulate(obj$env$last.par.best)$cpue_log_obs[rows], col = "gray70")
   }
 }
 ```
@@ -1108,7 +1115,7 @@ OSA residuals are a replacement for Pearson residuals:
 #| fig-height: 4
 #| fig-width: 7
 #| fig-cap: One-step-ahead CPUE residual QQ and residual-index diagnostics.
-#| eval: false
+#| eval: true
 if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
 } else {
