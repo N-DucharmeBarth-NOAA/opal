@@ -55,6 +55,17 @@ if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpu
 names(data)
 ```
 
+Model switches used for the diagnostic fit:
+
+```{r}
+#| label: model-switches
+#| echo: true
+bet_lf_switch <- 1L
+bet_lf_var_adjust <- 80
+bet_estimate_lf_selectivity <- TRUE
+bet_estimate_init_devs <- TRUE
+```
+
 Key dimensions of the data:
 
 ```{r}
@@ -139,7 +150,7 @@ unique(lf_wide$fishery)
 
 # define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
 var_adjust_scalars <- rep(1, data$n_fishery)
-var_adjust_scalars[] <- 80
+var_adjust_scalars[] <- bet_lf_var_adjust
 # var_adjust_scalars <- 1/rep(20000,data$n_fishery)
 # var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
 # var_adjust_scalars[] <- 1 / 4e9
@@ -288,12 +299,14 @@ map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 # 8-14 have LF data. Estimate peak and width parameters for most LF fleets.
 # F13_JP.PL is fixed at the bundled SS3-derived start because estimating it
 # pushes the peak to the lower length bound and produces an edge spike.
-map_sel[8, c(1, 3, 4)] <- 1:3 # peak, asc-width, desc-width
-map_sel[9, c(1, 3, 4)] <- 4:6 # peak, asc-width, desc-width
-map_sel[10, c(1, 3, 4)] <- 7:9 # peak, asc-width, desc-width
-map_sel[11, 1:2] <- 10:11 # logistic inflection and width
-map_sel[12, c(1, 3, 4)] <- 12:14 # peak, asc-width, desc-width
-map_sel[14, c(1, 3, 4)] <- 15:17 # peak, asc-width, desc-width
+if (bet_estimate_lf_selectivity) {
+  map_sel[8, c(1, 3, 4)] <- 1:3 # peak, asc-width, desc-width
+  map_sel[9, c(1, 3, 4)] <- 4:6 # peak, asc-width, desc-width
+  map_sel[10, c(1, 3, 4)] <- 7:9 # peak, asc-width, desc-width
+  map_sel[11, 1:2] <- 10:11 # logistic inflection and width
+  map_sel[12, c(1, 3, 4)] <- 12:14 # peak, asc-width, desc-width
+  map_sel[14, c(1, 3, 4)] <- 15:17 # peak, asc-width, desc-width
+}
 
 # 1-7 & 15 is WFs
 # map_sel[1, c(1, 3, 4, 6)] <- 29:32
@@ -323,7 +336,11 @@ map <- list(
   log_CV2 = factor(NA),
   par_sel = factor(map_sel),
   rdev_y = factor(map_rdev),
-  init_rdev_a = factor(seq_len(data$n_age))
+  init_rdev_a = if (bet_estimate_init_devs) {
+    factor(seq_len(data$n_age))
+  } else {
+    factor(rep(NA, data$n_age))
+  }
 )
 ```
 
@@ -339,8 +356,9 @@ to check everything is working first.
 #| label: make-adfun
 #| echo: true
 #| message: false
+data$lf_switch <- bet_lf_switch
 # data$lf_switch <- 0 # skip length comps (removal only)
-data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
 # data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
 
@@ -354,6 +372,7 @@ data$wf_switch <- 0 # skip weight comps (removal only)
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
 obj$env$tracemgc <- FALSE
 obj$par
+names(obj$par)
 unique(names(obj$par))
 obj$fn()
 obj$gr()
@@ -517,7 +536,7 @@ Compare initial and estimated parameter values:
 #| echo: true
 #| message: false
 #| eval: true
-get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2, digits = 2L)
+get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2)
 ```
 
 ## Selectivity
