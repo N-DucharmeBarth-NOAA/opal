@@ -73,13 +73,19 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
 
     # Classify each free parameter's working scale for MVN simulation:
     #   par_log_* or log_* → already on log scale   (identity, jac = 1)
-    #   rdev_y             → normal deviates, unbounded (identity, jac = 1)
+    #   rdev_y, init_rdev_a → normal deviates, unbounded (identity, jac = 1)
+    #   par_sel            → selectivity working-scale params, may be negative
+    #                        (identity, jac = 1)
     #   *rho*              → any autocorrelation param in (0,1) (logit, jac = theta*(1-theta))
     #   anything else positive                           (log,   jac = theta)
+    # Deviation params (rdev_y, init_rdev_a) and selectivity working-scale params
+    # (par_sel) are unbounded and can be negative, so they must NOT be
+    # log-transformed even when a particular MLE value happens to be positive.
     needs_logit <- grepl("rho", par_names) & !grepl("logit", par_names)
     needs_log   <- mu_vec > 0 &
       !grepl("log_|logit", par_names) &
-      !grepl("rdev_y",     par_names) &
+      !grepl("rdev",       par_names) &
+      !grepl("par_sel",    par_names) &
       !needs_logit
 
     # Working (unconstrained) MLE vector
@@ -132,8 +138,11 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
     # (draw − μ) preserves this negative correlation, eliminates Jensen bias
     # (individual rdev_y shifts are O(0.17) vs σ_r = 0.6), and aligns the
     # bridge-point ribbon with the sdreport historical uncertainty.
-    rdev_idx   <- par_names == "rdev_y"
-    scalar_idx <- which(!rdev_idx)                                        # log_B0, log_cpue_q
+    # Recruitment-type deviations (rdev_y and, when estimated, init_rdev_a) are
+    # only weakly identified (SE ≈ σ_r, constrained mainly by the prior), so the
+    # conditional-expectation treatment below is applied to all of them.
+    rdev_idx   <- grepl("rdev", par_names)
+    scalar_idx <- which(!rdev_idx)                        # log_B0, log_cpue_q, par_sel, ...
     B_cond     <- Sigma_unc[rdev_idx, scalar_idx, drop = FALSE] %*%
                   solve(Sigma_unc[scalar_idx, scalar_idx, drop = FALSE])  # [n_rdev x 2]
     delta_sc   <- sweep(mvn_draws[, scalar_idx, drop = FALSE], 2,

@@ -1,0 +1,640 @@
+---
+title: "'Opakapaka projections: MVN vs MCMC uncertainty"
+format: html
+execute:
+  eval: false
+vignette: >
+  %\VignetteIndexEntry{'Opakapaka projections: MVN vs MCMC uncertainty}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{quarto::html}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Overview
+
+This vignette carries the 'opakapaka (*Pristipomoides filamentosus*) case study
+forward from estimation into projection. It reuses the *opal with length
+compositions* model (`obj_lf`) developed in `vignette("opakapaka")` — the
+assessment that fits both CPUE indices and length compositions and estimates
+selectivity — and projects the stock forward under a constant-catch scenario,
+propagating parameter uncertainty two ways:
+
+1. **MVN simulation** — multivariate-normal draws from the Hessian-derived
+   variance-covariance matrix at the MLE; no MCMC required.
+2. **MCMC posteriors** — draws from the joint posterior obtained via
+   `SparseNUTS` (code shown; a cached fit is loaded by default).
+
+The historical spawning-biomass uncertainty is shown with the delta method
+(`sdreport`) for the MVN case and with posterior trajectory quantiles for the
+MCMC case. Both are bridged continuously into the projection period so the
+terminal-state uncertainty and the future process uncertainty are visible on a
+single axis. The Stock Synthesis 3 operating-model (OM) and estimation-model
+(EM) spawning-biomass trajectories are overlaid over the historical period for
+reference.
+
+See `vignette("opakapaka")` for the full model configuration, biological
+inputs, and cross-platform benchmarking; only the elements needed to build
+`obj_lf` are reproduced here.
+
+---
+
+# Setup
+
+```{r}
+#| label: packages
+#| message: false
+library(opal)
+library(RTMB)
+library(SparseNUTS)
+library(tidyverse)
+library(posterior)
+
+theme_set(theme_bw())
+
+# The MCMC fit is pre-computed and loaded from the package (see the
+# `mcmc-sampling` chunk, which is disabled); n_chains_mcmc must match the
+# number of chains used to produce the cached fit.
+n_chains_mcmc <- 8L
+```
+
+## Data, parameters, and map
+
+The data preparation, parameter list, priors, and parameter map are identical
+to the *opal with LF* model in `vignette("opakapaka")`. They are reproduced
+compactly below.
+
+```{r}
+#| label: data
+#| message: false
+data(opaka_data)
+data <- opaka_data
+if (is.null(data$n_index)) data$n_index <- 2L
+data$priors  <- NULL
+
+# Anchor the growth curve at biological age 0 (SS3 indexes ages 0-43)
+data$A1      <- 0
+data$A2      <- data$A1 + (data$n_age - 1)
+data$min_age <- 0
+ages <- data$age_a <- seq(data$min_age, by = 1, length.out = data$n_age)
+data$sex_ratio <- rep(1, data$n_age)
+
+# Length composition data (Comm = fleet 1, ResFish = fleet 3)
+data(opaka_lf)
+lf_wide <- opaka_lf %>%
+  tidyr::pivot_wider(id_cols = c(fishery, year, month, ts),
+                     names_from = bin, values_from = value, values_fill = 0) %>%
+  arrange(fishery, ts)
+data <- prep_lf_data(data, lf_wide,
+                     lf_keep_fisheries = c(1, 3),
+                     lf_var_adjust     = 1 / rep(1, data$n_fishery),
+                     lf_addtocomp      = 1e-10)
+
+# Calendar years for the modelled period (1949-2023)
+calendar_years <- (1949 - 1) + data$years
+
+# SS3-style recruitment bias-adjustment ramps
+init_cohort_years <- 1949 - (data$age_a - 1)
+data$init_bias_adj_a <- get_bias_adj_vector(
+  years = init_cohort_years, do_rec_bias_ramp = 1,
+  bias_years = c(1931, 1974, 2021.88, 2022.43), max_bias_adj = 0.869)
+data$bias_adj_y <- get_bias_adj_vector(
+  years = calendar_years, do_rec_bias_ramp = 1,
+  bias_years = c(1931, 1974, 2021.88, 2022.43), max_bias_adj = 0.869)
+```
+
+```{r}
+#| label: parameters
+#| message: false
+data(opaka_parameters)
+
+# Route the 1949 deviate to the age-0 cohort; shift 1950-2023 into rdev_y and
+# append a terminal 0 (see the opakapaka vignette for the full rationale).
+init_rdev_a <- rev(c(0.0206807,0.00321579,0.00372620,0.0043174,0.00500263,
+  0.00579674,0.00671727,0.00778422,0.00902081,0.0104539,0.0121143,0.0140375,
+  0.0162641,0.0188404,0.0218182,0.0252561,0.0292182,0.0337726,0.0389898,
+  0.0449362,0.0516662,0.0592049,0.0675236,0.0764992,0.0858443,0.0950047,
+  0.102706,0.107687,0.107712,0.0998349,0.0808137,0.0482339,0.00234443,
+  -0.0517563,-0.102395,-0.131458,-0.121101,-0.0714826,-0.00742166,-0.0109308,
+  -0.0385029,0.0366483,0.0165105,-0.166906))
+init_rdev_a[1]   <- opaka_parameters$rdev_y[1]
+rdev_y_shifted   <- c(opaka_parameters$rdev_y[2:length(opaka_parameters$rdev_y)], 0.0)
+
+parameters <- list(
+  log_B0         = 9,
+  log_h          = as.numeric(opaka_parameters$log_h),
+  log_sigma_r    = as.numeric(opaka_parameters$log_sigma_r),
+  log_cpue_q     = as.numeric(opaka_parameters$log_cpue_q),
+  log_cpue_tau   = rep(log(0.1), data$n_index),
+  log_cpue_omega = as.numeric(rep(opaka_parameters$log_cpue_omega, data$n_index)),
+  log_lf_tau     = as.numeric(log(rep(0.1, data$n_fishery))),
+  log_L1         = as.numeric(opaka_parameters$log_L1),
+  log_L2         = as.numeric(opaka_parameters$log_L2),
+  log_k          = as.numeric(opaka_parameters$log_k),
+  log_CV1        = as.numeric(opaka_parameters$log_CV1),
+  log_CV2        = as.numeric(opaka_parameters$log_CV2),
+  par_sel        = as.matrix(opaka_parameters$par_sel),
+  log_init_F_f   = c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)),
+  rdev_y         = rdev_y_shifted,
+  init_rdev_a    = init_rdev_a
+)
+parameters$par_sel <- convert_ss3_selex_to_rtmb(parameters$par_sel,
+                                                data$sel_type_f, data$len_mid)
+
+data$priors <- get_priors(parameters = parameters, data = data)
+```
+
+The parameter map frees $B_0$, the two CPUE catchabilities, all recruitment
+and initial-age deviations, and the two Comm logistic + three ResFish
+double-normal selectivity parameters. Steepness, $\sigma_R$, growth, and the
+non-commercial selectivity are fixed at SS3 values.
+
+```{r}
+#| label: map
+#| message: false
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+map_sel[1, 1:2]        <- c(1, 2)   # Comm logistic
+map_sel[3, c(1, 4, 6)] <- c(3, 4, 5) # ResFish double-normal
+map_sel <- as.vector(map_sel)
+
+map <- list(
+  log_h          = factor(NA),
+  log_sigma_r    = factor(NA),
+  log_cpue_tau   = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
+  log_lf_tau     = factor(rep(NA, length(parameters$log_lf_tau))),
+  log_L1  = factor(NA), log_L2 = factor(NA), log_k = factor(NA),
+  log_CV1 = factor(NA), log_CV2 = factor(NA),
+  par_sel      = factor(map_sel),
+  log_init_F_f = rep(factor(NA), data$n_fishery),
+  init_rdev_a  = as.factor(seq_len(data$n_age)),
+  rdev_y       = as.factor(seq_len(length(parameters$rdev_y)))
+)
+```
+
+## Build and optimise
+
+```{r}
+#| label: fit
+#| output: false
+#| message: false
+data$lf_switch <- 1L   # multinomial length-composition likelihood
+
+obj_lf <- MakeADFun(func = cmb(opal_model, data), parameters = parameters,
+                    map = map)
+
+Lwr <- rep(-Inf, length(obj_lf$par)); Upr <- rep(Inf, length(obj_lf$par))
+Lwr[grep("log_B0",      names(obj_lf$par))] <- log(1)
+Upr[grep("log_B0",      names(obj_lf$par))] <- log(exp(22))
+Lwr[grep("log_cpue_q",  names(obj_lf$par))] <- log(0.001)
+Upr[grep("log_cpue_q",  names(obj_lf$par))] <- log(10)
+Lwr[grep("rdev_y",      names(obj_lf$par))] <- -5
+Upr[grep("rdev_y",      names(obj_lf$par))] <-  5
+Lwr[grep("init_rdev_a", names(obj_lf$par))] <- -5
+Upr[grep("init_rdev_a", names(obj_lf$par))] <-  5
+Lwr[grep("par_sel",     names(obj_lf$par))] <- -7
+Upr[grep("par_sel",     names(obj_lf$par))] <-  7
+
+control <- list(eval.max = 10000, iter.max = 10000)
+opt <- nlminb(obj_lf$par, obj_lf$fn, obj_lf$gr, lower = Lwr, upper = Upr,
+              control = control)
+opt <- nlminb(opt$par,    obj_lf$fn, obj_lf$gr, lower = Lwr, upper = Upr,
+              control = control)
+opt <- nlminb(opt$par,    obj_lf$fn, obj_lf$gr, lower = Lwr, upper = Upr,
+              control = control)
+
+cat("Convergence:", opt$convergence, "\n")
+cat("Max gradient:", max(abs(obj_lf$gr())), "\n")
+cat("NLL:", opt$objective, "\n")
+```
+
+## Historical uncertainty (delta method)
+
+`ADREPORT(spawning_biomass_y)` is registered inside `do_dynamics()`, so
+`sdreport()` propagates Hessian uncertainty through the full historical
+spawning-biomass trajectory via automatic differentiation. These delta-method
+standard errors are used later for the MVN historical ribbon.
+
+```{r}
+#| label: sdreport
+#| output: false
+#| message: false
+sdr       <- RTMB::sdreport(obj_lf)
+sdr_sum   <- summary(sdr, "report")
+sbio_rows <- which(rownames(sdr_sum) == "spawning_biomass_y")
+sbio_mle_sd <- sdr_sum[sbio_rows, "Estimate"]
+sbio_se_sd  <- sdr_sum[sbio_rows, "Std. Error"]
+
+# Scalar parameter SEs from the inverse Hessian (for reference)
+H_lf   <- obj_lf$he(); Sigma <- solve(H_lf); SE_vec <- sqrt(diag(Sigma))
+mu_vec <- obj_lf$env$last.par.best
+```
+
+The MLE $B_0$ and the estimated terminal spawning biomass:
+
+```{r}
+#| label: mle-summary
+B0_est   <- obj_lf$report()$B0
+term_idx <- data$n_year + 1
+cat("B0 (MLE):", round(B0_est), "mt\n")
+cat("Terminal SB:", round(sbio_mle_sd[term_idx]),
+    "+/-", round(sbio_se_sd[term_idx]), "mt (delta-method SE)\n")
+cat("Terminal depletion SB/B0:", round(sbio_mle_sd[term_idx] / B0_est, 3), "\n")
+```
+
+---
+
+# Forward projections
+
+## Common setup
+
+The projection holds catch constant at the terminal year's level across a
+10-year horizon. Projected recruitment deviates are simulated from an ARIMA
+model fitted to the estimated `rdev_y` series; projected selectivity replicates
+the mean selectivity over the last ten estimated years.
+
+```{r}
+#| label: proj-setup
+#| output: false
+#| message: false
+# Fields required by the projection helpers
+data$first_yr         <- 1949L
+data$last_yr          <- 2023L
+data$removal_switch_f <- rep(0L, data$n_fishery)
+
+n_proj <- 10    # projection years
+n_iter <- 200   # uncertainty iterations
+
+# Projected recruitment deviates (ARIMA on the fitted MLE series)
+rdev_proj <- project_rec_devs(
+  data = data, obj = obj_lf, first_yr = data$first_yr,
+  n_proj = n_proj, n_iter = n_iter)
+
+# Projected selectivity (mean of the last 10 estimated years, per iteration)
+sel_proj <- project_selectivity(
+  data = data, obj = obj_lf, first_yr = data$last_yr - 9,
+  n_proj = n_proj, n_iter = n_iter)
+
+# Constant-catch scenario: hold catch at the last observed year's level
+catch_ysf_proj <- array(0, dim = c(n_proj, data$n_season, data$n_fishery))
+for (y in seq_len(n_proj)) {
+  catch_ysf_proj[y, , ] <- data$catch_obs_ysf[data$n_year, , ]
+}
+```
+
+## Approach 1: MVN simulation
+
+With `mcmc = NULL`, `project_dynamics()` draws parameter sets from a
+multivariate-normal centred on the MLE, using the inverse Hessian as the
+covariance. Positive parameters already on the log scale (`log_B0`,
+`log_cpue_q`) are drawn in log-space; the recruitment and initial-age
+deviations (`rdev_y`, `init_rdev_a`) and the selectivity working-scale
+parameters (`par_sel`) are drawn on their natural unbounded scale. To avoid a
+Jensen's-inequality inflation of mean biomass, each deviation is set to its
+conditional expectation given the drawn scalar parameters, which preserves the
+negative $B_0 \leftrightarrow$ deviation correlation and aligns the bridge
+point with the delta-method historical ribbon.
+
+```{r}
+#| label: proj-mvn
+#| output: false
+#| message: false
+proj_mvn <- project_dynamics(
+  data      = data,
+  object    = obj_lf,
+  mcmc      = NULL,             # triggers the MVN path
+  n_proj    = n_proj,
+  n_iter    = n_iter,
+  rdev_y    = rdev_proj$rdev_y,
+  sel_fya   = sel_proj,
+  catch_ysf = catch_ysf_proj
+)
+```
+
+## Approach 2: MCMC posteriors
+
+A No-U-Turn sampler chain is run via `SparseNUTS` with a dense mass matrix.
+The `bet_globals()` call exports the helper functions needed for likelihood
+evaluation inside the MCMC workers (it is model-agnostic despite the name).
+Because both CPUE indices and the length compositions inform the fit, the
+$B_0$/$q$ scale is well identified and no additional priors are needed beyond
+those already in the model.
+
+```{r}
+#| label: mcmc-sampling
+#| eval: false
+#| output: false
+n_chains_mcmc <- 8
+mcmc_fit <- SparseNUTS::sample_snuts(
+  obj         = obj_lf,
+  globals     = bet_globals(),
+  num_samples = 500,
+  num_warmup  = 1000,
+  chains      = n_chains_mcmc,
+  cores       = min(n_chains_mcmc, parallel::detectCores()),
+  metric      = "dense"
+)
+saveRDS(mcmc_fit, "inst/extdata/opaka_mcmc_fit.rds")
+```
+
+```{r}
+#| label: mcmc-load
+#| message: false
+mcmc_fit <- readRDS(system.file("extdata", "opaka_mcmc_fit.rds", package = "opal"))
+```
+
+For the MCMC path, projected recruitment deviates are generated by fitting an
+ARIMA model to each posterior draw's own historical `rdev_y` series, so the
+projected recruitment pattern stays consistent with the historical pattern for
+that draw.
+
+```{r}
+#| label: rdev-proj-mcmc
+#| output: false
+#| message: false
+rdev_proj_mcmc <- project_rec_devs(
+  data = data, obj = obj_lf, mcmc = mcmc_fit,
+  first_yr = data$first_yr, n_proj = n_proj, n_iter = n_iter)
+```
+
+```{r}
+#| label: proj-mcmc
+#| output: false
+#| message: false
+proj_mcmc <- project_dynamics(
+  data        = data,
+  object      = obj_lf,
+  mcmc        = mcmc_fit,       # triggers the MCMC path
+  n_proj      = n_proj,
+  n_iter      = n_iter,
+  rdev_y      = rdev_proj_mcmc$rdev_y,
+  sel_fya     = sel_proj,
+  catch_ysf   = catch_ysf_proj,
+  return_hist = TRUE            # collect historical SB per posterior draw
+)
+```
+
+## MCMC diagnostics
+
+Split-chain $\hat{R}$ and effective sample sizes for the scalar parameters and
+a spread of recruitment deviates confirm convergence before the projection
+envelopes are compared.
+
+```{r}
+#| label: mcmc-diagnostics
+#| message: false
+post_samples <- SparseNUTS::extract_samples(mcmc_fit)
+n_post_total <- nrow(post_samples)
+n_per_chain  <- n_post_total / n_chains_mcmc
+chain_id     <- rep(seq_len(n_chains_mcmc), each = n_per_chain)
+iter_id      <- rep(seq_len(n_per_chain),   times = n_chains_mcmc)
+
+rdev_idx_all  <- grep("rdev_y", colnames(post_samples))
+rdev_idx_show <- rdev_idx_all[round(seq(1, length(rdev_idx_all), length.out = 4))]
+diag_cols     <- c("log_B0", "log_cpue_q[1]", "log_cpue_q[2]",
+                   colnames(post_samples)[rdev_idx_show])
+
+draws_df <- as.data.frame(post_samples[, diag_cols, drop = FALSE])
+draws_df[[".chain"]]     <- chain_id
+draws_df[[".iteration"]] <- iter_id
+draws_obj <- posterior::as_draws_df(draws_df)
+diag_tbl  <- posterior::summarise_draws(
+  draws_obj,
+  posterior::default_summary_measures(),
+  posterior::default_convergence_measures())
+diag_tbl$mle <- mu_vec[match(diag_tbl$variable, names(mu_vec))]
+
+knitr::kable(
+  diag_tbl[, c("variable", "mle", "mean", "sd", "q5", "q95",
+               "ess_bulk", "ess_tail", "rhat")],
+  digits = 3,
+  caption = paste0("MCMC diagnostics for key parameters (split-chain Rhat and ",
+                   "ESS). ESS < 100 or Rhat > 1.01 indicate poor convergence."))
+
+SparseNUTS::check_snuts_diagnostics(mcmc_fit)
+```
+
+```{r}
+#| label: mcmc-traces
+#| fig-height: 4
+#| fig-width: 8
+#| fig-cap: "MCMC traces for the scalar parameters (log B0 and the two log CPUE catchabilities) across all chains. Red dashed = MLE. Overlapping, stationary chains indicate good mixing."
+trace_df <- data.frame(
+  iter  = iter_id, chain = factor(chain_id),
+  log_B0        = post_samples[, "log_B0"],
+  `log_cpue_q1` = post_samples[, "log_cpue_q[1]"],
+  `log_cpue_q2` = post_samples[, "log_cpue_q[2]"],
+  check.names = FALSE) |>
+  tidyr::pivot_longer(-c(iter, chain), names_to = "param", values_to = "value")
+
+mle_ref <- data.frame(
+  param = c("log_B0", "log_cpue_q1", "log_cpue_q2"),
+  mle   = c(mu_vec["log_B0"], mu_vec[names(mu_vec) == "log_cpue_q"]))
+
+ggplot(trace_df, aes(iter, value, colour = chain)) +
+  geom_line(linewidth = 0.3, alpha = 0.7) +
+  geom_hline(data = mle_ref, aes(yintercept = mle),
+             linetype = "dashed", colour = "red", linewidth = 0.5) +
+  facet_wrap(~ param, scales = "free_y", ncol = 1) +
+  labs(x = "Post-warmup iteration", y = "Value", colour = "Chain")
+```
+
+---
+
+# Comparison: MVN vs MCMC uncertainty
+
+Projected spawning biomass is extracted from each iteration and summarised as
+quantile envelopes. `number_ysa[1, , ]` is the terminal historical state
+(`proj_year = 0`), so it bridges continuously to the historical trajectory.
+
+```{r}
+#| label: extract-sbio
+#| message: false
+spa <- obj_lf$report()$spawning_potential_a
+
+sbio_df <- function(proj_list, label) {
+  do.call(rbind, lapply(seq_along(proj_list), function(i) {
+    dyn <- proj_list[[i]]
+    sb  <- sapply(1:(n_proj + 1), function(y) sum(dyn$number_ysa[y, 1, ] * spa))
+    data.frame(iter = i, proj_year = 0:n_proj, sbio = sb, method = label)
+  }))
+}
+
+df_mvn  <- sbio_df(proj_mvn,      "MVN")
+df_mcmc <- sbio_df(proj_mcmc$dyn, "MCMC")
+df_all  <- rbind(df_mvn, df_mcmc)
+```
+
+```{r}
+#| label: summarise-proj
+#| message: false
+# Map model timesteps to calendar years: historical t = 1..(n_year+1) -> 1948+t
+# (t = n_year+1 is the terminal state = 2024); projection proj_year p -> 2024+p
+n_hist_show <- 60L
+hist_idx    <- (term_idx - n_hist_show + 1):term_idx
+hist_years  <- 1948L + hist_idx
+
+# MVN historical ribbon: delta-method Gaussian CI (no Jensen bias)
+df_hist_mvn <- data.frame(
+  year = hist_years,
+  med  = sbio_mle_sd[hist_idx],
+  lo50 = sbio_mle_sd[hist_idx] - qnorm(0.75) * sbio_se_sd[hist_idx],
+  hi50 = sbio_mle_sd[hist_idx] + qnorm(0.75) * sbio_se_sd[hist_idx],
+  lo90 = sbio_mle_sd[hist_idx] - qnorm(0.95) * sbio_se_sd[hist_idx],
+  hi90 = sbio_mle_sd[hist_idx] + qnorm(0.95) * sbio_se_sd[hist_idx],
+  method = "MVN")
+
+# MCMC historical ribbon: posterior trajectory quantiles
+hist_ribbon <- function(hist_sbio, label, idx, years) {
+  do.call(rbind, lapply(seq_along(idx), function(k) {
+    v <- hist_sbio[, idx[k]]
+    data.frame(year = years[k],
+               med  = median(v, na.rm = TRUE),
+               lo50 = quantile(v, 0.25, na.rm = TRUE),
+               hi50 = quantile(v, 0.75, na.rm = TRUE),
+               lo90 = quantile(v, 0.05, na.rm = TRUE),
+               hi90 = quantile(v, 0.95, na.rm = TRUE),
+               method = label)
+  }))
+}
+df_hist_mcmc   <- hist_ribbon(proj_mcmc$hist_sbio, "MCMC", hist_idx, hist_years)
+df_hist_ribbon <- rbind(df_hist_mvn, df_hist_mcmc)
+
+# Projection quantile ribbons (proj_year = 0 -> 2024 bridge point)
+df_ribbon <- df_all |>
+  filter(!is.na(sbio)) |>
+  group_by(method, proj_year) |>
+  summarise(med  = median(sbio, na.rm = TRUE),
+            lo50 = quantile(sbio, 0.25, na.rm = TRUE),
+            hi50 = quantile(sbio, 0.75, na.rm = TRUE),
+            lo90 = quantile(sbio, 0.05, na.rm = TRUE),
+            hi90 = quantile(sbio, 0.95, na.rm = TRUE),
+            .groups = "drop") |>
+  filter(!is.na(med)) |>
+  mutate(year = 2024L + proj_year)
+
+# MLE historical line + SS3 references
+hist_mle_df <- data.frame(year = hist_years, sbio = sbio_mle_sd[hist_idx])
+data(opaka_truth)
+ss3_om <- subset(opaka_truth$om$sprseries, Yr %in% hist_years)
+ss3_em <- subset(opaka_truth$em$sprseries, Yr %in% hist_years)
+```
+
+```{r}
+#| label: comparison-plot
+#| fig-height: 5
+#| fig-width: 8
+#| fig-cap: "'Opakapaka spawning biomass: historical uncertainty and projections. Last 60 years shown with a 10-year constant-catch projection (200 draws per method). Grey solid = estimated MLE; black dashed = SS3 OM; red = SS3 EM. Coloured ribbons: 50% (darker) and 90% (lighter) envelopes by method. Orange line = MCMC historical median. Vertical dashed line = end of the historical period (2024)."
+pal <- c(MVN = "steelblue", MCMC = "darkorange")
+
+ggplot() +
+  geom_ribbon(data = df_hist_ribbon,
+              aes(year, ymin = lo90, ymax = hi90, fill = method), alpha = 0.12) +
+  geom_ribbon(data = df_hist_ribbon,
+              aes(year, ymin = lo50, ymax = hi50, fill = method), alpha = 0.25) +
+  geom_line(data = subset(df_hist_ribbon, method == "MCMC"),
+            aes(year, med, colour = method), linewidth = 0.75) +
+  geom_line(data = hist_mle_df, aes(year, sbio), colour = "grey20", linewidth = 0.9) +
+  geom_line(data = ss3_om, aes(Yr, SSB), colour = "black",
+            linewidth = 0.8, linetype = "dashed") +
+  geom_line(data = ss3_em, aes(Yr, SSB), colour = "red", linewidth = 0.8) +
+  geom_vline(xintercept = 2024, linetype = "dashed", colour = "grey50") +
+  geom_ribbon(data = df_ribbon,
+              aes(year, ymin = lo90, ymax = hi90, fill = method), alpha = 0.15) +
+  geom_ribbon(data = df_ribbon,
+              aes(year, ymin = lo50, ymax = hi50, fill = method), alpha = 0.30) +
+  geom_line(data = df_ribbon, aes(year, med, colour = method), linewidth = 1) +
+  scale_fill_manual(values = pal) +
+  scale_colour_manual(values = pal) +
+  labs(x = "Year", y = "Spawning biomass (mt)", colour = "Method", fill = "Method")
+```
+
+```{r}
+#| label: depletion-plot
+#| fig-height: 5
+#| fig-width: 8
+#| fig-cap: "'Opakapaka relative depletion (SB / B0): historical uncertainty and projections. Last 60 years shown with a 10-year constant-catch projection (200 draws per method). Model-output quantities use the estimated B0 (MVN) or per-draw B0 (MCMC). Dotted red line = 20% B0; dashed grey = 40% B0."
+B0_mcmc      <- exp(post_samples[, "log_B0"])
+B0_mcmc_iter <- B0_mcmc[seq_len(n_iter)]
+
+# Historical depletion
+df_hist_mvn_dep <- df_hist_mvn |>
+  mutate(across(c(med, lo50, hi50, lo90, hi90), ~ . / B0_est))
+hist_sbio_dep    <- sweep(proj_mcmc$hist_sbio, 1, B0_mcmc_iter, "/")
+df_hist_mcmc_dep <- hist_ribbon(hist_sbio_dep, "MCMC", hist_idx, hist_years)
+df_hist_ribbon_dep <- rbind(df_hist_mvn_dep, df_hist_mcmc_dep)
+
+# Projection depletion
+df_ribbon_mvn_dep <- df_ribbon |>
+  filter(method == "MVN") |>
+  mutate(across(c(med, lo50, hi50, lo90, hi90), ~ . / B0_est))
+df_ribbon_mcmc_dep <- df_mcmc |>
+  mutate(sbio = sbio / B0_mcmc[iter]) |>
+  filter(!is.na(sbio)) |>
+  group_by(method, proj_year) |>
+  summarise(med  = median(sbio, na.rm = TRUE),
+            lo50 = quantile(sbio, 0.25, na.rm = TRUE),
+            hi50 = quantile(sbio, 0.75, na.rm = TRUE),
+            lo90 = quantile(sbio, 0.05, na.rm = TRUE),
+            hi90 = quantile(sbio, 0.95, na.rm = TRUE),
+            .groups = "drop") |>
+  filter(!is.na(med)) |>
+  mutate(year = 2024L + proj_year)
+df_ribbon_dep <- rbind(df_ribbon_mvn_dep, df_ribbon_mcmc_dep)
+
+hist_mle_dep <- data.frame(year = hist_years, dep = sbio_mle_sd[hist_idx] / B0_est)
+
+ggplot() +
+  geom_ribbon(data = df_hist_ribbon_dep,
+              aes(year, ymin = lo90, ymax = hi90, fill = method), alpha = 0.12) +
+  geom_ribbon(data = df_hist_ribbon_dep,
+              aes(year, ymin = lo50, ymax = hi50, fill = method), alpha = 0.25) +
+  geom_line(data = subset(df_hist_ribbon_dep, method == "MCMC"),
+            aes(year, med, colour = method), linewidth = 0.75) +
+  geom_line(data = hist_mle_dep, aes(year, dep), colour = "grey20", linewidth = 0.9) +
+  geom_vline(xintercept = 2024, linetype = "dashed", colour = "grey50") +
+  geom_ribbon(data = df_ribbon_dep,
+              aes(year, ymin = lo90, ymax = hi90, fill = method), alpha = 0.15) +
+  geom_ribbon(data = df_ribbon_dep,
+              aes(year, ymin = lo50, ymax = hi50, fill = method), alpha = 0.30) +
+  geom_line(data = df_ribbon_dep, aes(year, med, colour = method), linewidth = 1) +
+  geom_hline(yintercept = 0.2, linetype = "dotted", colour = "red", linewidth = 0.5) +
+  geom_hline(yintercept = 0.4, linetype = "dashed", colour = "grey50", linewidth = 0.4) +
+  coord_cartesian(ylim = c(0, NA)) +
+  scale_fill_manual(values = pal) +
+  scale_colour_manual(values = pal) +
+  labs(x = "Year", y = expression("Relative depletion (SB / B"[0]*")"),
+       colour = "Method", fill = "Method")
+```
+
+**Reading the bridge point.** In the MVN case the scalar parameters are drawn
+from the Hessian and each deviation is pinned to its conditional expectation,
+so the `proj_year = 0` ribbon coincides with the delta-method (`sdreport`)
+historical ribbon. In the MCMC case each draw carries its own full history, so
+the bridge-point spread reflects the actual posterior uncertainty in the
+current biomass state. Because 'opakapaka is long-lived and matures slowly,
+the existing adult stock declines nearly deterministically under constant
+catch, and the two methods' projection envelopes widen only gradually as future
+recruitment and selectivity uncertainty accumulate.
+
+```{r}
+#| label: summary-table
+#| message: false
+df_all |>
+  filter(proj_year == n_proj, !is.na(sbio)) |>
+  group_by(method) |>
+  summarise(mean   = mean(sbio),
+            sd     = sd(sbio),
+            p05    = quantile(sbio, 0.05),
+            median = median(sbio),
+            p95    = quantile(sbio, 0.95),
+            .groups = "drop") |>
+  knitr::kable(digits = 1,
+    caption = paste0("Projected spawning biomass (mt) at year ", 2024 + n_proj,
+                     " under constant catch, by uncertainty method."))
+```

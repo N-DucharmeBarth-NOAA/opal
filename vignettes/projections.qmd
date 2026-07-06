@@ -51,11 +51,11 @@ library(posterior)
 
 theme_set(theme_bw())
 
-if (identical(Sys.getenv("CI"), "true")) {
-  mcmc_fit <- readRDS(system.file("extdata", "mcmc_fit.rds", package = "opal"))
-  eval_mcmc <- FALSE
-  n_chains_mcmc <- 8
-}
+# The MCMC fit is pre-computed and loaded from the package (the `mcmc-sampling`
+# chunk that would produce it is disabled); n_chains_mcmc must match the number
+# of chains used to produce the cached fit.
+n_chains_mcmc <- 8L
+mcmc_fit <- readRDS(system.file("extdata", "mcmc_fit.rds", package = "opal"))
 ```
 
 ## Load data and parameters
@@ -228,8 +228,7 @@ catch_orig <- rowSums(data$catch_obs_ysf,     dims = 1)
 catch_alt  <- rowSums(data_alt$catch_obs_ysf, dims = 1)
 years_all  <- seq_len(n_yr)
 plot(years_all, catch_orig, type = "l", col = "grey50", lwd = 1,
-     xlab = "Quarter", ylab = "Total catch (mt)",
-     main = "Original vs reduced-catch scenario")
+     xlab = "Quarter", ylab = "Total catch (mt)")
 lines(years_all, catch_alt, col = "steelblue", lwd = 1.5)
 abline(v = n_yr - 79, lty = 2, col = "grey70")
 legend("topright", c("Original", "Reduced (recovery scenario)"),
@@ -273,8 +272,7 @@ Compare the original and simulated CPUE series — the rising trend in the final
 #| fig-width: 7
 #| fig-cap: "Original observed CPUE (grey) and simulated CPUE from the recovery scenario (blue). The rising trend in the final 20 years reflects the reduced catch."
 plot(data$cpue_data$value, type = "l", col = "grey50", lwd = 1,
-     xlab = "Time step", ylab = "CPUE",
-     main = "Original (grey) vs recovery-scenario simulated (blue) CPUE")
+     xlab = "Time step", ylab = "CPUE")
 lines(data_sim$cpue_data$value, col = "steelblue", lwd = 1.5)
 abline(v = n_yr - 79, lty = 2, col = "grey70")
 legend("topright", c("Original observed", "Recovery scenario"),
@@ -353,13 +351,13 @@ recover the true trajectory from the simulated observations:
 #| label: sbio-check
 #| fig-height: 4
 #| fig-width: 7
+#| fig-cap: "True recovery-scenario spawning biomass (black dashed) versus the trajectory refitted to the simulated data (blue). Close agreement shows the model recovers the true trajectory from the simulated observations."
 rep_sim  <- obj_sim$report()
 
 ylim <- range(c(sbio_true, rep_sim$spawning_biomass_y)) * c(0, 1.15)
 plot(sbio_true, type = "l", col = "black", lwd = 2, lty = 2,
      ylim = ylim,
-     xlab = "Time step", ylab = "Spawning biomass (mt)",
-     main = "True recovery trajectory (black dashed) vs refitted MLE (blue)")
+     xlab = "Time step", ylab = "Spawning biomass (mt)")
 lines(rep_sim$spawning_biomass_y, col = "steelblue", lwd = 2)
 legend("topright", c("True (recovery scenario)", "Refitted MLE"),
        col = c("black", "steelblue"), lwd = 2, lty = c(2, 1))
@@ -412,7 +410,7 @@ prior.
 #| label: rdev-plot
 #| fig-height: 3.5
 #| fig-width: 8
-#| fig-cap: "Estimated log-recruitment deviates with approximate 95% point-wise confidence intervals (±1.96 × Hessian SE). The first generation time (grey shading) is fixed at zero."
+#| fig-cap: "Estimated log-recruitment deviates (rdev_y) with approximate 95% point-wise confidence intervals (±1.96 × Hessian SE). The first generation time (grey shading) is fixed at zero (spin-up); the remaining years are estimated freely."
 rdev_idx <- which(names(mu_vec) == "rdev_y")
 rdev_mle_est <- mu_vec[rdev_idx]
 rdev_se_est  <- SE_vec[rdev_idx]
@@ -433,10 +431,7 @@ ggplot(rdev_df, aes(x = year)) +
               aes(ymin = lo95, ymax = hi95), fill = "steelblue", alpha = 0.25) +
   geom_line(aes(y = rdev), colour = "steelblue", linewidth = 0.6) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
-  labs(x = "Model year", y = "log-recruitment deviate",
-       title = "Estimated recruitment deviates (rdev_y)",
-       subtitle = paste0("Years 1–", n_gen, " fixed at zero (spin-up); years ",
-                         n_gen + 1, "–", data_sim$n_year, " estimated freely"))
+  labs(x = "Model year", y = "log-recruitment deviate")
 ```
 
 ---
@@ -591,7 +586,7 @@ SparseNUTS::check_snuts_diagnostics(mcmc_fit)
 #| label: mcmc-traces
 #| fig-height: 5
 #| fig-width: 8
-#| fig-cap: "MCMC traces for scalar parameters across all chains (colours). Red dashed = MLE estimate. Chains overlapping and stationary around a common mean indicates good convergence."
+#| fig-cap: "MCMC traces for the scalar parameters across all chains (colours), showing 500 post-warmup samples per chain over 8 chains. Red dashed = MLE estimate. Chains overlapping and stationary around a common mean indicate good convergence."
 trace_df <- data.frame(
   iter       = iter_id,
   chain      = factor(chain_id),
@@ -614,10 +609,7 @@ ggplot(trace_df, aes(x = iter, y = value, colour = chain)) +
                c(log_B0 = "log~B[0]", log_cpue_q = "log~q[CPUE]"),
                default = label_parsed)) +
   scale_colour_discrete(name = "Chain") +
-  labs(x = "Post-warmup iteration", y = "Parameter value",
-       title = "MCMC traces — scalar parameters",
-       subtitle = sprintf("Red dashed = MLE; %d post-warmup samples × %d chains",
-                          n_per_chain, n_chains_mcmc))
+  labs(x = "Post-warmup iteration", y = "Parameter value")
 ```
 
 Without informative priors on `log_B0` and `log_cpue_q`, the joint likelihood
@@ -697,9 +689,7 @@ ggplot() +
              colour = "red", linetype = "dashed", linewidth = 0.7) +
   facet_wrap(~ param, scales = "free",
              labeller = as_labeller(par_labels, default = label_parsed)) +
-  labs(x = "Parameter value", y = "Density",
-       title = "Prior (blue) vs MCMC posterior (grey) for scalar parameters",
-       subtitle = "Red dashed = MLE estimate")
+  labs(x = "Parameter value", y = "Density")
 ```
 
 ---
@@ -942,15 +932,14 @@ ggplot(df_rdev, aes(x = year)) +
   geom_line(aes(y = mle), colour = "black", linewidth = 0.8) +
   geom_hline(yintercept = c(-sigma_r_val, sigma_r_val),
              linetype = "dashed", colour = "grey50", linewidth = 0.4) +
-  labs(x = "Year (index)", y = "rdev_y (log scale)",
-       title = "Recruitment deviates: MLE (black) vs MCMC posterior mean + 90% CI (blue)")
+  labs(x = "Year (index)", y = "rdev_y (log scale)")
 ```
 
 ```{r}
 #| label: comparison-plot
 #| fig-height: 5
 #| fig-width: 8
-#| fig-cap: "Spawning biomass over the last 100 time-steps and 10-time-step projection. Black dashed = true SSB used to generate simulated data. Grey solid = estimated MLE (obj_sim). Coloured ribbons: 50 % (darker) and 90 % (lighter) uncertainty envelopes by method. Orange median line shows MCMC posterior central tendency in the historical period. Vertical dashed line = end of historical period."
+#| fig-cap: "Spawning biomass: historical uncertainty and projections, over the last 100 time-steps and a 10-time-step constant-catch projection (200 draws per method). Black dashed = true SSB used to generate simulated data. Grey solid = estimated MLE (obj_sim). Coloured ribbons: 50 % (darker) and 90 % (lighter) uncertainty envelopes by method. Orange median line shows MCMC posterior central tendency in the historical period. Vertical dashed line = end of historical period."
 pal <- c(MVN = "steelblue", MCMC = "darkorange")
 
 ggplot() +
@@ -995,13 +984,7 @@ ggplot() +
     x        = "Time step",
     y        = "Spawning biomass (mt)",
     colour   = "Method",
-    fill     = "Method",
-    title    = "Spawning biomass: historical uncertainty + projections",
-    subtitle = paste0(
-      "Last ", n_hist_show, " time-steps shown; ",
-      n_proj, "-time-step constant-catch projection; ",
-      n_iter, " draws per method"
-    )
+    fill     = "Method"
   )
 ```
 
@@ -1009,7 +992,7 @@ ggplot() +
 #| label: depletion-plot
 #| fig-height: 5
 #| fig-width: 8
-#| fig-cap: "Relative depletion (SB / B₀) over the last 100 time-steps and projection. All model-output quantities are divided by the estimated B₀ from obj_sim; the true-trajectory line uses the true B₀ from the recovery scenario. Dotted red line = 20 % B₀ limit reference point."
+#| fig-cap: "Relative depletion (SB / B₀): historical uncertainty and projections, over the last 100 time-steps and a 10-time-step constant-catch projection (200 draws per method). All model-output quantities are divided by the estimated B₀ from obj_sim; the true-trajectory line uses the true B₀ from the recovery scenario. Dotted red line = 20 % B₀ limit reference point."
 ggplot() +
   geom_ribbon(data = df_hist_ribbon_dep,
               aes(x = timestep, ymin = lo90, ymax = hi90, fill = method),
@@ -1046,13 +1029,7 @@ ggplot() +
     x        = "Time step",
     y        = expression("Relative depletion (SB / B"[0]*")"),
     colour   = "Method",
-    fill     = "Method",
-    title    = "Relative depletion: historical uncertainty + projections",
-    subtitle = paste0(
-      "Last ", n_hist_show, " time-steps shown; ",
-      n_proj, "-time-step constant-catch projection; ",
-      n_iter, " draws per method"
-    )
+    fill     = "Method"
   )
 ```
 
