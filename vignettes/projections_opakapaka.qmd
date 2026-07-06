@@ -333,11 +333,16 @@ n_chains_mcmc <- 8
 mcmc_fit <- SparseNUTS::sample_snuts(
   obj         = obj_lf,
   globals     = bet_globals(),
-  num_samples = 500,
-  num_warmup  = 1000,
+  num_samples = 750,
+  num_warmup  = 1500,
   chains      = n_chains_mcmc,
   cores       = min(n_chains_mcmc, parallel::detectCores()),
-  metric      = "dense"
+  metric      = "dense",
+  seed        = 42,
+  # A high adapt_delta and deeper trees are needed for this posterior: with the
+  # default settings the survey length-composition geometry produces divergences
+  # and elevated Rhat.
+  control     = list(adapt_delta = 0.99, max_treedepth = 12)
 )
 saveRDS(mcmc_fit, "inst/extdata/opaka_mcmc_fit.rds")
 ```
