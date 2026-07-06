@@ -33,7 +33,6 @@ Imports:
     RTMBdist,
     scales,
     SparseNUTS,
-    testthat,
     tidyr
 Suggests:
     compResidual,
@@ -46,7 +45,8 @@ Suggests:
     htmlwidgets,
     posterior,
     profmem,
-    profvis
+    profvis,
+    testthat
 Config/testthat/edition: 3
 VignetteBuilder: quarto
 URL: https://n-ducharmebarth-noaa.github.io/opal/

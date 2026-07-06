@@ -145,8 +145,9 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   data$wf_obs_in    <- wf_obs
   data$wf_n         <- wf_n
   data$wf_fishery   <- as.integer(wf_wide$fishery)
-  data$wf_fishery_f <- unique(data$wf_fishery)
-  data$wf_n_f       <- as.integer(table(data$wf_fishery))
+  data$wf_fishery_f <- sort(unique(data$wf_fishery))
+  wf_group          <- factor(data$wf_fishery, levels = data$wf_fishery_f)
+  data$wf_n_f       <- as.integer(table(wf_group))
   data$wf_year      <- as.integer(wf_wide$ts)
   data$wf_minbin    <- wf_minbin
   data$wf_maxbin    <- wf_maxbin
@@ -158,9 +159,9 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   wf_n_f        <- data$wf_n_f
   n_f           <- length(wf_fishery_f)
   n_wt_local    <- ncol(data$wf_obs_in)
-  wf_n_fi       <- split(data$wf_n, data$wf_fishery)
-  wf_year_fi    <- split(data$wf_year, data$wf_fishery)
-  wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), data$wf_fishery)
+  wf_n_fi       <- split(data$wf_n, wf_group)
+  wf_year_fi    <- split(data$wf_year, wf_group)
+  wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), wf_group)
   data$wf_n_fi    <- wf_n_fi
   data$wf_year_fi <- wf_year_fi
   data$wf_row_fi  <- wf_row_fi
@@ -170,7 +171,8 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
     f    <- wf_fishery_f[j]
     bmin <- wf_minbin[f]
     bmax <- wf_maxbin[f]
-    rows <- wf_row_fi[[j]]
+    group_name <- as.character(f)
+    rows <- wf_row_fi[[group_name]]
     m    <- matrix(0, wf_n_f[j], bmax - bmin + 1L)
     for (i in seq_len(wf_n_f[j])) {
       obs <- data$wf_obs_in[rows[i], ]
@@ -179,7 +181,7 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
       obs     <- obs[bmin:bmax]
       obs     <- obs + wf_addtocomp
       obs     <- obs / sum(obs)
-      m[i, ]  <- obs * wf_n_fi[[j]][i]
+      m[i, ]  <- obs * wf_n_fi[[group_name]][i]
     }
     wf_obs_list[[j]] <- m
   }
@@ -187,11 +189,13 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   # ---- 11. Attach flattened observation vectors ----
   # For multinomial (wf_switch = 1): unrounded counts
   data$wf_obs_flat <- unlist(lapply(wf_obs_list,
-                                    function(m) as.numeric(t(m))))
+                                    function(m) as.numeric(t(m))),
+                             use.names = FALSE)
 
   # For Dirichlet-multinomial (wf_switch = 3): rounded integer counts
   data$wf_obs_ints <- unlist(lapply(wf_obs_list,
-                                    function(m) as.integer(t(round(m)))))
+                                    function(m) as.integer(t(round(m)))),
+                             use.names = FALSE)
 
   # For Dirichlet (wf_switch = 2): row-normalised proportions
   data$wf_obs_prop <- unlist(lapply(wf_obs_list, function(m) {
@@ -201,7 +205,7 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
       p / sum(p)
     }))
     as.numeric(t(props))
-  }))
+  }), use.names = FALSE)
   data$wf_addtocomp <- wf_addtocomp
 
   return(data)

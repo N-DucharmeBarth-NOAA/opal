@@ -2,36 +2,29 @@
 % Please edit documentation in R/get-data.R
 \name{get_data}
 \alias{get_data}
-\title{Set up the data input file}
+\title{Get bundled model data}
 \usage{
-get_data(data_in)
+get_data(
+  model = c("opal_baseline", "opakapaka", "wcpo_bet"),
+  include_parameters = FALSE
+)
 }
 \arguments{
-\item{data_in}{a \code{list} containing the data inputs.}
+\item{model}{Character model identifier. Supported values are
+\code{"opal_baseline"}, \code{"opakapaka"}, and \code{"wcpo_bet"}.
+Aliases \code{"baseline"}, \code{"opaka"}, and \code{"bet"} are also
+accepted.}
+
+\item{include_parameters}{Logical; if \code{TRUE}, return a list with both
+\code{data} and matching initial \code{parameters}.}
 }
 \value{
-a \code{list} ready to be passed to \code{MakeADFun}.
+A data list ready for \code{\link{opal_model}}, or a list with
+elements \code{data} and \code{parameters} when
+\code{include_parameters = TRUE}.
 }
 \description{
-Set up the data input file to be passed to \code{MakeADFun}. This function
-runs data cross validation tests and appends several inputs to the data list
-including model dimensions and processed inputs:
-}
-\details{
-\itemize{
-\item \code{n_year}: dervied from \code{first_yr} and \code{last_yr}
-\item \code{n_season}: set to 2
-\item \code{n_length}: not in use
-\item \code{n_age}: derived from \code{min_age} and \code{max_age}
-\item \code{n_fishery}: set to 6
-\item \code{age_a}: sequence of modeled ages derived from \code{min_age} and \code{max_age}
-\item \code{length_mu_ysa}: derived from the \code{length_mean} input
-\item \code{length_sd_a}: derived from the \code{length_sd} input
-\item \code{dl_yal}: derived from \code{length_mu_ysa} and \code{length_sd_a}
-\item \code{weight_fya}: derived from \code{length_mu_ysa} and \code{length_sd_a}
-\item \code{catch_obs_ysf}: derived from \code{catch}, \code{catch_UA}, \code{scenarios_LL1}, and \code{scenarios_surf}
-\item \code{sel_change_year_fy}: derived from \code{sel_change_sd_fy}
-}
-
-This function produces the data input file to be passed to \code{MakeADFun}.
+Loads one of the packaged opal model data objects. This replaces the legacy
+data-construction helper, which depended on historical raw inputs that are no
+longer bundled with the package.
 }

@@ -155,8 +155,9 @@ prep_lf_data <- function(data,
   data$lf_obs_in       <- lf_obs
   data$lf_n            <- lf_n
   data$lf_fishery      <- as.integer(lf_wide$fishery)
-  data$lf_fishery_f    <- unique(data$lf_fishery)
-  data$lf_n_f          <- as.integer(table(data$lf_fishery))
+  data$lf_fishery_f    <- sort(unique(data$lf_fishery))
+  lf_group             <- factor(data$lf_fishery, levels = data$lf_fishery_f)
+  data$lf_n_f          <- as.integer(table(lf_group))
   data$lf_year         <- as.integer(lf_wide$ts)  # model timestep (1-based)
   data$lf_season       <- rep(1L, nrow(lf_wide))
   data$lf_minbin        <- lf_minbin
@@ -170,9 +171,9 @@ prep_lf_data <- function(data,
   lf_n_f        <- data$lf_n_f
   n_f           <- length(lf_fishery_f)
   n_len_local   <- ncol(data$lf_obs_in)
-  lf_n_fi       <- split(data$lf_n, data$lf_fishery)
-  lf_year_fi    <- split(data$lf_year, data$lf_fishery)
-  lf_row_fi     <- split(seq_len(nrow(data$lf_obs_in)), data$lf_fishery)
+  lf_n_fi       <- split(data$lf_n, lf_group)
+  lf_year_fi    <- split(data$lf_year, lf_group)
+  lf_row_fi     <- split(seq_len(nrow(data$lf_obs_in)), lf_group)
   data$lf_n_fi    <- lf_n_fi
   data$lf_year_fi <- lf_year_fi
   data$lf_row_fi  <- lf_row_fi
@@ -182,7 +183,8 @@ prep_lf_data <- function(data,
     f    <- lf_fishery_f[j]
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]
-    rows <- lf_row_fi[[j]]
+    group_name <- as.character(f)
+    rows <- lf_row_fi[[group_name]]
     m    <- matrix(0, lf_n_f[j], bmax - bmin + 1L)
     for (i in seq_len(lf_n_f[j])) {
       obs <- data$lf_obs_in[rows[i], ]
@@ -191,7 +193,7 @@ prep_lf_data <- function(data,
       obs     <- obs[bmin:bmax]
       obs     <- obs + lf_addtocomp
       obs     <- obs / sum(obs)
-      m[i, ]  <- obs * lf_n_fi[[j]][i]
+      m[i, ]  <- obs * lf_n_fi[[group_name]][i]
     }
     lf_obs_list[[j]] <- m
   }
@@ -202,11 +204,13 @@ prep_lf_data <- function(data,
 
   # For multinomial (lf_switch = 1): unrounded counts
   data$lf_obs_flat <- unlist(lapply(lf_obs_list,
-                                    function(m) as.numeric(t(m))))
+                                    function(m) as.numeric(t(m))),
+                             use.names = FALSE)
 
   # For Dirichlet-multinomial (lf_switch = 3): rounded integer counts
   data$lf_obs_ints <- unlist(lapply(lf_obs_list,
-                                    function(m) as.integer(t(round(m)))))
+                                    function(m) as.integer(t(round(m)))),
+                             use.names = FALSE)
 
   # For Dirichlet (lf_switch = 2): row-normalised proportions
   data$lf_obs_prop <- unlist(lapply(lf_obs_list, function(m) {
@@ -216,7 +220,7 @@ prep_lf_data <- function(data,
       p / sum(p)
     }))
     as.numeric(t(props))
-  }))
+  }), use.names = FALSE)
   data$lf_addtocomp <- lf_addtocomp
 
   # Number of bins per observation (scalar; same for all obs when bmin/bmax are uniform)

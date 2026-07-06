@@ -353,3 +353,36 @@ test_that("lf_obs_prop depends on lf_addtocomp", {
   d_large <- make_lf_data(lf_addtocomp = 1e-2)
   expect_false(isTRUE(all.equal(d_small$lf_obs_prop, d_large$lf_obs_prop)))
 })
+
+test_that("prep_lf_data aligns grouped outputs when input fishery order changes", {
+  data(wcpo_bet_data, package = "opal", envir = environment())
+  data(wcpo_bet_lf,   package = "opal", envir = environment())
+
+  lf_wide <- wcpo_bet_lf |>
+    tidyr::pivot_wider(
+      id_cols     = c(fishery, year, month, ts),
+      names_from  = bin,
+      values_from = value,
+      values_fill = 0
+    )
+
+  lf_wide_sorted <- lf_wide |>
+    dplyr::arrange(fishery, ts)
+  lf_wide_reversed <- lf_wide |>
+    dplyr::filter(fishery %in% c(8, 9)) |>
+    dplyr::arrange(dplyr::desc(fishery), ts)
+
+  d_sorted <- prep_lf_data(wcpo_bet_data, lf_wide_sorted,
+                           lf_keep_fisheries = c(8, 9))
+  d_reversed <- prep_lf_data(wcpo_bet_data, lf_wide_reversed,
+                             lf_keep_fisheries = c(8, 9))
+
+  expect_equal(d_reversed$lf_fishery_f, d_sorted$lf_fishery_f)
+  expect_equal(d_reversed$lf_n_f, d_sorted$lf_n_f)
+  expect_equal(d_reversed$lf_year_fi, d_sorted$lf_year_fi)
+  expect_equal(d_reversed$lf_n_fi, d_sorted$lf_n_fi)
+  expect_equal(d_reversed$lf_obs_data$obs, d_sorted$lf_obs_data$obs)
+  expect_equal(d_reversed$lf_obs_flat, d_sorted$lf_obs_flat)
+  expect_equal(d_reversed$lf_obs_ints, d_sorted$lf_obs_ints)
+  expect_equal(d_reversed$lf_obs_prop, d_sorted$lf_obs_prop)
+})
