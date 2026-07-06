@@ -101,9 +101,10 @@ get_priors <- function(parameters, data = NULL) {
 #' }
 #' 
 evaluate_priors <- function(parameters, priors) {
+  n <- length(priors)
+  if (n == 0L) return(0)
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-  n <- length(priors)
   lp <- numeric(n)
   for (i in 1:n) {
     type <- priors[[i]]$type

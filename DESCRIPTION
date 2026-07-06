@@ -36,6 +36,7 @@ Imports:
     testthat,
     tidyr
 Suggests:
+    compResidual,
     knitr,
     quarto,
     rmarkdown,

@@ -68,6 +68,8 @@ opal_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
+  has_init_rdev_a <- exists("init_rdev_a", inherits = FALSE) && !is.null(init_rdev_a)
+  has_init_bias_adj_a <- exists("init_bias_adj_a", inherits = FALSE) && !is.null(init_bias_adj_a)
   if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
   if (!exists("lf_switch", inherits = FALSE)) lf_switch <- 0L
   if (!exists("n_lf", inherits = FALSE)) n_lf <- 0L
@@ -76,9 +78,9 @@ opal_model <- function(parameters, data) {
   if (!exists("n_wf", inherits = FALSE)) n_wf <- 0L
   if (!exists("wf_addtocomp", inherits = FALSE)) wf_addtocomp <- 1e-08
   if (!exists("log_init_F_f", inherits = FALSE)) log_init_F_f <- rep(log(1e-8), n_fishery)
-  if (!exists("init_rdev_a", inherits = FALSE)) init_rdev_a <- rep(0.0, n_age)
+  if (!has_init_rdev_a) init_rdev_a <- NULL
   if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
-  if (!exists("init_bias_adj_a", inherits = FALSE)) init_bias_adj_a <- rep(0.0, n_age)
+  if (!has_init_bias_adj_a) init_bias_adj_a <- NULL
   if (!exists("sex_ratio", inherits = FALSE)) sex_ratio <- rep(1.0, n_age)
   
   # Growth module ----
@@ -191,6 +193,14 @@ opal_model <- function(parameters, data) {
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
   catch_pred_fya <- dyn$catch_pred_fya
+  comp_pred_fya <- catch_pred_fya
+  for (f in seq_len(n_fishery)) {
+    if (sum(catch_obs_ysf[, , f]) <= 0) {
+      for (y in seq_len(n_year)) {
+        comp_pred_fya[f, y, ] <- number_ysa[y, 1, ] * sel_fya[f, y, ]
+      }
+    }
+  }
   
   # plot(spawning_biomass_y)
   # plot(rowSums(dyn$number_ysa[,1,]))
@@ -200,7 +210,11 @@ opal_model <- function(parameters, data) {
   # Priors ----
   
   lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
-  lp_init_rec <- get_recruitment_prior(init_rdev_a, sigma_r)
+  if (has_init_rdev_a) {
+    lp_init_rec <- get_recruitment_prior(init_rdev_a, sigma_r)
+  } else {
+    lp_init_rec <- 0
+  }
   if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
     lp_prior <- evaluate_priors(parameters, priors)
   } else {
@@ -224,7 +238,7 @@ opal_model <- function(parameters, data) {
       lf_obs_flat = lf_obs_flat,
       lf_obs_ints = lf_obs_ints,
       lf_obs_prop = lf_obs_prop,
-      catch_pred_fya = catch_pred_fya,
+      catch_pred_fya = comp_pred_fya,
       pla = pla,
       lf_n_f = lf_n_f,
       lf_fishery_f = lf_fishery_f,
@@ -249,7 +263,7 @@ opal_model <- function(parameters, data) {
       wf_obs_flat = wf_obs_flat,
       wf_obs_ints = wf_obs_ints,
       wf_obs_prop = wf_obs_prop,
-      catch_pred_fya = catch_pred_fya,
+      catch_pred_fya = comp_pred_fya,
       pla = pla,
       wf_rebin_matrix = wf_rebin_matrix,
       wf_n_f = wf_n_f,
@@ -294,6 +308,7 @@ opal_model <- function(parameters, data) {
   REPORT(M_a)
   REPORT(weight_fya_mod)
   REPORT(init_F_f)
+  if (!has_init_rdev_a) init_rdev_a <- rep(0.0, n_age)
   REPORT(init_rdev_a)
   
   return(nll)

@@ -322,6 +322,26 @@ test_that("opal_model objective includes all reported likelihood components", {
   expect_equal(nll, expected, tolerance = 1e-8)
 })
 
+test_that("initial recruitment-deviation prior is omitted when init_rdev_a is absent", {
+  d <- make_synthetic_data()
+  parameters <- make_parameters(d)
+  map <- make_map(parameters)
+  obj <- make_obj(d, parameters, map)
+  rpt <- obj$report()
+
+  expect_equal(rpt$lp_init_rec, 0)
+  expect_equal(rpt$init_rdev_a, rep(0, d$n_age))
+
+  parameters$init_rdev_a <- rep(0.1, d$n_age)
+  map <- make_map(parameters)
+  map$init_rdev_a <- factor(rep(NA, d$n_age))
+  obj <- make_obj(d, parameters, map)
+  rpt <- obj$report()
+
+  expect_gt(rpt$lp_init_rec, 0)
+  expect_equal(rpt$init_rdev_a, parameters$init_rdev_a)
+})
+
 test_that("obj$gr() is finite with LF and WF data active", {
   gr <- obj_full$gr()
   expect_true(all(is.finite(gr)))
@@ -350,6 +370,30 @@ test_that("lp_lf and lp_wf both contribute to NLL, and lp_wf is reported", {
   expect_true("lp_wf" %in% names(rpt))
   expect_true(is.numeric(rpt$lp_wf))
   expect_true(length(rpt$lp_wf) > 0)
+})
+
+test_that("WF compositions for no-catch fleets use selected abundance", {
+  d <- make_synthetic_full_data(wf_switch = 1L, lf_switch = 0L)
+  d$catch_obs_ysf[, , 2] <- 0
+  d$wf_fishery <- c(2L, 2L)
+  d$wf_fishery_f <- 2L
+  d$wf_n_f <- 2L
+  d$sel_fa_external <- matrix(
+    c(1, 1, 1, 1, 1,
+      0, 0, 0, 0, 1),
+    nrow = d$n_fishery,
+    byrow = TRUE
+  )
+
+  parameters <- make_parameters(d)
+  map <- make_map(parameters)
+  obj <- make_obj(d, parameters, map)
+  obj$fn()
+  pred <- as.numeric(obj$report()$wf_pred[[1]][1, ])
+
+  expect_equal(sum(d$catch_obs_ysf[, , 2]), 0)
+  expect_gt(max(pred) - min(pred), 1e-4)
+  expect_gt(sum(pred[8:d$n_wt]), sum(pred[seq_len(7)]))
 })
 
 # Tests: WF disabled -----------------------------------------------------------

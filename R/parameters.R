@@ -53,16 +53,17 @@ get_parameters <- function(data) {
     par_sel[[f]] <- array(0, dim = c(ny, na), dimnames = list(year = yrs, age = data$sel_min_age_f[f]:data$sel_max_age_f[f]))
   }
   for (f in 1:7) {
-    fy <- data$first_yr_catch_f[f] - data$first_yr + 1
-    old_change_year_fy[f, fy] <- 1
     # years
-    yrs1 <- as.integer(names(old_change_year_fy[f,])[old_change_year_fy[f,] > 0])
     yrs2 <- as.integer(rownames(par_sel[[f]]))
-    iy1 <- yrs1[match(yrs2, yrs1)] - data$first_yr + 1
+    iy1 <- .match_selectivity_year_indices(
+      target_years = yrs2,
+      first_yr = data$first_yr,
+      n_year = dim(xx)[2]
+    )
     # ages
     a1 <- c(old_min_age_f[f]:old_max_age_f[f])
     a2 <- as.integer(colnames(par_sel[[f]]))
-    ia1 <- a1[match(a2, a1)] + 1
+    ia1 <- .match_selectivity_age_indices(a2, a1) + 1L
     par_sel[[f]][,] <- log(xx[f, iy1, ia1])
   }
   par_sel[[4]] <- t(as.matrix(par_sel[[4]])) # to force as matrix
@@ -120,6 +121,27 @@ get_parameters <- function(data) {
   )
   
   return(parameters)
+}
+
+.match_selectivity_age_indices <- function(target_ages, source_ages) {
+  if (length(source_ages) == 0L) {
+    stop("`source_ages` must contain at least one age.", call. = FALSE)
+  }
+  source_ages <- sort(unique(as.integer(source_ages)))
+  target_ages <- as.integer(target_ages)
+  pmin(pmax(target_ages, min(source_ages)), max(source_ages))
+}
+
+.match_selectivity_year_indices <- function(target_years, first_yr, n_year) {
+  if (length(target_years) == 0L) {
+    return(integer())
+  }
+  if (n_year < 1L) {
+    stop("`n_year` must be positive.", call. = FALSE)
+  }
+  last_yr <- first_yr + n_year - 1L
+  matched_years <- pmin(pmax(as.integer(target_years), first_yr), last_yr)
+  matched_years - first_yr + 1L
 }
 
 #' Get default parameter mapping

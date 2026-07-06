@@ -13,6 +13,8 @@
 ^Meta$
 ^vignettes/.*\.html$
 ^vignettes/.*_files$
+^vignettes/.*\.rmarkdown$
+^vignettes/\.quarto$
 ^\.positai$
 ^\.claude$
 ^inst/scripts$
