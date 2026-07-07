@@ -251,10 +251,10 @@ make_obj <- function(d, parameters = NULL, map = NULL) {
   )
 }
 
-# Tests: bet_globals -----------------------------------------------------------
+# Tests: opal_globals ----------------------------------------------------------
 
-test_that("bet_globals includes get_weight_like, rebin_counts, rebin_matrix", {
-  g <- bet_globals()
+test_that("opal_globals includes get_weight_like, rebin_counts, rebin_matrix", {
+  g <- opal_globals()
   expect_true("get_weight_like" %in% names(g))
   expect_true("rebin_counts"    %in% names(g))
   expect_true("rebin_matrix"    %in% names(g))

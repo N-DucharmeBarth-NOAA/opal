@@ -22,12 +22,12 @@ utils::globalVariables(c(
   "priors", "sel_fa_external"
 ))
 
-#' The globals
+#' The opal globals
 #' 
 #' @return a \code{list} of functions to be passed to \code{sample_sparse_tmb} when doing MCMC.
 #' @export
 #' 
-bet_globals <- function() {
+opal_globals <- function() {
   list(
     posfun = posfun, 
     get_M = get_M, 

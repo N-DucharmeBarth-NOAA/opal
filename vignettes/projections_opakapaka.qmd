@@ -319,8 +319,8 @@ proj_mvn <- project_dynamics(
 ## Approach 2: MCMC posteriors
 
 A No-U-Turn sampler chain is run via `SparseNUTS` with a dense mass matrix.
-The `bet_globals()` call exports the helper functions needed for likelihood
-evaluation inside the MCMC workers (it is model-agnostic despite the name).
+The `opal_globals()` call exports the model-agnostic helper functions needed
+for likelihood evaluation inside the MCMC workers.
 Because both CPUE indices and the length compositions inform the fit, the
 $B_0$/$q$ scale is well identified and no additional priors are needed beyond
 those already in the model.
@@ -332,7 +332,7 @@ those already in the model.
 n_chains_mcmc <- 8
 mcmc_fit <- SparseNUTS::sample_snuts(
   obj         = obj_lf,
-  globals     = bet_globals(),
+  globals     = opal_globals(),
   num_samples = 750,
   num_warmup  = 1500,
   chains      = n_chains_mcmc,

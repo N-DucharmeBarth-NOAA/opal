@@ -111,8 +111,8 @@ test_that("get_priors includes selectivity parameters", {
 
 # Test model globals include selectivity functions ----
 
-test_that("bet_globals includes selectivity functions", {
-  globals <- bet_globals()
+test_that("opal_globals includes selectivity functions", {
+  globals <- opal_globals()
   
   expect_true("get_selectivity" %in% names(globals))
   expect_true("sel_logistic" %in% names(globals))

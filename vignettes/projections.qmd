@@ -497,7 +497,7 @@ proj_mvn <- project_dynamics(
 
 ## Approach 2: MCMC posteriors
 
-Run a No-U-Turn sampler (NUTS) chain via `SparseNUTS`.  The `bet_globals()`
+Run a No-U-Turn sampler (NUTS) chain via `SparseNUTS`.  The `opal_globals()`
 call exports all helper functions needed for likelihood evaluation inside the
 MCMC workers.
 
@@ -507,7 +507,7 @@ MCMC workers.
 #| output: false
 mcmc_fit <- SparseNUTS::sample_snuts(
   obj         = obj_sim,
-  globals     = bet_globals(),
+  globals     = opal_globals(),
   num_samples = 500,
   num_warmup  = 1000,
   chains      = n_chains_mcmc,
