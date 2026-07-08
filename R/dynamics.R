@@ -115,6 +115,167 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   return(list(Ninit = Ninit, Ninit0 = Ninit0, R0 = R0, alpha = alpha, beta = beta))
 }
 
+#' Initial numbers-at-age-and-length (length engine)
+#'
+#' Length-structured analogue of \code{\link{get_initial_numbers}}, returning the
+#' equilibrium numbers-at-age-and-length \code{[n_age, n_len]}.
+#'
+#' With \code{M_basis = "age"} (default) the initial state is seeded from the
+#' static age-length key: the age totals, \code{R0} and Beverton-Holt parameters
+#' come straight from \code{\link{get_initial_numbers}} (spawning potential and
+#' selectivity collapsed to age via \code{pla}), then each age's numbers are
+#' distributed across length by \code{pla[, a]}. This makes the length engine's
+#' equilibrium reduce \emph{exactly} to the age-only equilibrium and avoids the
+#' discretisation drift of iterating a near-degenerate distribution through the
+#' growth matrix. (At a fished initial equilibrium with strong size-selective
+#' \code{init_F}, distributing by \code{pla} does not distort the within-age
+#' length composition for the removed sizes; this is a small first-timestep
+#' approximation the dynamics immediately begin correcting. It is exact when
+#' \code{init_F = 0}, as for the opakapaka prototype.)
+#'
+#' With \code{M_basis = "length"} natural mortality is length-specific, so
+#' survivorship is path-dependent and the equilibrium is built by propagating
+#' \code{recruit_dist_l} forward through the growth transition matrix \code{G}
+#' (subject to bin-discretisation error, worst for coarse bins / old ages).
+#'
+#' @param B0 Unfished spawning biomass.
+#' @param h Beverton-Holt steepness.
+#' @param M_a Natural mortality. Length \code{n_age} (age basis, default) or
+#'   \code{n_len} (length basis, set \code{M_basis = "length"}).
+#' @param spawning_potential_l Numeric vector (length \code{n_len}) of spawning
+#'   potential at length (maturity x fecundity x sex ratio).
+#' @param pla Numeric matrix \code{[n_len, n_age]} age-length key (columns sum to
+#'   1), from \code{\link{get_pla}}.
+#' @param G Numeric array \code{[n_age, n_len, n_len]} growth transition matrix
+#'   (from \code{\link{get_growth_matrix}}). Used only when \code{M_basis = "length"}.
+#' @param recruit_dist_l Numeric vector (length \code{n_len}) recruit length
+#'   distribution (from \code{\link{get_recruit_length_dist}}), sums to 1. Used
+#'   only when \code{M_basis = "length"}.
+#' @param init_F_f Optional numeric vector of initial F by fishery.
+#' @param sel_fl Optional selectivity-at-length, matrix \code{[n_fishery, n_len]}
+#'   or vector \code{[n_len]} for a single fishery.
+#' @param init_rdev_a Optional numeric vector (length \code{n_age}) of initial
+#'   age deviations.
+#' @param sigma_r Recruitment SD used in the lognormal bias correction.
+#' @param init_bias_adj_a Optional numeric vector (length \code{n_age}) of bias
+#'   adjustment scalars. Defaults to zero.
+#' @param plus_group_growth Logical (or 0/1). Plus-group behaviour for the
+#'   \code{M_basis = "length"} path: \code{TRUE} closes the equilibrium with an
+#'   \code{(I - S G_plus)^{-1}} solve; \code{FALSE} closes it elementwise.
+#' @param M_basis Either \code{"age"} (default) or \code{"length"}.
+#' @return A list with \code{Ninit_al}, \code{Ninit0_al} (both \code{[n_age, n_len]}),
+#'   \code{R0}, \code{alpha}, \code{beta}.
+#' @importFrom RTMB ADoverload colSums
+#' @export
+#'
+get_initial_numbers_length <- function(B0, h, M_a, spawning_potential_l, pla, G,
+                                       recruit_dist_l = NULL,
+                                       init_F_f = NULL, sel_fl = NULL,
+                                       init_rdev_a = NULL, sigma_r = 0.6,
+                                       init_bias_adj_a = NULL,
+                                       plus_group_growth = TRUE,
+                                       M_basis = c("age", "length")) {
+  "[<-" <- ADoverload("[<-")
+  "c" <- ADoverload("c")
+  M_basis <- match.arg(M_basis)
+  n_len <- nrow(pla)
+  n_age <- ncol(pla)
+
+  if (M_basis == "age") {
+    # PLA-seed: exact age-only equilibrium, distributed across length by the ALK.
+    sp_a <- as.vector(t(pla) %*% spawning_potential_l)
+    sel_fa <- NULL
+    if (!is.null(sel_fl)) {
+      if (is.null(dim(sel_fl))) {
+        sel_fa <- as.vector(t(pla) %*% sel_fl)
+      } else {
+        sel_fa <- array(0, dim = c(nrow(sel_fl), n_age))
+        for (f in seq_len(nrow(sel_fl))) sel_fa[f, ] <- as.vector(t(pla) %*% sel_fl[f, ])
+      }
+    }
+    age <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = sp_a,
+                               init_F_f = init_F_f, sel_fa = sel_fa,
+                               init_rdev_a = init_rdev_a, sigma_r = sigma_r,
+                               init_bias_adj_a = init_bias_adj_a)
+    Ninit_al  <- array(0, dim = c(n_age, n_len))
+    Ninit0_al <- array(0, dim = c(n_age, n_len))
+    for (a in seq_len(n_age)) {
+      Ninit_al[a, ]  <- age$Ninit[a]  * pla[, a]
+      Ninit0_al[a, ] <- age$Ninit0[a] * pla[, a]
+    }
+    return(list(Ninit_al = Ninit_al, Ninit0_al = Ninit0_al,
+                R0 = age$R0, alpha = age$alpha, beta = age$beta))
+  }
+
+  # M_basis == "length": propagate the recruit distribution through G.
+  pg <- as.logical(plus_group_growth)
+
+  M_al <- array(0, dim = c(n_age, n_len))
+  for (a in seq_len(n_age)) M_al[a, ] <- M_a + B0 * 0        # M_a holds M_l (length n_len)
+
+  F_l <- numeric(n_len) + B0 * 0
+  if (!is.null(init_F_f) && !is.null(sel_fl)) {
+    if (is.null(dim(sel_fl))) {
+      F_l <- F_l + init_F_f[1L] * sel_fl
+    } else {
+      for (f in seq_along(init_F_f)) F_l <- F_l + init_F_f[f] * sel_fl[f, ]
+    }
+  }
+
+  build_nphi <- function(Z_al) {
+    nphi <- array(0, dim = c(n_age, n_len))
+    nphi[1, ] <- recruit_dist_l
+    if (n_age > 2) {
+      for (a in 2:(n_age - 1)) {
+        surv <- exp(-Z_al[a - 1, ]) * nphi[a - 1, ]
+        nphi[a, ] <- as.vector(G[a - 1, , ] %*% surv)
+      }
+    }
+    inflow <- as.vector(G[n_age - 1, , ] %*% (exp(-Z_al[n_age - 1, ]) * nphi[n_age - 1, ]))
+    s_plus <- exp(-Z_al[n_age, ])
+    if (pg) {
+      # Plus-group residents survive then grow via G_plus each year:
+      #   x = inflow + G_plus %*% (s_plus * x). Solve by fixed-point iteration
+      #   (AD-safe: matmul + elementwise only; converges as s_plus < 1).
+      Gp <- G[n_age, , ]
+      x <- inflow
+      for (iter in seq_len(300)) x <- inflow + as.vector(Gp %*% (s_plus * x))
+      nphi[n_age, ] <- x
+    } else {
+      nphi[n_age, ] <- inflow / (1 - s_plus)
+    }
+    nphi
+  }
+
+  ZF <- array(0, dim = c(n_age, n_len))
+  for (a in seq_len(n_age)) ZF[a, ] <- M_al[a, ] + F_l
+
+  nphi0 <- build_nphi(M_al)
+  nphiF <- build_nphi(ZF)
+
+  SPR0   <- sum(colSums(nphi0) * spawning_potential_l)
+  R0     <- B0 / SPR0
+  alpha  <- (4 * h * R0) / (5 * h - 1)
+  beta   <- (B0 * (1 - h)) / (5 * h - 1)
+  SPR_eq <- sum(colSums(nphiF) * spawning_potential_l)
+  R_eq   <- alpha - (beta / SPR_eq)
+
+  Ninit_al  <- R_eq * nphiF
+  Ninit0_al <- R0 * nphi0
+
+  if (!is.null(init_rdev_a)) {
+    if (is.null(init_bias_adj_a)) init_bias_adj_a <- rep(0.0, n_age)
+    for (a in seq_len(n_age)) {
+      fac <- exp(init_rdev_a[a] - init_bias_adj_a[a] * 0.5 * sigma_r^2)
+      Ninit_al[a, ]  <- Ninit_al[a, ] * fac
+      Ninit0_al[a, ] <- Ninit0_al[a, ] * fac
+    }
+  }
+
+  return(list(Ninit_al = Ninit_al, Ninit0_al = Ninit0_al,
+              R0 = R0, alpha = alpha, beta = beta))
+}
+
 #' Population dynamics
 #'
 #' Runs the core age- and season-structured population dynamics loop. Starts
@@ -282,6 +443,223 @@ do_dynamics <- function(data, parameters,
   
   return(list(number_ysa = number_ysa, number0_ysa = number0_ysa, lp_penalty = lp_penalty,
               catch_pred_fya = catch_pred_fya,
+              spawning_biomass_y = spawning_biomass_y,
+              spawning_biomass0_y = spawning_biomass0_y,
+              dynamic_depletion_y = dynamic_depletion_y))
+}
+
+#' Population dynamics (joint age-length engine)
+#'
+#' Length-structured analogue of \code{\link{do_dynamics}}. Carries a joint
+#' numbers-at-age-and-length state \code{[n_year+1, n_season, n_age, n_len]} and
+#' advances it each year by applying length-specific harvest and (age- or
+#' length-based) natural mortality in the current length bin, then ageing and
+#' redistributing across length via the growth transition matrix \code{G} (from
+#' \code{\link{get_growth_matrix}}). Recruits enter age 1 spread over length by
+#' \code{recruit_dist_l}. Because mortality is size-selective, the length-at-age
+#' distribution evolves through time (unlike the static-PLA age-only engine).
+#'
+#' Removals use opal's Pope-style harvest-rate formulation (as in
+#' \code{do_dynamics}), applied at length: for each fishery,
+#' \eqn{F_f = C_f / \sum_l v_l w_l} (weight) or \eqn{C_f / \sum_l v_l} (numbers)
+#' with vulnerable numbers \eqn{v_l = NL_l \, s_{f,l}}, and harvest rate
+#' \eqn{h_{f,l} = F_f s_{f,l}}. Age and length marginals are produced for
+#' downstream/reporting compatibility.
+#'
+#' @param data,parameters Model data and parameters (as for \code{do_dynamics}).
+#' @param B0,R0,alpha,beta,h,sigma_r Population/stock-recruit scalars.
+#' @param M_a Natural mortality: length \code{n_age} (age basis) or \code{n_len}
+#'   (length basis; set \code{M_basis = "length"}).
+#' @param spawning_potential_l Numeric vector (length \code{n_len}) spawning
+#'   potential at length.
+#' @param weight_fyl Numeric array \code{[n_fishery, n_year, n_len]} weight at
+#'   length by fishery and year.
+#' @param recruit_dist_l Numeric vector (length \code{n_len}) recruit length
+#'   distribution (sums to 1).
+#' @param G Numeric array \code{[n_age, n_len, n_len]} growth transition matrix.
+#' @param init_number_al,init_number0_al Numeric matrices \code{[n_age, n_len]}
+#'   initial (fished / unfished) equilibrium numbers, from
+#'   \code{\link{get_initial_numbers_length}}.
+#' @param sel_fyl Numeric array \code{[n_fishery, n_year, n_len]} selectivity at
+#'   length by fishery and year.
+#' @param bias_adj_y Numeric vector (length \code{n_year}) recruitment bias
+#'   adjustment. Defaults to ones.
+#' @param plus_group_growth Logical (or 0/1). If \code{TRUE} the plus-age-group
+#'   keeps growing via \code{G[n_age,,]}; if \code{FALSE} its length is frozen.
+#' @param M_basis Either \code{"age"} (default) or \code{"length"}.
+#' @return A named list with \code{number_ysal}, \code{number0_ysal},
+#'   \code{number_ysa}, \code{number0_ysa} (age marginals), \code{NL_yl} (length
+#'   marginal, start-of-year), \code{lp_penalty}, \code{catch_pred_fyl},
+#'   \code{catch_pred_fya}, \code{catch_pred_ysf}, \code{spawning_biomass_y},
+#'   \code{spawning_biomass0_y}, \code{dynamic_depletion_y}.
+#' @importFrom RTMB ADoverload getAll REPORT ADREPORT colSums rowSums
+#' @export
+#'
+do_dynamics_length <- function(data, parameters,
+                               B0, R0, alpha, beta, h = 0.95, sigma_r = 0.6,
+                               M_a, spawning_potential_l, weight_fyl,
+                               recruit_dist_l, G,
+                               init_number_al, init_number0_al, sel_fyl,
+                               bias_adj_y = NULL, plus_group_growth = TRUE,
+                               M_basis = c("age", "length")) {
+  "[<-" <- ADoverload("[<-")
+  "c" <- ADoverload("c")
+  getAll(data, parameters, warn = FALSE)
+  M_basis <- match.arg(M_basis)
+  if (is.null(bias_adj_y)) bias_adj_y <- rep(1.0, n_year)
+  fy <- first_yr_catch - first_yr + 1
+  n_age1 <- n_age - 1
+  n_len <- length(recruit_dist_l)
+
+  # Seasonal survival multiplier per (age, length).
+  S_al <- array(0, dim = c(n_age, n_len))
+  if (M_basis == "age") {
+    for (a in seq_len(n_age)) S_al[a, ] <- exp(-M_a[a] / n_season)
+  } else {
+    for (a in seq_len(n_age)) S_al[a, ] <- exp(-M_a / n_season)   # M_a holds M_l
+  }
+
+  number_ysal  <- array(0, dim = c(n_year + 1, n_season, n_age, n_len))
+  number0_ysal <- array(0, dim = c(n_year + 1, n_season, n_age, n_len))
+  number_ysal[1, 1, , ]  <- init_number_al
+  number0_ysal[1, 1, , ] <- init_number0_al
+
+  NL_yl <- array(0, dim = c(n_year + 1, n_len))
+  NL_yl[1, ] <- colSums(init_number_al)
+
+  spawning_biomass_y  <- numeric(n_year + 1)
+  spawning_biomass0_y <- numeric(n_year + 1)
+  spawning_biomass_y[1]  <- sum(colSums(init_number_al) * spawning_potential_l)
+  spawning_biomass0_y[1] <- sum(colSums(init_number0_al) * spawning_potential_l)
+
+  catch_pred_fyl <- array(0, dim = c(n_fishery, n_year, n_len))
+  catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
+  catch_pred_ysf <- array(0, dim = c(n_year, n_season, n_fishery))
+  hrate_ysl <- array(0, dim = c(n_year, n_season, n_len))
+
+  lp_penalty <- 0
+  eps_denom <- 1e-6
+  f_weight  <- which(catch_units_f == 1)
+  f_numbers <- which(catch_units_f != 1)
+
+  for (y in seq_len(n_year)) {
+    for (s in seq_len(n_season)) {
+      F_f <- numeric(n_fishery)
+      h_rate_fl <- array(0, dim = c(n_fishery, n_len))
+      if (y >= fy) {
+        N_al <- number_ysal[y, s, , ]
+        NL   <- colSums(N_al)
+        for (f in f_weight) {
+          if (catch_obs_ysf[y, s, f] > 0) {
+            vul_l <- NL * sel_fyl[f, y, ]
+            Nsum  <- sum(vul_l * weight_fyl[f, y, ]) + eps_denom
+            F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
+            h_rate_fl[f, ] <- F_f[f] * sel_fyl[f, y, ]
+          }
+        }
+        for (f in f_numbers) {
+          if (catch_obs_ysf[y, s, f] > 0) {
+            vul_l <- NL * sel_fyl[f, y, ]
+            Nsum  <- sum(vul_l) + eps_denom
+            F_f[f] <- catch_obs_ysf[y, s, f] / Nsum
+            h_rate_fl[f, ] <- F_f[f] * sel_fyl[f, y, ]
+          }
+        }
+        sum_F <- sum(F_f)
+        tmp <- posfun(x = 1 - sum_F, eps = 0.001)
+        lp_penalty <- lp_penalty + tmp$penalty
+        for (f in f_weight) {
+          if (catch_obs_ysf[y, s, f] > 0) {
+            catch_l <- h_rate_fl[f, ] * NL
+            catch_pred_fyl[f, y, ] <- catch_pred_fyl[f, y, ] + catch_l
+            catch_pred_fya[f, y, ] <- catch_pred_fya[f, y, ] + as.vector(N_al %*% h_rate_fl[f, ])
+            catch_pred_ysf[y, s, f] <- sum(catch_l * weight_fyl[f, y, ])
+          }
+        }
+        for (f in f_numbers) {
+          if (catch_obs_ysf[y, s, f] > 0) {
+            catch_l <- h_rate_fl[f, ] * NL
+            catch_pred_fyl[f, y, ] <- catch_pred_fyl[f, y, ] + catch_l
+            catch_pred_fya[f, y, ] <- catch_pred_fya[f, y, ] + as.vector(N_al %*% h_rate_fl[f, ])
+            catch_pred_ysf[y, s, f] <- sum(catch_l)
+          }
+        }
+      }
+      hrate_l <- colSums(h_rate_fl)
+      hrate_ysl[y, s, ] <- hrate_l
+      if (s < n_season) {
+        Nnext  <- array(0, dim = c(n_age, n_len))
+        Nnext0 <- array(0, dim = c(n_age, n_len))
+        for (a in seq_len(n_age)) {
+          Nnext[a, ]  <- number_ysal[y, s, a, ] * (1 - hrate_l) * S_al[a, ]
+          Nnext0[a, ] <- number0_ysal[y, s, a, ] * S_al[a, ]
+        }
+        number_ysal[y, s + 1, , ]  <- Nnext
+        number0_ysal[y, s + 1, , ] <- Nnext0
+      }
+    }
+
+    # Year boundary: last-season harvest + M, then age up and grow via G.
+    hrate_last <- hrate_ysl[y, n_season, ]
+    surv_al  <- array(0, dim = c(n_age, n_len))
+    surv0_al <- array(0, dim = c(n_age, n_len))
+    for (a in seq_len(n_age)) {
+      surv_al[a, ]  <- number_ysal[y, n_season, a, ] * (1 - hrate_last) * S_al[a, ]
+      surv0_al[a, ] <- number0_ysal[y, n_season, a, ] * S_al[a, ]
+    }
+    if (n_age1 >= 2) {
+      for (a in 2:n_age1) {
+        number_ysal[y + 1, 1, a, ]  <- as.vector(G[a - 1, , ] %*% surv_al[a - 1, ])
+        number0_ysal[y + 1, 1, a, ] <- as.vector(G[a - 1, , ] %*% surv0_al[a - 1, ])
+      }
+    }
+    number_ysal[y + 1, 1, n_age, ]  <- as.vector(G[n_age1, , ] %*% surv_al[n_age1, ]) +
+      as.vector(G[n_age, , ] %*% surv_al[n_age, ])
+    number0_ysal[y + 1, 1, n_age, ] <- as.vector(G[n_age1, , ] %*% surv0_al[n_age1, ]) +
+      as.vector(G[n_age, , ] %*% surv0_al[n_age, ])
+
+    NLnext  <- colSums(number_ysal[y + 1, 1, , ])
+    NL0next <- colSums(number0_ysal[y + 1, 1, , ])
+    spawning_biomass_y[y + 1]  <- sum(NLnext  * spawning_potential_l)
+    spawning_biomass0_y[y + 1] <- sum(NL0next * spawning_potential_l)
+
+    rec  <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
+    rec0 <- get_recruitment(sbio = spawning_biomass0_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
+    number_ysal[y + 1, 1, 1, ]  <- rec  * recruit_dist_l
+    number0_ysal[y + 1, 1, 1, ] <- rec0 * recruit_dist_l
+    NL_yl[y + 1, ] <- colSums(number_ysal[y + 1, 1, , ])
+  }
+
+  # Age marginals for downstream/reporting compatibility.
+  number_ysa  <- array(0, dim = c(n_year + 1, n_season, n_age))
+  number0_ysa <- array(0, dim = c(n_year + 1, n_season, n_age))
+  for (y in seq_len(n_year + 1)) {
+    for (s in seq_len(n_season)) {
+      number_ysa[y, s, ]  <- rowSums(number_ysal[y, s, , ])
+      number0_ysa[y, s, ] <- rowSums(number0_ysal[y, s, , ])
+    }
+  }
+  dynamic_depletion_y <- spawning_biomass_y / spawning_biomass0_y
+
+  REPORT(number_ysal)
+  REPORT(number0_ysal)
+  REPORT(NL_yl)
+  REPORT(catch_pred_fyl)
+  REPORT(catch_pred_fya)
+  REPORT(catch_pred_ysf)
+  REPORT(hrate_ysl)
+  REPORT(spawning_biomass_y)
+  REPORT(spawning_biomass0_y)
+  REPORT(dynamic_depletion_y)
+  RTMB::ADREPORT(spawning_biomass_y)
+  RTMB::ADREPORT(spawning_biomass0_y)
+  RTMB::ADREPORT(dynamic_depletion_y)
+
+  return(list(number_ysal = number_ysal, number0_ysal = number0_ysal,
+              number_ysa = number_ysa, number0_ysa = number0_ysa,
+              NL_yl = NL_yl, lp_penalty = lp_penalty,
+              catch_pred_fyl = catch_pred_fyl, catch_pred_fya = catch_pred_fya,
+              catch_pred_ysf = catch_pred_ysf,
               spawning_biomass_y = spawning_biomass_y,
               spawning_biomass0_y = spawning_biomass0_y,
               dynamic_depletion_y = dynamic_depletion_y))

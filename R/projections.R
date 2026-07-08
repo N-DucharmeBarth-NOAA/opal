@@ -16,8 +16,10 @@
 #' @param n_iter Integer. Number of iterations (posterior draws or MVN samples).
 #' @param rdev_y Numeric matrix \code{[n_iter, n_proj]}.  Projected recruitment
 #'   deviates (e.g., from \code{\link{project_rec_devs}}).
-#' @param sel_fya Numeric array \code{[n_iter, n_fishery, n_proj, n_age]}.
-#'   Projected selectivity (e.g., from \code{\link{project_selectivity}}).
+#' @param sel_fya Numeric array \code{[n_iter, n_fishery, n_proj, n_age]}
+#'   (age engine) or \code{[n_iter, n_fishery, n_proj, n_len]} (length engine,
+#'   when \code{data$length_dynamics == 1}). Projected selectivity (e.g., from
+#'   \code{\link{project_selectivity}} / \code{\link{project_selectivity_length}}).
 #' @param catch_ysf Numeric array \code{[n_proj, n_season, n_fishery]}.
 #'   Projected observed catch by year, season, and fishery.
 #' @param return_hist Logical (default \code{FALSE}).  When \code{TRUE} the
@@ -47,8 +49,9 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
   if (length(dr) != 2) stop("'rdev_y' must be a 2-D matrix [n_iter, n_proj].")
   if (n_iter > dr[1]) stop("'n_iter' exceeds the number of rows in 'rdev_y'.")
 
+  length_dynamics <- isTRUE(data$length_dynamics == 1L) || isTRUE(data$length_dynamics == 1)
   ds <- dim(sel_fya)
-  if (length(ds) != 4) stop("'sel_fya' must be a 4-D array [n_iter, n_fishery, n_proj, n_age].")
+  if (length(ds) != 4) stop("'sel_fya' must be a 4-D array [n_iter, n_fishery, n_proj, n_age|n_len].")
   if (n_iter > ds[1]) stop("'n_iter' exceeds the first dimension of 'sel_fya'.")
 
   dc <- dim(catch_ysf)
@@ -160,17 +163,30 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
     n_season       = data$n_season,
     n_fishery      = data$n_fishery,
     n_age          = data$n_age,
+    n_len          = data$n_len,
     catch_obs_ysf  = catch_ysf,
     catch_units_f  = data$catch_units_f
   )
 
-  # Quantities that depend only on fixed (mapped) parameters are identical
-  # for every draw, so compute them once from the MLE report.
-  rep_mle         <- object$report()
-  M_a_mle         <- rep_mle$M_a
-  spa_mle         <- rep_mle$spawning_potential_a
-  proj_weight_fya <- array(0, dim = c(data$n_fishery, n_proj, data$n_age))
-  for (y in seq_len(n_proj)) proj_weight_fya[, y, ] <- rep_mle$weight_fya_mod[, data$n_year, ]
+  # Quantities that depend only on fixed (mapped) parameters are identical for
+  # every draw, so compute them once from the MLE report.
+  rep_mle <- object$report()
+  if (length_dynamics) {
+    # Natural mortality basis and plus-group behaviour are data-fixed.
+    if (length(data$M) == data$n_len && data$n_len != data$n_age) {
+      M_basis <- "length"; M_vec <- data$M
+    } else {
+      M_basis <- "age"; M_vec <- data$M
+    }
+    pg <- if (is.null(data$plus_group_growth)) TRUE else as.logical(data$plus_group_growth)
+    proj_weight_fyl <- array(0, dim = c(data$n_fishery, n_proj, data$n_len))
+    for (y in seq_len(n_proj)) proj_weight_fyl[, y, ] <- rep_mle$weight_fyl[, data$n_year, ]
+  } else {
+    M_a_mle         <- rep_mle$M_a
+    spa_mle         <- rep_mle$spawning_potential_a
+    proj_weight_fya <- array(0, dim = c(data$n_fishery, n_proj, data$n_age))
+    for (y in seq_len(n_proj)) proj_weight_fya[, y, ] <- rep_mle$weight_fya_mod[, data$n_year, ]
+  }
 
   # Projection loop ----
   dyn          <- vector("list", n_iter)
@@ -189,21 +205,43 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
     # Terminal state from this draw's full historical trajectory — reflects
     # parameter uncertainty in the initial condition.  Future process
     # uncertainty (rdev_y, sel_fya) is then added on top.
-    dyn[[i]] <- do_dynamics(
-      data                 = proj_data,
-      parameters           = list(rdev_y = rdev_y[i, ]),
-      B0                   = rep$B0,
-      R0                   = rep$R0,
-      alpha                = rep$alpha,
-      beta                 = rep$beta,
-      sigma_r              = rep$sigma_r,
-      M_a                  = M_a_mle,
-      spawning_potential_a = spa_mle,
-      weight_fya           = proj_weight_fya,
-      init_number_a        = rep$number_ysa[data$n_year + 1, 1, ],
-      init_number0_a       = rep$number0_ysa[data$n_year + 1, 1, ],
-      sel_fya              = sel_fya[i, , , ]
-    )
+    if (length_dynamics) {
+      dyn[[i]] <- do_dynamics_length(
+        data                 = proj_data,
+        parameters           = list(rdev_y = rdev_y[i, ]),
+        B0                   = rep$B0,
+        R0                   = rep$R0,
+        alpha                = rep$alpha,
+        beta                 = rep$beta,
+        sigma_r              = rep$sigma_r,
+        M_a                  = M_vec,
+        spawning_potential_l = rep$spawning_potential_l,
+        weight_fyl           = proj_weight_fyl,
+        recruit_dist_l       = rep$recruit_dist_l,
+        G                    = rep$G,
+        init_number_al       = rep$number_ysal[data$n_year + 1, 1, , ],
+        init_number0_al      = rep$number0_ysal[data$n_year + 1, 1, , ],
+        sel_fyl              = sel_fya[i, , , ],
+        plus_group_growth    = pg,
+        M_basis              = M_basis
+      )
+    } else {
+      dyn[[i]] <- do_dynamics(
+        data                 = proj_data,
+        parameters           = list(rdev_y = rdev_y[i, ]),
+        B0                   = rep$B0,
+        R0                   = rep$R0,
+        alpha                = rep$alpha,
+        beta                 = rep$beta,
+        sigma_r              = rep$sigma_r,
+        M_a                  = M_a_mle,
+        spawning_potential_a = spa_mle,
+        weight_fya           = proj_weight_fya,
+        init_number_a        = rep$number_ysa[data$n_year + 1, 1, ],
+        init_number0_a       = rep$number0_ysa[data$n_year + 1, 1, ],
+        sel_fya              = sel_fya[i, , , ]
+      )
+    }
 
     if (n_iter > 1) setTxtProgressBar(pb, i)
   }
@@ -212,8 +250,61 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
   return(dyn)
 }
 
+#' Project selectivity-at-length (length engine)
+#'
+#' Length-basis analogue of \code{\link{project_selectivity}}. Builds projected
+#' selectivity-at-length by resampling (lognormal about the sampled-period mean)
+#' from the reported \code{sel_fyl}, for use with the length engine in
+#' \code{\link{project_dynamics}}.
+#'
+#' @param data A \code{list} of model data (must include \code{last_yr},
+#'   \code{first_yr}).
+#' @param obj The fitted RTMB object (length-mode; \code{obj$report()$sel_fyl}).
+#' @param mcmc Optional MCMC fit (unused placeholder, for API parity).
+#' @param first_yr First year of the sampling window.
+#' @param last_yr Last year of the sampling window (defaults to \code{data$last_yr}).
+#' @param n_proj Number of projection years.
+#' @param n_iter Number of iterations.
+#' @param arima Unused placeholder (for API parity).
+#' @return Numeric array \code{[n_iter, n_fishery, n_proj, n_len]}.
+#' @importFrom stats rnorm sd
+#' @export
+#'
+project_selectivity_length <- function(data, obj, mcmc = NULL,
+                                       first_yr = 2000, last_yr = NULL, n_proj = 5,
+                                       n_iter = NULL, arima = TRUE) {
+  if (is.null(last_yr)) last_yr <- data$last_yr
+  if (is.null(n_iter)) n_iter <- 1
+  proj_years <- (data$last_yr + 1):(data$last_yr + n_proj)
+  samp_years <- (first_yr - data$first_yr + 1):(last_yr - data$first_yr + 1)
+  sel_fyl <- obj$report()$sel_fyl[, samp_years, , drop = FALSE]
+
+  n_fishery <- dim(sel_fyl)[1]
+  n_len <- dim(sel_fyl)[3]
+  removal_switch_f <- c(data$removal_switch_f, 0)
+
+  sim_ifyl <- array(0, dim = c(n_iter, n_fishery, n_proj, n_len),
+                    dimnames = list(iteration = 1:n_iter, fishery = 1:n_fishery,
+                                    year = proj_years, length = seq_len(n_len)))
+  for (f in seq_len(n_fishery)) {
+    for (l in seq_len(n_len)) {
+      for (i in seq_len(n_iter)) {
+        y <- log(sel_fyl[f, , l])
+        if (all(is.finite(y)) & removal_switch_f[f] == 0) {
+          if (sd(y) > 0) {
+            sim_ifyl[i, f, , l] <- exp(rnorm(n = n_proj, mean(y), sd(y)))
+          } else {
+            sim_ifyl[i, f, , l] <- exp(mean(y))
+          }
+        }
+      }
+    }
+  }
+  return(sim_ifyl)
+}
+
 #' Project recruitment deviates
-#' 
+#'
 #' @param data a \code{list} of parameter values.
 #' @param obj a \code{list} of parameter values.
 #' @param mcmc a \code{list} of parameter values.
@@ -228,8 +319,8 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
 #' @importFrom stats simulate sd
 #' @importFrom utils txtProgressBar setTxtProgressBar
 #' @export
-#' 
-project_selectivity <- function(data, obj, mcmc = NULL, 
+#'
+project_selectivity <- function(data, obj, mcmc = NULL,
                                 first_yr = 2000, last_yr = NULL, n_proj = 5, n_iter = NULL, arima = TRUE) {
   
   if (is.null(last_yr)) last_yr <- data$last_yr

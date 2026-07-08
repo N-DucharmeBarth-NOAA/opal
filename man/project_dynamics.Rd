@@ -34,8 +34,10 @@ variance-covariance matrix.}
 \item{rdev_y}{Numeric matrix \code{[n_iter, n_proj]}.  Projected recruitment
 deviates (e.g., from \code{\link{project_rec_devs}}).}
 
-\item{sel_fya}{Numeric array \code{[n_iter, n_fishery, n_proj, n_age]}.
-Projected selectivity (e.g., from \code{\link{project_selectivity}}).}
+\item{sel_fya}{Numeric array \code{[n_iter, n_fishery, n_proj, n_age]}
+(age engine) or \code{[n_iter, n_fishery, n_proj, n_len]} (length engine,
+when \code{data$length_dynamics == 1}). Projected selectivity (e.g., from
+\code{\link{project_selectivity}} / \code{\link{project_selectivity_length}}).}
 
 \item{catch_ysf}{Numeric array \code{[n_proj, n_season, n_fishery]}.
 Projected observed catch by year, season, and fishery.}

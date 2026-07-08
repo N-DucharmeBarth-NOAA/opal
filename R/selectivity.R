@@ -181,6 +181,40 @@ get_selectivity <- function(data, par_sel, pla, len_mid) {
   return(sel_fya)
 }
 
+#' Compute selectivity-at-length (length engine)
+#'
+#' Length-basis analogue of \code{\link{get_selectivity}}: evaluates the
+#' parametric selectivity curve (logistic or double-normal) directly on the
+#' length-bin midpoints, without the probability-of-length-at-age collapse.
+#' Selectivity is time-invariant within each fishery (constant across years).
+#'
+#' @param data A list containing model data. Required: \code{n_fishery},
+#'   \code{n_year}, \code{sel_type_f}.
+#' @param par_sel Numeric matrix \code{[n_fishery, 6]} of real-line parameters.
+#' @param len_mid Numeric vector (length \code{n_len}) of length-bin midpoints.
+#' @return 3D array \code{sel_fyl} of dimensions \code{[n_fishery, n_year, n_len]}.
+#' @importFrom RTMB ADoverload
+#' @export
+#'
+get_selectivity_length <- function(data, par_sel, len_mid) {
+  "[<-" <- ADoverload("[<-")
+  "c" <- ADoverload("c")
+  n_fishery <- data$n_fishery
+  n_year <- data$n_year
+  n_len <- length(len_mid)
+  sel_fyl <- array(0, dim = c(n_fishery, n_year, n_len))
+  for (f in seq_len(n_fishery)) {
+    par_f <- par_sel[f, ]
+    if (data$sel_type_f[f] == 1L) {
+      sel_at_length <- sel_logistic(len_mid, par_f)
+    } else {
+      sel_at_length <- sel_double_normal(len_mid, par_f)
+    }
+    for (y in seq_len(n_year)) sel_fyl[f, y, ] <- sel_at_length
+  }
+  return(sel_fyl)
+}
+
 #' Convert SS3 selectivity parameters to RTMB real-line parameterization
 #'
 #' Takes SS3 natural-scale selectivity parameters and converts them to the

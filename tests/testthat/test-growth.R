@@ -206,3 +206,100 @@ test_that("growth model matches MFCL outputs with MFCL parameters", {
   # expect_equal(sd_a[A1], L1_mfcl * CV1_mfcl, tolerance = 1e-10)
   # expect_equal(sd_a[A2], L2_mfcl * CV2_mfcl, tolerance = 1e-10)
 })
+
+# Test get_recruit_length_dist and get_growth_matrix (length engine) ----
+
+test_that("get_recruit_length_dist sums to 1 and matches pla[,1]", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  pla  <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  rec  <- get_recruit_length_dist(len_lower, len_upper, mu_a[1], sd_a[1])
+  expect_equal(length(rec), length(len_lower))
+  expect_equal(sum(rec), 1, tolerance = 1e-8)
+  expect_equal(rec, pla[, 1], tolerance = 1e-10)
+})
+
+test_that("get_growth_matrix has correct dims and columns sum to 1", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  G <- get_growth_matrix(len_lower, len_upper, len_mid, sd_a, L1, L2, k, A1, A2)
+  n_len <- length(len_lower)
+  expect_equal(dim(G), c(n_age, n_len, n_len))
+  for (a in seq_len(n_age)) {
+    expect_equal(colSums(G[a, , ]), rep(1, n_len), tolerance = 1e-8)
+    expect_true(all(G[a, , ] >= -1e-12))
+  }
+})
+
+test_that("get_growth_matrix conserves numbers", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  G <- get_growth_matrix(len_lower, len_upper, len_mid, sd_a, L1, L2, k, A1, A2)
+  n_len <- length(len_lower)
+  set.seed(1)
+  v <- runif(n_len)
+  for (a in seq_len(n_age)) {
+    expect_equal(sum(as.vector(G[a, , ] %*% v)), sum(v), tolerance = 1e-8)
+  }
+})
+
+test_that("growth transition advances length on average (fish grow)", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  G <- get_growth_matrix(len_lower, len_upper, len_mid, sd_a, L1, L2, k, A1, A2)
+  # Expected next-year length given each source bin, E[dest | src] = len_mid %*% G.
+  # For sources below the asymptote this must exceed the source length (fish grow).
+  for (a in seq_len(n_age - 1)) {
+    Enext <- as.vector(len_mid %*% G[a, , ])
+    small <- len_mid < 0.6 * max(mu_a)
+    expect_true(all(Enext[small] > len_mid[small] - 1e-6))
+  }
+})
+
+test_that("conditional-SD growth reproduces the static PLA (mean and shape)", {
+  # Use a length grid that comfortably covers the growth range (L_inf + 3 SD), as
+  # in a real assessment; a grid that truncates the top ages introduces boundary
+  # artefacts unrelated to the transition operator.
+  ll <- seq(5, by = 5, length.out = 24)          # 5..120, covers L_inf(~78)+3SD
+  lu <- ll + 5; lm2 <- (ll + lu) / 2
+  na <- 30L; a1 <- 1L; a2 <- 30L; L1b <- 25; L2b <- 75; kb <- log(0.2)
+  mu <- get_growth(na, a1, a2, L1b, L2b, kb)
+  sd <- get_sd_at_age(mu, L1b, L2b, log(0.12), log(0.08))
+  pla <- get_pla(ll, lu, mu, sd)
+  G <- get_growth_matrix(ll, lu, lm2, sd, L1b, L2b, kb, a1, a2, sd_mode = "conditional")
+  for (a in seq_len(na - 1)) {
+    v_next    <- as.vector(G[a, , ] %*% pla[, a])
+    mean_next <- sum(v_next * lm2)
+    mean_pla  <- sum(pla[, a + 1] * lm2)
+    expect_lt(abs(mean_next - mean_pla), 0.5)          # mean within ~1/10 of a bin
+    expect_lt(max(abs(v_next - pla[, a + 1])), 0.05)   # shape close to the ALK
+  }
+  # Cumulative propagation from recruits also tracks the VB mean-at-age.
+  v <- pla[, 1]; cm <- numeric(na); cm[1] <- sum(v * lm2)
+  for (a in 2:na) { v <- as.vector(G[a - 1, , ] %*% v); cm[a] <- sum(v * lm2) }
+  expect_lt(max(abs(cm - mu)), 1.0)                    # no cumulative drift
+})
+
+test_that("plus_group_growth = FALSE freezes the plus-group (identity)", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
+  G <- get_growth_matrix(len_lower, len_upper, len_mid, sd_a, L1, L2, k, A1, A2,
+                         plus_group_growth = FALSE)
+  n_len <- length(len_lower)
+  Ident <- diag(n_len)
+  expect_equal(G[n_age, , ], Ident, tolerance = 1e-12)
+})
+
+test_that("get_growth_matrix is AD-differentiable through growth params", {
+  f <- function(p) {
+    mu_a <- get_growth(n_age, A1, A2, p[1], p[2], p[3])
+    sd_a <- get_sd_at_age(mu_a, p[1], p[2], CV1, CV2)
+    G <- get_growth_matrix(len_lower, len_upper, len_mid, sd_a, p[1], p[2], p[3], A1, A2)
+    sum(G[1, , ] * seq_len(length(len_lower)))
+  }
+  p0 <- c(L1, L2, k)
+  tap <- RTMB::MakeTape(f, p0)
+  g <- tap$jacobian(p0)
+  expect_equal(length(g), 3)
+  expect_true(all(is.finite(g)))
+})

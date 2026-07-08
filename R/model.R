@@ -19,7 +19,15 @@ utils::globalVariables(c(
   "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
   "wt_bin_start", "wt_bin_width",
   "log_wf_tau", "wf_addtocomp",
-  "priors", "sel_fa_external"
+  "priors", "sel_fa_external",
+  "length_dynamics", "plus_group_growth", "growth_sd_mode", "sd_floor",
+  "len_lower", "len_upper", "len_mid", "weight", "spawning_potential",
+  "sex_ratio", "fecundity", "init_rdev_a", "init_bias_adj_a",
+  "log_init_F_f", "bias_adj_y", "log_lf_tau", "log_wf_tau",
+  "lf_year", "lf_fishery", "lf_n", "lf_obs_flat", "lf_obs_ints", "lf_obs_prop",
+  "lf_n_f", "lf_fishery_f", "removal_switch_f", "n_lf", "n_len",
+  "wf_year_fi", "wf_n_fi", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",
+  "wf_n_f", "wf_fishery_f"
 ))
 
 #' The opal globals
@@ -36,19 +44,25 @@ opal_globals <- function() {
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
     get_maturity_at_age = get_maturity_at_age,
+    get_recruit_length_dist = get_recruit_length_dist,
+    get_growth_matrix = get_growth_matrix,
     resolve_bio_vector = resolve_bio_vector,
     get_selectivity = get_selectivity,
+    get_selectivity_length = get_selectivity_length,
     sel_logistic = sel_logistic,
     sel_double_normal = sel_double_normal,
     get_pla = get_pla,
-    get_initial_numbers = get_initial_numbers, 
-    get_recruitment = get_recruitment, 
-    get_harvest_rate = get_harvest_rate, 
-    get_length_like = get_length_like, 
+    get_initial_numbers = get_initial_numbers,
+    get_initial_numbers_length = get_initial_numbers_length,
+    get_recruitment = get_recruitment,
+    get_harvest_rate = get_harvest_rate,
+    do_dynamics_length = do_dynamics_length,
+    get_length_like = get_length_like,
     get_weight_like = get_weight_like,
     rebin_counts = rebin_counts,
     rebin_matrix = rebin_matrix,
-    get_cpue_like = get_cpue_like, 
+    get_cpue_like = get_cpue_like,
+    get_cpue_like_length = get_cpue_like_length,
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors)
 }
@@ -82,7 +96,12 @@ opal_model <- function(parameters, data) {
   if (!exists("bias_adj_y", inherits = FALSE)) bias_adj_y <- rep(1.0, n_year)
   if (!has_init_bias_adj_a) init_bias_adj_a <- NULL
   if (!exists("sex_ratio", inherits = FALSE)) sex_ratio <- rep(1.0, n_age)
-  
+  # Length-dynamics switch and companions (missing => age-only path, unchanged)
+  if (!exists("length_dynamics", inherits = FALSE)) length_dynamics <- 0L
+  if (!exists("plus_group_growth", inherits = FALSE)) plus_group_growth <- 1L
+  if (!exists("growth_sd_mode", inherits = FALSE)) growth_sd_mode <- "conditional"
+  if (!exists("sd_floor", inherits = FALSE)) sd_floor <- 1e-3
+
   # Growth module ----
 
   # Back-transform growth/variability parameters
@@ -95,8 +114,194 @@ opal_model <- function(parameters, data) {
   # Module 2: SD of length-at-age (linear CV interpolation)
   sd_a <- get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
 
+  # Length-bin geometry: derive from bin scalars if not already supplied
+  # (prep_lf_data() adds these; derive here so standalone runs work too).
+  if (!exists("len_lower", inherits = FALSE)) {
+    len_lower <- seq(from = len_bin_start, by = len_bin_width, length.out = n_len)
+  }
+  if (!exists("len_upper", inherits = FALSE)) len_upper <- len_lower + len_bin_width
+  if (!exists("len_mid", inherits = FALSE)) len_mid <- len_lower + len_bin_width / 2
+
   # Shared PLA — computed once and reused for weight, maturity, selectivity
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+
+  # ============================================================================
+  # Length-dynamics engine (opt-in) ----
+  # Joint age-length state advanced by a growth transition matrix. Biology and
+  # selectivity stay on the length grid (no PLA collapse); LF/WF likelihoods
+  # consume the length marginal directly (identity PLA); CPUE uses NL_yl.
+  # ============================================================================
+  if (length_dynamics == 1L) {
+    B0 <- exp(log_B0)
+    h <- exp(log_h)
+    sigma_r <- exp(log_sigma_r)
+    init_F_f <- exp(log_init_F_f)
+    if (!exists("log_lf_tau", inherits = FALSE)) log_lf_tau <- rep(0.0, n_fishery)
+    if (!exists("log_wf_tau", inherits = FALSE)) log_wf_tau <- rep(0.0, n_fishery)
+
+    # Biology at length ----
+    if (exists("weight", inherits = FALSE) && length(weight) == n_len) {
+      weight_l <- weight
+    } else {
+      weight_l <- get_weight_at_length(len_mid, lw_a, lw_b)
+    }
+    if (length(maturity) != n_len)
+      stop("length_dynamics requires 'maturity' on a length basis (length n_len).")
+    if (length(fecundity) != n_len)
+      stop("length_dynamics requires 'fecundity' on a length basis (length n_len).")
+    maturity_l  <- maturity
+    fecundity_l <- fecundity
+    sex_ratio_l <- if (length(sex_ratio) == n_len) sex_ratio else rep(1.0, n_len)
+    if (exists("spawning_potential", inherits = FALSE) && length(spawning_potential) == n_len) {
+      spawning_potential_l <- spawning_potential
+    } else {
+      spawning_potential_l <- sex_ratio_l * maturity_l * fecundity_l
+    }
+    # Natural mortality basis (age vector n_age, or length vector n_len)
+    if (length(M) == n_len && n_len != n_age) {
+      M_basis <- "length"; M_vec <- M
+    } else {
+      M_basis <- "age"; M_vec <- M
+    }
+
+    # Selectivity at length ----
+    if (exists("sel_fa_external", inherits = FALSE) && !is.null(sel_fa_external)) {
+      sel_dims <- dim(sel_fa_external)
+      if (is.null(sel_dims)) {
+        stop("'sel_fa_external' must be a matrix or 3-D array.")
+      } else if (length(sel_dims) == 2L) {
+        if (!all(sel_dims == c(n_fishery, n_len)))
+          stop("length-mode 'sel_fa_external' must have dimensions [n_fishery, n_len].")
+        sel_fyl <- array(0, dim = c(n_fishery, n_year, n_len))
+        for (f in seq_len(n_fishery)) for (y in seq_len(n_year)) sel_fyl[f, y, ] <- sel_fa_external[f, ]
+      } else if (length(sel_dims) == 3L) {
+        if (!all(sel_dims == c(n_fishery, n_year, n_len)))
+          stop("length-mode 'sel_fa_external' must have dimensions [n_fishery, n_year, n_len].")
+        sel_fyl <- sel_fa_external
+      } else {
+        stop("'sel_fa_external' must be a matrix or 3-D array.")
+      }
+    } else {
+      sel_fyl <- get_selectivity_length(data, par_sel, len_mid)
+    }
+
+    # Growth transition matrix and recruit length distribution ----
+    G <- get_growth_matrix(len_lower, len_upper, len_mid, sd_a, L1, L2, log_k, A1, A2,
+                           plus_group_growth = plus_group_growth,
+                           sd_mode = growth_sd_mode, sd_floor = sd_floor)
+    recruit_dist_l <- get_recruit_length_dist(len_lower, len_upper, mu_a[1], sd_a[1])
+
+    # Weight-at-length by fishery/year
+    weight_fyl <- array(0, dim = c(n_fishery, n_year, n_len))
+    for (f in seq_len(n_fishery)) for (y in seq_len(n_year)) weight_fyl[f, y, ] <- weight_l
+
+    # Initial equilibrium and dynamics ----
+    sel_fl0 <- if (n_fishery == 1L) as.vector(sel_fyl[1, 1, ]) else sel_fyl[, 1, ]
+    init <- get_initial_numbers_length(B0 = B0, h = h, M_a = M_vec,
+                                       spawning_potential_l = spawning_potential_l,
+                                       pla = pla, G = G, recruit_dist_l = recruit_dist_l,
+                                       init_F_f = init_F_f, sel_fl = sel_fl0,
+                                       init_rdev_a = init_rdev_a, sigma_r = sigma_r,
+                                       init_bias_adj_a = init_bias_adj_a,
+                                       plus_group_growth = plus_group_growth, M_basis = M_basis)
+    R0 <- init$R0; alpha <- init$alpha; beta <- init$beta
+
+    dyn <- do_dynamics_length(data, parameters,
+                              B0 = B0, R0 = R0, alpha = alpha, beta = beta, h = h,
+                              sigma_r = sigma_r, M_a = M_vec,
+                              spawning_potential_l = spawning_potential_l,
+                              weight_fyl = weight_fyl, recruit_dist_l = recruit_dist_l, G = G,
+                              init_number_al = init$Ninit_al, init_number0_al = init$Ninit0_al,
+                              sel_fyl = sel_fyl, bias_adj_y = bias_adj_y,
+                              plus_group_growth = plus_group_growth, M_basis = M_basis)
+
+    number_ysal <- dyn$number_ysal
+    NL_yl <- dyn$NL_yl
+    lp_penalty <- dyn$lp_penalty
+    catch_pred_fyl <- dyn$catch_pred_fyl
+
+    # Composition source: catch-at-length, or vulnerable numbers for survey fleets.
+    comp_pred_fyl <- catch_pred_fyl
+    for (f in seq_len(n_fishery)) {
+      if (sum(catch_obs_ysf[, , f]) <= 0) {
+        for (y in seq_len(n_year)) comp_pred_fyl[f, y, ] <- NL_yl[y, ] * sel_fyl[f, y, ]
+      }
+    }
+
+    # Priors ----
+    lp_rec <- get_recruitment_prior(rdev_y, sigma_r)
+    if (has_init_rdev_a) {
+      lp_init_rec <- get_recruitment_prior(init_rdev_a, sigma_r)
+    } else {
+      lp_init_rec <- 0
+    }
+    if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
+      lp_prior <- evaluate_priors(parameters, priors)
+    } else {
+      lp_prior <- 0
+    }
+
+    # Likelihoods (identity PLA => length marginal consumed directly) ----
+    pla_identity <- diag(n_len)
+    if (cpue_switch > 0) {
+      lp_cpue <- get_cpue_like_length(cpue_data, parameters, NL_yl, sel_fyl, weight_l, cpue_switch)
+    } else {
+      lp_cpue <- 0
+    }
+    if (lf_switch > 0 && n_lf > 0) {
+      if (!exists("lf_year_fi", inherits = FALSE)) lf_year_fi <- split(lf_year, lf_fishery)
+      if (!exists("lf_n_fi", inherits = FALSE)) lf_n_fi <- split(lf_n, lf_fishery)
+      lp_lf <- get_length_like(
+        lf_obs_flat = lf_obs_flat, lf_obs_ints = lf_obs_ints, lf_obs_prop = lf_obs_prop,
+        catch_pred_fya = comp_pred_fyl, pla = pla_identity,
+        lf_n_f = lf_n_f, lf_fishery_f = lf_fishery_f, lf_year_fi = lf_year_fi,
+        lf_n_fi = lf_n_fi, lf_minbin = lf_minbin, lf_maxbin = lf_maxbin,
+        removal_switch_f = removal_switch_f, lf_switch = lf_switch,
+        n_len = n_len, n_lf = n_lf, log_lf_tau = log_lf_tau, lf_addtocomp = lf_addtocomp)
+    } else {
+      lp_lf <- 0
+    }
+    if (wf_switch > 0 && n_wf > 0) {
+      if (!exists("wf_year_fi", inherits = FALSE)) wf_year_fi <- split(wf_year, wf_fishery)
+      if (!exists("wf_n_fi", inherits = FALSE)) wf_n_fi <- split(wf_n, wf_fishery)
+      lp_wf <- get_weight_like(
+        wf_obs_flat = wf_obs_flat, wf_obs_ints = wf_obs_ints, wf_obs_prop = wf_obs_prop,
+        catch_pred_fya = comp_pred_fyl, pla = pla_identity, wf_rebin_matrix = wf_rebin_matrix,
+        wf_n_f = wf_n_f, wf_fishery_f = wf_fishery_f, wf_year_fi = wf_year_fi,
+        wf_n_fi = wf_n_fi, wf_minbin = wf_minbin, wf_maxbin = wf_maxbin,
+        removal_switch_f = removal_switch_f, wf_switch = wf_switch,
+        n_wt = n_wt, n_wf = n_wf, log_wf_tau = log_wf_tau, wf_addtocomp = wf_addtocomp)
+    } else {
+      lp_wf <- 0
+    }
+
+    nll <- lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+
+    REPORT(sel_fyl)
+    REPORT(weight_l)
+    REPORT(weight_fyl)
+    REPORT(maturity_l)
+    REPORT(fecundity_l)
+    REPORT(spawning_potential_l)
+    REPORT(recruit_dist_l)
+    REPORT(G)
+    REPORT(comp_pred_fyl)
+    REPORT(pla)
+    REPORT(lp_prior)
+    REPORT(lp_penalty)
+    REPORT(lp_rec)
+    REPORT(lp_init_rec)
+    REPORT(lp_cpue)
+    REPORT(lp_lf)
+    REPORT(lp_wf)
+    REPORT(B0)
+    REPORT(R0)
+    REPORT(alpha)
+    REPORT(beta)
+    REPORT(sigma_r)
+    REPORT(init_F_f)
+    return(nll)
+  }
 
   # Module 3: Weight-at-age ----
   # If a pre-computed weight vector is supplied in the data , use it directly via resolve_bio_vector.
