@@ -169,6 +169,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #'   \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
 #'   \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
 #'   \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
+#'   \item{static_depletion_y}{Static depletion trajectory \code{spawning_biomass_y / B0}.}
 #'   \item{dynamic_depletion_y}{Dynamic depletion trajectory \code{spawning_biomass_y / spawning_biomass0_y}.}
 #' }
 #' @importFrom RTMB ADoverload
@@ -266,6 +267,7 @@ do_dynamics <- function(data, parameters,
     number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
     number0_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass0_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
   }
+  static_depletion_y <- spawning_biomass_y / B0
   dynamic_depletion_y <- spawning_biomass_y / spawning_biomass0_y
   
   REPORT(catch_pred_ysf)
@@ -275,15 +277,18 @@ do_dynamics <- function(data, parameters,
   REPORT(number0_ysa)
   REPORT(spawning_biomass_y)
   REPORT(spawning_biomass0_y)
+  REPORT(static_depletion_y)
   REPORT(dynamic_depletion_y)
-  RTMB::ADREPORT(spawning_biomass_y)
-  RTMB::ADREPORT(spawning_biomass0_y)
-  RTMB::ADREPORT(dynamic_depletion_y)
+  ADREPORT(spawning_biomass_y)
+  ADREPORT(spawning_biomass0_y)
+  ADREPORT(static_depletion_y)
+  ADREPORT(dynamic_depletion_y)
   
   return(list(number_ysa = number_ysa, number0_ysa = number0_ysa, lp_penalty = lp_penalty,
               catch_pred_fya = catch_pred_fya,
               spawning_biomass_y = spawning_biomass_y,
               spawning_biomass0_y = spawning_biomass0_y,
+              static_depletion_y = static_depletion_y,
               dynamic_depletion_y = dynamic_depletion_y))
 }
 
