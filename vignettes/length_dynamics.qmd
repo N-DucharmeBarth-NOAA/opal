@@ -1,0 +1,751 @@
+---
+title: "Length-based population dynamics in opal"
+format: html
+execute:
+  eval: true
+  warning: false
+  message: false
+vignette: >
+  %\VignetteIndexEntry{Length-based population dynamics in opal}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{quarto::html}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 8, fig.align = "center")
+```
+
+# Overview
+
+opal's population dynamics have historically been **age-structured**: numbers are
+tracked at age, and length enters only at the boundaries of the model. A static
+probability-of-length-at-age matrix (the age--length key, `get_pla()`) is used to
+collapse length-based biology and selectivity onto the age axis before the
+population loop runs, and to expand numbers-at-age back into predicted length
+compositions in the likelihood. A consequence of this design is that the
+distribution of lengths *at a given age is fixed for all time* --- it cannot
+respond to size-selective fishing.
+
+This vignette showcases an **opt-in joint age--length dynamics engine** that
+relaxes that assumption. The engine carries a full numbers-at-age-and-length
+state and advances it each year with a **growth transition matrix**
+(`get_growth_matrix()`) --- a length-bin-to-length-bin operator built from the
+same von Bertalanffy growth parameters opal already estimates. The approach
+mirrors the length-and-age Stan model in the `lbm` project. It is enabled with a
+single data switch,
+
+```r
+data$length_dynamics <- 1L
+```
+
+and is otherwise a drop-in: the age-only path is unchanged when the switch is
+absent, and the age marginal of the length state (`number_ysa`) is produced as a
+by-product so all downstream tooling (projections, CPUE, `sdreport`) keeps
+working.
+
+We first illustrate the growth-transition machinery and the size-selective
+length-at-age truncation it can represent, then fit the 'opakapaka
+(*Pristipomoides filamentosus*) assessment with both engines to show that the
+length engine reproduces the established age-based results, and finish with a
+forward projection.
+
+```{r}
+#| label: packages
+library(opal)
+library(RTMB)
+library(tidyverse)
+library(patchwork)
+
+# Cohesive, cowplot-style theme with faded gridlines; no plot titles.
+theme_opal <- function() {
+  theme_minimal(base_size = 11) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(colour = "grey90", linewidth = 0.3),
+          plot.title = element_blank(), legend.position = "bottom")
+}
+theme_set(theme_opal())
+pal <- c(Age = "grey45", Length = "#2E8B57",
+         Unfished = "#4C9BD1", Fished = "#E8862E")
+```
+
+# The 'opakapaka model, two ways
+
+The data, parameters, priors, and map are the *opal with length compositions*
+configuration from `vignette("opakapaka")`, reproduced compactly. We build two
+objects from identical inputs: the standard age engine and the length engine
+(`length_dynamics = 1`).
+
+```{r}
+#| label: data
+data(opaka_data); data <- opaka_data
+if (is.null(data$n_index)) data$n_index <- 2L
+data$priors  <- NULL
+data$A1      <- 0
+data$A2      <- data$A1 + (data$n_age - 1)
+data$min_age <- 0
+ages <- data$age_a <- seq(data$min_age, by = 1, length.out = data$n_age)
+data$sex_ratio <- rep(1, data$n_age)
+
+data(opaka_lf)
+lf_wide <- opaka_lf %>%
+  tidyr::pivot_wider(id_cols = c(fishery, year, month, ts),
+                     names_from = bin, values_from = value, values_fill = 0) %>%
+  arrange(fishery, ts)
+data <- prep_lf_data(data, lf_wide, lf_keep_fisheries = c(1, 3),
+                     lf_var_adjust = 1 / rep(1, data$n_fishery),
+                     lf_addtocomp = 1e-10)
+
+calendar_years    <- (1949 - 1) + data$years
+init_cohort_years <- 1949 - (data$age_a - 1)
+data$init_bias_adj_a <- get_bias_adj_vector(init_cohort_years, 1,
+  c(1931, 1974, 2021.88, 2022.43), 0.869)
+data$bias_adj_y <- get_bias_adj_vector(calendar_years, 1,
+  c(1931, 1974, 2021.88, 2022.43), 0.869)
+```
+
+```{r}
+#| label: parameters
+data(opaka_parameters)
+init_rdev_a <- rev(c(0.0206807,0.00321579,0.00372620,0.0043174,0.00500263,
+  0.00579674,0.00671727,0.00778422,0.00902081,0.0104539,0.0121143,0.0140375,
+  0.0162641,0.0188404,0.0218182,0.0252561,0.0292182,0.0337726,0.0389898,
+  0.0449362,0.0516662,0.0592049,0.0675236,0.0764992,0.0858443,0.0950047,
+  0.102706,0.107687,0.107712,0.0998349,0.0808137,0.0482339,0.00234443,
+  -0.0517563,-0.102395,-0.131458,-0.121101,-0.0714826,-0.00742166,-0.0109308,
+  -0.0385029,0.0366483,0.0165105,-0.166906))
+init_rdev_a[1] <- opaka_parameters$rdev_y[1]
+rdev_y_shifted <- c(opaka_parameters$rdev_y[-1], 0.0)
+
+parameters <- list(
+  log_B0 = 9, log_h = as.numeric(opaka_parameters$log_h),
+  log_sigma_r = as.numeric(opaka_parameters$log_sigma_r),
+  log_cpue_q = as.numeric(opaka_parameters$log_cpue_q),
+  log_cpue_tau = rep(log(0.1), data$n_index),
+  log_cpue_omega = as.numeric(rep(opaka_parameters$log_cpue_omega, data$n_index)),
+  log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
+  log_L1 = as.numeric(opaka_parameters$log_L1),
+  log_L2 = as.numeric(opaka_parameters$log_L2),
+  log_k = as.numeric(opaka_parameters$log_k),
+  log_CV1 = as.numeric(opaka_parameters$log_CV1),
+  log_CV2 = as.numeric(opaka_parameters$log_CV2),
+  par_sel = as.matrix(opaka_parameters$par_sel),
+  log_init_F_f = c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)),
+  rdev_y = rdev_y_shifted, init_rdev_a = init_rdev_a)
+parameters$par_sel <- convert_ss3_selex_to_rtmb(parameters$par_sel,
+                                                data$sel_type_f, data$len_mid)
+data$priors <- get_priors(parameters = parameters, data = data)
+
+map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
+map_sel[1, 1:2]        <- c(1, 2)
+map_sel[3, c(1, 4, 6)] <- c(3, 4, 5)
+map_sel <- as.vector(map_sel)
+map <- list(
+  log_h = factor(NA), log_sigma_r = factor(NA),
+  log_cpue_tau = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
+  log_lf_tau = factor(rep(NA, length(parameters$log_lf_tau))),
+  log_L1 = factor(NA), log_L2 = factor(NA), log_k = factor(NA),
+  log_CV1 = factor(NA), log_CV2 = factor(NA),
+  par_sel = factor(map_sel),
+  log_init_F_f = rep(factor(NA), data$n_fishery),
+  init_rdev_a = as.factor(seq_len(data$n_age)),
+  rdev_y = as.factor(seq_along(parameters$rdev_y)))
+
+data$lf_switch <- 1L
+```
+
+```{r}
+#| label: fit
+#| output: false
+fit_opal <- function(dat) {
+  obj <- MakeADFun(cmb(opal_model, dat), parameters, map = map, silent = TRUE)
+  nm <- names(obj$par); Lwr <- rep(-Inf, length(nm)); Upr <- rep(Inf, length(nm))
+  Lwr[grep("log_B0", nm)] <- 0;          Upr[grep("log_B0", nm)] <- 22
+  Lwr[grep("log_cpue_q", nm)] <- log(1e-3); Upr[grep("log_cpue_q", nm)] <- log(10)
+  Lwr[grep("rdev_y|init_rdev_a", nm)] <- -5; Upr[grep("rdev_y|init_rdev_a", nm)] <- 5
+  Lwr[grep("par_sel", nm)] <- -7;        Upr[grep("par_sel", nm)] <- 7
+  ctrl <- list(eval.max = 1e4, iter.max = 1e4)
+  opt <- nlminb(obj$par, obj$fn, obj$gr, lower = Lwr, upper = Upr, control = ctrl)
+  opt <- nlminb(opt$par, obj$fn, obj$gr, lower = Lwr, upper = Upr, control = ctrl)
+  opt <- nlminb(opt$par, obj$fn, obj$gr, lower = Lwr, upper = Upr, control = ctrl)
+  list(obj = obj, opt = opt)
+}
+
+data_age <- data
+data_len <- data; data_len$length_dynamics <- 1L
+
+fit_age <- fit_opal(data_age)
+fit_len <- fit_opal(data_len)
+rep_age <- fit_age$obj$report()
+rep_len <- fit_len$obj$report()
+
+len_mid <- data$len_mid
+n_age   <- data$n_age
+n_len   <- data$n_len
+n_year  <- data$n_year
+```
+
+# The growth transition matrix
+
+The engine's core object is the growth transition matrix `G`, of dimension
+`[n_age, n_len, n_len]`. Slice `G[a, , ]` gives, for each source length bin, the
+probability distribution of a fish's length one year later, discretised from the
+von Bertalanffy one-step increment $E[L_{a+1}\,|\,L_a=l]=L_\infty(1-\rho)+\rho l$
+with a normal spread. It is the transition analogue of the static age--length
+key: rather than assuming a fixed length-at-age, it *advances* an evolving
+length distribution. The transition standard deviation is set (conditional-SD
+mode) so that, propagated forward under no fishing, the marginal length-at-age
+reproduces the static age--length key exactly.
+
+```{r}
+#| label: fig-transition
+#| fig-height: 3.6
+#| fig-cap: "The growth transition matrix from the fitted 'opakapaka length model. Left: one age-step slice G[a] as a probability field --- each column (a source length) maps to a distribution of destination lengths one year later, sitting above the 1:1 line because fish grow. Right: a single recruitment cohort propagated through G (no mortality); the length distribution spreads and its mean tracks the von Bertalanffy curve as the cohort ages."
+G <- rep_len$G
+a_show <- 6L
+Gdf <- expand.grid(dest = seq_len(n_len), src = seq_len(n_len))
+Gdf$p <- as.vector(G[a_show, , ])
+Gdf$src_len  <- len_mid[Gdf$src]
+Gdf$dest_len <- len_mid[Gdf$dest]
+
+p_mat <- ggplot(Gdf, aes(src_len, dest_len, fill = p)) +
+  geom_tile() +
+  geom_abline(slope = 1, intercept = 0, colour = "grey60", linetype = "dashed",
+              linewidth = 0.3) +
+  scale_fill_gradient(low = "white", high = "#2E8B57", name = "P") +
+  labs(x = "Length this year (cm)", y = "Length next year (cm)")
+
+# Propagate one cohort of recruits through G with no mortality
+rec <- rep_len$recruit_dist_l
+ages_show <- c(1, 3, 6, 10, 16, 30)
+v <- rec
+coh <- list(); mu_track <- numeric(n_age); mu_track[1] <- sum(v * len_mid)
+if (1 %in% ages_show) coh[["1"]] <- data.frame(age = 1, len = len_mid, p = v)
+for (a in 2:n_age) {
+  v <- as.vector(G[a - 1, , ] %*% v)
+  mu_track[a] <- sum(v * len_mid)
+  if (a %in% ages_show) coh[[as.character(a)]] <- data.frame(age = a, len = len_mid, p = v)
+}
+coh_df <- bind_rows(coh)
+coh_df$age <- factor(coh_df$age, levels = ages_show,
+                     labels = paste0("age ", ages_show - 1))
+
+p_coh <- ggplot(coh_df, aes(len, p, colour = age)) +
+  geom_line(linewidth = 0.7) +
+  scale_colour_viridis_d(option = "D", end = 0.9, name = NULL) +
+  labs(x = "Length (cm)", y = "Proportion")
+
+p_mat + p_coh
+```
+
+# Why length dynamics matter: size-selective truncation
+
+The payoff of a length-structured state is that size-selective fishing can
+reshape the length distribution *within* an age class --- larger, faster-growing
+individuals of a cohort are removed preferentially, lowering the mean length at
+age. This is Lee's phenomenon, and the static age--length key cannot represent
+it: it fixes the length-at-age distribution regardless of fishing.
+
+To make the mechanism visible we trace a single cohort through the fitted growth
+transition under an *illustrative* strongly size-selective fishery (logistic in
+length, half-selected near $0.5\,L_\infty$). The effect concentrates at the
+intermediate, partially-selected ages --- where a cohort still spans the
+selectivity ridge, so its larger members are removed --- and tapers at older
+ages once the survivors are uniformly large. On the lightly-fished 'opakapaka
+stock itself the effect is small (which is why the two engines' assessments in
+the next section nearly coincide); it grows with fishing pressure and gear
+size-selectivity.
+
+```{r}
+#| label: fig-truncation
+#| fig-height: 3.8
+#| fig-cap: "Size-selective truncation of length-at-age for a single cohort under an illustrative size-selective fishery (half-selected near 0.5 L-infinity), using the fitted 'opakapaka growth transition. Left: mean length-at-age at three fishing levels; the fished curves fall below the unfished curve at the partially-selected ages. Right: the reduction relative to the unfished cohort, peaking at intermediate ages. The static age-length key of the age-only model is identical to the unfished (F = 0) curve at every fishing level."
+L1f <- exp(parameters$log_L1); L2f <- exp(parameters$log_L2); kf <- exp(parameters$log_k)
+Linf <- L1f + (L2f - L1f) / (1 - exp(-kf * (data$A2 - data$A1)))
+sel_ill <- 1 / (1 + exp(-0.3 * (len_mid - 0.5 * Linf)))   # illustrative gear
+M_a <- data$M
+
+cohort_mla <- function(Fmax) {
+  v <- rec; m <- numeric(n_age); m[1] <- sum(v * len_mid)
+  for (a in 2:n_age) {
+    surv <- v * exp(-M_a[a - 1]) * exp(-Fmax * sel_ill)
+    v <- as.vector(G[a - 1, , ] %*% surv)
+    m[a] <- sum(v * len_mid) / sum(v)
+  }
+  m
+}
+Fs   <- c(0, 0.6, 1.2)
+m0   <- cohort_mla(0)
+mla_df <- bind_rows(lapply(Fs, function(f)
+  data.frame(age = ages, mla = cohort_mla(f), F = factor(f))))
+diff_df <- bind_rows(lapply(Fs[-1], function(f)
+  data.frame(age = ages, red = m0 - cohort_mla(f), F = factor(f))))
+
+pA <- ggplot(mla_df, aes(age, mla, colour = F)) +
+  geom_line(linewidth = 0.8) +
+  scale_colour_viridis_d(option = "D", end = 0.85, name = expression(F~(yr^-1))) +
+  labs(x = "Age (years)", y = "Mean length at age (cm)")
+pB <- ggplot(diff_df, aes(age, red, colour = F)) +
+  geom_line(linewidth = 0.8) +
+  scale_colour_viridis_d(option = "D", begin = 0.35, end = 0.85,
+                         name = expression(F~(yr^-1))) +
+  labs(x = "Age (years)", y = "Reduction vs unfished (cm)")
+pA + pB + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+# Estimation: the length engine reproduces the age-based assessment
+
+Fitting the same data with both engines gives a consistency check. The
+length engine recovers essentially the same stock scale and status as the
+established age model, while fitting the length compositions slightly better
+(they are now predicted from a dynamically consistent length state rather than
+expanded through a static key).
+
+```{r}
+#| label: tbl-compare
+compare_tbl <- tibble(
+  Model      = c("Age (static PLA)", "Length (growth matrix)"),
+  B0         = c(rep_age$B0, rep_len$B0),
+  R0         = c(rep_age$R0, rep_len$R0),
+  `Terminal SB` = c(tail(rep_age$spawning_biomass_y, 1),
+                    tail(rep_len$spawning_biomass_y, 1)),
+  Depletion  = c(tail(rep_age$spawning_biomass_y, 1) / rep_age$spawning_biomass_y[1],
+                 tail(rep_len$spawning_biomass_y, 1) / rep_len$spawning_biomass_y[1]),
+  NLL        = c(fit_age$opt$objective, fit_len$opt$objective))
+knitr::kable(compare_tbl, digits = c(0, 0, 1, 0, 3, 2),
+  caption = "'Opakapaka estimates from the age and length engines fitted to identical data.")
+```
+
+```{r}
+#| label: fig-ssb
+#| fig-height: 3.8
+#| fig-cap: "Estimated 'opakapaka spawning-biomass trajectories from the age engine (static age-length key) and the length engine (growth transition matrix). The two nearly coincide over the full modelled period, confirming the length engine reproduces the age-based assessment on this stock."
+sb_df <- bind_rows(
+  data.frame(year = 1948 + seq_along(rep_age$spawning_biomass_y),
+             sbio = rep_age$spawning_biomass_y, Model = "Age"),
+  data.frame(year = 1948 + seq_along(rep_len$spawning_biomass_y),
+             sbio = rep_len$spawning_biomass_y, Model = "Length"))
+ggplot(sb_df, aes(year, sbio, colour = Model)) +
+  geom_line(linewidth = 0.9) +
+  scale_colour_manual(values = pal[c("Age", "Length")]) +
+  coord_cartesian(ylim = c(0, NA)) +
+  labs(x = "Year", y = "Spawning biomass (mt)")
+```
+
+# The length-structured state
+
+Unlike the age engine, the length engine reports the full numbers-at-length
+surface through time (`NL_yl`). The relative length composition of the stock is
+shown below over the modelled period --- the standing image of the state the
+engine now tracks and from which length compositions are predicted directly.
+
+```{r}
+#| label: fig-nl-surface
+#| fig-height: 3.8
+#| fig-cap: "Relative numbers-at-length of the 'opakapaka stock through time, from the fitted length engine (each year's length distribution normalised to sum to one). The recruitment pulse enters at small lengths and propagates up through the size classes via the growth transition, while the population thins at larger sizes under fishing."
+NL <- rep_len$NL_yl[seq_len(n_year), ]         # start-of-year numbers-at-length
+NLp <- NL / rowSums(NL)
+nl_df <- expand.grid(year = 1948 + seq_len(n_year), len = len_mid)
+nl_df$p <- as.vector(NLp)
+ggplot(nl_df, aes(year, len, fill = p)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "#7D3C98", name = "Prop.") +
+  labs(x = "Year", y = "Length (cm)")
+```
+
+# Structural check: reduction to the static key
+
+Because the conditional-SD transition is calibrated to reproduce the age--length
+key, the length engine collapses onto the age engine when growth variability is
+removed. Evaluating both engines at a common parameter set --- once at the
+estimated growth CVs, once with the CVs shrunk toward zero --- makes this
+explicit: at negligible CV the two spawning-biomass trajectories are
+indistinguishable.
+
+```{r}
+#| label: fig-equivalence
+#| fig-height: 3.8
+#| fig-cap: "Reduction to the age model. Spawning biomass evaluated at a common parameter set for both engines, at the estimated growth CVs (left) and with the length-at-age CVs shrunk toward zero (right). As growth variability vanishes the length engine's trajectory converges onto the age engine's, confirming the two are consistent by construction."
+eval_sby <- function(dat, pars) {
+  m <- lapply(pars, function(v) factor(rep(NA, length(v))))
+  o <- MakeADFun(cmb(opal_model, dat), pars, map = m, silent = TRUE)
+  o$report()$spawning_biomass_y
+}
+p_est <- parameters; p_est$log_B0 <- log(rep_len$B0)
+p_deg <- p_est; p_deg$log_CV1 <- log(1e-3); p_deg$log_CV2 <- log(1e-3)
+
+eq_df <- bind_rows(
+  data.frame(year = 1948 + seq_len(n_year + 1), sbio = eval_sby(data_age, p_est),
+             Model = "Age", panel = "Estimated CV"),
+  data.frame(year = 1948 + seq_len(n_year + 1), sbio = eval_sby(data_len, p_est),
+             Model = "Length", panel = "Estimated CV"),
+  data.frame(year = 1948 + seq_len(n_year + 1), sbio = eval_sby(data_age, p_deg),
+             Model = "Age", panel = "CV -> 0"),
+  data.frame(year = 1948 + seq_len(n_year + 1), sbio = eval_sby(data_len, p_deg),
+             Model = "Length", panel = "CV -> 0"))
+eq_df$panel <- factor(eq_df$panel, levels = c("Estimated CV", "CV -> 0"))
+ggplot(eq_df, aes(year, sbio, colour = Model)) +
+  geom_line(linewidth = 0.8) +
+  facet_wrap(~ panel) +
+  scale_colour_manual(values = pal[c("Age", "Length")]) +
+  coord_cartesian(ylim = c(0, NA)) +
+  labs(x = "Year", y = "Spawning biomass (mt)")
+```
+
+# Forward projection with the length engine
+
+Projections work through the same `project_dynamics()` interface as the age
+engine; it dispatches on the `length_dynamics` switch and carries the terminal
+age--length state forward. Here the stock is projected ten years under constant
+terminal catch, with parameter uncertainty drawn from the Hessian
+(multivariate-normal) and the historical uncertainty shown by the delta method
+(`sdreport`, via the `ADREPORT`ed spawning biomass inside the length engine).
+
+```{r}
+#| label: projection
+#| output: false
+obj_len <- fit_len$obj
+obj_len$fn(fit_len$opt$par)              # set last.par.best to the optimum
+data_len$first_yr <- 1949L; data_len$last_yr <- 2023L
+data_len$removal_switch_f <- rep(0L, data_len$n_fishery)
+data_len$age_a <- ages
+
+n_proj <- 10L; n_iter <- 100L
+rdev_proj <- project_rec_devs(data_len, obj_len, first_yr = data_len$first_yr,
+                              n_proj = n_proj, n_iter = n_iter)
+sel_proj  <- project_selectivity_length(data_len, obj_len, first_yr = data_len$last_yr - 9,
+                                        n_proj = n_proj, n_iter = n_iter)
+catch_ysf <- array(0, dim = c(n_proj, data_len$n_season, data_len$n_fishery))
+for (y in seq_len(n_proj)) catch_ysf[y, , ] <- data_len$catch_obs_ysf[data_len$n_year, , ]
+
+proj <- project_dynamics(data_len, obj_len, mcmc = NULL, n_proj = n_proj,
+                         n_iter = n_iter, rdev_y = rdev_proj$rdev_y,
+                         sel_fya = sel_proj, catch_ysf = catch_ysf, return_hist = TRUE)
+
+# Historical delta-method ribbon
+sdr <- RTMB::sdreport(obj_len)
+ss  <- summary(sdr, "report")
+rows <- which(rownames(ss) == "spawning_biomass_y")
+sb_mle <- ss[rows, "Estimate"]; sb_se <- ss[rows, "Std. Error"]
+```
+
+```{r}
+#| label: fig-projection
+#| fig-height: 4
+#| fig-cap: "'Opakapaka spawning biomass from the length engine: last 50 years of the estimated trajectory with delta-method historical uncertainty (grey), bridged into a 10-year constant-catch projection with multivariate-normal parameter uncertainty (green; 50% and 90% envelopes over 100 draws). The vertical line marks the end of the historical period."
+spl <- rep_len$spawning_potential_l
+sby_proj <- sapply(proj$dyn, function(z) sapply(1:(n_proj + 1),
+                    function(y) sum(z$NL_yl[y, ] * spl)))   # [n_proj+1, n_iter]
+
+term <- n_year + 1
+n_show <- 50L
+hidx <- (term - n_show + 1):term
+hist_df <- data.frame(year = 1948 + hidx, med = sb_mle[hidx],
+  lo90 = sb_mle[hidx] - qnorm(0.95) * sb_se[hidx],
+  hi90 = sb_mle[hidx] + qnorm(0.95) * sb_se[hidx],
+  lo50 = sb_mle[hidx] - qnorm(0.75) * sb_se[hidx],
+  hi50 = sb_mle[hidx] + qnorm(0.75) * sb_se[hidx])
+
+proj_df <- data.frame(year = 2024L + 0:n_proj,
+  med  = apply(sby_proj, 1, median),
+  lo90 = apply(sby_proj, 1, quantile, 0.05),
+  hi90 = apply(sby_proj, 1, quantile, 0.95),
+  lo50 = apply(sby_proj, 1, quantile, 0.25),
+  hi50 = apply(sby_proj, 1, quantile, 0.75))
+
+ggplot() +
+  geom_ribbon(data = hist_df, aes(year, ymin = lo90, ymax = hi90), fill = "grey70", alpha = 0.4) +
+  geom_ribbon(data = hist_df, aes(year, ymin = lo50, ymax = hi50), fill = "grey55", alpha = 0.5) +
+  geom_line(data = hist_df, aes(year, med), colour = "grey25", linewidth = 0.9) +
+  geom_vline(xintercept = 2024, linetype = "dashed", colour = "grey50") +
+  geom_ribbon(data = proj_df, aes(year, ymin = lo90, ymax = hi90), fill = "#2E8B57", alpha = 0.18) +
+  geom_ribbon(data = proj_df, aes(year, ymin = lo50, ymax = hi50), fill = "#2E8B57", alpha = 0.35) +
+  geom_line(data = proj_df, aes(year, med), colour = "#2E8B57", linewidth = 1) +
+  coord_cartesian(ylim = c(0, NA)) +
+  labs(x = "Year", y = "Spawning biomass (mt)")
+```
+
+# A high-contrast simulation: depletion and recovery
+
+'Opakapaka is only lightly fished, so its size structure barely moves and the two
+engines agree closely --- a reassuring consistency result, but not a vivid
+demonstration. To exercise the length engine we simulate the *same stock* (the
+fitted $B_0$, growth, natural mortality, and maturity) forward under a much
+heavier, size-selective fishing history: two decades of escalating catch that
+draws the stock down, followed by a sharp reduction and rebuild. Recruitment is
+deterministic here so the size-structure signal is not masked by process noise.
+
+For this operating model we also make growth **slower** (a lower von Bertalanffy
+$k$) and **tighter** (smaller length-at-age CVs) than 'opakapaka's. Both changes
+let a cohort keep its size identity for longer before growth remixes the length
+classes, so the size structure --- and the within-age truncation from
+size-selective removal --- resolve much more sharply. This is the regime in
+which a length-structured model earns its keep.
+
+```{r}
+#| label: sim-run
+#| output: false
+B0s   <- rep_len$B0
+sp_l  <- rep_len$spawning_potential_l
+wt_l  <- rep_len$weight_l
+h_s   <- exp(parameters$log_h)
+sr_s  <- exp(parameters$log_sigma_r)
+
+# Operating-model growth: slower (k x 0.5) and tighter (CV x 0.4) than 'opakapaka.
+k_mult <- 0.5; cv_mult <- 0.4
+L1v <- exp(parameters$log_L1); L2v <- exp(parameters$log_L2)
+log_k_sim <- parameters$log_k + log(k_mult)
+mu_sim <- get_growth(n_age, data$A1, data$A2, L1v, L2v, log_k_sim)
+sd_sim <- get_sd_at_age(mu_sim, L1v, L2v,
+                        parameters$log_CV1 + log(cv_mult), parameters$log_CV2 + log(cv_mult))
+plaL   <- get_pla(data$len_lower, data$len_upper, mu_sim, sd_sim)
+G_sim  <- get_growth_matrix(data$len_lower, data$len_upper, len_mid, sd_sim,
+                            L1v, L2v, log_k_sim, data$A1, data$A2)
+rec_sim <- get_recruit_length_dist(data$len_lower, data$len_upper, mu_sim[1], sd_sim[1])
+
+# Size-selective fishery for the operating model (half-selected near 0.5 L-inf).
+Linf_sim <- L1v + (L2v - L1v) / (1 - exp(-exp(log_k_sim) * (data$A2 - data$A1)))
+sel_sim  <- 1 / (1 + exp(-0.3 * (len_mid - 0.5 * Linf_sim)))
+
+n_sim <- 60L
+# Catch history (fraction of B0): low -> escalating -> cut -> rebuild.
+catch_hist <- c(rep(0.010 * B0s, 10),
+                seq(0.02 * B0s, 0.10 * B0s, length.out = 20),
+                rep(0.010 * B0s, 30))
+sim_data <- list(n_age = n_age, n_len = n_len, n_year = n_sim, n_season = 1L,
+                 n_fishery = 1L, first_yr = 1, first_yr_catch = 1,
+                 catch_units_f = 1L, catch_obs_ysf = array(catch_hist, dim = c(n_sim, 1, 1)))
+sim_par  <- list(rdev_y = rep(0, n_sim))
+
+wtf <- array(0, c(1, n_sim, n_len)); slf <- array(0, c(1, n_sim, n_len))
+for (y in seq_len(n_sim)) { wtf[1, y, ] <- wt_l; slf[1, y, ] <- sel_sim }
+
+iS <- get_initial_numbers_length(B0s, h_s, M_a, sp_l, plaL, G_sim, rec_sim,
+                                 init_F_f = 0, sel_fl = matrix(sel_sim, 1))
+dS <- do_dynamics_length(sim_data, sim_par, B0 = B0s, R0 = iS$R0, alpha = iS$alpha,
+        beta = iS$beta, h = h_s, sigma_r = sr_s, M_a = M_a,
+        spawning_potential_l = sp_l, weight_fyl = wtf, recruit_dist_l = rec_sim, G = G_sim,
+        init_number_al = iS$Ninit_al, init_number0_al = iS$Ninit0_al, sel_fyl = slf)
+
+depl   <- dS$spawning_biomass_y / dS$spawning_biomass_y[1]
+trough <- which.min(depl)
+```
+
+The stock is drawn down to `r sprintf("%.0f%%", 100*min(depl))` of $B_0$ at the
+fishing peak (year `r trough`) and rebuilds toward `r sprintf("%.0f%%", 100*tail(depl,1))`
+of $B_0$ once catch is cut.
+
+```{r}
+#| label: fig-sim
+#| fig-height: 3.8
+#| fig-cap: "Simulated depletion and recovery. Left: relative spawning biomass over the 60-year history (dotted = 20% B0). Right: the relative numbers-at-length surface from the length engine --- the large size classes are progressively stripped out as fishing escalates, then refill from below as the stock rebuilds. This size-structure erosion and recovery is tracked natively by the length state; the age-only engine represents the stock only through its age marginal."
+depl_df <- data.frame(year = seq_len(n_sim + 1), depl = depl)
+p_depl <- ggplot(depl_df, aes(year, depl)) +
+  geom_line(colour = "#2E8B57", linewidth = 0.9) +
+  geom_hline(yintercept = 0.2, linetype = "dotted", colour = "red") +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Year", y = expression("Depletion (SB / B"[0]*")"))
+
+NLs  <- dS$NL_yl[seq_len(n_sim), ]
+NLsp <- NLs / rowSums(NLs)
+surf_df <- expand.grid(year = seq_len(n_sim), len = len_mid)
+surf_df$p <- as.vector(NLsp)
+p_surf <- ggplot(surf_df, aes(year, len, fill = p)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "#7D3C98", name = "Prop.") +
+  labs(x = "Year", y = "Length (cm)")
+
+p_depl + p_surf
+```
+
+```{r}
+#| label: fig-sim-comp
+#| fig-height: 3.6
+#| fig-cap: "Population length composition at three points of the simulation: the unfished start, the depletion trough, and after rebuilding. Under heavy size-selective fishing the composition collapses toward the smaller, less-selected sizes; during recovery the large size classes are restored. Each curve is the relative numbers-at-length in that year."
+snap <- c(Start = 1L, Trough = trough, Recovered = n_sim + 1L)
+comp_df <- bind_rows(lapply(names(snap), function(nm) {
+  v <- dS$NL_yl[snap[[nm]], ]; data.frame(phase = nm, len = len_mid, p = v / sum(v))
+}))
+comp_df$phase <- factor(comp_df$phase, levels = names(snap))
+ggplot(comp_df, aes(len, p, colour = phase)) +
+  geom_line(linewidth = 0.9) +
+  scale_colour_manual(values = c(Start = "#4C9BD1", Trough = "#E8862E",
+                                 Recovered = "#2E8B57"), name = NULL) +
+  labs(x = "Length (cm)", y = "Proportion")
+```
+
+## Where the two models disagree
+
+The size structure above is what the length model tracks; an age-only model must
+represent the same stock through numbers-at-age and a *static* age--length key.
+The two therefore disagree on the length-at-age itself. The tile plot below shows
+that disagreement over age and time --- the difference between the length model's
+evolving mean length-at-age and the age model's fixed key. It is near zero before
+fishing, then opens up as the fishery escalates: the older, fully-selected ages
+are truncated toward smaller lengths (blue), and because fishing continues at a
+low level through the rebuild, that truncation persists rather than closing.
+
+```{r}
+#| label: fig-laa-diff
+#| fig-height: 3.6
+#| fig-cap: "Difference in mean length-at-age between the length model and the age model's static age-length key, by age class (vertical) and year (horizontal), for the simulated stock. Blue = the length model carries smaller fish at that age than the static key assumes; the downward truncation is strong and persistent at the older, fully-selected ages (up to ~4 cm), with a weaker opposite-sign band at the intermediate ages as the within-age distribution is reshaped. The age-only model, by construction, sees none of this time-varying length-at-age structure."
+static_laa <- sapply(seq_len(n_age), function(a) sum(plaL[, a] * len_mid))
+diff_mat <- matrix(NA_real_, n_age, n_sim)
+for (y in seq_len(n_sim)) for (a in seq_len(n_age)) {
+  v <- dS$number_ysal[y, 1, a, ]
+  if (sum(v) > 1e-8) diff_mat[a, y] <- sum(v * len_mid) / sum(v) - static_laa[a]
+}
+laa_df <- expand.grid(age = 0:(n_age - 1), year = seq_len(n_sim))
+laa_df$d <- as.vector(diff_mat)
+ggplot(laa_df, aes(year, age, fill = d)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#4C9BD1", mid = "white", high = "#E8862E",
+                       midpoint = 0, name = "Length\nmodel -\nkey (cm)") +
+  labs(x = "Year", y = "Age (years)")
+```
+
+# Fitting both models to simulated data: age-model bias
+
+The real test is estimation. We treat the length engine as the **operating
+model** (the truth), draw fishery observations from it, and fit *both* a
+correctly-specified length model and a misspecified age-only model to exactly the
+same data --- then compare their estimates against the known truth. Both models
+are given the true growth, natural mortality, steepness, and recruitment
+variability; both estimate unfished biomass $B_0$, the catchability of a
+relative-abundance index, the two logistic selectivity parameters, and the
+recruitment deviations.
+
+The simulated data are the operating model's catch-at-length compositions (scaled
+to an effective sample size) and a relative-abundance index proportional to
+vulnerable biomass.
+
+```{r}
+#| label: sim-est-fit
+#| output: false
+effN <- 500L
+
+# Length compositions from the OM catch-at-length, scaled to an effective N.
+lf_rows <- list()
+for (y in seq_len(n_sim)) {
+  cl <- dS$catch_pred_fyl[1, y, ]
+  if (sum(cl) > 0)
+    lf_rows[[length(lf_rows) + 1]] <-
+      c(fishery = 1, year = 1948 + y, month = 1, ts = y, round(cl / sum(cl) * effN))
+}
+lf_wide_sim <- as.data.frame(do.call(rbind, lf_rows))
+colnames(lf_wide_sim) <- c("fishery", "year", "month", "ts",
+  as.character(seq(data$len_bin_start, by = data$len_bin_width, length.out = n_len)))
+
+# Relative-abundance index proportional to vulnerable biomass.
+vuln <- sapply(seq_len(n_sim), function(y) sum(dS$NL_yl[y, ] * sel_sim * wt_l))
+cpue_sim <- data.frame(ts = seq_len(n_sim), fishery = 1L, index = 1L,
+                       units = 1L, value = vuln, se = 0.2)
+
+mk_simdata <- function() list(
+  n_age = n_age, n_len = n_len, n_year = n_sim, n_season = 1L, n_fishery = 1L, n_index = 1L,
+  first_yr = 1, last_yr = n_sim, years = seq_len(n_sim), first_yr_catch = 1, catch_units_f = 1L,
+  catch_obs_ysf = array(catch_hist, dim = c(n_sim, 1, 1)),
+  len_bin_start = data$len_bin_start, len_bin_width = data$len_bin_width,
+  A1 = data$A1, A2 = data$A2, lw_a = data$lw_a, lw_b = data$lw_b,
+  maturity = data$maturity, fecundity = data$fecundity, M = data$M, sel_type_f = 1L,
+  sex_ratio = rep(1, n_age), cpue_switch = 1L, cpue_data = cpue_sim, priors = NULL)
+simdat <- prep_lf_data(mk_simdata(), lf_wide_sim, lf_keep_fisheries = 1,
+                       lf_var_adjust = 1, lf_addtocomp = 1e-8)
+simdat$lf_switch <- 1L
+
+# Parameters: growth / M / steepness / sigma_R fixed at the truth; estimate the
+# rest. Both engines share this configuration.
+sel0 <- convert_ss3_selex_to_rtmb(matrix(c(0.5 * Linf_sim, 10, 0, 0, 0, 0), 1), 1L, len_mid)
+simpar <- list(log_B0 = log(B0s), log_h = log(h_s), log_sigma_r = log(sr_s),
+  log_cpue_q = log(1), log_cpue_tau = log(0.2), log_cpue_omega = log(1), cpue_creep = 0,
+  log_lf_tau = log(1), log_L1 = parameters$log_L1, log_L2 = parameters$log_L2,
+  log_k = log_k_sim, log_CV1 = parameters$log_CV1 + log(cv_mult),
+  log_CV2 = parameters$log_CV2 + log(cv_mult),
+  par_sel = sel0, log_init_F_f = log(1e-8), rdev_y = rep(0, n_sim))
+simmap <- list(log_h = factor(NA), log_sigma_r = factor(NA), log_cpue_tau = factor(NA),
+  log_cpue_omega = factor(NA), cpue_creep = factor(NA), log_lf_tau = factor(NA),
+  log_L1 = factor(NA), log_L2 = factor(NA), log_k = factor(NA),
+  log_CV1 = factor(NA), log_CV2 = factor(NA),
+  par_sel = factor(c(1, 2, NA, NA, NA, NA)), log_init_F_f = factor(NA),
+  rdev_y = factor(seq_len(n_sim)))
+
+fit_engine <- function(len_mode) {
+  dd <- simdat; if (len_mode) dd$length_dynamics <- 1L
+  obj <- MakeADFun(cmb(opal_model, dd), simpar, map = simmap, silent = TRUE)
+  nm <- names(obj$par); Lw <- rep(-Inf, length(nm)); Up <- rep(Inf, length(nm))
+  Lw[grep("log_B0", nm)] <- log(2500); Up[grep("log_B0", nm)] <- log(5e4)
+  Lw[grep("log_cpue_q", nm)] <- log(1e-3); Up[grep("log_cpue_q", nm)] <- log(1e3)
+  Lw[grep("rdev_y", nm)] <- -5; Up[grep("rdev_y", nm)] <- 5
+  Lw[grep("par_sel", nm)] <- -7; Up[grep("par_sel", nm)] <- 7
+  op <- nlminb(obj$par, obj$fn, obj$gr, lower = Lw, upper = Up, control = list(eval.max = 1e4, iter.max = 1e4))
+  op <- nlminb(op$par, obj$fn, obj$gr, lower = Lw, upper = Up, control = list(eval.max = 1e4, iter.max = 1e4))
+  list(rep = obj$report(), nll = op$objective)
+}
+fit_L <- fit_engine(TRUE)
+fit_A <- fit_engine(FALSE)
+
+true_dep <- dS$spawning_biomass_y / dS$spawning_biomass_y[1]
+depL <- fit_L$rep$spawning_biomass_y / fit_L$rep$spawning_biomass_y[1]
+depA <- fit_A$rep$spawning_biomass_y / fit_A$rep$spawning_biomass_y[1]
+```
+
+```{r}
+#| label: tbl-simest
+fmt <- function(b0, td, mind) c(sprintf("%.0f", b0), sprintf("%.2f", td), sprintf("%.2f", mind))
+tibble(Quantity = c("B0 (mt)", "Terminal depletion (SB/B0)", "Lowest depletion"),
+       Truth            = fmt(B0s, tail(true_dep, 1), min(true_dep)),
+       `Length model`   = fmt(fit_L$rep$B0, tail(depL, 1), min(depL)),
+       `Age-only model` = fmt(fit_A$rep$B0, tail(depA, 1), min(depA))) |>
+  knitr::kable(caption = paste0(
+    "Estimates from fitting each model to data simulated from the length operating ",
+    "model. The length model recovers the truth; the age-only model is biased."))
+```
+
+The length model recovers the true $B_0$ almost exactly
+(`r sprintf("%.0f", fit_L$rep$B0)` mt vs the true `r sprintf("%.0f", B0s)` mt),
+whereas the age-only model estimates $B_0 =$ `r sprintf("%.0f", fit_A$rep$B0)` mt
+--- a bias of `r sprintf("%+.0f%%", 100*(fit_A$rep$B0/B0s - 1))` --- and reads
+the stock as far healthier at the end of the series than it truly is (terminal
+depletion `r sprintf("%.2f", tail(depA,1))` vs the true
+`r sprintf("%.2f", tail(true_dep,1))`). Forced to explain length compositions
+generated by size-selective truncation with a fixed age--length key, it distorts
+the biomass scale and status.
+
+```{r}
+#| label: fig-simest
+#| fig-height: 4
+#| fig-cap: "Estimated depletion trajectories from fitting the length model and the age-only model to identical data simulated from the length operating model. The length model tracks the truth; the age-only model is biased, missing the depth of depletion and over-stating the recovery. Dotted line = 20% B0."
+se_df <- bind_rows(
+  data.frame(year = seq_len(n_sim + 1), dep = true_dep, Series = "Truth (length OM)"),
+  data.frame(year = seq_len(n_sim + 1), dep = depL,     Series = "Length model fit"),
+  data.frame(year = seq_len(n_sim + 1), dep = depA,     Series = "Age-only model fit"))
+se_df$Series <- factor(se_df$Series,
+  levels = c("Truth (length OM)", "Length model fit", "Age-only model fit"))
+ggplot(se_df, aes(year, dep, colour = Series)) +
+  geom_line(linewidth = 0.9) +
+  geom_hline(yintercept = 0.2, linetype = "dotted", colour = "red") +
+  scale_colour_manual(values = c("Truth (length OM)" = "grey30",
+    "Length model fit" = "#2E8B57", "Age-only model fit" = "#E8862E")) +
+  coord_cartesian(ylim = c(0, NA)) +
+  labs(x = "Year", y = expression("Depletion (SB / B"[0]*")"), colour = NULL)
+```
+
+# Summary
+
+The joint age--length engine adds a length dimension to opal's dynamics through a
+growth transition matrix built from the existing estimable growth parameters. It
+is opt-in (`data$length_dynamics = 1`) and leaves the age-only path untouched.
+On the 'opakapaka stock it reproduces the established age-based assessment while
+predicting length compositions from a dynamically consistent length state, and
+it can represent size-selective length-at-age truncation that the static
+age--length key cannot. In a simulation--estimation test where a slower-growing
+stock is fished hard and left to recover, the length model recovers the true
+unfished biomass and status, whereas an age-only model fitted to the same data is
+biased --- underestimating $B_0$ and over-stating the recovery --- because it
+must force size-selectively truncated length compositions through a fixed
+age--length key. Projections, MVN and MCMC uncertainty, and `sdreport`
+historical uncertainty all flow through the length engine unchanged.
+```
