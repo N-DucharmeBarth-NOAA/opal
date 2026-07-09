@@ -37,6 +37,7 @@ Imports:
 Suggests:
     compResidual,
     knitr,
+    patchwork,
     quarto,
     rmarkdown,
     tidyverse,
