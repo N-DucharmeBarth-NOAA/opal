@@ -75,6 +75,12 @@ A named list with:
 \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 \item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
+\item{lp_state}{State-process negative log-likelihood (zero when the
+state-space switch is off).}
+\item{number_pred_ya}{Deterministic annual transition predictions with
+dimensions \code{[n_year, n_age]}.}
+\item{state_residual_ya}{Standardised state-process residuals with
+dimensions \code{[n_year, n_age]}.}
 \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
 \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
 \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
@@ -96,4 +102,9 @@ All derived biology arrays (\code{M_a}, \code{spawning_potential_a},
 these quantities carry estimated parameters in the future (e.g., growth
 parameters estimated via the PLA, or natural mortality via the Lorenzen
 equation).
+
+If \code{data$state_space_switch > 0}, the parameter matrix
+\code{log_number_state_ya} supplies latent start-of-year states for each
+transition year and age. The deterministic transition remains the process
+mean, and \code{log_sigma_state} controls its log-scale process error.
 }

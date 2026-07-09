@@ -114,6 +114,8 @@ get_bounds <- function(obj, parameters) {
   # Upr[grep("par_log_cpue_tau", names(obj$par))] <- log(0.20)
   Lwr[grep("par_log_sigma_r", names(obj$par))] <- log(0.1)
   Upr[grep("par_log_sigma_r", names(obj$par))] <- log(2.0)
+  Lwr[grep("^log_sigma_state$", names(obj$par))] <- log(1e-4)
+  Upr[grep("^log_sigma_state$", names(obj$par))] <- log(2.0)
   Lwr[grep("par_log_h", names(obj$par))] <- log(0.21)
   Upr[grep("par_log_h", names(obj$par))] <- log(1.0)
   # Keep initial F positive; upper cap F <= 3 follows the requested broad bound.

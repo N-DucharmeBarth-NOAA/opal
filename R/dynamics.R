@@ -161,11 +161,21 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #'   \code{\link{get_selectivity}}).
 #' @param bias_adj_y Numeric vector of length \code{n_year}. Recruitment bias
 #'   adjustment scalar by year.
+#' @details If \code{data$state_space_switch > 0}, the parameter matrix
+#'   \code{log_number_state_ya} supplies latent start-of-year states for each
+#'   transition year and age. The deterministic transition remains the process
+#'   mean, and \code{log_sigma_state} controls its log-scale process error.
 #' @return A named list with:
 #' \describe{
 #'   \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 #'   \item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 #'   \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
+#'   \item{lp_state}{State-process negative log-likelihood (zero when the
+#'     state-space switch is off).}
+#'   \item{number_pred_ya}{Deterministic annual transition predictions with
+#'     dimensions \code{[n_year, n_age]}.}
+#'   \item{state_residual_ya}{Standardised state-process residuals with
+#'     dimensions \code{[n_year, n_age]}.}
 #'   \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
 #'   \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
 #'   \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
@@ -184,6 +194,25 @@ do_dynamics <- function(data, parameters,
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
   if (is.null(bias_adj_y)) bias_adj_y <- rep(1.0, n_year)
+  if (!exists("state_space_switch", inherits = FALSE)) state_space_switch <- 0L
+  if (!exists("state_process_bias_correct", inherits = FALSE)) state_process_bias_correct <- 1L
+  if (!exists("state_floor", inherits = FALSE)) state_floor <- 1e-12
+  if (state_space_switch > 0L) {
+    if (!exists("log_number_state_ya", inherits = FALSE)) {
+      stop("State-space mode requires parameter 'log_number_state_ya'.")
+    }
+    if (!exists("log_sigma_state", inherits = FALSE)) {
+      stop("State-space mode requires parameter 'log_sigma_state'.")
+    }
+    state_dims <- dim(log_number_state_ya)
+    if (is.null(state_dims) || length(state_dims) != 2L ||
+        !all(state_dims == c(n_year, n_age))) {
+      stop("'log_number_state_ya' must have dimensions [n_year, n_age].")
+    }
+    if (!length(log_sigma_state) %in% c(1L, n_age)) {
+      stop("'log_sigma_state' must have length 1 or n_age.")
+    }
+  }
   fy <- first_yr_catch - first_yr + 1
   n_age1 <- n_age - 1
   S_a <- exp(-M_a / n_season)
@@ -199,7 +228,10 @@ do_dynamics <- function(data, parameters,
   hrate_ysfa  <- array(0, dim = c(n_year + 1, n_season, n_fishery, n_age))
   catch_pred_fya <- array(0, dim = c(n_fishery, n_year, n_age))
   catch_pred_ysf <- array(0, dim = c(n_year, n_season, n_fishery))
+  number_pred_ya <- matrix(0, nrow = n_year, ncol = n_age)
+  state_residual_ya <- matrix(0, nrow = n_year, ncol = n_age)
   lp_penalty <- 0
+  lp_state <- 0
   eps_denom <- 1e-6
   F_f <- numeric(n_fishery)
   h_rate_fa <- array(0, dim = c(n_fishery, n_age))
@@ -266,6 +298,24 @@ do_dynamics <- function(data, parameters,
 
     number_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
     number0_ysa[y + 1, 1, 1] <- get_recruitment(sbio = spawning_biomass0_y[y + 1], rdev = rdev_y[y], B0 = B0, alpha = alpha, beta = beta, sigma_r = sigma_r, bias_adj = bias_adj_y[y])
+
+    # The deterministic next state is the process mean. In state-space mode it
+    # is replaced by the corresponding latent log-state before the next year's
+    # within-season dynamics are evaluated.
+    number_pred_ya[y, ] <- number_ysa[y + 1, 1, ]
+    if (state_space_switch > 0L) {
+      state_contribution <- get_state_process_nll(
+        log_number_state_a = log_number_state_ya[y, ],
+        number_pred_a = number_pred_ya[y, ],
+        log_sigma_state = log_sigma_state,
+        bias_correct = state_process_bias_correct > 0L,
+        state_floor = state_floor
+      )
+      lp_state <- lp_state + state_contribution$nll
+      state_residual_ya[y, ] <- state_contribution$residual_a
+      number_ysa[y + 1, 1, ] <- exp(log_number_state_ya[y, ])
+      spawning_biomass_y[y + 1] <- sum(number_ysa[y + 1, 1, ] * spawning_potential_a)
+    }
   }
   static_depletion_y <- spawning_biomass_y / B0
   dynamic_depletion_y <- spawning_biomass_y / spawning_biomass0_y
@@ -274,6 +324,9 @@ do_dynamics <- function(data, parameters,
   REPORT(catch_pred_fya)
   REPORT(hrate_ysa)
   REPORT(hrate_ysfa)
+  REPORT(number_pred_ya)
+  REPORT(state_residual_ya)
+  REPORT(lp_state)
   REPORT(number0_ysa)
   REPORT(spawning_biomass_y)
   REPORT(spawning_biomass0_y)
@@ -284,7 +337,10 @@ do_dynamics <- function(data, parameters,
   ADREPORT(static_depletion_y)
   ADREPORT(dynamic_depletion_y)
   
-  return(list(number_ysa = number_ysa, number0_ysa = number0_ysa, lp_penalty = lp_penalty,
+  return(list(number_ysa = number_ysa, number0_ysa = number0_ysa,
+              lp_penalty = lp_penalty, lp_state = lp_state,
+              number_pred_ya = number_pred_ya,
+              state_residual_ya = state_residual_ya,
               catch_pred_fya = catch_pred_fya,
               spawning_biomass_y = spawning_biomass_y,
               spawning_biomass0_y = spawning_biomass0_y,

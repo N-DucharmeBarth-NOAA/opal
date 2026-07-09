@@ -3,6 +3,8 @@ utils::globalVariables(c(
   "log_cpue_q", "log_cpue_omega",  
   "cpue_creep",
   "rdev_y", 
+  "state_space_switch", "state_process_bias_correct", "state_floor",
+  "log_number_state_ya", "log_sigma_state",
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
   "n_age", "min_age", "max_age", 
@@ -42,6 +44,7 @@ opal_globals <- function() {
     sel_double_normal = sel_double_normal,
     get_pla = get_pla,
     get_initial_numbers = get_initial_numbers, 
+    get_state_process_nll = get_state_process_nll,
     get_recruitment = get_recruitment, 
     get_harvest_rate = get_harvest_rate, 
     get_length_like = get_length_like, 
@@ -192,6 +195,7 @@ opal_model <- function(parameters, data) {
   
   number_ysa <- dyn$number_ysa
   lp_penalty <- dyn$lp_penalty
+  lp_state <- dyn$lp_state
   catch_pred_fya <- dyn$catch_pred_fya
   comp_pred_fya <- catch_pred_fya
   for (f in seq_len(n_fishery)) {
@@ -282,7 +286,8 @@ opal_model <- function(parameters, data) {
   } else {
     lp_wf <- 0
   }
-  nll <- lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+  nll <- lp_prior + lp_penalty + lp_state + lp_rec + lp_init_rec +
+    sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
   
   # Reporting ----
   
@@ -291,6 +296,7 @@ opal_model <- function(parameters, data) {
   
   REPORT(lp_prior)
   REPORT(lp_penalty)
+  REPORT(lp_state)
   REPORT(lp_rec)
   REPORT(lp_init_rec)
   REPORT(lp_cpue)
