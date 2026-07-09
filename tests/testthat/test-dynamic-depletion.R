@@ -27,5 +27,6 @@ test_that("Dynamic B0 equals fished B0 when catch is zero", {
                      bias_adj_y = bias_adj_y)
 
   expect_equal(dyn$spawning_biomass0_y, dyn$spawning_biomass_y)
+  expect_equal(dyn$static_depletion_y, dyn$spawning_biomass_y / 1000)
   expect_equal(dyn$dynamic_depletion_y, rep(1, 6))
 })

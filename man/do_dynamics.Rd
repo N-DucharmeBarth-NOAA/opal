@@ -78,6 +78,7 @@ A named list with:
 \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
 \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
 \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
+\item{static_depletion_y}{Static depletion trajectory \code{spawning_biomass_y / B0}.}
 \item{dynamic_depletion_y}{Dynamic depletion trajectory \code{spawning_biomass_y / spawning_biomass0_y}.}
 }
 }
