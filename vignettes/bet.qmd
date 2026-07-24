@@ -552,12 +552,61 @@ fit_kkt_grad <- {
   max(grad_constrained)
 }
 fit_rep <- obj$report(obj$env$last.par.best)
-# TMBhelper::check_estimability(obj = obj)
+fit_estimability <- NULL
 if (fit_grad < 1e-2) {
-  check_estimability(obj = obj)
+  fit_estimability <- tryCatch(
+    check_estimability(obj = obj),
+    error = function(e) e
+  )
 } else {
   message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4), ". Improve optimization first.")
 }
+```
+
+## Portable fit object
+
+Store the optimized model in an `opal_fit`. The fit retains the model inputs,
+parameter map, optimizer output, bounds, diagnostics, and enough information to
+rebuild the transient RTMB objective in a later R session. MCMC output and
+derived products such as projections can be attached later with
+`update_opal_fit()`.
+
+```{r}
+#| label: make-opal-fit
+#| echo: true
+#| message: false
+fit <- opal_fit(
+  data = data,
+  obj = obj,
+  opt = opt,
+  bounds = list(lower = Lwr, upper = Upr),
+  control = control,
+  estimability = fit_estimability,
+  diagnostics = list(
+    max_gradient = fit_grad,
+    max_kkt_gradient = fit_kkt_grad,
+    likelihood_components = c(
+      prior = fit_rep$lp_prior,
+      penalty = fit_rep$lp_penalty,
+      recruitment = fit_rep$lp_rec,
+      cpue = sum(fit_rep$lp_cpue),
+      length = sum(fit_rep$lp_lf),
+      weight = sum(fit_rep$lp_wf)
+    )
+  ),
+  metadata = list(
+    stock = "WCPO bigeye tuna",
+    workflow = "BET vignette"
+  )
+)
+
+# Downstream code works from the fit rather than a loose optimizer/object pair.
+obj <- opal_fit_object(fit)
+fit_rep <- opal_fit_report(fit)
+fit
+
+# Persist the portable fit when running an assessment:
+# save_opal_fit(fit, "bet-opal-fit.rds")
 ```
 
 ```{r}
@@ -988,22 +1037,15 @@ sel_par_tbl %>%
 
 ## Diagnostics
 
-Check that all parameters are estimable using the `check_estimability` function:
+The estimability result computed with the fit is stored in compact form, so it
+travels with the other model diagnostics:
 
 ```{r}
 #| label: check-estimability
 #| echo: true
 #| message: false
-#| error: true
 #| eval: true
-obj$env$tracemgc <- FALSE
-fit_grad <- max(abs(obj$gr(obj$env$last.par.best)))
-if (fit_grad < 1e-2) {
-  check_estimability(obj = obj)
-} else {
-  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4),
-          ". Improve optimization first.")
-}
+fit$fit$estimability
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:

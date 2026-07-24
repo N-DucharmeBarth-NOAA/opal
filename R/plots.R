@@ -15,23 +15,38 @@
 #'
 plot_catch <- function(data, obj, plot_resid = FALSE) {
   yrs <- data$years
+  if (is.null(yrs)) {
+    yrs <- seq.int(data$first_yr, length.out = data$n_year)
+  }
   fisheries <- paste0("Fishery: ", seq_len(data$n_fishery))
 
-  df_obs <- melt(data$catch_obs_ysf, value.name = "obs") %>%
+  catch_obs <- data$catch_obs_ysf
+  dimnames(catch_obs) <- NULL
+  df_obs <- melt(
+    catch_obs,
+    varnames = c("year_index", "season_index", "fishery_index"),
+    value.name = "obs"
+  ) %>%
     filter(.data$obs > 0) %>%
     mutate(
-      season = paste("Season:", 1),
-      fishery = fisheries[.data$fishery],
+      year = yrs[.data$year_index],
+      season = paste("Season:", .data$season_index),
+      fishery = fisheries[.data$fishery_index],
       Type = "Observed",
       fishery = factor(.data$fishery, levels = fisheries)
     )
 
-  df_pred <- obj$report()$catch_pred_ysf %>%
-    melt(value.name = "pred") %>%
+  catch_pred <- obj$report()$catch_pred_ysf
+  dimnames(catch_pred) <- NULL
+  df_pred <- melt(
+    catch_pred,
+    varnames = c("year_index", "season_index", "fishery_index"),
+    value.name = "pred"
+  ) %>%
     mutate(
-      year = yrs[.data$Var1],
-      season = paste("Season:", .data$Var2),
-      fishery = fisheries[.data$Var3]
+      year = yrs[.data$year_index],
+      season = paste("Season:", .data$season_index),
+      fishery = fisheries[.data$fishery_index]
     ) %>%
     right_join(df_obs, by = join_by("year", "season", "fishery")) %>%
     mutate(
@@ -39,7 +54,10 @@ plot_catch <- function(data, obj, plot_resid = FALSE) {
       fishery = factor(.data$fishery, levels = fisheries)
     )
 
-  message("The maximum catch difference was: ", max(df_pred$resid))
+  message(
+    "The maximum absolute catch difference was: ",
+    max(abs(df_pred$resid))
+  )
 
   if (plot_resid) {
     p <- ggplot(df_pred, aes(x = .data$year, y = .data$resid)) +
