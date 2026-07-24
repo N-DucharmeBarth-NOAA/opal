@@ -61,11 +61,7 @@ where `cmb(f, d)` creates `function(p) f(p, d)`.
 | `get_data()` | `get-data.R` | Legacy data builder (BET-specific) |
 | `prep_lf_data()` | `prep-lf.R` | Prepare length-frequency data for model |
 | `prep_wf_data()` | `prep-wf.R` | Prepare weight-frequency data for model |
-| `run_grid()` | `grid.R` | Grid-based sensitivity analysis (parallel optimization) |
-| `sample_grid()` | `grid.R` | Sample grid cells proportional to likelihood for integrated uncertainty |
-| `get_posterior()` | `get-posterior.R` | Extract derived quantities from MCMC draws |
 | `project_dynamics()` | `projections.R` | Forward projections from posterior |
-| `opalprofile()` | `profile.R` | 1D likelihood profiling |
 | `plot_*()` | `plots.R` | ggplot2 visualization functions |
 
 ### Typical workflow (from `vignettes/bet.Rmd`)
@@ -97,10 +93,8 @@ get_cor_pairs(obj)
 sdreport(obj)
 
 # Visualize
-rep <- obj$report()
-plot_lf(data, rep)
-plot_cpue(data, rep)
-plot_biomass_spawning(data, rep)
+plot_cpue(data, obj)
+plot_biomass_spawning(list(data), list(obj))
 ```
 
 ## AD-safe coding patterns
@@ -147,7 +141,7 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 ## Environment & development
 
 - **R packages** are managed with `renv/`. Run `renv::activate()` then `renv::restore()` to set up.
-- **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`, `dplyr`, `tidyr`, `foreach`, `doParallel`, `loo`, `rstan`, `forecast`, `mgcv`
+- **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`, `dplyr`, `forecast`
 - **Documentation**: roxygen2-based. After editing `R/*.R` files, regenerate with `devtools::document()`.
 - **Tests**: `testthat` edition 3. Run with `devtools::test()`. Tests cover dynamics, growth, all three likelihood types, selectivity, data prep, rebinning, and utilities.
 - **CI**: GitHub Actions run `R CMD check`, pkgdown site builds, roxygen2 re-generation, and Rmd rendering.
@@ -159,7 +153,6 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 - Run `get_cor_pairs(obj, threshold = 0.95)` to find highly correlated parameter pairs.
 - Use `get_par_table()` to review initial vs estimated values, gradients, and bounds proximity.
 - Use `obj$simulate()` with RTMB's `OBS()` mechanism for simulation-based diagnostics.
-- If optimization fails, try `run_grid()` which does triple `nlminb` restarts for robustness.
 
 ## AI edit guidance
 
@@ -170,4 +163,3 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 - **Keep patches minimal**: Modify one `R/` file at a time, run `devtools::test()` and `devtools::check()` to validate.
 - **Composition data flow**: When modifying likelihood functions, understand the full pipeline: raw data → `prep_lf_data()`/`prep_wf_data()` → flat vectors → likelihood function. The `lf_switch`/`wf_switch` controls which distribution is used.
 - **Selectivity changes**: When modifying selectivity, update `par_sel` dimensions, `get_map()` (which elements are fixed), and `get_bounds()` simultaneously.
-- **Grid/sensitivity**: `get_grid()` creates parameter combinations; `run_grid()` optimizes each. Changes to the parameter or data structure must be reflected in both.

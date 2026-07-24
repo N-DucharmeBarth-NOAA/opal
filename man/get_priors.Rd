@@ -17,7 +17,5 @@ center values for growth/variability parameters (e.g.,
 A \code{list} of priors.
 }
 \description{
-Don't include priors for recruitment deviates (par_rdev_y) or selectivity
-(e.g., par_log_sel_1) here because they are dealt with in the \code{get_recruitment_prior()}
-and \code{get_selectivity_prior()} functions.
+Get priors
 }

@@ -54,25 +54,17 @@ get_parameters <- function(data = NULL, model = NULL) {
 #' @export
 #' 
 get_map <- function(parameters) {
-  map <- list()
-  map[["par_log_psi"]] <- factor(NA)
-  map[["par_log_m0"]] <- factor(NA)
-  map[["par_log_m10"]] <- factor(NA)
-  map[["par_log_h"]] <- factor(NA)
-  map[["par_log_sigma_r"]] <- factor(NA)
-  map[["par_log_cpue_sigma"]] <- factor(NA)
-  map[["par_log_cpue_omega"]] <- factor(NA)
-  map[["par_cpue_creep"]] <- factor(NA)
-  map[["par_log_af_alpha"]] <- factor(rep(NA, 2))
-  map[["par_log_lf_alpha"]] <- factor(rep(NA, 5))
-  map[["par_sel_rho_y"]] <- factor(rep(NA, length(parameters$par_sel_rho_y)))
-  map[["par_sel_rho_a"]] <- factor(rep(NA, length(parameters$par_sel_rho_a)))
-  map[["par_log_sel_sigma"]] <- factor(rep(NA, length(parameters$par_log_sel_sigma)))
-  map[["par_log_sel_4"]] <- factor(matrix(NA, nrow = nrow(parameters$par_log_sel_4), ncol = ncol(parameters$par_log_sel_4)))
-  map[["log_init_F_f"]] <- factor(rep(NA, length(parameters$log_init_F_f)))
-  map[["init_rdev_a"]] <- factor(rep(NA, length(parameters$init_rdev_a)))
-  # map[["par_rec_dev_y"]] <- factor(rep(NA, length(parameters$par_rdev_y)))
-  return(map)
+  fixed <- intersect(
+    c(
+      "log_h", "log_sigma_r", "cpue_creep", "log_cpue_tau",
+      "log_cpue_omega", "log_lf_tau", "log_wf_tau", "log_L1", "log_L2",
+      "log_k", "log_CV1", "log_CV2", "par_sel", "log_init_F_f",
+      "init_rdev_a"
+    ),
+    names(parameters)
+  )
+
+  lapply(parameters[fixed], function(x) factor(rep(NA, length(x))))
 }
 
 #' Get default parameter bounds
@@ -80,55 +72,42 @@ get_map <- function(parameters) {
 #' Get \code{data.frame} of default parameter bounds.
 #' 
 #' @param obj a \code{list} specifying the AD object created using the \code{MakeADFun} function.
-#' @param parameters a \code{list} specifying the AD object created using the \code{MakeADFun} function.
+#' @param parameters The parameter list used to construct \code{obj}. Retained
+#'   for API compatibility.
 #' @return a \code{data.frame} of parameter bounds.
 #' @importFrom RTMB qlogis
 #' @export
 #' 
 get_bounds <- function(obj, parameters) {
-  
-  Lwr <- rep(-Inf, length(obj$par))
-  Upr <- rep(Inf, length(obj$par))
-  
-  Lwr[grep("par_log_psi", names(obj$par))] <- log(0.5)
-  Upr[grep("par_log_psi", names(obj$par))] <- log(3)
-  # These were the old M bounds
-  # Lwr[grep("par_log_m0", names(obj$par))] <- log(0.2)
-  # Upr[grep("par_log_m0", names(obj$par))] <- log(0.55)
-  # Lwr[grep("par_log_m4", names(obj$par))] <- parameters$par_log_m10
-  # Upr[grep("par_log_m4", names(obj$par))] <- log(0.333 * exp(parameters$par_log_m10) + 0.667 * exp(parameters$par_log_m0))
-  # Lwr[grep("par_log_m10", names(obj$par))] <- log(0.029)
-  # Upr[grep("par_log_m10", names(obj$par))] <- log(0.21)
-  # Lwr[grep("par_log_m30", names(obj$par))] <- log(0.2)
-  # Upr[grep("par_log_m30", names(obj$par))] <- log(0.7)
-  Lwr[grep("par_log_m0", names(obj$par))] <- log(1e-6)
-  Upr[grep("par_log_m0", names(obj$par))] <- log(1)
-  Lwr[grep("par_log_m4", names(obj$par))] <- log(1e-6)
-  Upr[grep("par_log_m4", names(obj$par))] <- log(1)
-  Lwr[grep("par_log_m10", names(obj$par))] <- log(1e-6)
-  Upr[grep("par_log_m10", names(obj$par))] <- log(1)
-  Lwr[grep("par_log_m30", names(obj$par))] <- log(1e-6)
-  Upr[grep("par_log_m30", names(obj$par))] <- log(1)
-  
-  # Lwr[grep("par_log_cpue_tau", names(obj$par))] <- log(0.20)
-  # Upr[grep("par_log_cpue_tau", names(obj$par))] <- log(0.20)
-  Lwr[grep("par_log_sigma_r", names(obj$par))] <- log(0.1)
-  Upr[grep("par_log_sigma_r", names(obj$par))] <- log(2.0)
-  Lwr[grep("par_log_h", names(obj$par))] <- log(0.21)
-  Upr[grep("par_log_h", names(obj$par))] <- log(1.0)
-  # Keep initial F positive; upper cap F <= 3 follows the requested broad bound.
-  Lwr[grep("log_init_F_f", names(obj$par))] <- log(1e-12)
-  Upr[grep("log_init_F_f", names(obj$par))] <- log(3)
-  Lwr[grep("par_rdev_y", names(obj$par))] <- rep(-5, length(parameters$par_rdev_y))
-  Upr[grep("par_rdev_y", names(obj$par))] <- rep(5, length(parameters$par_rdev_y))
-  Lwr[grep("init_rdev_a", names(obj$par))] <- rep(-5, length(parameters$init_rdev_a))
-  Upr[grep("init_rdev_a", names(obj$par))] <- rep(5, length(parameters$init_rdev_a))
-  
-  check_bounds(opt = obj, lower = Lwr, upper = Upr)
-  
-  df <- data.frame(parameter = names(obj$par), init = obj$par, lower = Lwr, upper = Upr)
-  
-  return(df)
+  lower <- rep(-Inf, length(obj$par))
+  upper <- rep(Inf, length(obj$par))
+  parameter_names <- names(obj$par)
+
+  set_bounds <- function(pattern, lower_value, upper_value) {
+    index <- grep(pattern, parameter_names, fixed = TRUE)
+    lower[index] <<- lower_value
+    upper[index] <<- upper_value
+  }
+
+  set_bounds("log_B0", log(1), 22)
+  set_bounds("log_h", log(0.21), log(1))
+  set_bounds("log_sigma_r", log(0.1), log(2))
+  set_bounds("log_cpue_q", log(0.001), log(10))
+  set_bounds("log_lf_tau", -9, 9)
+  set_bounds("log_wf_tau", -9, 9)
+  set_bounds("log_init_F_f", log(1e-12), log(3))
+  set_bounds("rdev_y", -5, 5)
+  set_bounds("init_rdev_a", -5, 5)
+  set_bounds("par_sel", -7, 7)
+
+  check_bounds(opt = obj, lower = lower, upper = upper)
+
+  data.frame(
+    parameter = parameter_names,
+    init = obj$par,
+    lower = lower,
+    upper = upper
+  )
 }
 
 #' Check if parameters are up against the bounds

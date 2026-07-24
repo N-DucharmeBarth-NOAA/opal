@@ -4,32 +4,21 @@
 \alias{plot_biomass_spawning}
 \title{Plot spawning biomass}
 \usage{
-plot_biomass_spawning(
-  data_list,
-  object_list,
-  posterior = NULL,
-  probs = c(0.025, 0.975),
-  relative = TRUE,
-  labels = NULL
-)
+plot_biomass_spawning(data_list, object_list, relative = TRUE, labels = NULL)
 }
 \arguments{
-\item{data_list}{a \code{list} containing the data that was passed to \code{MakeADFun}.}
+\item{data_list}{A list of model data lists passed to \code{MakeADFun}.}
 
-\item{object_list}{a \code{list} specifying the AD object created using the \code{MakeADFun} function.}
+\item{object_list}{A list of AD objects created using \code{MakeADFun}.}
 
-\item{posterior}{an \code{rstan} objected created using the \code{tmbstan} function.}
+\item{relative}{Logical; plot spawning biomass relative to unfished biomass.}
 
-\item{probs}{a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution. Defaults to the 90\% credible interval.}
-
-\item{relative}{if the plot should be relative spawning biomass.}
-
-\item{labels}{a \code{vector} of labels for the model runs.}
+\item{labels}{Optional labels for the model runs.}
 }
 \value{
-a \code{ggplot2} object.
+A \code{ggplot2} object.
 }
 \description{
-Plot the spawning biomass (tonnes) or relative spawning biomass by year for a
-single model run, a grid of model runs, or an MCMC.
+Plot spawning biomass or relative spawning biomass by year for one or more
+model runs.
 }
