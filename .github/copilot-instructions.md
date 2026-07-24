@@ -58,6 +58,7 @@ where `cmb(f, d)` creates `function(p) f(p, d)`.
 | `get_parameters()` | `parameters.R` | Default parameter list |
 | `get_map()` | `parameters.R` | Default map (which params to fix) |
 | `get_bounds()` | `parameters.R` | Optimization bounds for `nlminb` |
+| `opal_fit()`, `save_opal_fit()`, `read_opal_fit()` | `opal-fit.R` | Portable fitted-model, MCMC, and derived-result storage |
 | `get_data()` | `get-data.R` | Legacy data builder (BET-specific) |
 | `prep_lf_data()` | `prep-lf.R` | Prepare length-frequency data for model |
 | `prep_wf_data()` | `prep-wf.R` | Prepare weight-frequency data for model |
@@ -95,7 +96,22 @@ sdreport(obj)
 # Visualize
 plot_cpue(data, obj)
 plot_biomass_spawning(list(data), list(obj))
+
+# Store fitted state and posterior output without serializing the RTMB object
+fit <- opal_fit(data, obj, opt, bounds = bounds, mcmc = mcmc_fit)
+save_opal_fit(fit, "fit.rds")
+fit <- read_opal_fit("fit.rds", strict = TRUE)
 ```
+
+### Portable fitted-model objects
+
+`opal_fit` is the durable boundary for model results. It stores plain-R data,
+fitted parameters, the parameter map, optimizer output, normalized MCMC draws,
+diagnostics, arbitrary derived results (for example projections), and
+provenance. RTMB objectives contain session-specific environments and external
+pointers, so they are cached in memory but never serialized. Use
+`opal_fit_object()` or `opal_fit_report()` to rebuild/access runtime state and
+`update_opal_fit()` to attach later MCMC or derived results.
 
 ## AD-safe coding patterns
 
