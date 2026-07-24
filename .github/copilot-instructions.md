@@ -58,14 +58,11 @@ where `cmb(f, d)` creates `function(p) f(p, d)`.
 | `get_parameters()` | `parameters.R` | Default parameter list |
 | `get_map()` | `parameters.R` | Default map (which params to fix) |
 | `get_bounds()` | `parameters.R` | Optimization bounds for `nlminb` |
+| `opal_fit()`, `save_opal_fit()`, `read_opal_fit()` | `opal-fit.R` | Portable fitted-model, MCMC, and derived-result storage |
 | `get_data()` | `get-data.R` | Legacy data builder (BET-specific) |
 | `prep_lf_data()` | `prep-lf.R` | Prepare length-frequency data for model |
 | `prep_wf_data()` | `prep-wf.R` | Prepare weight-frequency data for model |
-| `run_grid()` | `grid.R` | Grid-based sensitivity analysis (parallel optimization) |
-| `sample_grid()` | `grid.R` | Sample grid cells proportional to likelihood for integrated uncertainty |
-| `get_posterior()` | `get-posterior.R` | Extract derived quantities from MCMC draws |
 | `project_dynamics()` | `projections.R` | Forward projections from posterior |
-| `opalprofile()` | `profile.R` | 1D likelihood profiling |
 | `plot_*()` | `plots.R` | ggplot2 visualization functions |
 
 ### Typical workflow (from `vignettes/bet.Rmd`)
@@ -97,11 +94,24 @@ get_cor_pairs(obj)
 sdreport(obj)
 
 # Visualize
-rep <- obj$report()
-plot_lf(data, rep)
-plot_cpue(data, rep)
-plot_biomass_spawning(data, rep)
+plot_cpue(data, obj)
+plot_biomass_spawning(list(data), list(obj))
+
+# Store fitted state and posterior output without serializing the RTMB object
+fit <- opal_fit(data, obj, opt, bounds = bounds, mcmc = mcmc_fit)
+save_opal_fit(fit, "fit.rds")
+fit <- read_opal_fit("fit.rds", strict = TRUE)
 ```
+
+### Portable fitted-model objects
+
+`opal_fit` is the durable boundary for model results. It stores plain-R data,
+fitted parameters, the parameter map, optimizer output, normalized MCMC draws,
+diagnostics, arbitrary derived results (for example projections), and
+provenance. RTMB objectives contain session-specific environments and external
+pointers, so they are cached in memory but never serialized. Use
+`opal_fit_object()` or `opal_fit_report()` to rebuild/access runtime state and
+`update_opal_fit()` to attach later MCMC or derived results.
 
 ## AD-safe coding patterns
 
@@ -147,7 +157,7 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 ## Environment & development
 
 - **R packages** are managed with `renv/`. Run `renv::activate()` then `renv::restore()` to set up.
-- **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`, `dplyr`, `tidyr`, `foreach`, `doParallel`, `loo`, `rstan`, `forecast`, `mgcv`
+- **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`, `dplyr`, `forecast`
 - **Documentation**: roxygen2-based. After editing `R/*.R` files, regenerate with `devtools::document()`.
 - **Tests**: `testthat` edition 3. Run with `devtools::test()`. Tests cover dynamics, growth, all three likelihood types, selectivity, data prep, rebinning, and utilities.
 - **CI**: GitHub Actions run `R CMD check`, pkgdown site builds, roxygen2 re-generation, and Rmd rendering.
@@ -159,7 +169,6 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 - Run `get_cor_pairs(obj, threshold = 0.95)` to find highly correlated parameter pairs.
 - Use `get_par_table()` to review initial vs estimated values, gradients, and bounds proximity.
 - Use `obj$simulate()` with RTMB's `OBS()` mechanism for simulation-based diagnostics.
-- If optimization fails, try `run_grid()` which does triple `nlminb` restarts for robustness.
 
 ## AI edit guidance
 
@@ -170,4 +179,3 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 - **Keep patches minimal**: Modify one `R/` file at a time, run `devtools::test()` and `devtools::check()` to validate.
 - **Composition data flow**: When modifying likelihood functions, understand the full pipeline: raw data → `prep_lf_data()`/`prep_wf_data()` → flat vectors → likelihood function. The `lf_switch`/`wf_switch` controls which distribution is used.
 - **Selectivity changes**: When modifying selectivity, update `par_sel` dimensions, `get_map()` (which elements are fixed), and `get_bounds()` simultaneously.
-- **Grid/sensitivity**: `get_grid()` creates parameter combinations; `run_grid()` optimizes each. Changes to the parameter or data structure must be reflected in both.

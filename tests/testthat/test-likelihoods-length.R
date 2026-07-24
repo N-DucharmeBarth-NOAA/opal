@@ -77,8 +77,9 @@ test_that("predicted proportions at length sum to 1", {
   pla <- matrix(0, n_len, n_age)
   for (a in 1:n_age) pla[min(a * 2, n_len), a] <- 1
 
+  addtocomp <- 1e-8
   pred <- c(pla %*% catch_a)
-  pred <- (pred + 1e-8) / sum(pred + 1e-8)
+  pred <- (pred + addtocomp) / sum(pred + addtocomp)
   expect_equal(sum(pred), 1.0, tolerance = 1e-10)
 })
 
@@ -257,8 +258,9 @@ test_that("multinomial NLL matches dmultinom reference value", {
   catch_pred_fya <- array(0, dim = c(2L, 1L, n_age))
   catch_pred_fya[1, 1, ] <- c(3, 1)  # bin 2 gets 3x weight of bin 4
 
+  addtocomp <- 1e-8
   pred_raw <- c(pla %*% catch_pred_fya[1, 1, ])
-  pred     <- (pred_raw + 1e-8) / sum(pred_raw + 1e-8)
+  pred     <- (pred_raw + addtocomp) / sum(pred_raw + addtocomp)
   obs      <- c(0, 60, 0, 40)
   expected_nll <- -dmultinom(obs, prob = pred, log = TRUE)
 
@@ -270,6 +272,16 @@ test_that("multinomial NLL matches dmultinom reference value", {
 
   lp <- do.call(get_length_like, s)
   expect_equal(lp[1], expected_nll, tolerance = 1e-10)
+})
+
+test_that("lf_addtocomp argument changes multinomial NLL", {
+  s_default <- make_lf_args(lf_switch = 1)
+  s_custom  <- make_lf_args(lf_switch = 1)
+  s_custom$lf_addtocomp <- 1e-3
+
+  lp_default <- do.call(get_length_like, s_default)
+  lp_custom  <- do.call(get_length_like, s_custom)
+  expect_false(isTRUE(all.equal(lp_default, lp_custom)))
 })
 
 test_that("multiple observations: obs_offset advances correctly across observations", {

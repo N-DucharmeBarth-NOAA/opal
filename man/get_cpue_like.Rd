@@ -2,21 +2,32 @@
 % Please edit documentation in R/likelihoods.R
 \name{get_cpue_like}
 \alias{get_cpue_like}
-\title{CPUE index likelihood}
+\title{CPUE index likelihood (multi-index)}
 \usage{
 get_cpue_like(
-  data,
+  cpue_data,
   parameters,
   number_ysa,
   sel_fya,
   weight_fya,
-  creep_init = 1
+  cpue_switch = 1L
 )
 }
 \arguments{
-\item{data}{a \code{list} of data inputs (cpue_data, cpue_switch, etc.).}
+\item{cpue_data}{a \code{list} of data inputs. Must contain:
+\describe{
+\item{cpue_data}{data.frame with columns \code{ts}, \code{fishery},
+\code{value}, \code{se}, \code{units}, and \code{index}.}
+\item{cpue_switch}{integer switch (0 = skip likelihood).}
+\item{n_index}{integer number of distinct indices.}
+}}
 
-\item{parameters}{a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, etc.).}
+\item{parameters}{a \code{list} of parameter values. Must contain:
+\describe{
+\item{log_cpue_q}{numeric vector \code{[n_index]}.}
+\item{log_cpue_tau}{numeric vector \code{[n_index]}.}
+\item{log_cpue_omega}{numeric vector \code{[n_index]}.}
+}}
 
 \item{number_ysa}{a 3D \code{array} \verb{[n_year, n_season, n_age]} of numbers-at-age.}
 
@@ -24,11 +35,15 @@ get_cpue_like(
 
 \item{weight_fya}{a 3D \code{array} \verb{[n_fishery, n_year, n_age]} of weight-at-age by fishery and year.}
 
-\item{creep_init}{scalar initialization value for creeping adjustment (default 1).}
+\item{cpue_switch}{boolean flag to calculate the cpue likelihood.}
 }
 \value{
-a \code{numeric} vector of negative log-likelihood contributions.
+numeric vector of length \code{nrow(cpue_data)} with per-observation
+negative log-likelihood contributions.
 }
 \description{
-Computes the likelihood for a standardized CPUE index using a log-linear model.
+Computes the likelihood for one or more standardised CPUE/survey indices
+using a log-linear model. Each index has its own catchability (q),
+extra variance (tau), power parameter (omega), and effort creep.
+Mean-centering of predicted CPUE is performed within each index.
 }

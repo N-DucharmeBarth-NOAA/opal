@@ -23,8 +23,9 @@ test_that("get_initial_numbers returns correct list elements", {
   spawning_potential_a <- c(0, 0.2, 0.6, 1.0, 1.0)
 
   init <- get_initial_numbers(B0, h, M_a, spawning_potential_a)
-  expect_named(init, c("Ninit", "R0", "alpha", "beta"))
+  expect_named(init, c("Ninit", "Ninit0", "R0", "alpha", "beta"))
   expect_equal(length(init$Ninit), length(M_a))
+  expect_equal(length(init$Ninit0), length(M_a))
   expect_true(init$R0 > 0)
   expect_true(init$alpha > 0)
   expect_true(init$beta > 0)
@@ -62,6 +63,7 @@ test_that("do_dynamics returns expected dimensions with no fishing", {
     M_a = M_a, spawning_potential_a = spawning_potential_a,
     weight_fya = array(1, dim = c(1, data$n_year, data$n_age)),
     init_number_a = init$Ninit,
+    init_number0_a = init$Ninit0,
     sel_fya = array(1, dim = c(1, data$n_year, data$n_age))
   )
 
@@ -90,6 +92,7 @@ test_that("do_dynamics catch-at-age sums to observed catch in numbers", {
     M_a = M_a, spawning_potential_a = spawning_potential_a,
     weight_fya = array(1, dim = c(1, data$n_year, data$n_age)),
     init_number_a = init$Ninit,
+    init_number0_a = init$Ninit0,
     sel_fya = array(1, dim = c(1, data$n_year, data$n_age))
   )
 
@@ -122,4 +125,69 @@ test_that("get_harvest_rate reproduces observed catch in number and weight units
     data_weight$catch_obs_ysf[1, 1, 1],
     tolerance = 1e-7
   )
+})
+
+test_that("init_F_f = NULL gives unfished equilibrium", {
+  M_a  <- rep(0.2, 5)
+  sp_a <- c(0, 0.2, 0.6, 1, 1)
+  init <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                              spawning_potential_a = sp_a)
+  expect_equal(sum(init$Ninit * sp_a), 1e6, tolerance = 1e-6)
+})
+
+test_that("init_F_f > 0 produces depleted SSB relative to B0", {
+  M_a    <- rep(0.2, 5)
+  sp_a   <- c(0, 0.2, 0.6, 1, 1)
+  sel_fa <- matrix(c(0, 0.2, 0.6, 1, 1), nrow = 1)
+  init   <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                                spawning_potential_a = sp_a,
+                                init_F_f = 0.1, sel_fa = sel_fa)
+  expect_lt(sum(init$Ninit * sp_a), 1e6)
+})
+
+test_that("init_F_f near zero matches unfished result", {
+  M_a      <- rep(0.2, 5)
+  sp_a     <- c(0, 0.2, 0.6, 1, 1)
+  sel_fa   <- matrix(c(0, 0.2, 0.6, 1, 1), nrow = 1)
+  unfished <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                                  spawning_potential_a = sp_a)
+  fished   <- get_initial_numbers(B0 = 1e6, h = 0.8, M_a = M_a,
+                                  spawning_potential_a = sp_a,
+                                  init_F_f = 1e-8, sel_fa = sel_fa)
+  expect_equal(fished$Ninit, unfished$Ninit, tolerance = 1e-5)
+})
+
+test_that("init_F_f recovers analytic depletion for single plus-group age", {
+  M_single <- 0.3
+  init_F <- 0.1
+  Z <- M_single + init_F
+  h <- 0.75
+  init <- get_initial_numbers(B0 = 1000, h = h, M_a = M_single,
+                              spawning_potential_a = 1,
+                              init_F_f = init_F,
+                              sel_fa = matrix(1, nrow = 1, ncol = 1))
+  phi_0 <- 1 / (1 - exp(-M_single))
+  expected_R0 <- 1000 / phi_0
+  phi_F <- 1 / (1 - exp(-Z))
+  
+  # Beverton-Holt equilibrium recruitment R_eq
+  expected_Req <- expected_R0 * (4 * h * phi_F - phi_0 * (1 - h)) / (phi_F * (5 * h - 1))
+  
+  expect_equal(as.numeric(init$Ninit), expected_Req * phi_F, tolerance = 1e-10)
+})
+
+test_that("init_F_f recovers analytic depletion for single plus-group age (h=1)", {
+  M_single <- 0.3
+  init_F <- 0.1
+  Z <- M_single + init_F
+  init <- get_initial_numbers(B0 = 1000, h = 1.0, M_a = M_single,
+                              spawning_potential_a = 1,
+                              init_F_f = init_F,
+                              sel_fa = matrix(1, nrow = 1, ncol = 1))
+  phi_0 <- 1 / (1 - exp(-M_single))
+  expected_R0 <- 1000 / phi_0
+  phi_F <- 1 / (1 - exp(-Z))
+  
+  # For h=1, recruitment is independent of spanning biomass, so R_eq = R0
+  expect_equal(as.numeric(init$Ninit), expected_R0 * phi_F, tolerance = 1e-10)
 })

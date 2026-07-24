@@ -1,10 +1,6 @@
 #' Get priors
 #' 
-#' Don't include priors for recruitment deviates (par_rdev_y) or selectivity 
-#' (e.g., par_log_sel_1) here because they are dealt with in the `get_recruitment_prior()` 
-#' and `get_selectivity_prior()` functions.
-#' 
-#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function.
+#' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function. Vector parameters (e.g., \code{log_cpue_q}) are supported.
 #' @param data A \code{list} of data inputs (optional). Used to retrieve prior
 #'   center values for growth/variability parameters (e.g.,
 #'   \code{data$prior_log_L1_mean}).
@@ -13,29 +9,21 @@
 #' 
 get_priors <- function(parameters, data = NULL) {
   priors <- list()
-  priors[["log_B0"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("log_B0" == names(parameters)))
-  # priors[["par_log_m0"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_m0" == names(parameters)))
-  # priors[["par_log_m4"]] <- list(type = "normal", par1 = log(0.12), par2 = 0.4, index = which("par_log_m4" == names(parameters)))
-  # priors[["par_log_m10"]] <- list(type = "normal", par1 = log(0.1), par2 = 0.06, index = which("par_log_m10" == names(parameters)))
-  # priors[["par_log_m30"]] <- list(type = "normal", par1 = log(2), par2 = 1.655705, index = which("par_log_m30" == names(parameters)))
-  # priors[["par_log_h"]] <- list(type = "normal", par1 = log(1), par2 = 1.5, index = which("par_log_h" == names(parameters)))
-  # priors[["par_log_sigma_r"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_sigma_r" == names(parameters)))
-  priors[["log_cpue_q"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("log_cpue_q" == names(parameters)))
-  # priors[["par_cpue_creep"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_cpue_creep" == names(parameters)))
-  # priors[["par_log_cpue_sigma"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_cpue_sigma" == names(parameters)))
-  # priors[["par_log_cpue_omega"]] <- list(type = "normal", par1 = 0.875, par2 = 0.1, index = which("par_log_cpue_omega" == names(parameters)))
-  # priors[["par_log_af_alpha"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_af_alpha" == names(parameters)))
-  # priors[["par_log_lf_alpha"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_lf_alpha" == names(parameters)))
-  # priors[["par_sel_rho_y"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_sel_rho_y" == names(parameters)))
-  # priors[["par_sel_rho_a"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_sel_rho_a" == names(parameters)))
-  # priors[["par_log_sel_sigma"]] <- list(type = "normal", par1 = 0, par2 = 1.5, index = which("par_log_sel_sigma" == names(parameters)))
+  log_B0_mean <- if (!is.null(data) && !is.null(data$prior_log_B0_mean)) data$prior_log_B0_mean else parameters$log_B0
+  priors[["log_B0"]] <- list(type = "normal", par1 = log_B0_mean, par2 = 1.0, index = which("log_B0" == names(parameters)))
+  log_cpue_q_mean <- if (!is.null(data) && !is.null(data$prior_log_cpue_q_mean)) data$prior_log_cpue_q_mean else parameters$log_cpue_q
+  priors[["log_cpue_q"]] <- list(type = "normal", par1 = log_cpue_q_mean, par2 = 1.5, index = which("log_cpue_q" == names(parameters)))
   
   # Broad normal priors for selectivity parameters (all on real line)
   # par_sel is a matrix [n_fishery, 6] — treat as a single block
   # Normal(0, 2) is vague: allows peak to shift ~2 SD from mean length,
   # widths to vary by exp(±2) ≈ 0.14x to 7.4x the length SD, etc.
+  # Imported SS3-style matrices can use large negative sentinel values for
+  # inactive parameters. Center those entries on their fixed value so they do
+  # not add a misleading constant to the objective.
   if ("par_sel" %in% names(parameters)) {
-    priors[["par_sel"]] <- list(type = "normal", par1 = 0, par2 = 2, index = which("par_sel" == names(parameters)))
+    par_sel_mean <- ifelse(parameters$par_sel <= -100, parameters$par_sel, 0)
+    priors[["par_sel"]] <- list(type = "normal", par1 = par_sel_mean, par2 = 2, index = which("par_sel" == names(parameters)))
   }
 
   if ("log_lf_tau" %in% names(parameters)) {
@@ -85,19 +73,22 @@ get_priors <- function(parameters, data = NULL) {
 #' @importFrom RTMBdist dbeta2 dt2
 #' @export
 #' @examples
-#' \dontrun{
-#'   parameters <- list(par_log_m4 = log(0.167))
+#' {
+#'   parameters <- list(log_B0 = log(1e6))
 #'   priors <- list(
-#'     par_log_m4 = list(type = "normal", par1 = log(0.12), par2 = 0.4, 
-#'                       index = which("par_log_m4" == names(parameters)))
+#'     log_B0 = list(
+#'       type = "normal", par1 = log(1e6), par2 = 1,
+#'       index = which("log_B0" == names(parameters))
+#'     )
 #'   )
 #'   evaluate_priors(parameters, priors)
 #' }
 #' 
 evaluate_priors <- function(parameters, priors) {
+  n <- length(priors)
+  if (n == 0L) return(0)
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-  n <- length(priors)
   lp <- numeric(n)
   for (i in 1:n) {
     type <- priors[[i]]$type

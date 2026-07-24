@@ -9,7 +9,7 @@ A named list accessible via \code{data(opal_baseline)} and
 packaged as \code{data/opal_baseline.rda}.
 }
 \source{
-\code{vignettes/baseline.Rmd} (the "Save or compare" chunk) which
+\code{vignettes/baseline.qmd} (the "Save or compare" chunk) which
 reproduces the reference run saved to \code{data/opal_baseline.rda}.
 }
 \usage{
@@ -18,7 +18,7 @@ opal_baseline
 \description{
 A saved reference run for the WCPO bigeye tuna assessment that documents the
 objective, gradient, and RTMB report output used by the
-\code{vignettes/baseline.Rmd} workflow to detect numerical regressions and timing
+\code{vignettes/baseline.qmd} workflow to detect numerical regressions and timing
 changes before and after refactors.
 }
 \details{

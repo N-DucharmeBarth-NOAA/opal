@@ -9,7 +9,8 @@ get_bounds(obj, parameters)
 \arguments{
 \item{obj}{a \code{list} specifying the AD object created using the \code{MakeADFun} function.}
 
-\item{parameters}{a \code{list} specifying the AD object created using the \code{MakeADFun} function.}
+\item{parameters}{The parameter list used to construct \code{obj}. Retained
+for API compatibility.}
 }
 \value{
 a \code{data.frame} of parameter bounds.

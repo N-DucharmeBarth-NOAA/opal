@@ -29,6 +29,9 @@ gradient-based optimization.
 - **Parameter estimation and diagnostics**: Gradient-based optimization
   via `nlminb`, OSA residuals, likelihood profiling, estimability
   checks, and parameter correlation summaries
+- **Portable fitted-model storage**: Save fitted parameters, optimizer
+  results, MCMC draws, diagnostics, projections, and provenance in a
+  validated `opal_fit` object
 - **Uncertainty quantification and projections (*planned*)**: MCMC
   sampling via `SparseNUTS`, and forward projections from estimated or
   sampled parameter sets
@@ -80,6 +83,42 @@ library(opal)
 # Build a basic population model
 # (Example code will depend on your API—update with actual function calls)
 ```
+
+## Saving fitted models
+
+`opal_fit()` provides one portable object for a fitted model and its
+associated results. It deliberately does not serialize the transient
+RTMB objective; `read_opal_fit()` reconstructs that objective from the
+saved data, fitted parameters, map, and random-effect specification.
+
+``` r
+fit <- opal_fit(
+  data = data,
+  obj = obj,
+  opt = opt,
+  bounds = bounds,
+  estimability = check_estimability(obj),
+  mcmc = mcmc_fit,
+  derived = list(projections = projections),
+  metadata = list(stock = "WCPO bigeye")
+)
+
+save_opal_fit(fit, "bet-fit.rds")
+fit <- read_opal_fit("bet-fit.rds", strict = TRUE)
+
+# Recreated from the portable fitted state and cached for this R session
+obj <- opal_fit_object(fit)
+report <- opal_fit_report(fit)
+
+# Add or replace later results without changing the fitted model
+fit <- update_opal_fit(
+  fit,
+  derived = list(retrospective = retrospective_results)
+)
+```
+
+Use `opal_as_tmbfit(fit)` when an existing plotting or diagnostic
+function expects the original `SparseNUTS` `tmbfit` structure.
 
 ## Documentation
 

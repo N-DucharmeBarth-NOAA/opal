@@ -20,7 +20,8 @@ get_length_like(
   lf_switch,
   n_len,
   n_lf,
-  log_lf_tau
+  log_lf_tau,
+  lf_addtocomp = 1e-08
 )
 }
 \arguments{
@@ -57,6 +58,9 @@ catch-at-age from \code{do_dynamics()}.}
 \item{n_lf}{integer total number of length composition observations.}
 
 \item{log_lf_tau}{numeric vector \verb{[n_fishery]} of log-scale variance adjustment parameters.}
+
+\item{lf_addtocomp}{small non-negative numeric constant added to predicted
+proportions before normalisation to robustify zero bins. Default \code{1e-08}.}
 }
 \value{
 a \code{numeric} vector of negative log-likelihood contributions, one per observation.

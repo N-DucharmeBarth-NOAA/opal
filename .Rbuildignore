@@ -3,6 +3,7 @@
 ^opal\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^DISCLAIMER\.md$
 ^README\.Rmd$
 ^_pkgdown\.yml$
 ^docs$
@@ -10,3 +11,12 @@
 ^\.github$
 ^doc$
 ^Meta$
+^vignettes/.*\.html$
+^vignettes/.*_files$
+^vignettes/.*\.rmarkdown$
+^vignettes/\.quarto$
+^\.positai$
+^\.claude$
+^inst/scripts$
+^inst/scripts/bns_perf\.data$
+^inst/scripts/bns_perf\.data\.old$
