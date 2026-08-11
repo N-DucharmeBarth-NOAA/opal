@@ -39,10 +39,10 @@ sel_logistic <- function(len, par) {
 #'     \item{`par[2]` (b)}{Plateau width (real line). Controls the distance from peak to the
 #'       start of the descending limb via logistic transform of the available
 #'       range: `peak + bin_width + (0.99 * max(x) - peak - bin_width) / (1 + exp(-b))`.}
-#'     \item{`par[3]` (c)}{Ascending width (real line, log-space). Actual width = `exp(c) * sd(x)`.
-#'       `c = 0` gives an ascending width equal to `sd(x)`.}
-#'     \item{`par[4]` (d)}{Descending width (real line, log-space). Actual width = `exp(d) * sd(x)`.
-#'       `d = 0` gives a descending width equal to `sd(x)`.}
+#'     \item{`par[3]` (c)}{Ascending width (real line, log-space). Actual denominator =
+#'       `exp(c) * sd(x)^2`.}
+#'     \item{`par[4]` (d)}{Descending width (real line, log-space). Actual denominator =
+#'       `exp(d) * sd(x)^2`.}
 #'     \item{`par[5]` (e)}{Initial selectivity (real line, logit-space). Transformed via
 #'       `1 / (1 + exp(-e))`, so `e = 0` gives initial selectivity of 0.5,
 #'       large negative values give ~0, large positive values give ~1.}
@@ -64,8 +64,8 @@ sel_double_normal <- function(x, par) {
   f <- par[6]
   # --- Transform parameters from real line to natural scale ---
   peak       <- mu + a * sd
-  upselex    <- exp(c) * sd
-  downselex  <- exp(d) * sd
+  upselex    <- exp(c) * sd^2
+  downselex  <- exp(d) * sd^2
   point1     <- 1 / (1 + exp(-e))
   point2     <- 1 / (1 + exp(-f))
 
@@ -83,25 +83,19 @@ sel_double_normal <- function(x, par) {
   # --- Compute selectivity ---
   t1 <- x - peak
   t2 <- x - peak2
-
   join1 <- 1 / (1 + exp(-(20 / (1 + abs(t1))) * t1))
   join2 <- 1 / (1 + exp(-(20 / (1 + abs(t2))) * t2))
-
   asc <- point1 + (1 - point1) * (exp(-t1^2 / upselex) - t1min) / (1 - t1min)
   dsc <- 1 + (point2 - 1) * (exp(-t2^2 / downselex) - 1) / (t2min - 1)
-
   sel <- rep(NA_real_, length(x))
   idx <- (j1 + 1):j2
-  sel[idx] <- asc[idx] * (1 - join1[idx]) +
-    join1[idx] * (1 - join2[idx] + dsc[idx] * join2[idx])
-
+  sel[idx] <- asc[idx] * (1 - join1[idx]) + join1[idx] * (1 - join2[idx] + dsc[idx] * join2[idx])
   if (startbin > 1) {
     sel[1:startbin] <- (x[1:startbin] / x[startbin])^2 * sel[startbin]
   }
   if (j2 < length(x)) {
     sel[(j2 + 1):length(x)] <- sel[j2]
   }
-
   return(sel)
 }
 
@@ -228,8 +222,8 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
 
       par_sel[f, 1] <- (ss3_peak - mu_len) / sd_len        # a: peak location
       par_sel[f, 2] <- ss3_top_logit                         # b: plateau (same space)
-      par_sel[f, 3] <- ss3_ascend_se - log(sd_len)           # c: ascending width
-      par_sel[f, 4] <- ss3_descend_se - log(sd_len)          # d: descending width
+      par_sel[f, 3] <- ss3_ascend_se - 2 * log(sd_len)           # c: ascending width
+      par_sel[f, 4] <- ss3_descend_se - 2 * log(sd_len)          # d: descending width
 
       # Handle start_logit = -999 (SS3 convention for "fix at 0")
       if (ss3_start_logit <= -999) {
@@ -281,8 +275,8 @@ convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
     } else {
       result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
       result$top_logit_or_width[f] <- par_sel[f, 2]
-      result$ascend_se[f] <- par_sel[f, 3] + log(sd_len)
-      result$descend_se[f] <- par_sel[f, 4] + log(sd_len)
+      result$ascend_se[f]  <- par_sel[f, 3] + 2 * log(sd_len)
+      result$descend_se[f] <- par_sel[f, 4] + 2 * log(sd_len)
       result$start_logit[f] <- par_sel[f, 5]
       result$end_logit[f] <- par_sel[f, 6]
     }

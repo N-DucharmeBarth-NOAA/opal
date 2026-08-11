@@ -16,10 +16,10 @@ sel_double_normal(x, par)
 \item{\code{par[2]} (b)}{Plateau width (real line). Controls the distance from peak to the
 start of the descending limb via logistic transform of the available
 range: \code{peak + bin_width + (0.99 * max(x) - peak - bin_width) / (1 + exp(-b))}.}
-\item{\code{par[3]} (c)}{Ascending width (real line, log-space). Actual width = \code{exp(c) * sd(x)}.
-\code{c = 0} gives an ascending width equal to \code{sd(x)}.}
-\item{\code{par[4]} (d)}{Descending width (real line, log-space). Actual width = \code{exp(d) * sd(x)}.
-\code{d = 0} gives a descending width equal to \code{sd(x)}.}
+\item{\code{par[3]} (c)}{Ascending width (real line, log-space). Actual denominator =
+\code{exp(c) * sd(x)^2}.}
+\item{\code{par[4]} (d)}{Descending width (real line, log-space). Actual denominator =
+\code{exp(d) * sd(x)^2}.}
 \item{\code{par[5]} (e)}{Initial selectivity (real line, logit-space). Transformed via
 \code{1 / (1 + exp(-e))}, so \code{e = 0} gives initial selectivity of 0.5,
 large negative values give ~0, large positive values give ~1.}

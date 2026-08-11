@@ -2,16 +2,23 @@
 % Please edit documentation in R/parameters.R
 \name{get_parameters}
 \alias{get_parameters}
-\title{Get default initial parameter values}
+\title{Get bundled initial parameter values}
 \usage{
-get_parameters(data)
+get_parameters(data = NULL, model = NULL)
 }
 \arguments{
-\item{data}{a \code{list} containing the data inputs.}
+\item{data}{Optional model data list used to infer the bundled parameter set.}
+
+\item{model}{Optional character model identifier. Supported values are
+\code{"opal_baseline"}, \code{"opakapaka"}, and \code{"wcpo_bet"}.
+Aliases \code{"baseline"}, \code{"opaka"}, and \code{"bet"} are also
+accepted. Supplying \code{model} is preferred when \code{data} has been
+modified after loading.}
 }
 \value{
-a \code{list} of initial parameter values.
+A \code{list} of initial parameter values.
 }
 \description{
-Get \code{list} of default initial parameter values.
+Loads the packaged initial parameter list that matches one of the bundled
+opal model data sets.
 }

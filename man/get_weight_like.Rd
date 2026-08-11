@@ -21,7 +21,8 @@ get_weight_like(
   wf_switch,
   n_wt,
   n_wf,
-  log_wf_tau
+  log_wf_tau,
+  wf_addtocomp = 1e-08
 )
 }
 \arguments{
@@ -61,6 +62,9 @@ from prep_wf_data().}
 \item{n_wf}{integer total number of WF observations.}
 
 \item{log_wf_tau}{numeric vector \verb{[n_fishery]} log-scale variance adjustment.}
+
+\item{wf_addtocomp}{small non-negative numeric constant added to predicted
+proportions before normalisation to robustify zero bins. Default \code{1e-08}.}
 }
 \value{
 numeric vector of negative log-likelihood contributions, one per observation.

@@ -8,7 +8,7 @@
 An object of class \code{list} of length 68.
 }
 \source{
-\code{vignettes/baseline.Rmd}
+\code{vignettes/baseline.qmd}
 }
 \usage{
 opal_baseline_data

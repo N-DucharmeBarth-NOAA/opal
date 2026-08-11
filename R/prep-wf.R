@@ -25,6 +25,9 @@
 #'   Applied after proportions are computed so that observed compositions are
 #'   unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 #'   feature.
+#' @param wf_addtocomp small non-negative numeric constant added to observed
+#'   composition proportions after tail compression and before renormalisation.
+#'   This robustifies zero bins. Default \code{1e-08}.
 #' @return data list with the following weight composition elements appended:
 #'   \describe{
 #'     \item{\code{wf_switch}}{Passed through from the argument.}
@@ -41,6 +44,8 @@
 #'       (for Dirichlet-multinomial, \code{wf_switch = 3}).}
 #'     \item{\code{wf_obs_prop}}{Flattened numeric vector of normalised
 #'       proportions (for Dirichlet, \code{wf_switch = 2}).}
+#'     \item{\code{wf_addtocomp}}{Stored value of the add-to-composition
+#'       constant used to robustify observed composition bins.}
 #'     \item{\code{wf_n}}{Numeric vector of sample sizes per observation row.}
 #'     \item{\code{wf_fishery}}{Integer vector of fishery index per observation
 #'       row.}
@@ -49,6 +54,10 @@
 #'     \item{\code{wf_n_f}}{Integer vector of observation counts per fishery.}
 #'     \item{\code{wf_year}}{Integer vector of model timestep per observation
 #'       row.}
+#'     \item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_row_fi}}{Lists split
+#'       by fishery containing model timesteps, effective sample sizes, and
+#'       row indices. Precomputed so \code{opal_model()} does not rebuild them
+#'       on every objective evaluation.}
 #'     \item{\code{wf_minbin}, \code{wf_maxbin}}{Passed through from arguments.}
 #'     \item{\code{wf_var_adjust}}{Passed through from argument; numeric vector
 #'       \code{[n_fishery]} of variance-adjustment divisors applied to
@@ -59,7 +68,8 @@
 prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
                          wf_switch = 1L, wf_minbin = NULL,
                          wf_maxbin = NULL, wf_var_adjust = NULL,
-                         wf_cap = NULL) {
+                         wf_cap = NULL,
+                         wf_addtocomp = 1e-08) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -135,8 +145,9 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   data$wf_obs_in    <- wf_obs
   data$wf_n         <- wf_n
   data$wf_fishery   <- as.integer(wf_wide$fishery)
-  data$wf_fishery_f <- unique(data$wf_fishery)
-  data$wf_n_f       <- as.integer(table(data$wf_fishery))
+  data$wf_fishery_f <- sort(unique(data$wf_fishery))
+  wf_group          <- factor(data$wf_fishery, levels = data$wf_fishery_f)
+  data$wf_n_f       <- as.integer(table(wf_group))
   data$wf_year      <- as.integer(wf_wide$ts)
   data$wf_minbin    <- wf_minbin
   data$wf_maxbin    <- wf_maxbin
@@ -148,22 +159,29 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   wf_n_f        <- data$wf_n_f
   n_f           <- length(wf_fishery_f)
   n_wt_local    <- ncol(data$wf_obs_in)
-  wf_n_fi       <- split(data$wf_n, data$wf_fishery)
-  wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), data$wf_fishery)
+  wf_n_fi       <- split(data$wf_n, wf_group)
+  wf_year_fi    <- split(data$wf_year, wf_group)
+  wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), wf_group)
+  data$wf_n_fi    <- wf_n_fi
+  data$wf_year_fi <- wf_year_fi
+  data$wf_row_fi  <- wf_row_fi
 
   wf_obs_list <- vector("list", n_f)
   for (j in seq_len(n_f)) {
     f    <- wf_fishery_f[j]
     bmin <- wf_minbin[f]
     bmax <- wf_maxbin[f]
-    rows <- wf_row_fi[[j]]
+    group_name <- as.character(f)
+    rows <- wf_row_fi[[group_name]]
     m    <- matrix(0, wf_n_f[j], bmax - bmin + 1L)
     for (i in seq_len(wf_n_f[j])) {
       obs <- data$wf_obs_in[rows[i], ]
       if (bmin > 1)           obs[bmin] <- sum(obs[1:bmin])
       if (bmax < n_wt_local)  obs[bmax] <- sum(obs[bmax:n_wt_local])
       obs     <- obs[bmin:bmax]
-      m[i, ]  <- obs * wf_n_fi[[j]][i]
+      obs     <- obs + wf_addtocomp
+      obs     <- obs / sum(obs)
+      m[i, ]  <- obs * wf_n_fi[[group_name]][i]
     }
     wf_obs_list[[j]] <- m
   }
@@ -171,21 +189,24 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   # ---- 11. Attach flattened observation vectors ----
   # For multinomial (wf_switch = 1): unrounded counts
   data$wf_obs_flat <- unlist(lapply(wf_obs_list,
-                                    function(m) as.numeric(t(m))))
+                                    function(m) as.numeric(t(m))),
+                             use.names = FALSE)
 
   # For Dirichlet-multinomial (wf_switch = 3): rounded integer counts
   data$wf_obs_ints <- unlist(lapply(wf_obs_list,
-                                    function(m) as.integer(t(round(m)))))
+                                    function(m) as.integer(t(round(m)))),
+                             use.names = FALSE)
 
   # For Dirichlet (wf_switch = 2): row-normalised proportions
   data$wf_obs_prop <- unlist(lapply(wf_obs_list, function(m) {
     props <- t(apply(m, 1, function(row) {
       p <- row / sum(row)
-      p <- p + 1e-8
+      p <- p + wf_addtocomp
       p / sum(p)
     }))
     as.numeric(t(props))
-  }))
+  }), use.names = FALSE)
+  data$wf_addtocomp <- wf_addtocomp
 
   return(data)
 }

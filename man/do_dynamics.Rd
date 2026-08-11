@@ -17,7 +17,9 @@ do_dynamics(
   spawning_potential_a,
   weight_fya,
   init_number_a,
-  sel_fya
+  init_number0_a,
+  sel_fya,
+  bias_adj_y = NULL
 )
 }
 \arguments{
@@ -47,7 +49,7 @@ deviations.}
 Passed explicitly so AD gradients propagate if M is ever estimated.}
 
 \item{spawning_potential_a}{Numeric vector of length \code{n_age}. Spawning
-potential at age (maturity × fecundity). Passed explicitly so AD gradients
+potential at age (maturity x fecundity). Passed explicitly so AD gradients
 propagate if growth is ever estimated.}
 
 \item{weight_fya}{Numeric array \code{[n_fishery, n_year, n_age]}. Mean
@@ -57,21 +59,38 @@ propagate if growth is ever estimated.}
 \item{init_number_a}{Numeric vector of length \code{n_age}. Initial
 equilibrium numbers-at-age (from \code{\link{get_initial_numbers}}).}
 
+\item{init_number0_a}{Numeric vector of length \code{n_age}. Initial
+unfished equilibrium numbers-at-age (from \code{\link{get_initial_numbers}}).}
+
 \item{sel_fya}{Numeric array \code{[n_fishery, n_year, n_age]}.
 Fishery-specific selectivity at age by year (from
 \code{\link{get_selectivity}}).}
+
+\item{bias_adj_y}{Numeric vector of length \code{n_year}. Recruitment bias
+adjustment scalar by year.}
 }
 \value{
 A named list with:
 \describe{
 \item{number_ysa}{Numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
+\item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
+\item{lp_state}{State-process negative log-likelihood (zero when the
+state-space switch is off).}
+\item{number_pred_ya}{Deterministic annual transition predictions with
+dimensions \code{[n_year, n_age]}.}
+\item{state_residual_ya}{Standardised state-process residuals with
+dimensions \code{[n_year, n_age]}.}
 \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
+\item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
+\item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
+\item{static_depletion_y}{Static depletion trajectory \code{spawning_biomass_y / B0}.}
+\item{dynamic_depletion_y}{Dynamic depletion trajectory \code{spawning_biomass_y / spawning_biomass0_y}.}
 }
 }
 \description{
-Runs the core age- and season-structured population dynamics loop for bigeye
-tuna. Starts from initial equilibrium numbers (derived from B0 and h),
+Runs the core age- and season-structured population dynamics loop. Starts
+from initial equilibrium numbers (derived from B0 and h),
 applies seasonal harvest, natural mortality, spawning, and recruitment
 (Beverton-Holt with log-normal deviates), and computes predicted catches and
 harvest rates.
@@ -83,4 +102,9 @@ All derived biology arrays (\code{M_a}, \code{spawning_potential_a},
 these quantities carry estimated parameters in the future (e.g., growth
 parameters estimated via the PLA, or natural mortality via the Lorenzen
 equation).
+
+If \code{data$state_space_switch > 0}, the parameter matrix
+\code{log_number_state_ya} supplies latent start-of-year states for each
+transition year and age. The deterministic transition remains the process
+mean, and \code{log_sigma_state} controls its log-scale process error.
 }

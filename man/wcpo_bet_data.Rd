@@ -21,7 +21,7 @@ and Bayesian prior specifications prepared for RTMB (R Template Model Builder)
 stock assessment modeling of western central Pacific bigeye tuna.
 }
 \details{
-\subsection{Data structure (25 list elements)}{
+\subsection{Data structure (26 list elements)}{
 
 \strong{Age and time dimensions:}
 \describe{
@@ -29,7 +29,7 @@ stock assessment modeling of western central Pacific bigeye tuna.
 \item{n_age}{Number of age classes (40).}
 \item{n_season}{Number of seasons per year (1).}
 \item{n_fishery}{Number of fisheries/fleets (15).}
-\item{n_year}{Number of years in model (268, equivalent to 67 years × 4 quarters).}
+\item{n_year}{Number of years in model (268, equivalent to 67 years x 4 quarters).}
 \item{first_yr}{First year designation in model (1, representing 1952).}
 \item{last_yr}{Last year designation in model (268, representing 2018).}
 \item{years}{Vector of model years (1:268).}
@@ -47,19 +47,21 @@ stock assessment modeling of western central Pacific bigeye tuna.
 \item{first_yr_catch}{First year with catch data (1).}
 \item{catch_units_f}{Numeric vector of unit codes by fishery (15 elements).
 1 = metric tons (fisheries 8-14), 2 = thousands of fish (fisheries 1-7, 15).}
-\item{catch_obs_ysf}{Three-dimensional array of observed catch (268 years × 1 season × 15 fisheries).
+\item{catch_obs_ysf}{Three-dimensional array of observed catch (268 years x 1 season x 15 fisheries).
 Dimensions follow (year, season, fishery). Units follow catch_units_f.}
 }
 
 \strong{CPUE data:}
 \describe{
 \item{cpue_switch}{Indicator for CPUE inclusion (1 = included, typically for fishery 15).}
-\item{cpue_data}{Tibble with 268 rows and 8 columns containing standardized CPUE observations:
+\item{n_index}{Number of distinct CPUE/survey indices (integer).}
+\item{cpue_data}{Tibble with 268 rows and 9 columns containing standardized CPUE observations:
 \itemize{
 \item{year}: Calendar year (1952-2018)
 \item{month}: Quarter month (2, 5, 8, 11 for Q1-Q4)
 \item{ts}: Sequential timestep (1-268)
 \item{fishery}: Fleet identifier (usually 15 for survey fleet)
+\item{index}: Integer index identifier (1, 2, ..., n_index)
 \item{metric}: Data type ("cpue")
 \item{units}: Unit code (typically 2 for fishery 15)
 \item{value}: Normalized CPUE observations

@@ -1,0 +1,1790 @@
+---
+title: "The BET model"
+format:
+  html:
+    embed-resources: false
+    html-math-method: mathml
+    code-fold: true
+    code-summary: "Show code"
+    lightbox:
+      match: auto
+      effect: zoom
+execute:
+  eval: true
+  warning: false
+vignette: >
+  %\VignetteIndexEntry{The BET model}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{quarto::html}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+`opal` is an open, modular R package for fisheries stock assessment built on 
+[RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. It includes 
+bundled data from the western and central Pacific Ocean (WCPO) bigeye tuna (BET) 
+stock assessment. This vignette demonstrates model setup, fitting, and 
+diagnostics using those data.
+
+# Load inputs
+
+Load the `opal` package and the `RTMB` dependency. The `ggplot2` package is
+used for plotting.
+
+```{r}
+#| label: load-pkg
+#| echo: true
+#| message: false
+library(opal)
+library(tidyverse)
+library(RTMB)
+
+theme_set(theme_bw())
+```
+
+The bundled data object `wcpo_bet_data` contains all biological parameters,
+catch and CPUE observations, length structure, and prior specifications needed
+for the BET assessment model:
+
+```{r}
+#| label: load-data
+#| echo: true
+#| message: false
+data(wcpo_bet_data)
+data <- wcpo_bet_data
+if (is.null(data$n_index)) data$n_index <- 1L
+if (!"index" %in% names(data$cpue_data)) data$cpue_data$index <- rep(1L, nrow(data$cpue_data))
+names(data)
+```
+
+Key dimensions of the data:
+
+```{r}
+#| label: data-dims
+#| echo: true
+cat("Number of ages:", data$n_age, "\n")
+cat("Number of years:", data$n_year, "\n")
+cat("Number of fisheries:", data$n_fishery, "\n")
+cat("Number of length bins:", data$n_len, "\n")
+```
+
+## Biological inputs
+
+Natural mortality at age, maturity at length, and length-weight parameters are
+all contained in the data object. The two primary biological inputs are plotted
+below.
+
+```{r}
+#| label: fig-biology
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Natural mortality-at-age and maturity-at-length used in the BET model.
+ages <- data$age_a
+real_age <- ages / 4
+
+# Natural mortality
+ggplot(data = data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
+  geom_line() + geom_point() +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(x = "Age (years)", y = "M (quarterly rate)", 
+       title = "Natural Mortality-at-Age")
+
+# Maturity at length
+len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
+               by = data$len_bin_width, length.out = data$n_len)
+ggplot(data = data.frame(length = len_mid, maturity = data$maturity), 
+       aes(x = length, y = maturity)) +
+  geom_line() + geom_point() +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(x = "Length (cm)", y = "Maturity", title = "Maturity-at-Length")
+
+fleet_names <- c("F01_LL.NORTH", "F02_LL.US", "F03_LL.OFFSH",
+                 "F04_LL.EQUAT", "F05_LL.WEST", "F06_LL.SOUTH", "F07_LL.AUS",
+                 "F08_PS.ASSOC", "F09_PS.UNASS", "F10_DOM.MISC",
+                 "F11_DOM.HL", "F12_JP.PS.N", "F13_JP.PL", "F14_EQ.PL",
+                 "S01_INDEX")
+fleet_palette <- setNames(
+  grDevices::hcl.colors(data$n_fishery, palette = "Dark 3"),
+  fleet_names
+)
+```
+
+## CPUE data
+
+```{r}
+#| label: prep-cpue
+#| echo: true
+#| message: false
+data$cpue_data$index <- as.integer(factor(data$cpue_data$month, levels = c(2, 5, 8, 11)))
+data$n_index <- 4L
+```
+
+## Length composition data
+
+Length composition observations are loaded from the bundled `wcpo_bet_lf`
+long-format data object and transformed into model-ready arrays.
+
+```{r}
+#| label: prep-lf
+#| echo: true
+#| message: false
+data(wcpo_bet_lf)
+
+# Pivot to wide format: one row per fishery x timestep, bins as columns
+# Note: LF data exist for fisheries 8-14. Fishery 8 is retained here, but is
+# strongly downweighted relative to the other active LF fisheries.
+lf_wide <- wcpo_bet_lf %>%
+  pivot_wider(
+    id_cols = c(fishery, year, month, ts),
+    names_from = bin,
+    values_from = value,
+    values_fill = 0
+  ) %>%
+  arrange(fishery, ts)
+
+unique(lf_wide$fishery)
+
+# define variance adjustment scalars for each fishery if using lf_switch = 1 (multinomial)
+var_adjust_scalars <- rep(1, data$n_fishery)
+var_adjust_scalars[] <- 80
+var_adjust_scalars[8] <- 5000 # keep LF8 present but much less influential
+# var_adjust_scalars <- 1/rep(20000,data$n_fishery)
+# var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
+# var_adjust_scalars[] <- 1 / 4e9
+
+data <- prep_lf_data(data = data, lf_wide = lf_wide, 
+                     lf_keep_fisheries = c(8, 9, 10, 11, 12, 13, 14),
+                     lf_var_adjust = var_adjust_scalars)
+lf_year_lookup <- lf_wide %>%
+  distinct(ts, year, month)
+lf_year_match <- match(data$lf_year, lf_year_lookup$ts)
+data$lf_calendar_year <- lf_year_lookup$year[lf_year_match] +
+  (lf_year_lookup$month[lf_year_match] - 1) / 12
+data$lf_calendar_year_fi <- split(data$lf_calendar_year, data$lf_fishery)
+
+data$lf_fishery
+range(data$lf_n) # aim for tens to low thousands per obs
+sum(data$lf_n) # aim for ~1e4–1e5 total
+```
+
+## Weight composition data
+
+Weight composition observations are loaded from the bundled `wcpo_bet_wf`
+long-format data object and transformed into model-ready arrays.
+
+```{r}
+#| label: prep-wf
+#| echo: true
+#| message: false
+data(wcpo_bet_wf)
+
+# Weight bin scalars (1 kg bins, 1–200 kg)
+data$wt_bin_start <- 1
+data$wt_bin_width <- 1
+data$n_wt <- 200L
+
+# Pivot to wide format: one row per fishery x timestep, bins as columns
+wf_wide <- wcpo_bet_wf |>
+  pivot_wider(
+    id_cols = c(fishery, year, month, ts),
+    names_from = bin,
+    values_from = value,
+    values_fill = 0
+  ) |>
+  arrange(fishery, ts)
+
+unique(wf_wide$fishery)
+
+wf_var_adjust_scalars <- rep(2000, data$n_fishery)
+
+data <- prep_wf_data(data = data, wf_wide = wf_wide,
+                     wf_keep_fisheries = c(1, 2, 3, 4, 6, 7, 15),
+                     wf_switch = 1L,
+                     wf_var_adjust = wf_var_adjust_scalars)
+wf_year_lookup <- wf_wide %>%
+  distinct(ts, year, month)
+wf_year_match <- match(data$wf_year, wf_year_lookup$ts)
+data$wf_calendar_year <- wf_year_lookup$year[wf_year_match] +
+  (wf_year_lookup$month[wf_year_match] - 1) / 12
+data$wf_calendar_year_fi <- split(data$wf_calendar_year, data$wf_fishery)
+```
+
+# Model setup
+
+## Parameters
+
+Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
+`log_k`, `log_CV1`, `log_CV2`) and selectivity (`par_sel`) are initialised at
+reasonable starting values. Load these from the bundled `wcpo_bet_parameters` 
+data object:
+
+```{r}
+#| label: get-pars
+#| echo: true
+#| message: false
+data(wcpo_bet_parameters)
+par_sel_raw <- as.matrix(wcpo_bet_parameters$par_sel)
+par_sel_start <- par_sel_raw
+
+# BET double-normal width starts are stored on the legacy opal width scale.
+# The current double-normal uses exp(width) * sd(length)^2, so shift width
+# columns by log(sd(length)) to preserve the same natural-scale denominator.
+double_normal_f <- data$sel_type_f == 2L
+par_sel_start[double_normal_f, 3:4] <- par_sel_start[double_normal_f, 3:4] - log(sd(data$len_mid))
+
+parameters <- list(
+  # LF likelihoods are invalid from the bundled log_B0 = 12 start because
+  # implied harvest rates can make predicted LF probabilities non-finite.
+  log_B0 = 15,
+  log_h = as.numeric(wcpo_bet_parameters$log_h),
+  log_sigma_r = as.numeric(wcpo_bet_parameters$log_sigma_r),
+  log_cpue_q = rep(0, data$n_index),
+  cpue_creep = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
+  log_cpue_tau = rep(log(0.1), data$n_index),
+  log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
+  log_lf_tau = as.numeric(log(rep(0.1, data$n_fishery))),
+  log_wf_tau = rep(0, data$n_fishery),
+  log_L1 = as.numeric(wcpo_bet_parameters$log_L1),
+  log_L2 = as.numeric(wcpo_bet_parameters$log_L2),
+  log_k = as.numeric(wcpo_bet_parameters$log_k),
+  log_CV1 = as.numeric(wcpo_bet_parameters$log_CV1),
+  log_CV2 = as.numeric(wcpo_bet_parameters$log_CV2),
+  par_sel = par_sel_start,
+  rdev_y = as.numeric(wcpo_bet_parameters$rdev_y)
+)
+```
+
+The bundled `wcpo_bet_parameters$par_sel` values use the legacy opal width
+scale for double-normal selectivity. They are converted to the current
+`sel_double_normal()` width scale before fitting. @tbl-selectivity-scale shows
+the raw bundled values and the converted fitting starts.
+
+```{r}
+#| label: tbl-selectivity-scale
+#| echo: true
+#| message: false
+#| tbl-cap: Raw bundled selectivity parameters and opal-scale fitting starts.
+parameter_names <- c("peak", "top", "asc_width", "desc_width", "init", "final")
+bind_rows(
+  as_tibble(par_sel_raw, .name_repair = ~ parameter_names) %>%
+    mutate(fleet = row_number(), scale = "bundled"),
+  as_tibble(parameters$par_sel, .name_repair = ~ parameter_names) %>%
+    mutate(fleet = row_number(), scale = "opal_start")
+) %>%
+  relocate(fleet, scale) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3))) %>%
+  knitr::kable()
+```
+
+## Priors
+
+The BET diagnostic fit is run without parameter priors. This matches the older
+diagnostic setup and avoids centering the `log_B0` prior on the deliberately
+broad starting value.
+
+```{r}
+#| label: get-priors
+#| echo: true
+#| message: false
+data$priors <- list()
+0
+```
+
+## Parameter map
+
+Use RTMB's `map` option to turn parameters on/off. Parameters mapped to
+`factor(NA)` are fixed at their initial values. Recruitment deviations are
+estimated for all model time steps. Initial age deviations are not included in
+the BET diagnostic fit, so the model starts from equilibrium initial age
+structure.
+
+```{r}
+#| label: get-map
+#| echo: true
+#| message: false
+parameters$par_sel
+wcpo_bet_parameters$par_sel
+
+map_sel <- matrix(NA_integer_, nrow(parameters$par_sel), ncol(parameters$par_sel))
+
+# Retained diagnostic set after sequential LF/WF exploration, using a
+# selectivity map closer to SS3's 02-fix-sel setup:
+# - LF8 is included with strong downweighting (lf_var_adjust = 5000).
+# - WF5 remains inactive; an SS3-style WF5 screen still had large gradients.
+# - SS3-fixed width parameters are fixed here too. Several longline final
+#   selectivity logits are estimated because SS3 let those right-tail terms move.
+next_sel_level <- 1L
+free_sel <- function(f, cols) {
+  levels <- seq.int(next_sel_level, length.out = length(cols))
+  map_sel[f, cols] <<- levels
+  next_sel_level <<- next_sel_level + length(cols)
+}
+
+free_sel(8, c(1, 3, 4))   # peak, asc-width, desc-width
+free_sel(9, c(1, 3))      # peak, asc-width; desc-width fixed as in SS3
+free_sel(10, c(1, 3, 4))  # peak, asc-width, desc-width
+free_sel(11, 1:2)         # logistic inflection and width
+free_sel(12, c(1, 3))     # peak, asc-width; desc-width fixed as in SS3
+free_sel(13, c(1, 4))     # peak, desc-width; asc-width fixed as in SS3
+free_sel(14, c(1, 3, 4))  # peak, asc-width, desc-width; SS3 desc-width hit HI
+
+free_sel(1, c(1, 4, 6))   # peak, desc-width, final selectivity; asc-width fixed
+free_sel(2, c(1, 4, 6))   # peak, desc-width, final selectivity; asc-width fixed
+free_sel(3, 1)            # peak only; widths fixed and final logit did not move in SS3
+free_sel(4, 1)            # peak only; widths fixed and final logit did not move in SS3
+free_sel(6, c(1, 6))      # peak and final selectivity; widths fixed
+free_sel(7, c(1, 6))      # peak and final selectivity; widths fixed
+free_sel(15, 1:2)         # index-fishery logistic inflection and width
+
+map_sel
+
+map_rdev <- seq_along(parameters$rdev_y)
+
+map_lf_tau <- rep(NA, length(parameters$log_lf_tau))
+map_lf_tau[c(8, 9, 10, 11, 12, 13, 14)] <- NA
+
+map <- list(
+  # log_B0 = factor(NA),
+  log_h = factor(NA),
+  log_sigma_r = factor(NA),
+  log_cpue_q = factor(seq_len(data$n_index)),
+  cpue_creep = factor(rep(NA, data$n_index)),
+  log_cpue_tau = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
+  log_lf_tau = factor(map_lf_tau),
+  log_wf_tau = factor(rep(NA, data$n_fishery)),
+  log_L1  = factor(NA),
+  log_L2  = factor(NA),
+  log_k   = factor(NA),
+  log_CV1 = factor(NA),
+  log_CV2 = factor(NA),
+  par_sel = factor(map_sel),
+  rdev_y = factor(map_rdev)
+)
+```
+
+## Build the AD object
+
+Using the `data`, the `parameters`, the parameter `map`, and the model
+(`opal_model`), the AD object is created using RTMB's `MakeADFun` function.
+Optionally, we could also specify random effects here 
+(e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model 
+to check everything is working first.
+
+```{r}
+#| label: make-adfun
+#| echo: true
+#| message: false
+# data$lf_switch <- 0 # skip length comps (removal only)
+data$lf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$lf_switch <- 2 # fails while fitting, need to sort out log_lf_tau for this, use simulate to tune and find
+# data$lf_switch <- 3 # fails - wants integers - think this should be an issue to RTMBdist guys
+
+# Note: wf_switch was already set by prep_wf_data(); it is re-stated here for
+# clarity alongside the equivalent lf_switch assignment.
+data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
+# data$wf_switch <- 0 # skip weight comps (removal only)
+# data$wf_switch <- 2 # Dirichlet
+# data$wf_switch <- 3 # Dirichlet-multinomial
+
+obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+obj$env$tracemgc <- FALSE
+obj$par
+names(obj$par)
+unique(names(obj$par))
+obj$fn()
+obj$gr()
+# TMB::benchmark(obj, n = 500, expr = expression(obj$gr()))
+```
+
+Inspect initial model outputs. The initial biomass trajectory is shown in
+@fig-init-biomass, and the predicted catch checks are shown in @fig-init-catch.
+
+```{r}
+#| label: fig-init-biomass
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Initial spawning biomass trajectory before optimization.
+plot(obj$report()$spawning_biomass_y, type = "l",
+     xlab = "Time step", ylab = "Spawning biomass (mt)",
+     main = "Initial spawning biomass trajectory")
+```
+
+```{r}
+#| label: fig-init-catch
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Initial predicted catch by fleet compared with observed catch.
+plot_catch(data = data, obj = obj)
+```
+
+## Parameter bounds
+
+```{r}
+#| label: get-par-bounds
+#| echo: true
+#| message: false
+Lwr <- rep(-Inf, length(obj$par))
+Upr <- rep(Inf, length(obj$par))
+Lwr[grep("log_B0", names(obj$par))] <- 12
+Upr[grep("log_B0", names(obj$par))] <- 22
+Lwr[grep("log_cpue_q", names(obj$par))] <- log(0.1)
+Upr[grep("log_cpue_q", names(obj$par))] <- log(10)
+Lwr[grep("log_lf_tau", names(obj$par))] <- rep(-9, length(grep("log_lf_tau", names(obj$par))))
+Upr[grep("log_lf_tau", names(obj$par))] <- rep(9, length(grep("log_lf_tau", names(obj$par))))
+Lwr[grep("rdev_y", names(obj$par))] <- rep(-5, length(grep("rdev_y", names(obj$par))))
+Upr[grep("rdev_y", names(obj$par))] <- rep(5, length(grep("rdev_y", names(obj$par))))
+
+mu_len <- mean(data$len_mid)
+sd_len <- sd(data$len_mid)
+
+par_labels <- names(obj$par)
+par_sel_pos <- which(names(obj$par) == "par_sel")
+par_sel_level_pos <- setNames(par_sel_pos, levels(map$par_sel))
+
+for (f in seq_len(data$n_fishery)) {
+  idx <- rep(NA_integer_, ncol(map_sel))
+  for (p in seq_len(ncol(map_sel))) {
+    level <- as.character(map_sel[f, p])
+    if (!is.na(level)) {
+      idx[p] <- par_sel_level_pos[[level]]
+      par_labels[idx[p]] <- paste0("par_sel[", f, ",", p, "]")
+    }
+  }
+
+  if (data$sel_type_f[f] == 1L) {
+    # Logistic: inflection [5,200], width [4,500] cm
+    if (!is.na(idx[1])) {
+      Lwr[idx[1]] <- (5   - mu_len) / sd_len
+      Upr[idx[1]] <- (200 - mu_len) / sd_len
+    }
+
+    if (!is.na(idx[2])) {
+      Lwr[idx[2]] <- log(4    / sd_len)
+      Upr[idx[2]] <- log(500  / sd_len)
+    }
+  } else {
+    # Double-normal SS3 bounds
+    if (!is.na(idx[1])) {
+      Lwr[idx[1]] <- (10.1 - mu_len) / sd_len
+      Upr[idx[1]] <- (200  - mu_len) / sd_len
+    }
+
+    if (!is.na(idx[2])) {
+      Lwr[idx[2]] <- -7
+      Upr[idx[2]] <-  7
+    }
+
+    # for sel_double_normal using exp(c)*sd^2 and exp(d)*sd^2:
+    # keep widths positive on a practical natural scale while avoiding
+    # artificial convergence on the transformed denominator bound.
+    shift <- 2 * log(sd_len)
+    width_log_lower <- log(4)
+    width_log_upper <- 8
+    if (!is.na(idx[3])) {
+      Lwr[idx[3]] <- width_log_lower - shift
+      Upr[idx[3]] <-  width_log_upper - shift
+    }
+    if (!is.na(idx[4])) {
+      Lwr[idx[4]] <- width_log_lower - shift
+      Upr[idx[4]] <-  width_log_upper - shift
+    }
+
+    if (!is.na(idx[5])) {
+      Lwr[idx[5]] <- -9 # practical bound (instead of -999)
+      Upr[idx[5]] <-  9
+    }
+    if (!is.na(idx[6])) {
+      Lwr[idx[6]] <- -9
+      Upr[idx[6]] <-  9
+    }
+  }
+}
+
+bounds <- data.frame(par = par_labels, lower = Lwr, upper = Upr)
+```
+
+# Optimisation
+
+Optimise using the `nlminb` function:
+
+```{r}
+#| label: run-nlminb
+#| echo: true
+#| results: hide
+#| eval: true
+control <- list(eval.max = 10000, iter.max = 10000)
+# control <- list(eval.max = 100, iter.max = 100)
+obj$env$tracemgc <- FALSE
+opt <- list(par = obj$par)
+fit_grad <- Inf
+for (i in seq_len(4)) {
+  # For this expanded BET fit, forming obj$he dominates runtime and makes the
+  # vignette render impractical; the diagnostic scripts use gradient-only nlminb.
+  opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
+                lower = Lwr, upper = Upr, control = control)
+  fit_grad <- max(abs(obj$gr(opt$par)))
+  if (fit_grad < 1e-2) break
+}
+fit_nll <- obj$fn(opt$par)
+obj$env$last.par.best <- opt$par
+fit_grad <- max(abs(obj$gr(opt$par)))
+fit_kkt_grad <- {
+  grad <- obj$gr(opt$par)
+  grad_constrained <- abs(grad)
+  at_lower <- is.finite(Lwr) & opt$par <= Lwr + 1e-7
+  at_upper <- is.finite(Upr) & opt$par >= Upr - 1e-7
+  grad_constrained[at_lower] <- pmax(0, -grad[at_lower])
+  grad_constrained[at_upper] <- pmax(0, grad[at_upper])
+  max(grad_constrained)
+}
+fit_rep <- obj$report(obj$env$last.par.best)
+# TMBhelper::check_estimability(obj = obj)
+if (fit_grad < 1e-2) {
+  check_estimability(obj = obj)
+} else {
+  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4), ". Improve optimization first.")
+}
+```
+
+```{r}
+#| label: tbl-fit-summary
+#| echo: true
+#| message: false
+#| tbl-cap: Optimization and likelihood-component summary for the fitted BET model.
+tibble(
+  metric = c(
+    "nlminb convergence",
+    "objective",
+    "max gradient",
+    "max KKT gradient",
+    "B0",
+    "lp_prior",
+    "lp_penalty",
+    "lp_rec",
+    "lp_cpue",
+    "lp_lf",
+    "lp_wf"
+  ),
+  value = c(
+    opt$convergence,
+    fit_nll,
+    fit_grad,
+    fit_kkt_grad,
+    fit_rep$B0,
+    fit_rep$lp_prior,
+    fit_rep$lp_penalty,
+    fit_rep$lp_rec,
+    sum(fit_rep$lp_cpue),
+    sum(fit_rep$lp_lf),
+    sum(fit_rep$lp_wf)
+  )
+) %>%
+  mutate(value = signif(value, 6)) %>%
+  knitr::kable()
+```
+
+Compare initial and estimated parameter values:
+
+```{r}
+#| label: opt-results
+#| echo: true
+#| message: false
+#| eval: true
+par_table <- get_par_table(obj, parameters, map, lower = Lwr, upper = Upr, grad_tol = 1e-2)
+par_table
+```
+
+The selectivity diagnostics below isolate the active selectivity parameters with
+large raw gradients or estimates close to bounds. A large raw gradient on a
+bound usually indicates that the constrained optimum wants to move farther in
+that direction; the KKT-style gradient is the relevant convergence check under
+active bounds.
+
+```{r}
+#| label: tbl-selectivity-diagnostics
+#| echo: true
+#| message: false
+#| tbl-cap: Active selectivity parameters with large gradients or bound checks.
+sel_component <- c(
+  "peak/inflection",
+  "top/width",
+  "ascending width",
+  "descending width",
+  "initial selectivity",
+  "final selectivity"
+)
+
+sel_units <- function(f, p) {
+  if (data$sel_type_f[f] == 1L) {
+    return(c("cm", "cm", NA, NA, NA, NA)[p])
+  }
+  c("cm", "logit", "cm^2 denominator", "cm^2 denominator",
+    "proportion", "proportion")[p]
+}
+
+sel_to_natural <- function(x, f, p) {
+  out <- rep(NA_real_, length(x))
+  finite <- is.finite(x)
+  if (!any(finite)) return(out)
+
+  if (data$sel_type_f[f] == 1L) {
+    if (p == 1L) out[finite] <- mu_len + x[finite] * sd_len
+    if (p == 2L) out[finite] <- exp(x[finite]) * sd_len
+  } else {
+    if (p == 1L) out[finite] <- mu_len + x[finite] * sd_len
+    if (p == 2L) out[finite] <- x[finite]
+    if (p %in% 3:4) out[finite] <- exp(x[finite] + 2 * log(sd_len))
+    if (p %in% 5:6) out[finite] <- plogis(x[finite])
+  }
+  out
+}
+
+sel_issue_label <- function(component, bound_status, raw_bad) {
+  if (bound_status == "lower" && grepl("width", component)) {
+    return("minimum width bound")
+  }
+  if (bound_status == "upper" && grepl("width", component)) {
+    return("maximum width bound")
+  }
+  if (bound_status == "lower") {
+    return("lower bound")
+  }
+  if (bound_status == "upper") {
+    return("upper bound")
+  }
+  if (raw_bad) {
+    return("interior raw gradient")
+  }
+  "ok"
+}
+
+sel_diag <- map_dfr(seq_len(nrow(map_sel)), function(f) {
+  map_dfr(seq_len(ncol(map_sel)), function(p) {
+    level <- as.character(map_sel[f, p])
+    if (is.na(level)) return(tibble())
+
+    idx <- par_sel_level_pos[[level]]
+    estimate <- obj$env$last.par.best[idx]
+    gradient <- obj$gr(obj$env$last.par.best)[idx]
+    lower <- Lwr[idx]
+    upper <- Upr[idx]
+    bound_status <- case_when(
+      is.finite(lower) && estimate <= lower + 1e-7 ~ "lower",
+      is.finite(upper) && estimate >= upper - 1e-7 ~ "upper",
+      TRUE ~ "free"
+    )
+    kkt_gradient <- case_when(
+      bound_status == "lower" ~ max(0, -gradient),
+      bound_status == "upper" ~ max(0, gradient),
+      TRUE ~ abs(gradient)
+    )
+    raw_bad <- abs(gradient) > 1e-2
+
+    tibble(
+      fishery = f,
+      fleet = fleet_names[f],
+      type = if_else(data$sel_type_f[f] == 1L, "logistic", "double-normal"),
+      component = sel_component[p],
+      estimate = estimate,
+      lower = lower,
+      upper = upper,
+      gradient = gradient,
+      kkt_gradient = kkt_gradient,
+      bound_status = bound_status,
+      natural_estimate = sel_to_natural(estimate, f, p),
+      natural_lower = sel_to_natural(lower, f, p),
+      natural_upper = sel_to_natural(upper, f, p),
+      natural_units = sel_units(f, p),
+      diagnostic = sel_issue_label(sel_component[p], bound_status, raw_bad)
+    )
+  })
+})
+
+sel_diag_issues <- sel_diag %>%
+  filter(abs(gradient) > 1e-2 | bound_status != "free") %>%
+  arrange(fishery, component) %>%
+  mutate(across(
+    c(estimate, lower, upper, gradient, kkt_gradient,
+      natural_estimate, natural_lower, natural_upper),
+    ~ signif(.x, 4)
+  ))
+
+if (nrow(sel_diag_issues) == 0L) {
+  cat("No active selectivity parameters have large gradients or bound checks.\n")
+} else {
+  sel_diag_issues %>%
+    select(fishery, fleet, type, component, estimate, lower, upper,
+           gradient, kkt_gradient, bound_status, natural_estimate,
+           natural_lower, natural_upper, natural_units, diagnostic) %>%
+    knitr::kable()
+}
+```
+
+Inspect estimated recruitment deviations:
+
+```{r}
+#| label: fig-rdev
+#| echo: true
+#| message: false
+#| fig-height: 6
+#| fig-width: 9
+#| fig-cap: Estimated recruitment deviations split by assessment season.
+rdev_est <- obj$env$parList(obj$env$last.par.best)$rdev_y
+rdev_month_label <- function(month) {
+  out <- paste("month", month)
+  valid <- month %in% seq_along(month.abb)
+  out[valid] <- month.abb[month[valid]]
+  out
+}
+
+rdev_time_lookup <- NULL
+if (all(c("ts", "year", "month") %in% names(data$cpue_data))) {
+  rdev_time_lookup <- data$cpue_data %>%
+    distinct(time_step = ts, calendar_year = year, month) %>%
+    arrange(time_step)
+}
+
+if (!is.null(rdev_time_lookup) &&
+    nrow(rdev_time_lookup) == length(rdev_est) &&
+    all(rdev_time_lookup$time_step == seq_along(rdev_est))) {
+  rdev_season_lookup <- rdev_time_lookup %>%
+    distinct(month) %>%
+    arrange(month) %>%
+    mutate(
+      season = row_number(),
+      season_label = paste0("Season ", season, " (", rdev_month_label(month), ")")
+    )
+
+  rdev_df <- rdev_time_lookup %>%
+    left_join(rdev_season_lookup, by = "month")
+} else {
+  # BET stores quarters as sequential model time steps in this data object
+  # (n_season = 1), so recover seasons from the quarterly ordering.
+  rdev_n_season <- 4L
+  rdev_months <- if ("month" %in% names(data$cpue_data)) {
+    sort(unique(data$cpue_data$month))
+  } else {
+    seq_len(rdev_n_season)
+  }
+  if (length(rdev_months) != rdev_n_season) rdev_months <- seq_len(rdev_n_season)
+  rdev_first_year <- if ("year" %in% names(data$cpue_data)) {
+    min(data$cpue_data$year, na.rm = TRUE)
+  } else {
+    data$first_yr
+  }
+
+  rdev_season_lookup <- tibble(
+    season = seq_len(rdev_n_season),
+    month = rdev_months,
+    season_label = paste0("Season ", season, " (", rdev_month_label(month), ")")
+  )
+  rdev_df <- tibble(
+    time_step = seq_along(rdev_est),
+    calendar_year = rdev_first_year + (time_step - 1L) %/% rdev_n_season,
+    season = ((time_step - 1L) %% rdev_n_season) + 1L
+  ) %>%
+    left_join(rdev_season_lookup, by = "season")
+}
+
+rdev_df <- rdev_df %>%
+  mutate(
+    season_label = factor(season_label, levels = rdev_season_lookup$season_label),
+    rdev = as.numeric(rdev_est),
+    estimated = !is.na(map_rdev)
+  )
+
+ggplot(rdev_df, aes(x = calendar_year, y = rdev)) +
+  geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey40") +
+  geom_line() +
+  geom_point(aes(colour = estimated), size = 0.8) +
+  facet_wrap(~ season_label, ncol = 2) +
+  scale_colour_manual(values = c(`FALSE` = "grey40", `TRUE` = "firebrick")) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+  labs(x = "Calendar year", y = "Recruitment deviation", colour = "Estimated")
+```
+
+## Selectivity
+
+Visualise the selectivity-at-length curves by fleet in @fig-selectivity-length.
+
+```{r}
+#| label: fig-selectivity-length
+#| echo: true
+#| message: false
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: Selectivity-at-length by fleet. Coloured lines use the current parameter values; dashed black lines show the bundled reference.
+par_sel_est <- obj$env$parList(obj$env$last.par.best)$par_sel
+par_sel_ref <- parameters$par_sel
+
+map_sel_mat <- matrix(map$par_sel, nrow = nrow(par_sel_est), ncol = ncol(par_sel_est))
+fishery_estimated <- apply(map_sel_mat, 1, function(row) any(!is.na(row)))
+
+sel_est_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
+  sel_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(len_mid, par_sel_est[f, ])
+  } else {
+    sel_double_normal(len_mid, par_sel_est[f, ])
+  }
+  data.frame(
+    fishery = f,
+    fleet_name = fleet_names[f],
+    length = len_mid,
+    selectivity = as.numeric(sel_l),
+    estimated = fishery_estimated[f]
+  )
+}))
+
+sel_orig_df <- do.call(rbind, lapply(seq_len(data$n_fishery), function(f) {
+  sel_l <- if (data$sel_type_f[f] == 1L) {
+    sel_logistic(len_mid, par_sel_ref[f, ])
+  } else {
+    sel_double_normal(len_mid, par_sel_ref[f, ])
+  }
+  data.frame(
+    fishery = f,
+    fleet_name = fleet_names[f],
+    length = len_mid,
+    selectivity = as.numeric(sel_l)
+  )
+}))
+
+ggplot(data = sel_est_df, aes(x = length, y = selectivity, colour = estimated)) +
+  geom_line() +
+  geom_line(
+    data = sel_orig_df,
+    aes(x = length, y = selectivity),
+    inherit.aes = FALSE,
+    colour = "black",
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  facet_wrap(fleet_name ~ ., ncol = 4) +
+  labs(x = "Length (cm)", y = "Selectivity") +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+The corresponding selectivity-at-age curves are shown in @fig-selectivity-age.
+For comparison with SS3's reported age-selectivity output, the plotted curves
+are scaled to a maximum of 1 within each fleet. The model still uses the
+unscaled PLA-integrated values in `rep$sel_fya`.
+
+```{r}
+#| label: fig-selectivity-age
+#| echo: true
+#| message: false
+#| fig-height: 8
+#| fig-width: 10
+#| fig-cap: Reported selectivity-at-age by fleet after integrating length selectivity over the age-length key and scaling each fleet to a maximum of 1 for SS3-style plotting.
+rep <- obj$report(obj$env$last.par.best)
+sel_fya <- rep$sel_fya
+
+sel_df <- expand.grid(fishery = 1:data$n_fishery, age = 1:data$n_age)
+sel_df$selectivity <- sapply(1:nrow(sel_df), function(i) {
+  sel_fya[sel_df$fishery[i], 1, sel_df$age[i]]
+})
+sel_df$real_age <- sel_df$age / 4
+sel_df$fleet_name <- fleet_names[sel_df$fishery]
+sel_df <- sel_df %>%
+  group_by(fishery) %>%
+  mutate(selectivity_reported = selectivity / max(selectivity, na.rm = TRUE)) %>%
+  ungroup()
+
+ggplot(sel_df, aes(x = real_age, y = selectivity_reported)) +
+  geom_line() +
+  facet_wrap(~fleet_name, ncol = 4) +
+  labs(x = "Age (years)", y = "Selectivity") +
+  ylim(0, 1)
+```
+
+@tbl-sel-par summarises the selectivity parameter values and the map status.
+
+```{r}
+#| label: tbl-sel-par
+#| echo: true
+#| message: false
+#| tbl-cap: Selectivity parameter values, bundled reference values, and map status.
+# Three sources to compare side by side:
+#   1. Initial values used to build obj   (parameters$par_sel)
+#   2. Bundled reference values            (wcpo_bet_parameters$par_sel)
+#   3. Estimated / mapped status           (map$par_sel)
+#
+# par_sel is [n_fishery x 6] with columns (a, b, c, d, e, f) for double-normal
+# or (par1, par2) for logistic (cols 3-6 ignored). `factor(map_sel)` flattens
+# matrices column-major, so wrap the map vector back into the same shape.
+
+n_f <- nrow(parameters$par_sel)
+n_p <- ncol(parameters$par_sel)
+col_lbls <- c("a (peak)", "b (plateau)", "c (asc width)", "d (desc width)", "e (init sel)", "f (final sel)")
+
+# Estimated/fixed status from the map
+map_sel_mat <- if (is.null(map$par_sel)) {
+  matrix(seq_len(n_f * n_p), n_f, n_p) # everything estimated if no map
+} else {
+  matrix(map$par_sel, n_f, n_p)
+}
+estimated_mat <- !is.na(map_sel_mat)
+
+# Reference values (may not have row/col names — assume same shape)
+ref_mat <- as.matrix(wcpo_bet_parameters$par_sel)
+stopifnot("wcpo_bet_parameters$par_sel must match parameters$par_sel shape" = all(dim(ref_mat) == c(n_f, n_p)))
+
+# Selectivity type (logistic = 1, double-normal = 2)
+sel_type_lbl <- ifelse(data$sel_type_f == 1L, "logistic", "double-normal")
+
+# For logistic fisheries, columns 3-6 are unused -> NA-out for clarity
+init_mat <- parameters$par_sel
+for (f in seq_len(n_f)) {
+  if (data$sel_type_f[f] == 1L) {
+    init_mat[f, 3:6] <- NA
+    ref_mat[f, 3:6] <- NA
+    estimated_mat[f, 3:6] <- FALSE
+  }
+}
+
+# Assemble long table
+sel_par_tbl <- tibble(
+  fishery    = rep(seq_len(n_f), times = n_p),
+  fleet_name = rep(fleet_names[seq_len(n_f)], times = n_p),
+  sel_type   = rep(sel_type_lbl, times = n_p),
+  param      = rep(col_lbls, each = n_f),
+  init       = as.numeric(init_mat),
+  reference  = as.numeric(ref_mat),
+  estimated  = as.vector(estimated_mat)
+) %>%
+  mutate(diff = init - reference) %>%
+  arrange(fishery, match(param, col_lbls))
+
+sel_par_tbl %>%
+  mutate(
+    init      = ifelse(is.na(init),      "—", formatC(init,      digits = 3, format = "f")),
+    reference = ifelse(is.na(reference), "—", formatC(reference, digits = 3, format = "f")),
+    diff      = ifelse(is.na(diff),      "—", formatC(diff,      digits = 3, format = "f")),
+    estimated = ifelse(estimated, "✓", "")
+  ) %>%
+  select(Fleet = fleet_name,
+         Type = sel_type,
+         Param = param,
+         Initial = init,
+         `Reference (bundled)` = reference,
+         `Δ (init − ref)` = diff,
+         `Est?` = estimated) %>%
+  knitr::kable(align   = c("l", "l", "l", "r", "r", "r", "c"))
+```
+
+## Diagnostics
+
+Check that all parameters are estimable using the `check_estimability` function:
+
+```{r}
+#| label: check-estimability
+#| echo: true
+#| message: false
+#| error: true
+#| eval: true
+obj$env$tracemgc <- FALSE
+fit_grad <- max(abs(obj$gr(obj$env$last.par.best)))
+if (fit_grad < 1e-2) {
+  check_estimability(obj = obj)
+} else {
+  message("Skipping check_estimability(); max |gradient| = ", signif(fit_grad, 4),
+          ". Improve optimization first.")
+}
+```
+
+Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
+
+```{r}
+#| label: check-cor
+#| echo: true
+#| message: false
+#| eval: true
+get_cor_pairs(obj = obj, threshold = 0.95)
+```
+
+Parameter standard errors can be computed with `sdreport(obj)` when needed. It
+is not run here because the diagnostic figures below use fitted trajectories
+directly from `obj$report(obj$env$last.par.best)`.
+
+## Data fits
+
+Inspect fitted CPUE and catch. CPUE fits are shown in @fig-cpue-fit; catch fits
+and residuals are plotted below.
+
+```{r}
+#| label: fig-fleet-palette
+#| echo: false
+#| message: false
+#| fig-height: 2.4
+#| fig-width: 7
+#| fig-cap: Fleet colour palette used for fishery-level diagnostic plots.
+palette_df <- tibble(
+  fishery = seq_len(data$n_fishery),
+  fleet_name = fleet_names,
+  fill = unname(fleet_palette),
+  col = (fishery - 1) %% 5,
+  row = -((fishery - 1) %/% 5)
+)
+palette_rgb <- grDevices::col2rgb(palette_df$fill) / 255
+palette_df$text_colour <- ifelse(
+  0.299 * palette_rgb[1, ] + 0.587 * palette_rgb[2, ] + 0.114 * palette_rgb[3, ] > 0.55,
+  "black",
+  "white"
+)
+
+ggplot(palette_df, aes(x = col, y = row)) +
+  geom_tile(aes(fill = fill), colour = "white", linewidth = 0.5) +
+  geom_text(
+    aes(label = paste0(fishery, "\n", fleet_name), colour = text_colour),
+    size = 2.5,
+    lineheight = 0.85
+  ) +
+  scale_fill_identity() +
+  scale_colour_identity() +
+  scale_x_continuous(expand = c(0, 0), limits = c(-0.5, 4.5)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(-2.5, 0.5)) +
+  theme_void()
+```
+
+```{r}
+#| label: fig-cpue-fit
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Observed and predicted CPUE by fishery and quarter, with simulated replicate series.
+if (data$cpue_switch == 0) {
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
+} else {
+  rep <- obj$report(obj$env$last.par.best)
+  
+  df <- data$cpue_data %>%
+    mutate(obs_id = row_number(), pred = rep$cpue_pred, sigma = rep$cpue_sigma)
+  
+  # Simulations
+  n_sim <- 0
+  df_sim <- if (n_sim > 0) {
+    map_dfr(seq_len(n_sim), function(s) {
+      sim_log <- obj$simulate(obj$env$last.par.best)$cpue_log_obs
+      tibble(
+        obs_id = seq_along(sim_log),
+        year = data$cpue_data$year,
+        month = data$cpue_data$month,
+        fishery = data$cpue_data$fishery,
+        sim_id = s,
+        sim = exp(sim_log)
+      )
+    })
+  } else {
+    tibble(
+      obs_id = integer(),
+      year = numeric(),
+      month = integer(),
+      fishery = integer(),
+      sim_id = integer(),
+      sim = numeric()
+    )
+  }
+  
+  month_levels <- sort(unique(data$cpue_data$month))
+  fish_levels <- sort(unique(data$cpue_data$fishery))
+  format_facets <- function(d) {
+    d %>%
+      mutate(
+        month = factor(month, levels = month_levels, labels = paste0("Month: ", month_levels)),
+        fishery = factor(fishery, levels = fish_levels, labels = paste0("Fishery: ", fish_levels))
+      )
+  }
+  df <- format_facets(df)
+  df_sim <- format_facets(df_sim)
+  
+  ggplot(data = df, aes(x = year)) +
+    {if (n_sim > 0) geom_line(data = df_sim, aes(y = sim, group = sim_id),
+                              colour = "lightblue", alpha = 0.5, linewidth = 0.3)} +
+    geom_linerange(aes(ymin = exp(log(value) - sigma),
+                       ymax = exp(log(value) + sigma),
+                       colour = "Observed"), alpha = 0.6) +
+    geom_point(aes(y = value, colour = "Observed")) +
+    geom_line(aes(y = pred, colour = "Predicted"), linewidth = 0.8) +
+    facet_grid(fishery ~ month, scales = "free_y") +
+    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+    scale_x_continuous(breaks = scales::pretty_breaks()) +
+    scale_colour_manual(values = c(Observed = "black", Predicted = "red3")) +
+    labs(x = "Year", y = "CPUE", colour = NULL,
+         subtitle = if (n_sim > 0) paste0(n_sim, " fitted-model simulations (grey)") else NULL) +
+    theme(legend.position = "bottom")
+}
+```
+
+```{r}
+#| label: fig-catch-fit
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Predicted catch and catch residual diagnostics for the initial model state.
+sum(fit_rep$catch_pred_ysf - data$catch_obs_ysf)
+plot_catch(data = data, obj = obj)
+plot_catch(data = data, obj = obj, plot_resid = TRUE)
+```
+
+Inspect predicted vs observed length compositions when the length-composition
+likelihood is active.
+
+```{r}
+#| label: fig-lf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 10
+#| fig-width: 9
+#| fig-cap: Mean observed, predicted, and simulated length composition proportions for active length-composition fisheries.
+# Convert model timestep -> "YYYY Qn" label
+ts_to_label <- function(ts, first_yr = 1952, n_season = 4) {
+  yr <- first_yr + (ts - 1L) %/% n_season
+  qn <- ((ts - 1L) %% n_season) + 1L
+  paste0(yr, " Q", qn)
+}
+
+if (data$lf_switch == 0) {
+  cat("Length composition likelihood is switched off (lf_switch = 0), so no predicted length compositions to show.\n")
+} else {
+  lf_rep <- obj$report(obj$env$last.par.best)
+  lf_pred <- lf_rep$lf_pred
+  names(lf_pred) <- data$lf_fishery_f
+
+  flat_to_comp_list <- function(v, n_f, fishery_f, minbin, maxbin) {
+    out <- vector("list", length(n_f))
+    offset <- 0L
+    for (k in seq_along(n_f)) {
+      f <- fishery_f[k]
+      nbins <- maxbin[f] - minbin[f] + 1L
+      n_values <- n_f[k] * nbins
+      m <- matrix(v[seq.int(offset + 1L, length.out = n_values)],
+                  nrow = n_f[k], ncol = nbins, byrow = TRUE)
+      rs <- rowSums(m)
+      rs[rs == 0] <- 1
+      out[[k]] <- m / rs
+      offset <- offset + n_values
+    }
+    out
+  }
+
+  comp_to_lf_long <- function(comp_list, fishery_f) {
+    map_dfr(seq_along(comp_list), function(i) {
+      f <- fishery_f[i]
+      bins <- data$len_mid[data$lf_minbin[f]:data$lf_maxbin[f]]
+      m <- comp_list[[i]]
+      colnames(m) <- bins
+      as.data.frame.table(m, responseName = "proportion",
+                          stringsAsFactors = FALSE) %>%
+        transmute(
+          fishery = f,
+          length = as.numeric(Var2),
+          proportion = as.numeric(proportion)
+        )
+    })
+  }
+
+  for (k in seq_along(lf_pred)) {
+    f <- data$lf_fishery_f[k]
+    colnames(lf_pred[[k]]) <- data$len_mid[data$lf_minbin[f]:data$lf_maxbin[f]]
+  }
+
+  lf_obs_vec <- switch(as.character(data$lf_switch),
+                       `1` = data$lf_obs_flat,
+                       `2` = data$lf_obs_prop,
+                       `3` = data$lf_obs_ints)
+  lf_obs_list <- flat_to_comp_list(lf_obs_vec, data$lf_n_f, data$lf_fishery_f,
+                                   data$lf_minbin, data$lf_maxbin)
+
+  df_pred_mean <- comp_to_lf_long(lf_pred, data$lf_fishery_f) %>%
+    group_by(fishery, length) %>%
+    summarise(proportion = mean(proportion, na.rm = TRUE), .groups = "drop") %>%
+    mutate(series = "Predicted")
+
+  df_obs_mean <- comp_to_lf_long(lf_obs_list, data$lf_fishery_f) %>%
+    group_by(fishery, length) %>%
+    summarise(proportion = mean(proportion, na.rm = TRUE), .groups = "drop") %>%
+    mutate(series = "Observed")
+
+  n_sim <- 5
+  df_sim_mean <- map_dfr(seq_len(n_sim), function(s) {
+    sim <- obj$simulate(obj$env$last.par.best)
+    sim_vec <- switch(as.character(data$lf_switch),
+                      `1` = sim$lf_obs_flat,
+                      `2` = sim$lf_obs_prop,
+                      `3` = sim$lf_obs_ints)
+    sim_list <- flat_to_comp_list(sim_vec, data$lf_n_f, data$lf_fishery_f,
+                                  data$lf_minbin, data$lf_maxbin)
+    comp_to_lf_long(sim_list, data$lf_fishery_f) %>%
+      group_by(fishery, length) %>%
+      summarise(proportion = mean(proportion, na.rm = TRUE), .groups = "drop") %>%
+      mutate(sim_id = s)
+  })
+
+  fishery_levels <- paste("Fishery", sort(unique(data$lf_fishery_f)))
+  df_lf_mean <- bind_rows(df_obs_mean, df_pred_mean) %>%
+    mutate(fishery = factor(paste("Fishery", fishery), levels = fishery_levels))
+  df_sim_mean <- df_sim_mean %>%
+    mutate(fishery = factor(paste("Fishery", fishery), levels = fishery_levels))
+
+  ggplot() +
+    geom_col(data = filter(df_lf_mean, series == "Observed"),
+             aes(x = length, y = proportion), fill = "grey75", width = 1.8) +
+    geom_line(data = df_sim_mean,
+              aes(x = length, y = proportion, group = sim_id),
+              colour = "steelblue", alpha = 0.35, linewidth = 0.35) +
+    geom_line(data = filter(df_lf_mean, series == "Predicted"),
+              aes(x = length, y = proportion), colour = "red3", linewidth = 0.8) +
+    facet_wrap(~ fishery, ncol = 2, scales = "free_y") +
+    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "Length (cm)", y = "Mean proportion") +
+    theme_minimal()
+}
+```
+
+Inspect predicted vs observed weight compositions when the weight-composition
+likelihood is enabled.
+
+```{r}
+#| label: fig-wf-diagnostics
+#| echo: true
+#| message: false
+#| fig-height: 10
+#| fig-width: 9
+#| fig-cap: Mean observed, predicted, and simulated weight composition proportions for active weight-composition fisheries.
+if (data$wf_switch == 0) {
+  cat("Weight composition likelihood is switched off (wf_switch = 0), so no predicted weight compositions to show.\n")
+} else {
+  wf_rep <- obj$report(obj$env$last.par.best)
+  wf_pred <- wf_rep$wf_pred
+  names(wf_pred) <- data$wf_fishery_f
+
+  flat_to_comp_list <- function(v, n_f, fishery_f, minbin, maxbin) {
+    out <- vector("list", length(n_f))
+    offset <- 0L
+    for (k in seq_along(n_f)) {
+      f <- fishery_f[k]
+      nbins <- maxbin[f] - minbin[f] + 1L
+      n_values <- n_f[k] * nbins
+      m <- matrix(v[seq.int(offset + 1L, length.out = n_values)],
+                  nrow = n_f[k], ncol = nbins, byrow = TRUE)
+      rs <- rowSums(m)
+      rs[rs == 0] <- 1
+      out[[k]] <- m / rs
+      offset <- offset + n_values
+    }
+    out
+  }
+
+  comp_to_wf_long <- function(comp_list, fishery_f) {
+    map_dfr(seq_along(comp_list), function(i) {
+      f <- fishery_f[i]
+      bins <- data$wt_mid[data$wf_minbin[f]:data$wf_maxbin[f]]
+      m <- comp_list[[i]]
+      colnames(m) <- bins
+      as.data.frame.table(m, responseName = "proportion",
+                          stringsAsFactors = FALSE) %>%
+        transmute(
+          fishery = f,
+          weight = as.numeric(Var2),
+          proportion = as.numeric(proportion)
+        )
+    })
+  }
+
+  for (k in seq_along(wf_pred)) {
+    f <- data$wf_fishery_f[k]
+    colnames(wf_pred[[k]]) <- data$wt_mid[data$wf_minbin[f]:data$wf_maxbin[f]]
+  }
+
+  wf_obs_vec <- switch(as.character(data$wf_switch),
+                       `1` = data$wf_obs_flat,
+                       `2` = data$wf_obs_prop,
+                       `3` = data$wf_obs_ints)
+  wf_obs_list <- flat_to_comp_list(wf_obs_vec, data$wf_n_f, data$wf_fishery_f,
+                                   data$wf_minbin, data$wf_maxbin)
+
+  df_wf_pred_mean <- comp_to_wf_long(wf_pred, data$wf_fishery_f) %>%
+    group_by(fishery, weight) %>%
+    summarise(proportion = mean(proportion, na.rm = TRUE), .groups = "drop") %>%
+    mutate(series = "Predicted")
+
+  df_wf_obs_mean <- comp_to_wf_long(wf_obs_list, data$wf_fishery_f) %>%
+    group_by(fishery, weight) %>%
+    summarise(proportion = mean(proportion, na.rm = TRUE), .groups = "drop") %>%
+    mutate(series = "Observed")
+
+  n_sim <- 5
+  df_wf_sim_mean <- map_dfr(seq_len(n_sim), function(s) {
+    sim <- obj$simulate(obj$env$last.par.best)
+    sim_vec <- switch(as.character(data$wf_switch),
+                      `1` = sim$wf_obs_flat,
+                      `2` = sim$wf_obs_prop,
+                      `3` = sim$wf_obs_ints)
+    sim_list <- flat_to_comp_list(sim_vec, data$wf_n_f, data$wf_fishery_f,
+                                  data$wf_minbin, data$wf_maxbin)
+    comp_to_wf_long(sim_list, data$wf_fishery_f) %>%
+      group_by(fishery, weight) %>%
+      summarise(proportion = mean(proportion, na.rm = TRUE), .groups = "drop") %>%
+      mutate(sim_id = s)
+  })
+
+  fishery_levels <- paste("Fishery", sort(unique(data$wf_fishery_f)))
+  df_wf_mean <- bind_rows(df_wf_obs_mean, df_wf_pred_mean) %>%
+    mutate(fishery = factor(paste("Fishery", fishery), levels = fishery_levels))
+  df_wf_sim_mean <- df_wf_sim_mean %>%
+    mutate(fishery = factor(paste("Fishery", fishery), levels = fishery_levels))
+
+  ggplot() +
+    geom_col(data = filter(df_wf_mean, series == "Observed"),
+             aes(x = weight, y = proportion), fill = "grey75", width = 0.9) +
+    geom_line(data = df_wf_sim_mean,
+              aes(x = weight, y = proportion, group = sim_id),
+              colour = "steelblue", alpha = 0.35, linewidth = 0.35) +
+    geom_line(data = filter(df_wf_mean, series == "Predicted"),
+              aes(x = weight, y = proportion), colour = "red3", linewidth = 0.8) +
+    facet_wrap(~ fishery, ncol = 2, scales = "free_y") +
+    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "Weight (kg)", y = "Mean proportion") +
+    theme_minimal()
+}
+```
+
+Inspect estimated spawning biomass trajectory:
+
+```{r}
+#| label: fig-opt-spbio
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Estimated spawning biomass trajectory.
+#| eval: true
+sb_df <- tibble(
+  time_step = seq_along(fit_rep$spawning_biomass_y),
+  spawning_biomass = as.numeric(fit_rep$spawning_biomass_y)
+)
+
+ggplot(sb_df, aes(x = time_step, y = spawning_biomass)) +
+  geom_line(colour = "blue", linewidth = 1) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    x = "Model time step",
+    y = "Spawning biomass (mt)",
+    title = "Estimated spawning biomass trajectory"
+  )
+```
+
+Inspect estimated relative spawning biomass ($SB/B_0$). The dynamic depletion
+ratio ($SB/SB_{F=0}$) is also reported in @tbl-depletion-metrics because it
+uses a different denominator and should not be read as the usual $SB/B_0$
+trajectory.
+
+```{r}
+#| label: fig-opt-spdep
+#| echo: true
+#| message: false
+#| fig-height: 4
+#| fig-width: 7
+#| fig-cap: Estimated relative spawning biomass trajectories.
+#| eval: true
+sb_dep_df <- tibble(
+  time_step = seq_along(fit_rep$spawning_biomass_y),
+  `SB/B0` = as.numeric(fit_rep$spawning_biomass_y) / fit_rep$B0,
+  `SB/SB_F0` = as.numeric(fit_rep$dynamic_depletion_y)
+) %>%
+  pivot_longer(-time_step, names_to = "quantity", values_to = "value")
+
+ggplot(sb_dep_df, aes(x = time_step, y = value, colour = quantity)) +
+  geom_line(linewidth = 0.9) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    x = "Model time step",
+    y = "Relative spawning biomass",
+    colour = NULL,
+    title = "Estimated relative spawning biomass trajectory",
+    subtitle = "SB/B0 and dynamic depletion use different denominators"
+  )
+```
+
+```{r}
+#| label: tbl-depletion-metrics
+#| echo: true
+#| message: false
+#| tbl-cap: Final-year relative biomass diagnostics using the estimated fit.
+tibble(
+  metric = c("SB/B0", "SB/SB_F0"),
+  final_value = c(
+    tail(fit_rep$spawning_biomass_y, 1) / fit_rep$B0,
+    tail(fit_rep$dynamic_depletion_y, 1)
+  )
+) %>%
+  mutate(final_value = round(final_value, 3)) %>%
+  knitr::kable()
+```
+
+# Simulation
+
+The CPUE series is set up using RTMB's `OBS` mechanism inside the model, which
+allows simulation via `obj$simulate()`. The plots below compare observed,
+predicted, and simulated log-CPUE.
+
+```{r}
+#| label: fig-cpue-sim
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 9
+#| fig-cap: Observed, predicted, and simulated log-CPUE faceted by index.
+if (data$cpue_switch == 0) {
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no simulated CPUE to show.\n")
+} else {
+  cpue_rep <- obj$report(obj$env$last.par.best)
+  cpue_indices <- sort(unique(data$cpue_data$index))
+  cpue_months <- sort(unique(data$cpue_data$month))
+  cpue_index_labels <- setNames(
+    paste0("Month: ", cpue_months),
+    as.character(seq_along(cpue_months))
+  )
+
+  cpue_df <- data$cpue_data %>%
+    mutate(
+      obs_id = row_number(),
+      observed = log(value),
+      predicted = log(cpue_rep$cpue_pred),
+      index = factor(index, levels = cpue_indices,
+                     labels = cpue_index_labels[as.character(cpue_indices)])
+    )
+
+  n_sim <- 10
+  cpue_sim_df <- map_dfr(seq_len(n_sim), function(s) {
+    tibble(
+      obs_id = cpue_df$obs_id,
+      year = cpue_df$year,
+      index = cpue_df$index,
+      sim_id = s,
+      simulated = obj$simulate(obj$env$last.par.best)$cpue_log_obs
+    )
+  })
+
+  ggplot(cpue_df, aes(x = year)) +
+    geom_line(data = cpue_sim_df, aes(y = simulated, group = sim_id),
+              colour = "grey70", alpha = 0.55, linewidth = 0.35) +
+    geom_point(aes(y = observed), colour = "black", size = 1) +
+    geom_line(aes(y = predicted), colour = "red3", linewidth = 0.8) +
+    facet_wrap(~ index, ncol = 2, scales = "free_y") +
+    labs(x = "Year", y = "log(CPUE)",
+         subtitle = paste0(n_sim, " fitted-model simulations in grey")) +
+    theme_minimal()
+}
+```
+
+# One step ahead (OSA) residuals
+
+OSA residuals are a replacement for Pearson residuals:
+
+```{r}
+#| label: fig-osa-residuals
+#| echo: true
+#| message: false
+#| fig-height: 5
+#| fig-width: 8
+#| fig-cap: One-step-ahead CPUE residual QQ and residual-index diagnostics.
+#| eval: true
+if (data$cpue_switch == 0) {
+  cat("CPUE likelihood is switched off (cpue_switch = 0), so no OSA residuals to show.\n")
+} else {
+  osa_cpue <- oneStepPredict(obj = obj, observation.name = "cpue_log_obs",
+                             method = "oneStepGeneric", trace = FALSE)
+  osa_df <- data$cpue_data %>%
+    mutate(residual = osa_cpue$res)
+
+  if ("month" %in% names(osa_df)) {
+    cpue_months <- sort(unique(osa_df$month))
+    osa_df <- osa_df %>%
+      mutate(index = factor(month, levels = cpue_months,
+                            labels = month.name[cpue_months]))
+  } else {
+    cpue_indices <- sort(unique(osa_df$index))
+    osa_df <- osa_df %>%
+      mutate(index = factor(index, levels = cpue_indices,
+                            labels = paste("Index", cpue_indices)))
+  }
+
+  osa_qq <- osa_df %>%
+    group_by(index) %>%
+    arrange(residual, .by_group = TRUE) %>%
+    mutate(
+      q_theoretical = qnorm(ppoints(n())),
+      panel = "Normal Q-Q"
+    ) %>%
+    ungroup() %>%
+    transmute(index, panel, x = q_theoretical, y = residual)
+
+  osa_time <- osa_df %>%
+    transmute(index, panel = "Residual by year", x = year, y = residual)
+
+  ggplot(bind_rows(osa_qq, osa_time), aes(x = x, y = y)) +
+    geom_hline(yintercept = 0, colour = "grey55", linewidth = 0.35) +
+    geom_hline(yintercept = c(-2, 2), linetype = "dashed",
+               colour = "grey55", linewidth = 0.35) +
+    geom_abline(data = data.frame(panel = "Normal Q-Q"),
+                aes(intercept = 0, slope = 1),
+                inherit.aes = FALSE, colour = "grey55", linewidth = 0.35) +
+    geom_segment(data = osa_time,
+                 aes(x = x, xend = x, y = 0, yend = y),
+                 inherit.aes = FALSE, colour = "grey65", linewidth = 0.25) +
+    geom_point(size = 0.9, alpha = 0.75, colour = "black") +
+    facet_grid(index ~ panel, scales = "free_x") +
+    labs(x = NULL, y = "OSA residual") +
+    theme_minimal()
+}
+```
+
+# Composition OSA residuals
+
+The BET diagnostic data used here contain length- and weight-composition
+observations rather than age-composition observations. The residual plot below
+follows the same structure as the SBT composition residual plots, using
+`compResidual` row-by-row for the active multinomial composition likelihoods.
+
+```{r}
+#| label: fig-comp-residuals
+#| echo: true
+#| message: false
+#| fig-height: 10
+#| fig-width: 11
+#| fig-cap: Composition OSA residual bubble plots by fishery and Q-Q diagnostics for active length and weight composition likelihoods.
+#| eval: true
+if (!requireNamespace("compResidual", quietly = TRUE)) {
+  cat("Package 'compResidual' is required for composition residual plots.\n")
+} else if (data$lf_switch != 1 || data$wf_switch != 1) {
+  cat("This diagnostic chunk currently supports multinomial LF/WF likelihoods (switch = 1).\n")
+} else {
+  normalise_composition <- function(x) {
+    total <- sum(x, na.rm = TRUE)
+    if (!is.finite(total) || total <= 0) {
+      return(rep(NA_real_, length(x)))
+    }
+    x / total
+  }
+
+  quiet_comp_residual_warnings <- function(expr) {
+    withCallingHandlers(
+      expr,
+      warning = function(w) {
+        if (grepl("NA/NaN function evaluation", conditionMessage(w), fixed = TRUE)) {
+          invokeRestart("muffleWarning")
+        }
+      }
+    )
+  }
+
+  ts_to_decimal_year <- function(ts, first_yr = data$first_yr,
+                                 n_season = data$n_season) {
+    first_yr + (as.integer(ts) - 1L) %/% n_season +
+      ((as.integer(ts) - 1L) %% n_season) / n_season
+  }
+
+  flat_to_count_list <- function(v, n_f, fishery_f, minbin, maxbin) {
+    out <- vector("list", length(n_f))
+    offset <- 0L
+    for (k in seq_along(n_f)) {
+      f <- fishery_f[k]
+      nbins <- maxbin[f] - minbin[f] + 1L
+      n_values <- n_f[k] * nbins
+      out[[k]] <- matrix(
+        v[seq.int(offset + 1L, length.out = n_values)],
+        nrow = n_f[k],
+        ncol = nbins,
+        byrow = TRUE
+      )
+      offset <- offset + n_values
+    }
+    out
+  }
+
+  composition_residual_rows <- function(type_label, y_label, obs_flat,
+                                        pred_list, n_by_row, n_f, fishery_f,
+                                        year_fi, minbin, maxbin, bins) {
+    obs_list <- flat_to_count_list(obs_flat, n_f, fishery_f, minbin, maxbin)
+    row_offset <- 0L
+
+    map_dfr(seq_along(pred_list), function(i) {
+      f <- fishery_f[i]
+      n_rows <- n_f[i]
+      row_ids <- seq.int(row_offset + 1L, length.out = n_rows)
+      row_offset <<- row_offset + n_rows
+      active_bins <- bins[minbin[f]:maxbin[f]]
+      pred <- pred_list[[i]]
+      obs <- obs_list[[i]]
+      years <- year_fi[[as.character(f)]]
+
+      map_dfr(seq_len(n_rows), function(j) {
+        obs_prop <- normalise_composition(obs[j, ])
+        pred_prop <- normalise_composition(pred[j, ])
+        n_eff <- n_by_row[row_ids[j]]
+
+        if (anyNA(obs_prop) || anyNA(pred_prop) ||
+            !is.finite(n_eff) || n_eff <= 0) {
+          return(tibble())
+        }
+
+        pred_prop <- pred_prop + 1e-6
+        pred_prop <- pred_prop / sum(pred_prop)
+        residual <- as.numeric(quiet_comp_residual_warnings(
+          compResidual::resMulti(
+            obs = matrix(obs_prop * n_eff, ncol = 1L),
+            pred = matrix(pred_prop, ncol = 1L)
+          )
+        ))
+        keep <- seq_along(residual)
+
+        plot_year <- years[j]
+        if (!is.finite(plot_year) || plot_year < 1000) {
+          plot_year <- ts_to_decimal_year(years[j])
+        }
+
+        tibble(
+          composition = type_label,
+          y_label = y_label,
+          fishery_num = f,
+          fishery = fleet_names[f],
+          row = row_ids[j],
+          year = plot_year,
+          bin = active_bins[keep],
+          observed = obs_prop[keep],
+          predicted = pred_prop[keep],
+          n_eff = n_eff,
+          residual = residual,
+          Sign = if_else(residual >= 0, "Positive", "Negative")
+        )
+      })
+    })
+  }
+
+  lf_residuals <- composition_residual_rows(
+    type_label = "Length",
+    y_label = "Length (cm)",
+    obs_flat = data$lf_obs_flat,
+    pred_list = fit_rep$lf_pred,
+    n_by_row = data$lf_n,
+    n_f = data$lf_n_f,
+    fishery_f = data$lf_fishery_f,
+    year_fi = if (!is.null(data$lf_calendar_year_fi)) data$lf_calendar_year_fi else data$lf_year_fi,
+    minbin = data$lf_minbin,
+    maxbin = data$lf_maxbin,
+    bins = data$len_mid
+  )
+
+  wf_residuals <- composition_residual_rows(
+    type_label = "Weight",
+    y_label = "Weight (kg)",
+    obs_flat = data$wf_obs_flat,
+    pred_list = fit_rep$wf_pred,
+    n_by_row = data$wf_n,
+    n_f = data$wf_n_f,
+    fishery_f = data$wf_fishery_f,
+    year_fi = if (!is.null(data$wf_calendar_year_fi)) data$wf_calendar_year_fi else data$wf_year_fi,
+    minbin = data$wf_minbin,
+    maxbin = data$wf_maxbin,
+    bins = data$wt_mid
+  )
+
+  comp_residuals <- bind_rows(lf_residuals, wf_residuals) %>%
+    filter(is.finite(residual)) %>%
+    mutate(
+      fishery = factor(fishery, levels = fleet_names[sort(unique(fishery_num))]),
+      composition = factor(composition, levels = c("Length", "Weight"))
+    )
+
+  residual_summary <- comp_residuals %>%
+    summarise(
+      n = n(),
+      mean = mean(residual),
+      SDNR = sd(residual),
+      MAR = median(abs(residual)),
+      max_abs = max(abs(residual)),
+      .by = c(composition, fishery)
+    ) %>%
+    mutate(across(where(is.numeric), ~ signif(.x, 4)))
+
+  plot_comp_bubbles <- function(plot_data, title, y_label) {
+    ggplot(
+      plot_data,
+      aes(x = year, y = bin, size = abs(residual), fill = Sign)
+    ) +
+      geom_point(shape = 21, alpha = 0.65, colour = "grey30", stroke = 0.08) +
+      facet_wrap(~ fishery, ncol = 2, scales = "free_y") +
+      scale_fill_manual(values = c(Positive = "white", Negative = "black")) +
+      scale_size_area(
+        max_size = 4,
+        limits = c(0, 4),
+        oob = scales::squish,
+        name = "|OSA residual|"
+      ) +
+      scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+      labs(
+        title = title,
+        x = "Year",
+        y = y_label,
+        fill = "Residual sign",
+        caption = "White = observed greater than predicted; black = observed less than predicted"
+      ) +
+      theme_bw() +
+      theme(
+        legend.position = "bottom",
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(size = 9)
+      )
+  }
+
+  lf_plot_data <- filter(comp_residuals, composition == "Length")
+  wf_plot_data <- filter(comp_residuals, composition == "Weight")
+
+  if (nrow(lf_plot_data) > 0L) {
+    print(plot_comp_bubbles(lf_plot_data, "Length Composition OSA Residuals", "Length (cm)"))
+  }
+
+  if (nrow(wf_plot_data) > 0L) {
+    print(plot_comp_bubbles(wf_plot_data, "Weight Composition OSA Residuals", "Weight (kg)"))
+  }
+
+  ggplot(comp_residuals, aes(sample = residual)) +
+    stat_qq(size = 0.45, alpha = 0.45) +
+    stat_qq_line(colour = "red3", linetype = "dashed") +
+    facet_wrap(~ composition, ncol = 2, scales = "free") +
+    labs(
+      title = "Composition OSA Q-Q Normal Check",
+      x = "Theoretical quantiles",
+      y = "Sample quantiles"
+    ) +
+    theme_bw()
+}
+```
+
+```{r}
+#| label: tbl-comp-residual-summary
+#| echo: false
+#| tbl-cap: Composition OSA residual diagnostics by composition type and fishery.
+if (exists("residual_summary") && nrow(residual_summary) > 0L) {
+  knitr::kable(residual_summary)
+} else {
+  cat("No finite composition residuals were available to summarise.\n")
+}
+```

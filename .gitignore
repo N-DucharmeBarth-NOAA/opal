@@ -65,3 +65,8 @@ inst/doc
 
 # ignore benchmark results
 profile_*.html
+.positai
+
+# BET diagnostic run outputs
+inst/scripts/bet_*_diagnostics*/
+inst/scripts/bet_selectivity_add_*/

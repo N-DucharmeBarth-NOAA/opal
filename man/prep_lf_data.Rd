@@ -12,7 +12,8 @@ prep_lf_data(
   lf_minbin = NULL,
   lf_maxbin = NULL,
   lf_var_adjust = NULL,
-  lf_cap = NULL
+  lf_cap = NULL,
+  lf_addtocomp = 1e-08
 )
 }
 \arguments{
@@ -52,6 +53,10 @@ effective sample size is capped: \eqn{n_i = \min(n_i, \text{lf\_cap})}.
 Applied after proportions are computed so that observed compositions are
 unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 feature.}
+
+\item{lf_addtocomp}{small non-negative numeric constant added to observed
+composition proportions after tail compression and before renormalisation.
+This robustifies zero bins. Default \code{1e-08}.}
 }
 \value{
 The input \code{data} list with the following elements appended or
@@ -70,6 +75,10 @@ LF data.}
 \item{\code{lf_n_f}}{Integer vector of observation counts per fishery.}
 \item{\code{lf_year}}{Integer vector of model timestep index (1-based)
 per observation row.}
+\item{\code{lf_year_fi}, \code{lf_n_fi}, \code{lf_row_fi}}{Lists split
+by fishery containing model timesteps, effective sample sizes, and
+row indices. Precomputed so \code{opal_model()} does not rebuild them
+on every objective evaluation.}
 \item{\code{lf_season}}{Integer vector of season index (all 1).}
 \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
 \item{\code{lf_var_adjust}}{Passed through from argument; numeric vector
@@ -86,6 +95,8 @@ multinomial, \code{lf_switch = 1}).}
 (for Dirichlet-multinomial, \code{lf_switch = 3}).}
 \item{\code{lf_obs_prop}}{Flattened numeric vector of normalised
 proportions (for Dirichlet, \code{lf_switch = 2}).}
+\item{\code{lf_addtocomp}}{Stored value of the add-to-composition
+constant used to robustify observed composition bins.}
 \item{\code{lf_nbins}}{Number of bins used in each observation (scalar,
 derived from the first fishery's min/max bin setting).}
 }

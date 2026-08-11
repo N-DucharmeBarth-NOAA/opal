@@ -7,7 +7,7 @@
 get_priors(parameters, data = NULL)
 }
 \arguments{
-\item{parameters}{A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the \code{get_parameters()} function.}
+\item{parameters}{A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the \code{get_parameters()} function. Vector parameters (e.g., \code{log_cpue_q}) are supported.}
 
 \item{data}{A \code{list} of data inputs (optional). Used to retrieve prior
 center values for growth/variability parameters (e.g.,

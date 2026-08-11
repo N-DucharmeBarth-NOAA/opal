@@ -41,7 +41,7 @@ get_loo <- function(data, object, posterior) {
 #' @param exclude Any variables to exclude from the plot (e.g., aerial, af, lf, cpue).
 #' @return a \code{ggplot2}.
 #' @importFrom rlang .data
-#' @importFrom tidyr separate
+#' @importFrom tidyr pivot_longer pivot_wider separate
 #' @import dplyr
 #' @import ggplot2
 #' @export

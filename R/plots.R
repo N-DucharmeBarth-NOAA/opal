@@ -20,13 +20,13 @@ plot_catch <- function(data, obj, posterior = NULL, proj = NULL, probs = c(0.05,
   
   yrs1 <- data$years
   # yrs2 <- data$first_yr_catch:data$last_yr
-  # fsh <- c("LL1", "LL2", "LL3", "LL4", "Indonesia", "Australia")
   fsh <- paste0("Fishery: ", 1:data$n_fishery)
   
-  df_obs <- reshape2::melt(data$catch_obs_ysf, value.name = "obs") %>%
+  df_obs <- melt(data$catch_obs_ysf, value.name = "obs") %>%
     filter(.data$obs > 0) %>%
-    mutate(season = paste("Season:", 1), fishery = fsh[.data$fishery], Type = "Observed")
-
+    mutate(season = paste("Season:", 1), fishery = fsh[.data$fishery], Type = "Observed") %>%
+    mutate(fishery = factor(.data$fishery, levels = fsh))
+  
   # if (!is.null(proj)) {
   #   df_proj <- melt(proj, value.name = "obs") %>%
   #     filter(.data$obs > 0) %>%
@@ -35,11 +35,11 @@ plot_catch <- function(data, obj, posterior = NULL, proj = NULL, probs = c(0.05,
   # }
   
   df_pred <- obj$report()$catch_pred_ysf %>%
-    reshape2::melt(value.name = "pred") %>%
+    melt(value.name = "pred") %>%
     mutate(year = yrs1[.data$Var1], season = paste("Season:", .data$Var2), fishery = fsh[.data$Var3]) %>%
     right_join(df_obs, by = join_by("year", "season", "fishery")) %>%
-    mutate(Fishery = factor(.data$fishery, levels = fsh)) %>%
-    mutate(resid = .data$obs - .data$pred)
+    mutate(resid = .data$obs - .data$pred) %>%
+    mutate(fishery = factor(.data$fishery, levels = fsh))
   
   print(paste0("The maximum catch difference was: ", max(df_pred$resid)))
   
@@ -57,8 +57,9 @@ plot_catch <- function(data, obj, posterior = NULL, proj = NULL, probs = c(0.05,
   }
   
   p <- p + 
-    facet_wrap(fishery ~ season, scales = "free_y")
-    # scale_x_continuous(breaks = breaks_pretty())
+    # facet_wrap(fishery ~ season, scales = "free_y") + 
+    facet_wrap(fishery ~ .)
+  # scale_x_continuous(breaks = breaks_pretty())
   
   return(p)
 }
@@ -362,7 +363,7 @@ plot_cpue <- function(data, object, posterior = NULL, probs = c(0.025, 0.975), n
   
   # data.frame(year = yrs, obs = data$cpue_obs, pred = object$report()$cpue_pred, 
   #                      sigma = sqrt(data$cpue_sd^2 + object$report()$cpue_sigma^2))
-
+  
   # mat_sim <- matrix(NA, nrow = nrow(df_mle), ncol = nsim)
   # for (i in seq_len(nsim)) mat_sim[,i] <- exp(obj$simulate()$cpue_log_obs)
   # df_sim <- bind_cols(df_mle, as.data.frame(mat_sim)) %>%
@@ -563,12 +564,12 @@ plot_hrate <- function(data, object, posterior = NULL, probs = c(0.025, 0.975), 
   
   yrs <- data$first_yr:data$last_yr
   ages <- data$min_age:data$max_age
-
+  
   df <- object$report()$hrate_ysa %>%
     melt() %>%
     mutate(year = yrs[Var1], season = Var2, age = ages[Var3]) %>%
     filter(year %in% years, year >= data$first_yr_catch)
-
+  
   p <- ggplot(data = df, aes(x = age, y = year, height = value, group = year)) +
     geom_density_ridges(stat = "identity", alpha = 0.75, rel_min_height = 0, color = NA, ...) + 
     facet_wrap(season ~ .) +
