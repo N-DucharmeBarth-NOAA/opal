@@ -22,6 +22,128 @@ sel_logistic <- function(len, par) {
   return(sel)
 }
 
+#' log(1 + exp(u)), overflow-safe
+#'
+#' The AD path uses RTMB's vectorized atomic `logspace_add`; the numeric path
+#' uses the standard stable form.
+#'
+#' @importFrom RTMB logspace_add
+#' @noRd
+log1pexp <- function(u) {
+  if (inherits(u, "advector")) {
+    logspace_add(0 * u, u)
+  } else {
+    pmax(u, 0) + log1p(exp(-abs(u)))
+  }
+}
+
+#' log(2^g - 1), overflow-safe for positive g
+#'
+#' @noRd
+log_2pow_m1 <- function(g) {
+  g * log(2) + log(1 - exp(-g * log(2)))
+}
+
+#' Double Richards selectivity as a function of length
+#'
+#' A smooth, six-parameter curve formed by multiplying an ascending
+#' generalized-logistic (Richards) limb by one minus a descending Richards
+#' limb:
+#' \deqn{(1 + \exp(-z_1))^{-1/\gamma_1}
+#' [1 - (1 + \exp(-z_2))^{-1/\gamma_2}].}
+#' Parameters are on the real line and transformed as follows:
+#' \describe{
+#'   \item{`par[1]`}{Ascending 50% point: `mean(len) + par[1] * sd(len)`.}
+#'   \item{`par[2]`}{Ascending width: `exp(par[2]) * sd(len)`.}
+#'   \item{`par[3]`}{Ascending shape: `gamma1 = exp(par[3])`.}
+#'   \item{`par[4]`}{Descending 50% point is ascending 50% point plus
+#'     `exp(par[4]) * sd(len)`.}
+#'   \item{`par[5]`}{Descending width: `exp(par[5]) * sd(len)`.}
+#'   \item{`par[6]`}{Descending shape: `gamma2 = exp(par[6])`.}
+#' }
+#' The Maunder parameterization is recovered with
+#' `alpha_k = L50_k + log(2^gamma_k - 1) / beta_k` and
+#' `beta_k = log(19) / width_k`. The peak can be below one when the limbs
+#' overlap; it is intentionally not rescaled. As either shape parameter tends
+#' to negative infinity, its limb tends to a Gompertz curve with the same 50%
+#' point. Large shape values flatten the limb toward 0.5 (at `par[3] =
+#' par[6] = 7`, the curve is approximately 0.25). Mapping `par[3]` and
+#' `par[6]` to zero gives a four-parameter double-logistic curve. Suggested
+#' bounds for columns 3 and 6 are `c(-5, 5)`; use the existing `par_sel` bounds
+#' for the remaining columns.
+#'
+#' @param len Numeric vector of length-bin midpoints.
+#' @param par Numeric vector of length 6 containing selectivity parameters.
+#' @return Numeric vector of selectivity values in [0, 1).
+#' @references Maunder, M. (2025). Double Richards selectivity. Unpublished
+#'   technical note, 19 November 2025.
+#' @export
+sel_double_richards <- function(len, par) {
+  mu <- mean(len)
+  sd <- sd(len)
+  l50_1 <- mu + par[1] * sd
+  w_1 <- exp(par[2]) * sd
+  g_1 <- exp(par[3])
+  l50_2 <- l50_1 + exp(par[4]) * sd
+  w_2 <- exp(par[5]) * sd
+  g_2 <- exp(par[6])
+  b_1 <- log(19) / w_1
+  b_2 <- log(19) / w_2
+  z_1 <- b_1 * (len - l50_1) - log_2pow_m1(g_1)
+  z_2 <- b_2 * (len - l50_2) - log_2pow_m1(g_2)
+  asc <- exp(-log1pexp(-z_1) / g_1)
+  dsc <- 1 - exp(-log1pexp(-z_2) / g_2)
+  asc * dsc
+}
+
+#' Convert double Richards parameters to natural scale
+#'
+#' This numeric reporting helper returns the transformed parameter values and
+#' Maunder's `alpha1`, `beta1`, `alpha2`, and `beta2`. Under the 50%-point
+#' parameterization, `alpha2` can be non-positive when the shape parameters
+#' differ.
+#'
+#' @param len Numeric vector of length-bin midpoints.
+#' @param par Numeric vector of length 6 containing selectivity parameters.
+#' @return Named numeric vector of natural-scale parameters.
+#' @export
+double_richards_natural <- function(len, par) {
+  mu <- mean(len)
+  sd <- sd(len)
+  l50_asc <- mu + par[1] * sd
+  width_asc <- exp(par[2]) * sd
+  gamma_asc <- exp(par[3])
+  l50_desc <- l50_asc + exp(par[4]) * sd
+  width_desc <- exp(par[5]) * sd
+  gamma_desc <- exp(par[6])
+  beta1 <- log(19) / width_asc
+  beta2 <- log(19) / width_desc
+  alpha1 <- l50_asc + log_2pow_m1(gamma_asc) / beta1
+  alpha_desc <- l50_desc + log_2pow_m1(gamma_desc) / beta2
+  c(l50_asc = l50_asc, width_asc = width_asc, gamma_asc = gamma_asc,
+    l50_desc = l50_desc, width_desc = width_desc, gamma_desc = gamma_desc,
+    alpha1 = alpha1, beta1 = beta1, alpha2 = alpha_desc - alpha1,
+    beta2 = beta2)
+}
+
+#' Selectivity-at-length for a single fishery, dispatched on type code
+#'
+#' @param len Numeric vector of length-bin midpoints.
+#' @param par Numeric vector of length 6 containing selectivity parameters.
+#' @param sel_type Selectivity type: 1 = logistic, 2 = double-normal, 3 =
+#'   double Richards.
+#' @return Numeric vector of selectivity values.
+#' @export
+sel_length <- function(len, par, sel_type) {
+  switch(as.character(sel_type),
+    "1" = sel_logistic(len, par),
+    "2" = sel_double_normal(len, par),
+    "3" = sel_double_richards(len, par),
+    stop("Unknown sel_type: ", sel_type,
+         ". Supported: 1 (logistic), 2 (double-normal), 3 (double Richards).")
+  )
+}
+
 #' Double-normal selectivity as a function of length (SS3 pattern 24, full form)
 #'
 #' All parameters are on the real line, making this parameterization suitable
@@ -135,8 +257,8 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 
 #' Compute selectivity-at-age from length-based selectivity curves
 #'
-#' Defines selectivity as a parametric function of length (logistic or
-#' double-normal), then converts to selectivity-at-age by matrix-multiplying
+#' Defines selectivity as a parametric function of length (logistic,
+#' double-normal, or double Richards), then converts to selectivity-at-age by matrix-multiplying
 #' with the probability-of-length-at-age (PLA/ALK).
 #'
 #' Selectivity is currently time-invariant within each fishery (constant
@@ -146,7 +268,8 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
 #'   n_fishery, n_year, n_age, sel_type_f.
 #' @param par_sel Numeric matrix of dimensions `[n_fishery, 6]`. Each row is
 #'   a real-line parameter vector. For logistic (sel_type_f == 1), only
-#'   columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.
+#'   columns 1:2 are used. For double-normal (sel_type_f == 2) and double
+#'   Richards (sel_type_f == 3), all 6 are used.
 #' @param pla Numeric matrix of dimensions `[n_len, n_age]` containing
 #'   probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.
 #' @param len_mid Numeric vector (length n_len) of length-bin midpoints.
@@ -165,12 +288,7 @@ get_selectivity <- function(data, par_sel, pla, len_mid) {
   sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
   for (f in seq_len(n_fishery)) {
     par_f <- par_sel[f, ]
-    # Branch on data value (not AD) — safe for AD
-    if (data$sel_type_f[f] == 1L) {
-      sel_at_length <- sel_logistic(len_mid, par_f)
-    } else {
-      sel_at_length <- sel_double_normal(len_mid, par_f)
-    }
+    sel_at_length <- sel_length(len_mid, par_f, data$sel_type_f[f])
     # Convert to selectivity-at-age via PLA
     sel_at_age <- c(t(pla) %*% sel_at_length)
     # Time-invariant: replicate across years
@@ -191,7 +309,8 @@ get_selectivity <- function(data, par_sel, pla, len_mid) {
 #'   double-normal (pattern 24): columns are peak, top_logit, ascend_se,
 #'   descend_se, start_logit, end_logit. For logistic (pattern 1): columns
 #'   are inflection, width.
-#' @param sel_type_f Integer vector (length n_fishery). 1 = logistic, 2 = double-normal.
+#' @param sel_type_f Integer vector (length n_fishery). 1 = logistic, 2 =
+#'   double-normal, 3 = double Richards.
 #' @param sel_lengths Numeric vector of selectivity length-bin midpoints
 #'   (same vector that will be passed to sel_logistic/sel_double_normal).
 #' @return Numeric matrix `[n_fishery, 6]` of RTMB real-line parameters.
@@ -211,7 +330,7 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
       par_sel[f, 1] <- (ss3_inflection - mu_len) / sd_len
       par_sel[f, 2] <- log(ss3_width / sd_len)
       # par_sel[f, 3:6] remain 0 (unused)
-    } else {
+    } else if (sel_type_f[f] == 2L) {
       # Double-normal (SS3 pattern 24): peak, top_logit, ascend_se, descend_se, start_logit, end_logit
       ss3_peak        <- ss3_pars[f, 1]
       ss3_top_logit   <- ss3_pars[f, 2]
@@ -238,6 +357,10 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
       } else {
         par_sel[f, 6] <- ss3_end_logit                       # f: final selectivity
       }
+    } else if (sel_type_f[f] == 3L) {
+      stop("sel_type_f = 3 (double Richards) has no SS3 equivalent; supply par_sel directly for these fisheries.")
+    } else {
+      stop("Unknown sel_type_f: ", sel_type_f[f])
     }
   }
   return(par_sel)
@@ -249,9 +372,12 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
 #' round-trip conversion and reporting parameter values in natural units.
 #'
 #' @param par_sel Numeric matrix `[n_fishery, 6]` of RTMB real-line parameters.
-#' @param sel_type_f Integer vector (1 = logistic, 2 = double-normal).
+#' @param sel_type_f Integer vector (1 = logistic, 2 = double-normal, 3 =
+#'   double Richards).
 #' @param sel_lengths Numeric vector of selectivity length-bin midpoints.
-#' @return Data.frame with SS3-scale parameter values per fishery.
+#' @return Data.frame with SS3-scale parameter values per fishery. Double
+#'   Richards rows retain `NA` parameter values because there is no SS3
+#'   equivalent.
 #' @export
 #'
 convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
@@ -272,13 +398,15 @@ convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
     if (sel_type_f[f] == 1L) {
       result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
       result$top_logit_or_width[f] <- exp(par_sel[f, 2]) * sd_len
-    } else {
+    } else if (sel_type_f[f] == 2L) {
       result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
       result$top_logit_or_width[f] <- par_sel[f, 2]
       result$ascend_se[f]  <- par_sel[f, 3] + 2 * log(sd_len)
       result$descend_se[f] <- par_sel[f, 4] + 2 * log(sd_len)
       result$start_logit[f] <- par_sel[f, 5]
       result$end_logit[f] <- par_sel[f, 6]
+    } else if (sel_type_f[f] != 3L) {
+      stop("Unknown sel_type_f: ", sel_type_f[f])
     }
   }
   return(result)

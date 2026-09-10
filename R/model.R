@@ -39,6 +39,8 @@ opal_globals <- function() {
     get_selectivity = get_selectivity,
     sel_logistic = sel_logistic,
     sel_double_normal = sel_double_normal,
+    sel_double_richards = sel_double_richards,
+    sel_length = sel_length,
     get_pla = get_pla,
     get_initial_numbers = get_initial_numbers, 
     get_recruitment = get_recruitment, 

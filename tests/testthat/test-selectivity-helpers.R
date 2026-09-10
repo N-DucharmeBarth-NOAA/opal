@@ -155,6 +155,104 @@ test_that("sel_double_normal ascending width changes with parameter c", {
   expect_true(sel_narrow[half_peak_idx] < sel_wide[half_peak_idx])
 })
 
+# Test sel_double_richards ----
+
+test_that("double Richards matches Maunder's parameterization", {
+  set.seed(20250910)
+  len <- seq(20, 180, by = 2)
+  for (i in seq_len(50)) {
+    par <- runif(6, -1.5, 1.5)
+    natural <- double_richards_natural(len, par)
+    expected <- (1 + exp(-natural["beta1"] * (len - natural["alpha1"])))^(-1 / natural["gamma_asc"]) *
+      (1 - (1 + exp(-natural["beta2"] * (len - (natural["alpha1"] + natural["alpha2"]))))^(-1 / natural["gamma_desc"]))
+    expect_lt(max(abs(sel_double_richards(len, par) - expected)), 1e-12)
+  }
+})
+
+test_that("double Richards limbs have specified 50 percent points", {
+  len <- seq(20, 180, by = 2)
+  for (shape in exp(c(-3, 0, 3))) {
+    par <- c(0, 0, log(shape), 0, 0, 0)
+    natural <- double_richards_natural(len, par)
+    asc <- (1 + exp(-natural["beta1"] * (natural["l50_asc"] - natural["alpha1"])))^(-1 / shape)
+    expect_equal(asc, 0.5, tolerance = 1e-12)
+  }
+})
+
+test_that("double Richards nests logistic and has Gompertz limit", {
+  len <- seq(20, 180, by = 2)
+  for (pair in list(c(0, 0), c(-1, 0.5), c(1.2, -0.8))) {
+    richards <- sel_double_richards(len, c(pair, 0, 5, 0, 0))
+    logistic <- sel_logistic(len, c(pair, 0, 0, 0, 0))
+    expect_lt(max(abs(richards - logistic)), 1e-12)
+  }
+  par <- c(0, 0, -12, 5, 0, 0)
+  natural <- double_richards_natural(len, par)
+  expected <- exp(-log(2) * exp(-natural["beta1"] * (len - natural["l50_asc"])))
+  expect_lt(max(abs(sel_double_richards(len, par) - expected)), 1e-5)
+})
+
+test_that("double Richards remains bounded and AD-safe", {
+  set.seed(20250910)
+  len <- seq(20, 180, by = 2)
+  for (i in seq_len(200)) {
+    sel <- sel_double_richards(len, runif(6, -5, 5))
+    expect_true(all(is.finite(sel) & sel >= 0 & sel <= 1))
+  }
+  corners <- list(
+    c(0, -7, 0, 0, -7, 0), c(0, -7, -7, -7, -7, -7),
+    c(3, 7, 7, 3, 7, 7), c(-3, -7, 7, -7, -7, 7),
+    c(0, 0, -7, 0, 0, -7)
+  )
+  for (par in corners) {
+    tape <- MakeTape(function(p) sum(sel_double_richards(len, p)^2), par)
+    expect_true(is.finite(tape(par)))
+    expect_true(all(is.finite(tape$jacobian(par))))
+  }
+})
+
+test_that("double Richards AD values and derivatives match numeric evaluation", {
+  set.seed(20250910)
+  len <- seq(20, 180, by = 2)
+  for (i in seq_len(5)) {
+    par <- runif(6, -1.5, 1.5)
+    tape <- MakeTape(function(p) sel_double_richards(len, p), par)
+    expect_equal(tape(par), sel_double_richards(len, par), tolerance = 1e-12)
+    numeric_jacobian <- vapply(seq_along(par), function(j) {
+      step <- rep(0, length(par))
+      step[j] <- 1e-6
+      (sel_double_richards(len, par + step) - sel_double_richards(len, par - step)) / (2e-6)
+    }, numeric(length(len)))
+    expect_equal(tape$jacobian(par), numeric_jacobian, tolerance = 1e-5,
+                 scale = max(1, max(abs(numeric_jacobian))))
+  }
+})
+
+test_that("double Richards reproduces Maunder's split-normal examples", {
+  skip_on_cran()
+  x <- seq(1, 20, length.out = 100)
+  cases <- list(c(5, 4, 10, 30), c(12, 2, 20, 20), c(10, 4, 5, 5),
+                c(10, 4, 5, 200), c(10, 0, 5, 5))
+  for (case in cases) {
+    mu <- case[1]
+    plateau <- case[2]
+    variance_asc <- case[3]
+    variance_desc <- case[4]
+    target <- ifelse(
+      x < mu, exp(-(x - mu)^2 / (2 * variance_asc)),
+      ifelse(x <= mu + plateau, 1,
+             exp(-(x - (mu + plateau))^2 / (2 * variance_desc)))
+    )
+    l1 <- mu - sqrt(2 * variance_asc * log(2))
+    l2 <- mu + plateau + sqrt(2 * variance_desc * log(2))
+    start <- c((l1 - mean(x)) / sd(x), 0, 0,
+               log((l2 - l1) / sd(x)), 0, 0)
+    obj <- MakeADFun(function(p) sum((sel_double_richards(x, p) - target)^2), start)
+    fit <- nlminb(obj$par, obj$fn, obj$gr, lower = rep(-5, 6), upper = rep(5, 6))
+    expect_lt(max(abs(sel_double_richards(x, fit$par) - target)), 0.04)
+  }
+})
+
 # Test get_pla ----
 
 test_that("get_pla columns sum to 1", {

@@ -9,12 +9,15 @@ convert_rtmb_selex_to_ss3(par_sel, sel_type_f, sel_lengths)
 \arguments{
 \item{par_sel}{Numeric matrix \verb{[n_fishery, 6]} of RTMB real-line parameters.}
 
-\item{sel_type_f}{Integer vector (1 = logistic, 2 = double-normal).}
+\item{sel_type_f}{Integer vector (1 = logistic, 2 = double-normal, 3 =
+double Richards).}
 
 \item{sel_lengths}{Numeric vector of selectivity length-bin midpoints.}
 }
 \value{
-Data.frame with SS3-scale parameter values per fishery.
+Data.frame with SS3-scale parameter values per fishery. Double
+Richards rows retain \code{NA} parameter values because there is no SS3
+equivalent.
 }
 \description{
 Inverse of \code{convert_ss3_selex_to_rtmb}. Useful for verifying

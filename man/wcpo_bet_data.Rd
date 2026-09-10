@@ -90,7 +90,8 @@ mortality rates.}
 \strong{Selectivity:}
 \describe{
 \item{sel_type_f}{Selectivity function type by fishery (15 elements). Integer codes
-representing selectivity curve shapes (e.g., 2 = double-normal).}
+representing selectivity curve shapes: 1 = logistic, 2 = double-normal,
+3 = double Richards.}
 }
 
 \strong{Priors:}
