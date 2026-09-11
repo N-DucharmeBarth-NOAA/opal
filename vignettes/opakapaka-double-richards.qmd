@@ -1,0 +1,316 @@
+---
+title: "Opakapaka selectivity: double-normal and double Richards"
+format: html
+execute:
+  eval: false
+vignette: >
+  %\VignetteIndexEntry{Opakapaka selectivity: double-normal and double Richards}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{quarto::html}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+This example compares the existing SS3 pattern-24 double-normal selectivity
+with the six-parameter double Richards curve for the ResFish fleet in the
+bundled opakapaka assessment. Both models retain the commercial logistic
+selectivity, use the same data and likelihoods, and estimate the same
+selectivity parameters. This is an illustrative curve-family comparison, not
+an assessment recommendation or an evaluation of parameter identifiability.
+
+The double Richards curve has an ascending and descending generalized-logistic
+limb. Its six real-line parameters respectively control the ascending 50% point,
+ascending width, ascending shape, separation to the descending 50% point,
+descending width, and descending shape. Shape parameters of zero give logistic
+limbs. Unlike the double-normal curve, the double Richards curve is smooth in
+both length and its parameters. Its raw peak is not rescaled, so overlapping
+limbs can produce a peak below one.
+
+# Packages and data
+
+```{r}
+#| label: packages
+#| message: false
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(opal)
+library(RTMB)
+
+data(opaka_data)
+data(opaka_lf)
+data(opaka_parameters)
+
+data_base <- opaka_data
+data_base$n_index <- 2L
+data_base$priors <- NULL
+data_base$A1 <- 0
+data_base$A2 <- data_base$A1 + data_base$n_age - 1
+data_base$min_age <- 0
+data_base$age_a <- seq(data_base$min_age, by = 1, length.out = data_base$n_age)
+data_base$sex_ratio <- rep(1, data_base$n_age)
+
+lf_wide <- opaka_lf |>
+  pivot_wider(id_cols = c(fishery, year, month, ts),
+              names_from = bin, values_from = value, values_fill = 0) |>
+  arrange(fishery, ts)
+data_base <- prep_lf_data(
+  data_base, lf_wide, lf_keep_fisheries = c(1, 3),
+  lf_var_adjust = rep(1, data_base$n_fishery), lf_addtocomp = 1e-10
+)
+data_base$lf_switch <- 1L
+data_base$init_bias_adj_a <- get_bias_adj_vector(
+  1949 - (data_base$age_a - 1), 1, c(1931, 1974, 2021.88, 2022.43), 0.869
+)
+data_base$bias_adj_y <- get_bias_adj_vector(
+  (1949 - 1) + data_base$years, 1, c(1931, 1974, 2021.88, 2022.43), 0.869
+)
+```
+
+# Paired model setup
+
+SS3 parameters are converted before changing the ResFish type because the
+double Richards curve has no SS3 equivalent. The Richards starting values are
+obtained by fitting its curve to the converted double-normal curve on the
+length grid. This makes the comparison begin from similar selectivity shapes.
+
+```{r}
+#| label: paired-setup
+#| message: false
+init_rdev_a <- rep(0, data_base$n_age)
+init_rdev_a[1] <- opaka_parameters$rdev_y[1]
+rdev_y <- c(opaka_parameters$rdev_y[-1], 0)
+
+parameters_base <- list(
+  log_B0 = 9,
+  log_h = as.numeric(opaka_parameters$log_h),
+  log_sigma_r = as.numeric(opaka_parameters$log_sigma_r),
+  log_cpue_q = as.numeric(opaka_parameters$log_cpue_q),
+  cpue_creep = as.numeric(rep(opaka_parameters$cpue_creep, data_base$n_index)),
+  log_cpue_tau = rep(log(0.1), data_base$n_index),
+  log_cpue_omega = as.numeric(rep(opaka_parameters$log_cpue_omega, data_base$n_index)),
+  log_lf_tau = rep(log(0.1), data_base$n_fishery),
+  log_L1 = as.numeric(opaka_parameters$log_L1),
+  log_L2 = as.numeric(opaka_parameters$log_L2),
+  log_k = as.numeric(opaka_parameters$log_k),
+  log_CV1 = as.numeric(opaka_parameters$log_CV1),
+  log_CV2 = as.numeric(opaka_parameters$log_CV2),
+  par_sel = convert_ss3_selex_to_rtmb(
+    as.matrix(opaka_parameters$par_sel), data_base$sel_type_f, data_base$len_mid
+  ),
+  log_init_F_f = c(log(0.0119122), rep(log(1e-8), data_base$n_fishery - 1)),
+  rdev_y = rdev_y,
+  init_rdev_a = init_rdev_a
+)
+
+fit_richards_start <- MakeADFun(
+  function(par) sum((
+    sel_double_richards(data_base$len_mid, par) -
+      sel_double_normal(data_base$len_mid, parameters_base$par_sel[3, ])
+  )^2),
+  c(parameters_base$par_sel[3, 1], 0, 0, 0, 0, 0)
+)
+richards_start <- nlminb(
+  fit_richards_start$par, fit_richards_start$fn, fit_richards_start$gr,
+  lower = rep(-5, 6), upper = rep(5, 6)
+)$par
+
+data_dn <- data_base
+parameters_dn <- parameters_base
+
+data_dr <- data_base
+data_dr$sel_type_f[3] <- 3L
+parameters_dr <- parameters_base
+parameters_dr$par_sel[3, ] <- richards_start
+```
+
+For a fair structural comparison, both fits estimate the two commercial
+logistic parameters and all six ResFish selectivity parameters. Other
+parameters follow the opakapaka length-composition configuration.
+
+```{r}
+#| label: fit-models
+#| message: false
+make_map <- function(parameters, data) {
+  selectivity_map <- matrix(NA_integer_, nrow(parameters$par_sel), ncol(parameters$par_sel))
+  selectivity_map[1, 1:2] <- 1:2
+  selectivity_map[3, ] <- 3:8
+  list(
+    log_h = factor(NA), log_sigma_r = factor(NA),
+    cpue_creep = factor(rep(NA, data$n_index)),
+    log_cpue_tau = factor(rep(NA, data$n_index)),
+    log_cpue_omega = factor(rep(NA, data$n_index)),
+    log_lf_tau = factor(rep(NA, length(parameters$log_lf_tau))),
+    log_L1 = factor(NA), log_L2 = factor(NA), log_k = factor(NA),
+    log_CV1 = factor(NA), log_CV2 = factor(NA),
+    par_sel = factor(as.vector(selectivity_map)),
+    log_init_F_f = factor(rep(NA, data$n_fishery)),
+    init_rdev_a = factor(seq_len(data$n_age)),
+    rdev_y = factor(seq_len(length(parameters$rdev_y)))
+  )
+}
+
+fit_model <- function(data, parameters, richards = FALSE) {
+  data$priors <- get_priors(parameters, data)
+  map <- make_map(parameters, data)
+  obj <- MakeADFun(cmb(opal_model, data), parameters, map = map, silent = TRUE)
+  bounds <- get_bounds(obj, parameters)
+  lower <- bounds$lower
+  upper <- bounds$upper
+  if (richards) {
+    selectivity_index <- grep("par_sel", names(obj$par))
+    lower[selectivity_index] <- -5
+    upper[selectivity_index] <- 5
+  }
+  control <- list(eval.max = 10000, iter.max = 10000)
+  opt <- nlminb(obj$par, obj$fn, obj$gr, lower = lower, upper = upper, control = control)
+  opt <- nlminb(opt$par, obj$fn, obj$gr, lower = lower, upper = upper, control = control)
+  list(data = data, parameters = parameters, map = map, obj = obj, opt = opt,
+       lower = lower, upper = upper, report = obj$report())
+}
+
+fit_dn <- fit_model(data_dn, parameters_dn)
+fit_dr <- fit_model(data_dr, parameters_dr, richards = TRUE)
+
+data.frame(
+  model = c("Double-normal", "Double Richards"),
+  convergence = c(fit_dn$opt$convergence, fit_dr$opt$convergence),
+  maximum_gradient = c(max(abs(fit_dn$obj$gr())), max(abs(fit_dr$obj$gr()))),
+  nll = c(fit_dn$opt$objective, fit_dr$opt$objective)
+)
+```
+
+```{r}
+#| label: fit-diagnostics
+#| output: false
+diagnostics <- lapply(
+  list(double_normal = fit_dn, double_richards = fit_dr),
+  function(fit) list(
+    estimability = check_estimability(fit$obj),
+    high_correlations = get_cor_pairs(fit$obj, threshold = 0.95)
+  )
+)
+```
+
+# Selectivity comparison
+
+The curves below are raw selectivity. In particular, the double Richards
+maximum is informative: a value below one reflects overlap between its limbs
+and is not a normalization error.
+
+```{r}
+#| label: compare-selectivity-length
+#| fig-cap: "ResFish selectivity-at-length under the two curve families."
+par_dn <- fit_dn$obj$env$parList()$par_sel[3, ]
+par_dr <- fit_dr$obj$env$parList()$par_sel[3, ]
+selectivity_length <- bind_rows(
+  data.frame(length = data_base$len_mid,
+             selectivity = sel_double_normal(data_base$len_mid, par_dn),
+             model = "Double-normal"),
+  data.frame(length = data_base$len_mid,
+             selectivity = sel_double_richards(data_base$len_mid, par_dr),
+             model = "Double Richards")
+)
+ggplot(selectivity_length, aes(length, selectivity, colour = model)) +
+  geom_line(linewidth = 0.8) +
+  labs(x = "Length (cm)", y = "Raw selectivity", colour = NULL) +
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_bw()
+```
+
+```{r}
+#| label: richards-natural-parameters
+natural <- double_richards_natural(data_base$len_mid, par_dr)
+data.frame(parameter = names(natural), value = unname(natural))
+```
+
+`l50_asc` and `l50_desc` are directly interpretable 50% points. The widths
+equal a logistic 50-to-95% width only when their associated shape is one
+(`par[3]` or `par[6]` equals zero); otherwise they scale inverse steepness.
+
+```{r}
+#| label: compare-selectivity-age
+#| fig-cap: "PLA-integrated ResFish selectivity-at-age."
+selectivity_age <- bind_rows(
+  data.frame(age = data_base$age_a, selectivity = fit_dn$report$sel_fya[3, 1, ],
+             model = "Double-normal"),
+  data.frame(age = data_base$age_a, selectivity = fit_dr$report$sel_fya[3, 1, ],
+             model = "Double Richards")
+)
+ggplot(selectivity_age, aes(age, selectivity, colour = model)) +
+  geom_line(linewidth = 0.8) +
+  labs(x = "Age", y = "Selectivity", colour = NULL) +
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_bw()
+```
+
+# Fits and population consequences
+
+The fitted length compositions are compared for ResFish observations. The
+models share the same observations; only their selectivity family differs.
+
+```{r}
+#| label: compare-length-compositions
+#| fig-cap: "Observed and fitted ResFish length compositions."
+composition_data <- function(fit, model) {
+  index <- which(fit$data$lf_fishery_f == 3L)
+  predicted <- fit$report$lf_pred[[index]]
+  observed <- fit$data$lf_obs_in[fit$data$lf_fishery == 3L, , drop = FALSE]
+  observed <- observed / rowSums(observed)
+  bind_rows(
+    data.frame(year = rep(fit$data$lf_year[fit$data$lf_fishery == 3L], each = ncol(predicted)),
+               length = rep(fit$data$len_mid, times = nrow(predicted)),
+               value = as.vector(t(observed)), series = "Observed", model = model),
+    data.frame(year = rep(fit$data$lf_year[fit$data$lf_fishery == 3L], each = ncol(predicted)),
+               length = rep(fit$data$len_mid, times = nrow(predicted)),
+               value = as.vector(t(predicted)), series = "Fitted", model = model)
+  )
+}
+composition <- bind_rows(
+  composition_data(fit_dn, "Double-normal"),
+  composition_data(fit_dr, "Double Richards")
+)
+ggplot(composition, aes(length, value, colour = series)) +
+  geom_line() +
+  facet_grid(model ~ year) +
+  labs(x = "Length (cm)", y = "Proportion", colour = NULL) +
+  theme_bw()
+```
+
+```{r}
+#| label: compare-objective-and-biomass
+component_sum <- function(fit, component) sum(fit$report[[component]])
+fit_summary <- data.frame(
+  model = c("Double-normal", "Double Richards"),
+  nll = c(fit_dn$opt$objective, fit_dr$opt$objective),
+  cpue_nll = c(component_sum(fit_dn, "lp_cpue"), component_sum(fit_dr, "lp_cpue")),
+  length_nll = c(component_sum(fit_dn, "lp_lf"), component_sum(fit_dr, "lp_lf")),
+  terminal_spawning_biomass = c(tail(fit_dn$report$spawning_biomass_y, 1),
+                                tail(fit_dr$report$spawning_biomass_y, 1))
+)
+fit_summary
+
+biomass <- bind_rows(
+  data.frame(year = (1949 - 1) + data_base$years,
+             spawning_biomass = fit_dn$report$spawning_biomass_y,
+             model = "Double-normal"),
+  data.frame(year = (1949 - 1) + data_base$years,
+             spawning_biomass = fit_dr$report$spawning_biomass_y,
+             model = "Double Richards")
+)
+ggplot(biomass, aes(year, spawning_biomass, colour = model)) +
+  geom_line(linewidth = 0.8) +
+  labs(x = "Year", y = "Spawning biomass", colour = NULL) +
+  theme_bw()
+```
+
+Use convergence status, gradients, `check_estimability()`, and
+`get_cor_pairs()` before drawing inferential conclusions. The flexible shape
+parameters can be weakly identified by real composition data, so this
+comparison should be accompanied by sensitivity analyses and uncertainty
+estimation before adopting double Richards selectivity in an assessment.
