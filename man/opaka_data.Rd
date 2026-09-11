@@ -99,7 +99,7 @@ instantaneous rate (0.135) across all ages.}
 \strong{Selectivity:}
 \describe{
 \item{sel_type_f}{Selectivity function type by fishery (3 elements). Integer
-codes: 1 = logistic (fleets 1-2), 24 = double-normal (fleet 3).}
+codes: 1 = logistic, 2 = double-normal, 3 = double Richards.}
 }
 
 \strong{Priors:}

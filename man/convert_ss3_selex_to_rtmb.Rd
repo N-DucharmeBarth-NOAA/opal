@@ -12,7 +12,8 @@ double-normal (pattern 24): columns are peak, top_logit, ascend_se,
 descend_se, start_logit, end_logit. For logistic (pattern 1): columns
 are inflection, width.}
 
-\item{sel_type_f}{Integer vector (length n_fishery). 1 = logistic, 2 = double-normal.}
+\item{sel_type_f}{Integer vector (length n_fishery). 1 = logistic, 2 =
+double-normal, 3 = double Richards.}
 
 \item{sel_lengths}{Numeric vector of selectivity length-bin midpoints
 (same vector that will be passed to sel_logistic/sel_double_normal).}
