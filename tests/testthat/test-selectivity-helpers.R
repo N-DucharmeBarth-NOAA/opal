@@ -174,7 +174,7 @@ test_that("double Richards limbs have specified 50 percent points", {
   for (shape in exp(c(-3, 0, 3))) {
     par <- c(0, 0, log(shape), 0, 0, 0)
     natural <- double_richards_natural(len, par)
-    asc <- (1 + exp(-natural["beta1"] * (natural["l50_asc"] - natural["alpha1"])))^(-1 / shape)
+    asc <- (1 + exp(-natural[["beta1"]] * (natural[["l50_asc"]] - natural[["alpha1"]])))^(-1 / shape)
     expect_equal(asc, 0.5, tolerance = 1e-12)
   }
 })
@@ -223,8 +223,9 @@ test_that("double Richards AD values and derivatives match numeric evaluation", 
       step[j] <- 1e-6
       (sel_double_richards(len, par + step) - sel_double_richards(len, par - step)) / (2e-6)
     }, numeric(length(len)))
-    expect_equal(tape$jacobian(par), numeric_jacobian, tolerance = 1e-5,
-                 scale = max(1, max(abs(numeric_jacobian))))
+    jacobian_error <- max(abs(tape$jacobian(par) - numeric_jacobian))
+    jacobian_scale <- max(1, max(abs(numeric_jacobian)))
+    expect_lt(jacobian_error / jacobian_scale, 1e-5)
   }
 })
 

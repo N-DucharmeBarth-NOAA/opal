@@ -75,6 +75,7 @@ data_base$init_bias_adj_a <- get_bias_adj_vector(
 data_base$bias_adj_y <- get_bias_adj_vector(
   (1949 - 1) + data_base$years, 1, c(1931, 1974, 2021.88, 2022.43), 0.869
 )
+data_base$sel_type_f <- c(1, 1, 2)
 ```
 
 # Paired model setup
@@ -304,10 +305,10 @@ fit_summary <- data.frame(
 fit_summary
 
 biomass <- bind_rows(
-  data.frame(year = (1949 - 1) + data_base$years,
+  data.frame(year = (1949 - 1) + c(data_base$years, max(data_base$years)+1),
              spawning_biomass = report_dn$spawning_biomass_y,
              model = "Double-normal"),
-  data.frame(year = (1949 - 1) + data_base$years,
+  data.frame(year = (1949 - 1) + c(data_base$years, max(data_base$years)+1),
              spawning_biomass = report_dr$spawning_biomass_y,
              model = "Double Richards")
 )
