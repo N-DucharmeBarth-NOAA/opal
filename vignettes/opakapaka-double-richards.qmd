@@ -31,6 +31,11 @@ limbs. Unlike the double-normal curve, the double Richards curve is smooth in
 both length and its parameters. Its raw peak is not rescaled, so overlapping
 limbs can produce a peak below one.
 
+Each fitted assessment is retained as an `opal_fit` S3 object. `opal_fit`
+stores portable model inputs, fitted parameters, bounds, optimization output,
+and diagnostics, while `opal_fit_report()` rebuilds or retrieves the
+session-specific RTMB objective only when a report is needed.
+
 # Packages and data
 
 ```{r}
@@ -155,46 +160,49 @@ make_map <- function(parameters, data) {
   )
 }
 
-fit_model <- function(data, parameters, richards = FALSE) {
+fit_model <- function(data, parameters, selectivity) {
   data$priors <- get_priors(parameters, data)
   map <- make_map(parameters, data)
   obj <- MakeADFun(cmb(opal_model, data), parameters, map = map, silent = TRUE)
   bounds <- get_bounds(obj, parameters)
   lower <- bounds$lower
   upper <- bounds$upper
-  if (richards) {
-    selectivity_index <- grep("par_sel", names(obj$par))
-    lower[selectivity_index] <- -5
-    upper[selectivity_index] <- 5
-  }
   control <- list(eval.max = 10000, iter.max = 10000)
   opt <- nlminb(obj$par, obj$fn, obj$gr, lower = lower, upper = upper, control = control)
   opt <- nlminb(opt$par, obj$fn, obj$gr, lower = lower, upper = upper, control = control)
-  list(data = data, parameters = parameters, map = map, obj = obj, opt = opt,
-       lower = lower, upper = upper, report = obj$report())
+  opal_fit(
+    data = data, obj = obj, opt = opt,
+    bounds = list(lower = lower, upper = upper), control = control,
+    estimability = tryCatch(check_estimability(obj = obj), error = identity),
+    diagnostics = list(
+      max_gradient = max(abs(obj$gr(opt$par))),
+      high_correlations = tryCatch(
+        get_cor_pairs(obj, threshold = 0.95), error = conditionMessage
+      )
+    ),
+    metadata = list(selectivity = selectivity)
+  )
 }
 
-fit_dn <- fit_model(data_dn, parameters_dn)
-fit_dr <- fit_model(data_dr, parameters_dr, richards = TRUE)
+fit_dn <- fit_model(data_dn, parameters_dn, "double_normal")
+fit_dr <- fit_model(data_dr, parameters_dr, "double_richards")
+report_dn <- opal_fit_report(fit_dn)
+report_dr <- opal_fit_report(fit_dr)
 
 data.frame(
   model = c("Double-normal", "Double Richards"),
-  convergence = c(fit_dn$opt$convergence, fit_dr$opt$convergence),
-  maximum_gradient = c(max(abs(fit_dn$obj$gr())), max(abs(fit_dr$obj$gr()))),
-  nll = c(fit_dn$opt$objective, fit_dr$opt$objective)
+  convergence = c(fit_dn$fit$opt$convergence, fit_dr$fit$opt$convergence),
+  maximum_gradient = c(fit_dn$fit$diagnostics$max_gradient,
+                       fit_dr$fit$diagnostics$max_gradient),
+  nll = c(fit_dn$fit$opt$objective, fit_dr$fit$opt$objective)
 )
 ```
 
 ```{r}
 #| label: fit-diagnostics
 #| output: false
-diagnostics <- lapply(
-  list(double_normal = fit_dn, double_richards = fit_dr),
-  function(fit) list(
-    estimability = check_estimability(fit$obj),
-    high_correlations = get_cor_pairs(fit$obj, threshold = 0.95)
-  )
-)
+fit_dn$fit[c("estimability", "diagnostics")]
+fit_dr$fit[c("estimability", "diagnostics")]
 ```
 
 # Selectivity comparison
@@ -206,8 +214,8 @@ and is not a normalization error.
 ```{r}
 #| label: compare-selectivity-length
 #| fig-cap: "ResFish selectivity-at-length under the two curve families."
-par_dn <- fit_dn$obj$env$parList()$par_sel[3, ]
-par_dr <- fit_dr$obj$env$parList()$par_sel[3, ]
+par_dn <- fit_dn$parameters$par_sel[3, ]
+par_dr <- fit_dr$parameters$par_sel[3, ]
 selectivity_length <- bind_rows(
   data.frame(length = data_base$len_mid,
              selectivity = sel_double_normal(data_base$len_mid, par_dn),
@@ -237,9 +245,9 @@ equal a logistic 50-to-95% width only when their associated shape is one
 #| label: compare-selectivity-age
 #| fig-cap: "PLA-integrated ResFish selectivity-at-age."
 selectivity_age <- bind_rows(
-  data.frame(age = data_base$age_a, selectivity = fit_dn$report$sel_fya[3, 1, ],
+  data.frame(age = data_base$age_a, selectivity = report_dn$sel_fya[3, 1, ],
              model = "Double-normal"),
-  data.frame(age = data_base$age_a, selectivity = fit_dr$report$sel_fya[3, 1, ],
+  data.frame(age = data_base$age_a, selectivity = report_dr$sel_fya[3, 1, ],
              model = "Double Richards")
 )
 ggplot(selectivity_age, aes(age, selectivity, colour = model)) +
@@ -259,7 +267,7 @@ models share the same observations; only their selectivity family differs.
 #| fig-cap: "Observed and fitted ResFish length compositions."
 composition_data <- function(fit, model) {
   index <- which(fit$data$lf_fishery_f == 3L)
-  predicted <- fit$report$lf_pred[[index]]
+  predicted <- opal_fit_report(fit)$lf_pred[[index]]
   observed <- fit$data$lf_obs_in[fit$data$lf_fishery == 3L, , drop = FALSE]
   observed <- observed / rowSums(observed)
   bind_rows(
@@ -284,23 +292,23 @@ ggplot(composition, aes(length, value, colour = series)) +
 
 ```{r}
 #| label: compare-objective-and-biomass
-component_sum <- function(fit, component) sum(fit$report[[component]])
+component_sum <- function(report, component) sum(report[[component]])
 fit_summary <- data.frame(
   model = c("Double-normal", "Double Richards"),
-  nll = c(fit_dn$opt$objective, fit_dr$opt$objective),
-  cpue_nll = c(component_sum(fit_dn, "lp_cpue"), component_sum(fit_dr, "lp_cpue")),
-  length_nll = c(component_sum(fit_dn, "lp_lf"), component_sum(fit_dr, "lp_lf")),
-  terminal_spawning_biomass = c(tail(fit_dn$report$spawning_biomass_y, 1),
-                                tail(fit_dr$report$spawning_biomass_y, 1))
+  nll = c(fit_dn$fit$opt$objective, fit_dr$fit$opt$objective),
+  cpue_nll = c(component_sum(report_dn, "lp_cpue"), component_sum(report_dr, "lp_cpue")),
+  length_nll = c(component_sum(report_dn, "lp_lf"), component_sum(report_dr, "lp_lf")),
+  terminal_spawning_biomass = c(tail(report_dn$spawning_biomass_y, 1),
+                                tail(report_dr$spawning_biomass_y, 1))
 )
 fit_summary
 
 biomass <- bind_rows(
   data.frame(year = (1949 - 1) + data_base$years,
-             spawning_biomass = fit_dn$report$spawning_biomass_y,
+             spawning_biomass = report_dn$spawning_biomass_y,
              model = "Double-normal"),
   data.frame(year = (1949 - 1) + data_base$years,
-             spawning_biomass = fit_dr$report$spawning_biomass_y,
+             spawning_biomass = report_dr$spawning_biomass_y,
              model = "Double Richards")
 )
 ggplot(biomass, aes(year, spawning_biomass, colour = model)) +
