@@ -2,7 +2,7 @@
 # Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
   release:
     types: [published]
@@ -48,7 +48,8 @@ jobs:
       - name: Restore renv environment
         run: |
           install.packages("renv")
-          renv::install("rapidjsonr")
+          renv::restore(packages = c("Rcpp", "Matrix", "RcppEigen", "cpp11",
+                           "BH", "RcppParallel", "rapidjsonr"))
           renv::restore()
           renv::install("rcmdcheck")
         shell: Rscript {0}
