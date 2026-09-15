@@ -42,7 +42,7 @@ jobs:
 
           # 1. TMB first, in its own transaction so it lands in the real library
           renv::restore(packages = c("Rcpp", "Matrix", "RcppEigen", "cpp11",
-                           "BH", "RcppParallel", "rapidjsonr","TMB","quarto"))
+                           "BH", "RcppParallel", "rapidjsonr","TMB"))
 
           # 2. graft the OSA headers onto the installed TMB
           TMB:::install.contrib(
@@ -54,6 +54,7 @@ jobs:
 
           # 3. everything else, compResidual included
           renv::restore()
+          renv::install("quarto@1.5.1")
         shell: Rscript {0}
 
       - name: Install opal package
