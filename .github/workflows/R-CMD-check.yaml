@@ -26,6 +26,8 @@ jobs:
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      RENV_PATHS_ROOT: ~/.local/share/renv
+      RENV_CONFIG_CACHE_SYMLINKS: FALSE
       R_KEEP_PKG_SOURCE: yes
 
     steps:
@@ -51,8 +53,19 @@ jobs:
       - name: Restore renv environment
         run: |
           install.packages("renv")
-          renv::restore(packages = c("Rcpp", "Matrix", "RcppEigen", "cpp11",
-                           "BH", "RcppParallel", "rapidjsonr"))
+
+          # 1. TMB first, in its own transaction so it lands in the real library
+          renv::restore(packages = c("Matrix", "RcppEigen", "TMB"))
+
+          # 2. graft the OSA headers onto the installed TMB
+          TMB:::install.contrib(
+            "https://github.com/vtrijoulet/OSA_multivariate_dists/archive/main.zip"
+          )
+          stopifnot(file.exists(system.file(
+            "include/contrib/OSA_multivariate_dists-main/distr.hpp", package = "TMB"
+          )))
+
+          # 3. everything else, compResidual included
           renv::restore()
           renv::install("rcmdcheck")
         shell: Rscript {0}
