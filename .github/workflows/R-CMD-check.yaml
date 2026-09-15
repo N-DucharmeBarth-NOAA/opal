@@ -69,7 +69,6 @@ jobs:
           # 3. everything else, compResidual included
           renv::restore()
           renv::install("rcmdcheck")
-          renv::install("quarto@1.5.1")
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2

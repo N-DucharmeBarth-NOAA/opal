@@ -20,3 +20,4 @@
 ^inst/scripts$
 ^inst/scripts/bns_perf\.data$
 ^inst/scripts/bns_perf\.data\.old$
+^dev/vignettes$
