@@ -3,6 +3,11 @@ library(RTMB)
 # Use smaller benchmark dataset for faster tests.
 data("opaka_data", envir = environment())
 data_base <- opaka_data
+
+test_that("opakapaka selectivity types use opal codes", {
+  expect_identical(as.integer(data_base$sel_type_f), c(1L, 1L, 2L))
+})
+
 data_base$n_index <- 2L
 
 # set ages to anchor growth curve

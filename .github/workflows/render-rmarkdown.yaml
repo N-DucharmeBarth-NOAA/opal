@@ -53,7 +53,7 @@ jobs:
 
           # 1. TMB first, in its own transaction so it lands in the real library
           renv::restore(packages = c("Rcpp", "Matrix", "RcppEigen", "cpp11",
-                           "BH", "RcppParallel", "rapidjsonr","TMB"))
+                           "BH", "RcppParallel", "rapidjsonr","TMB","quarto"))
 
           # 2. graft the OSA headers onto the installed TMB
           TMB:::install.contrib(
