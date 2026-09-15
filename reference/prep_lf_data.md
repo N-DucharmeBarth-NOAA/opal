@@ -18,7 +18,8 @@ prep_lf_data(
   lf_minbin = NULL,
   lf_maxbin = NULL,
   lf_var_adjust = NULL,
-  lf_cap = NULL
+  lf_cap = NULL,
+  lf_addtocomp = 1e-08
 )
 ```
 
@@ -74,6 +75,12 @@ prep_lf_data(
   proportions are computed so that observed compositions are unaffected.
   Default `NULL` (no cap). This is a Multifan-CL legacy feature.
 
+- lf_addtocomp:
+
+  small non-negative numeric constant added to observed composition
+  proportions after tail compression and before renormalisation. This
+  robustifies zero bins. Default `1e-08`.
+
 ## Value
 
 The input `data` list with the following elements appended or updated:
@@ -110,6 +117,13 @@ The input `data` list with the following elements appended or updated:
 - `lf_year`:
 
   Integer vector of model timestep index (1-based) per observation row.
+
+- `lf_year_fi`, `lf_n_fi`, `lf_row_fi`:
+
+  Lists split by fishery containing model timesteps, effective sample
+  sizes, and row indices. Precomputed so
+  [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md)
+  does not rebuild them on every objective evaluation.
 
 - `lf_season`:
 
@@ -150,6 +164,11 @@ The input `data` list with the following elements appended or updated:
 
   Flattened numeric vector of normalised proportions (for Dirichlet,
   `lf_switch = 2`).
+
+- `lf_addtocomp`:
+
+  Stored value of the add-to-composition constant used to robustify
+  observed composition bins.
 
 - `lf_nbins`:
 

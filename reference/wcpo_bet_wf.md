@@ -54,7 +54,7 @@ prepared for RTMB model input.
 
 - ts:
 
-  Model timestep number (1-268 for 67 years × 4 quarters). Integer.
+  Model timestep number (1-268 for 67 years x 4 quarters). Integer.
 
 - fishery:
 

@@ -1,6 +1,6 @@
-# Project recruitment deviates
+# Project selectivity
 
-Project recruitment deviates
+Project selectivity
 
 ## Usage
 
@@ -8,12 +8,10 @@ Project recruitment deviates
 project_selectivity(
   data,
   obj,
-  mcmc = NULL,
-  first_yr = 2000,
+  first_yr = NULL,
   last_yr = NULL,
   n_proj = 5,
-  n_iter = NULL,
-  arima = TRUE
+  n_iter = 1
 )
 ```
 
@@ -27,13 +25,9 @@ project_selectivity(
 
   a `list` of parameter values.
 
-- mcmc:
-
-  a `list` of parameter values.
-
 - first_yr:
 
-  the first year.
+  the first year sampled. Defaults to the first model year.
 
 - last_yr:
 
@@ -45,12 +39,8 @@ project_selectivity(
 
 - n_iter:
 
-  a `list` of inputs.
-
-- arima:
-
-  default = TRUE, FALSE = "lognormal"
+  the number of simulated trajectories.
 
 ## Value
 
-the negative log-likelihood (NLL) value.
+An array of projected selectivity by iteration, fishery, year, and age.

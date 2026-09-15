@@ -6,7 +6,7 @@ matching the SS3 formulation with `CV_Growth_Pattern = 2`.
 ## Usage
 
 ``` r
-get_growth(n_age, A1, A2, L1, L2, log_k)
+get_growth(n_age, A1, A2, L1, L2, log_k, min_age = 1L)
 ```
 
 ## Arguments
@@ -35,7 +35,11 @@ get_growth(n_age, A1, A2, L1, L2, log_k)
 
   Numeric. VB growth coefficient (may be AD).
 
+- min_age:
+
+  Integer. Minimum age (default 1L).
+
 ## Value
 
 Numeric vector of length `n_age`: mean length at each age
-`a = 1, ..., n_age`.
+`a = min_age, ..., min_age + n_age - 1`.

@@ -16,7 +16,8 @@ prep_wf_data(
   wf_minbin = NULL,
   wf_maxbin = NULL,
   wf_var_adjust = NULL,
-  wf_cap = NULL
+  wf_cap = NULL,
+  wf_addtocomp = 1e-08
 )
 ```
 
@@ -64,6 +65,12 @@ prep_wf_data(
   proportions are computed so that observed compositions are unaffected.
   Default `NULL` (no cap). This is a Multifan-CL legacy feature.
 
+- wf_addtocomp:
+
+  small non-negative numeric constant added to observed composition
+  proportions after tail compression and before renormalisation. This
+  robustifies zero bins. Default `1e-08`.
+
 ## Value
 
 data list with the following weight composition elements appended:
@@ -108,6 +115,11 @@ data list with the following weight composition elements appended:
   Flattened numeric vector of normalised proportions (for Dirichlet,
   `wf_switch = 2`).
 
+- `wf_addtocomp`:
+
+  Stored value of the add-to-composition constant used to robustify
+  observed composition bins.
+
 - `wf_n`:
 
   Numeric vector of sample sizes per observation row.
@@ -127,6 +139,13 @@ data list with the following weight composition elements appended:
 - `wf_year`:
 
   Integer vector of model timestep per observation row.
+
+- `wf_year_fi`, `wf_n_fi`, `wf_row_fi`:
+
+  Lists split by fishery containing model timesteps, effective sample
+  sizes, and row indices. Precomputed so
+  [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md)
+  does not rebuild them on every objective evaluation.
 
 - `wf_minbin`, `wf_maxbin`:
 

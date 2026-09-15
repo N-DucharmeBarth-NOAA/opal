@@ -14,4 +14,4 @@ An object of class `list` of length 68.
 
 ## Source
 
-`vignettes/baseline.Rmd`
+`vignettes/baseline.qmd`

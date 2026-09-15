@@ -1,50 +1,34 @@
-# Set up the data input file
+# Get bundled model data
 
-Set up the data input file to be passed to `MakeADFun`. This function
-runs data cross validation tests and appends several inputs to the data
-list including model dimensions and processed inputs:
+Loads one of the packaged opal model data objects. This replaces the
+legacy data-construction helper, which depended on historical raw inputs
+that are no longer bundled with the package.
 
 ## Usage
 
 ``` r
-get_data(data_in)
+get_data(
+  model = c("opal_baseline", "opakapaka", "wcpo_bet"),
+  include_parameters = FALSE
+)
 ```
 
 ## Arguments
 
-- data_in:
+- model:
 
-  a `list` containing the data inputs.
+  Character model identifier. Supported values are `"opal_baseline"`,
+  `"opakapaka"`, and `"wcpo_bet"`. Aliases `"baseline"`, `"opaka"`, and
+  `"bet"` are also accepted.
+
+- include_parameters:
+
+  Logical; if `TRUE`, return a list with both `data` and matching
+  initial `parameters`.
 
 ## Value
 
-a `list` ready to be passed to `MakeADFun`.
-
-## Details
-
-- `n_year`: dervied from `first_yr` and `last_yr`
-
-- `n_season`: set to 2
-
-- `n_length`: not in use
-
-- `n_age`: derived from `min_age` and `max_age`
-
-- `n_fishery`: set to 6
-
-- `age_a`: sequence of modeled ages derived from `min_age` and `max_age`
-
-- `length_mu_ysa`: derived from the `length_mean` input
-
-- `length_sd_a`: derived from the `length_sd` input
-
-- `dl_yal`: derived from `length_mu_ysa` and `length_sd_a`
-
-- `weight_fya`: derived from `length_mu_ysa` and `length_sd_a`
-
-- `catch_obs_ysf`: derived from `catch`, `catch_UA`, `scenarios_LL1`,
-  and `scenarios_surf`
-
-- `sel_change_year_fy`: derived from `sel_change_sd_fy`
-
-This function produces the data input file to be passed to `MakeADFun`.
+A data list ready for
+[`opal_model`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md),
+or a list with elements `data` and `parameters` when
+`include_parameters = TRUE`.

@@ -5,43 +5,28 @@ Plot harvest rate by year, season, and age.
 ## Usage
 
 ``` r
-plot_hrate(
-  data,
-  object,
-  posterior = NULL,
-  probs = c(0.025, 0.975),
-  years = 2013:2022,
-  ...
-)
+plot_hrate(data, object, years = NULL, ...)
 ```
 
 ## Arguments
 
 - data:
 
-  a `list` containing the data that was passed to `MakeADFun`.
+  A model data list passed to `MakeADFun`.
 
 - object:
 
-  a `list` specifying the AD object created using `MakeADFun`.
-
-- posterior:
-
-  an `rstan` objected created using the `tmbstan` function.
-
-- probs:
-
-  a numeric vector of probabilities with values in `[0,1]` for plotting
-  quantiles of the posterior distribution.
+  The AD object created using `MakeADFun`.
 
 - years:
 
-  the years to show on the plot.
+  Optional years to show. The default plots every model year from the
+  first catch year onwards.
 
 - ...:
 
-  options passed on to `geom_density_ridges`.
+  Options passed to `geom_density_ridges`.
 
 ## Value
 
-a `ggplot2` object.
+A `ggplot2` object.

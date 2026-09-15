@@ -17,7 +17,7 @@ convert_rtmb_selex_to_ss3(par_sel, sel_type_f, sel_lengths)
 
 - sel_type_f:
 
-  Integer vector (1 = logistic, 2 = double-normal).
+  Integer vector (1 = logistic, 2 = double-normal, 3 = double Richards).
 
 - sel_lengths:
 
@@ -25,4 +25,5 @@ convert_rtmb_selex_to_ss3(par_sel, sel_type_f, sel_lengths)
 
 ## Value
 
-Data.frame with SS3-scale parameter values per fishery.
+Data.frame with SS3-scale parameter values per fishery. Double Richards
+rows retain `NA` parameter values because there is no SS3 equivalent.

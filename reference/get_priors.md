@@ -1,10 +1,6 @@
 # Get priors
 
-Don't include priors for recruitment deviates (par_rdev_y) or
-selectivity (e.g., par_log_sel_1) here because they are dealt with in
-the
-[`get_recruitment_prior()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_recruitment_prior.md)
-and `get_selectivity_prior()` functions.
+Get priors
 
 ## Usage
 
@@ -19,7 +15,7 @@ get_priors(parameters, data = NULL)
   A `list` specifying the parameters to be passed to `MakeADFun`. Can be
   generated using the
   [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_parameters.md)
-  function.
+  function. Vector parameters (e.g., `log_cpue_q`) are supported.
 
 - data:
 

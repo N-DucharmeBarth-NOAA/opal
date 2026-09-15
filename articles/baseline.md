@@ -17,6 +17,7 @@ flag:
 Set the flag here before knitting:
 
 ``` r
+
 compare       <- TRUE
 
 # Use here::here() to resolve paths from the project root reliably
@@ -30,6 +31,7 @@ bench_iters              <- 20
 ## Load inputs
 
 ``` r
+
 library(dplyr)
 library(RTMB)
 library(bench)
@@ -38,13 +40,17 @@ library(opal)
 ```
 
 ``` r
+
 data(wcpo_bet_data)
 data <- wcpo_bet_data
+if (is.null(data$n_index)) data$n_index <- 1L
+if (is.null(data$cpue_data$index)) data$cpue_data$index <- rep(1L, nrow(data$cpue_data))
 ```
 
 ### Length composition data
 
 ``` r
+
 data(wcpo_bet_lf)
 
 lf_wide <- wcpo_bet_lf %>%
@@ -67,6 +73,7 @@ data$lf_switch <- 1L
 ### Weight composition data
 
 ``` r
+
 data(wcpo_bet_wf)
 
 data$wt_bin_start <- 1
@@ -92,16 +99,17 @@ data <- prep_wf_data(data, wf_wide,
 ### Parameters
 
 ``` r
+
 data(wcpo_bet_parameters)
 
 parameters <- list(
   log_B0         = 20,
   log_h          = as.numeric(wcpo_bet_parameters$log_h),
   log_sigma_r    = as.numeric(wcpo_bet_parameters$log_sigma_r),
-  log_cpue_q     = as.numeric(wcpo_bet_parameters$log_cpue_q),
-  cpue_creep     = as.numeric(wcpo_bet_parameters$cpue_creep),
-  log_cpue_tau   = as.numeric(wcpo_bet_parameters$log_cpue_tau),
-  log_cpue_omega = as.numeric(wcpo_bet_parameters$log_cpue_omega),
+  log_cpue_q     = rep(as.numeric(wcpo_bet_parameters$log_cpue_q), data$n_index),
+  cpue_creep     = rep(as.numeric(wcpo_bet_parameters$cpue_creep), data$n_index),
+  log_cpue_tau   = rep(as.numeric(wcpo_bet_parameters$log_cpue_tau), data$n_index),
+  log_cpue_omega = rep(as.numeric(wcpo_bet_parameters$log_cpue_omega), data$n_index),
   log_lf_tau     = log(rep(0.1, data$n_fishery)),
   log_wf_tau     = rep(0, data$n_fishery),
   log_L1         = as.numeric(wcpo_bet_parameters$log_L1),
@@ -117,20 +125,22 @@ parameters <- list(
 ### Priors
 
 ``` r
+
 data$priors <- get_priors(parameters = parameters, data = data)
 ```
 
 ### Parameter map
 
 ``` r
+
 map_sel <- matrix(NA, nrow(parameters$par_sel), ncol(parameters$par_sel))
 
 map <- list(
   log_h          = factor(NA),
   log_sigma_r    = factor(NA),
-  cpue_creep     = factor(NA),
-  log_cpue_tau   = factor(NA),
-  log_cpue_omega = factor(NA),
+  cpue_creep     = factor(rep(NA, data$n_index)),
+  log_cpue_tau   = factor(rep(NA, data$n_index)),
+  log_cpue_omega = factor(rep(NA, data$n_index)),
   log_lf_tau     = factor(rep(NA, length(parameters$log_lf_tau))),
   log_wf_tau     = factor(rep(NA, length(parameters$log_wf_tau))),
   log_L1         = factor(NA),
@@ -145,55 +155,34 @@ map <- list(
 ### Build the AD object
 
 ``` r
+
 t_build <- system.time({
   obj <- MakeADFun(func = cmb(opal_model, data),
                    parameters = parameters, map = map)
 })
 cat("MakeADFun build time:", round(t_build["elapsed"], 2), "sec\n")
-```
-
-    ## MakeADFun build time: 17.14 sec
-
-``` r
 cat("Estimated parameters:", length(obj$par), "\n")
 ```
-
-    ## Estimated parameters: 270
 
 ## Evaluate and benchmark
 
 ``` r
+
 set.seed(123)
 t_fn <- system.time(nll <- obj$fn(obj$par))
 t_gr <- system.time(gr  <- obj$gr(obj$par))
-```
-
-    ## outer mgc:  13629.29
-
-``` r
 rep  <- obj$report()
 
 cat("obj$fn():", round(t_fn["elapsed"], 4), "sec  (NLL =", round(nll, 4), ")\n")
-```
-
-    ## obj$fn(): 0.007 sec  (NLL = 852582 )
-
-``` r
 cat("obj$gr():", round(t_gr["elapsed"], 4), "sec  (max|gr| =", round(max(abs(gr)), 6), ")\n")
-```
-
-    ## obj$gr(): 0.026 sec  (max|gr| = 13629.29 )
-
-``` r
 cat("gr/fn ratio:", round(t_gr["elapsed"] / max(t_fn["elapsed"], 1e-6), 1), "x\n")
 ```
-
-    ## gr/fn ratio: 3.7 x
 
 Stable timing via
 [`bench::mark`](https://bench.r-lib.org/reference/mark.html):
 
 ``` r
+
 par1 <- obj$par
 # need to perturb the parameters slightly to avoid caching effects
 bm <- bench::mark(
@@ -202,90 +191,29 @@ bm <- bench::mark(
   iterations = 20,
   check = FALSE
 )
-```
-
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29 
-    ## outer mgc:  13629.29
-
-``` r
 bm[, c("expression", "min", "median", "itr/sec")]
 ```
-
-    ## # A tibble: 2 × 4
-    ##   expression      min   median `itr/sec`
-    ##   <bch:expr> <bch:tm> <bch:tm>     <dbl>
-    ## 1 fn            6.8ms   6.96ms     143. 
-    ## 2 gr           31.6ms  32.22ms      31.0
 
 ## Likelihood component breakdown
 
 ``` r
+
 cat("lp_prior:  ", round(rep$lp_prior, 4), "\n")
-```
-
-    ## lp_prior:   0
-
-``` r
 cat("lp_penalty:", round(rep$lp_penalty, 4), "\n")
-```
-
-    ## lp_penalty: 0
-
-``` r
 cat("lp_rec:    ", round(rep$lp_rec, 4), "\n")
-```
-
-    ## lp_rec:     205.8579
-
-``` r
 cat("lp_cpue:   ", round(sum(rep$lp_cpue), 4),
     " (sum of", length(rep$lp_cpue), "obs)\n")
-```
-
-    ## lp_cpue:    490.8378  (sum of 268 obs)
-
-``` r
 cat("lp_lf:     ", round(sum(rep$lp_lf), 4),
     " (sum of", length(rep$lp_lf), "obs)\n")
-```
-
-    ## lp_lf:      133665.5  (sum of 210 obs)
-
-``` r
 cat("lp_wf:     ", round(sum(rep$lp_wf), 4),
     " (sum of", length(rep$lp_wf), "obs)\n")
-```
-
-    ## lp_wf:      718157.9  (sum of 112 obs)
-
-``` r
 cat("Total NLL: ", round(nll, 4), "\n")
 ```
-
-    ## Total NLL:  852582
 
 ## Save or compare
 
 ``` r
+
 if (!compare) {
   # ---- Save baseline ----
   baseline <- list(
@@ -435,40 +363,3 @@ if (!compare) {
   cat(sprintf("  %-12s %12.4f %12.4f %12.2e\n", "Total NLL", old$nll, nll, abs(nll - old$nll)))
 }
 ```
-
-    ## Baseline from: 2026-03-03 21:20:32 
-    ##   Description: Pre-refactoring baseline 
-    ##   opal version: 0.0.3 
-    ##   Cross-platform comparison (baseline: windows -> current: unix )
-    ##   Using relaxed tolerance: 1e-06 
-    ## 
-    ## --- Numerical equivalence ---
-    ##   nll                        0.00e+00  [OK]
-    ##   number_ysa                 3.73e-09  [OK]
-    ##   spawning_biomass_y         1.19e-07  [OK]
-    ##   catch_pred_fya             2.27e-12  [OK]
-    ##   catch_pred_ysf             1.46e-11  [OK]
-    ##   hrate_ysa                  5.42e-19  [OK]
-    ##   hrate_ysfa                 5.42e-19  [OK]
-    ##   lp_penalty                 4.93e-32  [OK]
-    ##   lp_rec                     0.00e+00  [OK]
-    ##   lp_cpue                    6.93e-14  [OK]
-    ##   lp_lf                      1.46e-11  [OK]
-    ##   lp_wf                      2.91e-11  [OK]
-    ##   max_gradient               0.00e+00  [OK]
-    ## 
-    ## Overall: PASS 
-    ## 
-    ## --- Timing comparison ---
-    ##   fn: 0.0 ms -> 7.0 ms  (0.0x)
-    ##   gr: 16.1 ms -> 32.2 ms  (0.5x)
-    ## 
-    ## --- Likelihood components ---
-    ##   Component        Baseline      Current         Diff
-    ##   lp_prior           0.0000       0.0000     0.00e+00
-    ##   lp_penalty        -0.0000      -0.0000     4.93e-32
-    ##   lp_rec           205.8579     205.8579     0.00e+00
-    ##   lp_cpue          490.8378     490.8378     2.27e-13
-    ##   lp_lf         133665.5125  133665.5125     2.91e-11
-    ##   lp_wf         718157.9275  718157.9275     1.16e-10
-    ##   Total NLL     852582.0320  852582.0320     0.00e+00

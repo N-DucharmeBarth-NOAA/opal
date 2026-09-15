@@ -26,7 +26,8 @@ get_weight_like(
   wf_switch,
   n_wt,
   n_wf,
-  log_wf_tau
+  log_wf_tau,
+  wf_addtocomp = 1e-08
 )
 ```
 
@@ -102,6 +103,11 @@ get_weight_like(
 - log_wf_tau:
 
   numeric vector `[n_fishery]` log-scale variance adjustment.
+
+- wf_addtocomp:
+
+  small non-negative numeric constant added to predicted proportions
+  before normalisation to robustify zero bins. Default `1e-08`.
 
 ## Value
 

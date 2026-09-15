@@ -23,7 +23,8 @@ get_length_like(
   lf_switch,
   n_len,
   n_lf,
-  log_lf_tau
+  log_lf_tau,
+  lf_addtocomp = 1e-08
 )
 ```
 
@@ -101,6 +102,11 @@ get_length_like(
 
   numeric vector `[n_fishery]` of log-scale variance adjustment
   parameters.
+
+- lf_addtocomp:
+
+  small non-negative numeric constant added to predicted proportions
+  before normalisation to robustify zero bins. Default `1e-08`.
 
 ## Value
 

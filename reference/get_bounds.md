@@ -17,8 +17,8 @@ get_bounds(obj, parameters)
 
 - parameters:
 
-  a `list` specifying the AD object created using the `MakeADFun`
-  function.
+  The parameter list used to construct `obj`. Retained for API
+  compatibility.
 
 ## Value
 

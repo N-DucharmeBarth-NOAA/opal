@@ -6,7 +6,7 @@ log-normal deviations.
 ## Usage
 
 ``` r
-get_recruitment(sbio, rdev, B0, alpha, beta, sigma_r = 0.6)
+get_recruitment(sbio, rdev, B0, alpha, beta, sigma_r = 0.6, bias_adj = 1)
 ```
 
 ## Arguments
@@ -30,6 +30,11 @@ get_recruitment(sbio, rdev, B0, alpha, beta, sigma_r = 0.6)
 - sigma_r:
 
   Lognormal SD of recruitment deviations.
+
+- bias_adj:
+
+  Bias adjustment scalar (typically year-specific) applied to the
+  lognormal correction term.
 
 ## Value
 

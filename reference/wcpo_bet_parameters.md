@@ -61,7 +61,7 @@ optimization.
 
 - par_sel:
 
-  Selectivity parameters matrix (15 fisheries × 6 columns). Rows
+  Selectivity parameters matrix (15 fisheries x 6 columns). Rows
   represent different fisheries/fleets, columns represent selectivity
   curve parameters (e.g., inflection point, slope for logistic curves or
   parameters for double-normal curves).

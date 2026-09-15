@@ -15,16 +15,16 @@ the design is general.
 
 ## Repo layout
 
-| Path                       | Contents                                                                                       |
-|----------------------------|------------------------------------------------------------------------------------------------|
-| `R/`                       | All package source code (23 files). Core logic lives here.                                     |
-| `man/`                     | roxygen2-generated `.Rd` help files. **Do not edit by hand.**                                  |
-| `data/`                    | Bundled `.rda` datasets (`wcpo_bet_data`, `wcpo_bet_lf`, `wcpo_bet_wf`, `wcpo_bet_parameters`) |
-| `tests/testthat/`          | `testthat` edition 3 test suite                                                                |
-| `vignettes/`               | `quickstart.Rmd` (overview) and `bet.Rmd` (full worked example)                                |
-| `renv/`                    | `renv` lockfile and library for reproducible dependencies                                      |
-| `.github/workflows/`       | CI: R-CMD-check, pkgdown deploy, roxygen2, Rmd rendering                                       |
-| `DESCRIPTION`, `NAMESPACE` | Standard R package metadata (roxygen2-managed)                                                 |
+| Path | Contents |
+|----|----|
+| `R/` | All package source code (23 files). Core logic lives here. |
+| `man/` | roxygen2-generated `.Rd` help files. **Do not edit by hand.** |
+| `data/` | Bundled `.rda` datasets (`wcpo_bet_data`, `wcpo_bet_lf`, `wcpo_bet_wf`, `wcpo_bet_parameters`) |
+| `tests/testthat/` | `testthat` edition 3 test suite |
+| `vignettes/` | `quickstart.Rmd` (overview) and `bet.Rmd` (full worked example) |
+| `renv/` | `renv` lockfile and library for reproducible dependencies |
+| `.github/workflows/` | CI: R-CMD-check, pkgdown deploy, roxygen2, Rmd rendering |
+| `DESCRIPTION`, `NAMESPACE` | Standard R package metadata (roxygen2-managed) |
 
 ## Where to start
 
@@ -59,36 +59,34 @@ where `cmb(f, d)` creates `function(p) f(p, d)`.
 
 ### Key components (each is an exported function in `R/`)
 
-| Function                                                                                                                                                                           | File                  | Role                                                                    |
-|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|-------------------------------------------------------------------------|
-| [`get_growth()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_growth.md), [`get_sd_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_sd_at_age.md) | `growth.R`            | Schnute VB growth + SD-at-age                                           |
-| [`get_pla()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_pla.md)                                                                                                    | `growth.R`            | Probability-of-length-at-age matrix (age-length key)                    |
-| [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_selectivity.md)                                                                                    | `selectivity.R`       | Logistic or double-normal selectivity (length-based → age via PLA)      |
-| [`get_initial_numbers()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_initial_numbers.md)                                                                            | `dynamics.R`          | Equilibrium N-at-age, R0, BH alpha/beta                                 |
-| [`do_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/do_dynamics.md)                                                                                            | `dynamics.R`          | Forward age-season simulation with Baranov catch equation               |
-| [`get_harvest_rate()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_harvest_rate.md)                                                                                  | `dynamics.R`          | Per-fishery harvest rates with `posfun` penalty                         |
-| [`get_recruitment()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_recruitment.md)                                                                                    | `recruitment.R`       | Beverton-Holt SRR with log-normal deviations                            |
-| [`get_cpue_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_cpue_like.md)                                                                                        | `likelihoods.R`       | Log-normal CPUE likelihood                                              |
-| [`get_length_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_length_like.md)                                                                                    | `likelihoods.R`       | Multinomial / Dirichlet / Dirichlet-multinomial LF likelihood           |
-| [`get_weight_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_like.md)                                                                                    | `likelihoods.R`       | Same three options for weight compositions                              |
-| [`get_M()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_M.md), [`get_M_length()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_M_length.md)             | `natural-mortality.R` | Piecewise or Lorenzen natural mortality                                 |
-| [`evaluate_priors()`](https://n-ducharmebarth-noaa.github.io/opal/reference/evaluate_priors.md)                                                                                    | `priors.R`            | Prior evaluation (normal, lognormal, beta, t)                           |
-| [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_parameters.md)                                                                                      | `parameters.R`        | Default parameter list                                                  |
-| [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_map.md)                                                                                                    | `parameters.R`        | Default map (which params to fix)                                       |
-| [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md)                                                                                              | `parameters.R`        | Optimization bounds for `nlminb`                                        |
-| [`get_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_data.md)                                                                                                  | `get-data.R`          | Legacy data builder (BET-specific)                                      |
-| [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_lf_data.md)                                                                                          | `prep-lf.R`           | Prepare length-frequency data for model                                 |
-| [`prep_wf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_wf_data.md)                                                                                          | `prep-wf.R`           | Prepare weight-frequency data for model                                 |
-| [`run_grid()`](https://n-ducharmebarth-noaa.github.io/opal/reference/run_grid.md)                                                                                                  | `grid.R`              | Grid-based sensitivity analysis (parallel optimization)                 |
-| [`sample_grid()`](https://n-ducharmebarth-noaa.github.io/opal/reference/sample_grid.md)                                                                                            | `grid.R`              | Sample grid cells proportional to likelihood for integrated uncertainty |
-| [`get_posterior()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_posterior.md)                                                                                        | `get-posterior.R`     | Extract derived quantities from MCMC draws                              |
-| [`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md)                                                                                  | `projections.R`       | Forward projections from posterior                                      |
-| [`opalprofile()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opalprofile.md)                                                                                            | `profile.R`           | 1D likelihood profiling                                                 |
-| `plot_*()`                                                                                                                                                                         | `plots.R`             | ggplot2 visualization functions                                         |
+| Function | File | Role |
+|----|----|----|
+| [`get_growth()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_growth.md), [`get_sd_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_sd_at_age.md) | `growth.R` | Schnute VB growth + SD-at-age |
+| [`get_pla()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_pla.md) | `growth.R` | Probability-of-length-at-age matrix (age-length key) |
+| [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_selectivity.md) | `selectivity.R` | Logistic or double-normal selectivity (length-based → age via PLA) |
+| [`get_initial_numbers()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_initial_numbers.md) | `dynamics.R` | Equilibrium N-at-age, R0, BH alpha/beta |
+| [`do_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/do_dynamics.md) | `dynamics.R` | Forward age-season simulation with Baranov catch equation |
+| [`get_harvest_rate()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_harvest_rate.md) | `dynamics.R` | Per-fishery harvest rates with `posfun` penalty |
+| [`get_recruitment()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_recruitment.md) | `recruitment.R` | Beverton-Holt SRR with log-normal deviations |
+| [`get_cpue_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_cpue_like.md) | `likelihoods.R` | Log-normal CPUE likelihood |
+| [`get_length_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_length_like.md) | `likelihoods.R` | Multinomial / Dirichlet / Dirichlet-multinomial LF likelihood |
+| [`get_weight_like()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_weight_like.md) | `likelihoods.R` | Same three options for weight compositions |
+| [`get_M()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_M.md), [`get_M_length()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_M_length.md) | `natural-mortality.R` | Piecewise or Lorenzen natural mortality |
+| [`evaluate_priors()`](https://n-ducharmebarth-noaa.github.io/opal/reference/evaluate_priors.md) | `priors.R` | Prior evaluation (normal, lognormal, beta, t) |
+| [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_parameters.md) | `parameters.R` | Default parameter list |
+| [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_map.md) | `parameters.R` | Default map (which params to fix) |
+| [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md) | `parameters.R` | Optimization bounds for `nlminb` |
+| [`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit.md), [`save_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md), [`read_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md) | `opal-fit.R` | Portable fitted-model, MCMC, and derived-result storage |
+| [`get_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_data.md) | `get-data.R` | Legacy data builder (BET-specific) |
+| [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_lf_data.md) | `prep-lf.R` | Prepare length-frequency data for model |
+| [`prep_wf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_wf_data.md) | `prep-wf.R` | Prepare weight-frequency data for model |
+| [`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md) | `projections.R` | Forward projections from posterior |
+| `plot_*()` | `plots.R` | ggplot2 visualization functions |
 
 ### Typical workflow (from `vignettes/bet.Rmd`)
 
 ``` r
+
 library(opal)
 data    <- wcpo_bet_data
 lf      <- wcpo_bet_lf
@@ -116,11 +114,29 @@ get_cor_pairs(obj)
 sdreport(obj)
 
 # Visualize
-rep <- obj$report()
-plot_lf(data, rep)
-plot_cpue(data, rep)
-plot_biomass_spawning(data, rep)
+plot_cpue(data, obj)
+plot_biomass_spawning(list(data), list(obj))
+
+# Store fitted state and posterior output without serializing the RTMB object
+fit <- opal_fit(data, obj, opt, bounds = bounds, mcmc = mcmc_fit)
+save_opal_fit(fit, "fit.rds")
+fit <- read_opal_fit("fit.rds", strict = TRUE)
 ```
+
+### Portable fitted-model objects
+
+`opal_fit` is the durable boundary for model results. It stores plain-R
+data, fitted parameters, the parameter map, optimizer output, normalized
+MCMC draws, diagnostics, arbitrary derived results (for example
+projections), and provenance. RTMB objectives contain session-specific
+environments and external pointers, so they are cached in memory but
+never serialized. Use
+[`opal_fit_object()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_object.md)
+or
+[`opal_fit_report()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_report.md)
+to rebuild/access runtime state and
+[`update_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/update_opal_fit.md)
+to attach later MCMC or derived results.
 
 ## AD-safe coding patterns
 
@@ -150,18 +166,18 @@ or tape corruption:
 
 Key parameters returned by `get_parameters(data)`:
 
-| Parameter                                                    | Description                         |
-|--------------------------------------------------------------|-------------------------------------|
-| `log_B0`                                                     | Log unfished spawning biomass       |
-| `log_h`                                                      | Log steepness (BH SRR)              |
-| `log_sigma_r`                                                | Log recruitment SD                  |
-| `log_cpue_q`, `cpue_creep`, `log_cpue_tau`, `log_cpue_omega` | CPUE observation model              |
-| `log_L1`, `log_L2`, `log_k`                                  | Growth (Schnute VB)                 |
-| `log_CV1`, `log_CV2`                                         | Growth variability                  |
-| `par_sel`                                                    | Selectivity matrix `[n_fishery, 6]` |
-| `log_lf_tau`                                                 | LF variance adjustment per fishery  |
-| `log_wf_tau`                                                 | WF variance adjustment per fishery  |
-| `rdev_y`                                                     | Annual recruitment deviations       |
+| Parameter | Description |
+|----|----|
+| `log_B0` | Log unfished spawning biomass |
+| `log_h` | Log steepness (BH SRR) |
+| `log_sigma_r` | Log recruitment SD |
+| `log_cpue_q`, `cpue_creep`, `log_cpue_tau`, `log_cpue_omega` | CPUE observation model |
+| `log_L1`, `log_L2`, `log_k` | Growth (Schnute VB) |
+| `log_CV1`, `log_CV2` | Growth variability |
+| `par_sel` | Selectivity matrix `[n_fishery, 6]` |
+| `log_lf_tau` | LF variance adjustment per fishery |
+| `log_wf_tau` | WF variance adjustment per fishery |
+| `rdev_y` | Annual recruitment deviations |
 
 All log-transformed for unconstrained optimization.
 [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_map.md)
@@ -197,8 +213,7 @@ model expects.
   [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
   to set up.
 - **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`,
-  `dplyr`, `tidyr`, `foreach`, `doParallel`, `loo`, `rstan`, `forecast`,
-  `mgcv`
+  `dplyr`, `forecast`
 - **Documentation**: roxygen2-based. After editing `R/*.R` files,
   regenerate with `devtools::document()`.
 - **Tests**: `testthat` edition 3. Run with `devtools::test()`. Tests
@@ -221,9 +236,6 @@ model expects.
   proximity.
 - Use `obj$simulate()` with RTMB’s `OBS()` mechanism for
   simulation-based diagnostics.
-- If optimization fails, try
-  [`run_grid()`](https://n-ducharmebarth-noaa.github.io/opal/reference/run_grid.md)
-  which does triple `nlminb` restarts for robustness.
 
 ## AI edit guidance
 
@@ -251,9 +263,3 @@ model expects.
   (which elements are fixed), and
   [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md)
   simultaneously.
-- **Grid/sensitivity**:
-  [`get_grid()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_grid.md)
-  creates parameter combinations;
-  [`run_grid()`](https://n-ducharmebarth-noaa.github.io/opal/reference/run_grid.md)
-  optimizes each. Changes to the parameter or data structure must be
-  reflected in both.

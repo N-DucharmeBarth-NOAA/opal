@@ -1,32 +1,23 @@
 # Plot initial numbers
 
-Plot initial numbers by age.
+Plot initial population numbers by age.
 
 ## Usage
 
 ``` r
-plot_initial_numbers(data, object, posterior = NULL, probs = c(0.025, 0.975))
+plot_initial_numbers(data, object)
 ```
 
 ## Arguments
 
 - data:
 
-  a `list` containing the data that was passed to `MakeADFun`.
+  A model data list passed to `MakeADFun`.
 
 - object:
 
-  a `list` specifying the AD object created using `MakeADFun`.
-
-- posterior:
-
-  an `rstan` objected created using the `tmbstan` function.
-
-- probs:
-
-  a numeric vector of probabilities with values in `[0,1]` for plotting
-  quantiles of the posterior distribution.
+  The AD object created using `MakeADFun`.
 
 ## Value
 
-a `ggplot2` object.
+A `ggplot2` object.

@@ -34,15 +34,13 @@ sel_double_normal(x, par)
 
   `par[3]` (c)
 
-  :   Ascending width (real line, log-space). Actual width =
-      `exp(c) * sd(x)`. `c = 0` gives an ascending width equal to
-      `sd(x)`.
+  :   Ascending width (real line, log-space). Actual denominator =
+      `exp(c) * sd(x)^2`.
 
   `par[4]` (d)
 
-  :   Descending width (real line, log-space). Actual width =
-      `exp(d) * sd(x)`. `d = 0` gives a descending width equal to
-      `sd(x)`.
+  :   Descending width (real line, log-space). Actual denominator =
+      `exp(d) * sd(x)^2`.
 
   `par[5]` (e)
 

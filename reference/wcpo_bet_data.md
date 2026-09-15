@@ -24,7 +24,7 @@ biological parameters and priors derived from assessment modeling.
 
 ## Details
 
-### Data structure (25 list elements)
+### Data structure (26 list elements)
 
 **Age and time dimensions:**
 
@@ -46,7 +46,7 @@ biological parameters and priors derived from assessment modeling.
 
 - n_year:
 
-  Number of years in model (268, equivalent to 67 years × 4 quarters).
+  Number of years in model (268, equivalent to 67 years x 4 quarters).
 
 - first_yr:
 
@@ -87,7 +87,7 @@ biological parameters and priors derived from assessment modeling.
 
 - catch_obs_ysf:
 
-  Three-dimensional array of observed catch (268 years × 1 season × 15
+  Three-dimensional array of observed catch (268 years x 1 season x 15
   fisheries). Dimensions follow (year, season, fishery). Units follow
   catch_units_f.
 
@@ -97,9 +97,13 @@ biological parameters and priors derived from assessment modeling.
 
   Indicator for CPUE inclusion (1 = included, typically for fishery 15).
 
+- n_index:
+
+  Number of distinct CPUE/survey indices (integer).
+
 - cpue_data:
 
-  Tibble with 268 rows and 8 columns containing standardized CPUE
+  Tibble with 268 rows and 9 columns containing standardized CPUE
   observations:
 
   - year: Calendar year (1952-2018)
@@ -109,6 +113,8 @@ biological parameters and priors derived from assessment modeling.
   - ts: Sequential timestep (1-268)
 
   - fishery: Fleet identifier (usually 15 for survey fleet)
+
+  - index: Integer index identifier (1, 2, ..., n_index)
 
   - metric: Data type ("cpue")
 
@@ -158,7 +164,8 @@ biological parameters and priors derived from assessment modeling.
 - sel_type_f:
 
   Selectivity function type by fishery (15 elements). Integer codes
-  representing selectivity curve shapes (e.g., 2 = double-normal).
+  representing selectivity curve shapes: 1 = logistic, 2 =
+  double-normal, 3 = double Richards.
 
 **Priors:**
 

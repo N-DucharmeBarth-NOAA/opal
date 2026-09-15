@@ -7,13 +7,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Save &amp; Compare Refactoring Baseline • opal</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/Roboto-0.4.10/font.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Roboto-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/Fira_Code-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/Montserrat-0.4.10/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Save &amp; Compare Refactoring Baseline">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><script src="baseline_files/libs/quarto-html/popper.min.js"></script><script src="baseline_files/libs/quarto-html/tippy.umd.min.js"></script><link href="baseline_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="baseline_files/libs/quarto-html/light-border.css" rel="stylesheet">
+<!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Save &amp; Compare Refactoring Baseline">
+<meta property="og:image" content="https://n-ducharmebarth-noaa.github.io/opal/logo.png">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -38,7 +41,12 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/baseline.html">Save &amp; Compare Refactoring Baseline</a></li>
     <li><a class="dropdown-item" href="../articles/bet.html">The BET model</a></li>
+    <li><a class="dropdown-item" href="../articles/lf_benchmark.html">LF Likelihood Benchmark: Loop vs Batched</a></li>
+    <li><a class="dropdown-item" href="../articles/opakapaka-double-richards.html">Opakapaka selectivity: double-normal and double Richards</a></li>
+    <li><a class="dropdown-item" href="../articles/opakapaka.html">'Opakapaka case study: benchmarking opal against Stock Synthesis 3</a></li>
     <li><a class="dropdown-item" href="../articles/profile.html">Profiling &amp; Benchmarking</a></li>
+    <li><a class="dropdown-item" href="../articles/projections_opakapaka.html">'Opakapaka projections: MVN vs MCMC uncertainty</a></li>
+    <li><a class="dropdown-item" href="../articles/projections.html">Projections and uncertainty: MVN vs MCMC</a></li>
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul>
 </li>
@@ -54,43 +62,35 @@
 
 
   </div>
-</nav><div class="container template-article">
-
-
-
-
+</nav><div class="container template-quarto">
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Save &amp; Compare Refactoring Baseline</h1>
-            
-      
 
-      <div class="d-none name"><code>baseline.Rmd</code></div>
+
+
+
+
+      <div class="d-none name"><code></code></div>
     </div>
 
-    
-    
-<div class="section level2">
-<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
+
+
+
+
+
+    <section class="section level2"><h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
-<p>This vignette saves a complete numerical baseline of the
-<code>opal</code> BET model before a refactoring change, then compares a
-post-refactoring build against it. The workflow has two modes controlled
-by the <code>compare</code> flag:</p>
+<p>This vignette saves a complete numerical baseline of the <code>opal</code> BET model before a refactoring change, then compares a post-refactoring build against it. The workflow has two modes controlled by the <code>compare</code> flag:</p>
 <ul>
 <li>
-<strong><code>compare = FALSE</code></strong>: Build the model,
-evaluate <code>fn()</code> and <code>gr()</code>, save all outputs to
-<code>data/opal_baseline.rda</code>, and update the dataset that is
-exposed via <code>data(opal_baseline)</code>.</li>
+<strong><code>compare = FALSE</code></strong>: Build the model, evaluate <code>fn()</code> and <code>gr()</code>, save all outputs to <code>data/opal_baseline.rda</code>, and update the dataset that is exposed via <code>data(opal_baseline)</code>.</li>
 <li>
-<strong><code>compare = TRUE</code></strong> (default): Load the
-<code>opal_baseline</code> dataset via <code>data(opal_baseline)</code>
-(or the local <code>data/opal_baseline.rda</code> file), rebuild the
-same inputs, and check numerical equivalence and speedup.</li>
+<strong><code>compare = TRUE</code></strong> (default): Load the <code>opal_baseline</code> dataset via <code>data(opal_baseline)</code> (or the local <code>data/opal_baseline.rda</code> file), rebuild the same inputs, and check numerical equivalence and speedup.</li>
 </ul>
 <p>Set the flag here before knitting:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">compare</span>       <span class="op">&lt;-</span> <span class="cn">TRUE</span></span>
 <span></span>
 <span><span class="co"># Use here::here() to resolve paths from the project root reliably</span></span>
@@ -100,22 +100,27 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span><span class="va">baseline_map_file</span>        <span class="op">&lt;-</span> <span class="fu">here</span><span class="fu">::</span><span class="fu"><a href="https://here.r-lib.org/reference/here.html" class="external-link">here</a></span><span class="op">(</span><span class="st">"data"</span>, <span class="st">"opal_baseline_map.rda"</span><span class="op">)</span></span>
 <span><span class="va">bench_iters</span>              <span class="op">&lt;-</span> <span class="fl">20</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="load-inputs">Load inputs<a class="anchor" aria-label="anchor" href="#load-inputs"></a>
+</section><section class="section level2"><h2 id="load-inputs">Load inputs<a class="anchor" aria-label="anchor" href="#load-inputs"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://bench.r-lib.org/" class="external-link">bench</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://here.r-lib.org/" class="external-link">here</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">wcpo_bet_data</span><span class="op">)</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">wcpo_bet_data</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="length-composition-data">Length composition data<a class="anchor" aria-label="anchor" href="#length-composition-data"></a>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">wcpo_bet_data</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span><span class="op">)</span> <span class="va">data</span><span class="op">$</span><span class="va">n_index</span> <span class="op">&lt;-</span> <span class="fl">1L</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">cpue_data</span><span class="op">$</span><span class="va">index</span><span class="op">)</span><span class="op">)</span> <span class="va">data</span><span class="op">$</span><span class="va">cpue_data</span><span class="op">$</span><span class="va">index</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">cpue_data</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<section class="level2"><h3 id="length-composition-data">Length composition data<a class="anchor" aria-label="anchor" href="#length-composition-data"></a>
 </h3>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">wcpo_bet_lf</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">lf_wide</span> <span class="op">&lt;-</span> <span class="va">wcpo_bet_lf</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
@@ -134,10 +139,10 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span>                     lf_var_adjust     <span class="op">=</span> <span class="va">var_adjust_scalars</span><span class="op">)</span></span>
 <span><span class="va">data</span><span class="op">$</span><span class="va">lf_switch</span> <span class="op">&lt;-</span> <span class="fl">1L</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="weight-composition-data">Weight composition data<a class="anchor" aria-label="anchor" href="#weight-composition-data"></a>
+</section><section class="level2"><h3 id="weight-composition-data">Weight composition data<a class="anchor" aria-label="anchor" href="#weight-composition-data"></a>
 </h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">wcpo_bet_wf</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">data</span><span class="op">$</span><span class="va">wt_bin_start</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
@@ -157,24 +162,22 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span>                     wf_keep_fisheries <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span>,</span>
 <span>                     wf_switch <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span></span></code></pre></div>
 </div>
-</div>
-<div class="section level2">
-<h2 id="model-setup">Model setup<a class="anchor" aria-label="anchor" href="#model-setup"></a>
+</section></section><section class="section level2"><h2 id="model-setup">Model setup<a class="anchor" aria-label="anchor" href="#model-setup"></a>
 </h2>
-<div class="section level3">
-<h3 id="parameters">Parameters<a class="anchor" aria-label="anchor" href="#parameters"></a>
+<section class="level2"><h3 id="parameters">Parameters<a class="anchor" aria-label="anchor" href="#parameters"></a>
 </h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">parameters</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  log_B0         <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>  log_h          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_h</span><span class="op">)</span>,</span>
 <span>  log_sigma_r    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_sigma_r</span><span class="op">)</span>,</span>
-<span>  log_cpue_q     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_cpue_q</span><span class="op">)</span>,</span>
-<span>  cpue_creep     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">cpue_creep</span><span class="op">)</span>,</span>
-<span>  log_cpue_tau   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_cpue_tau</span><span class="op">)</span>,</span>
-<span>  log_cpue_omega <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_cpue_omega</span><span class="op">)</span>,</span>
+<span>  log_cpue_q     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_cpue_q</span><span class="op">)</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span>,</span>
+<span>  cpue_creep     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">cpue_creep</span><span class="op">)</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span>,</span>
+<span>  log_cpue_tau   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_cpue_tau</span><span class="op">)</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span>,</span>
+<span>  log_cpue_omega <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_cpue_omega</span><span class="op">)</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span>,</span>
 <span>  log_lf_tau     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_fishery</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  log_wf_tau     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_fishery</span><span class="op">)</span>,</span>
 <span>  log_L1         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">log_L1</span><span class="op">)</span>,</span>
@@ -186,24 +189,24 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span>  rdev_y         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">wcpo_bet_parameters</span><span class="op">$</span><span class="va">rdev_y</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="priors">Priors<a class="anchor" aria-label="anchor" href="#priors"></a>
+</section><section class="level2"><h3 id="priors">Priors<a class="anchor" aria-label="anchor" href="#priors"></a>
 </h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">data</span><span class="op">$</span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_priors.html">get_priors</a></span><span class="op">(</span>parameters <span class="op">=</span> <span class="va">parameters</span>, data <span class="op">=</span> <span class="va">data</span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="parameter-map">Parameter map<a class="anchor" aria-label="anchor" href="#parameter-map"></a>
+</section><section class="level2"><h3 id="parameter-map">Parameter map<a class="anchor" aria-label="anchor" href="#parameter-map"></a>
 </h3>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">map_sel</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">parameters</span><span class="op">$</span><span class="va">par_sel</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">ncol</a></span><span class="op">(</span><span class="va">parameters</span><span class="op">$</span><span class="va">par_sel</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">map</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  log_h          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span>,</span>
 <span>  log_sigma_r    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span>,</span>
-<span>  cpue_creep     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span>,</span>
-<span>  log_cpue_tau   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span>,</span>
-<span>  log_cpue_omega <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span>,</span>
+<span>  cpue_creep     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  log_cpue_tau   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  log_cpue_omega <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="va">data</span><span class="op">$</span><span class="va">n_index</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  log_lf_tau     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">parameters</span><span class="op">$</span><span class="va">log_lf_tau</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  log_wf_tau     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">parameters</span><span class="op">$</span><span class="va">log_wf_tau</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  log_L1         <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span>,</span>
@@ -214,42 +217,33 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span>  par_sel        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">map_sel</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="build-the-ad-object">Build the AD object<a class="anchor" aria-label="anchor" href="#build-the-ad-object"></a>
+</section><section class="level2"><h3 id="build-the-ad-object">Build the AD object<a class="anchor" aria-label="anchor" href="#build-the-ad-object"></a>
 </h3>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">t_build</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>  <span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu">MakeADFun</span><span class="op">(</span>func <span class="op">=</span> <span class="fu"><a href="../reference/cmb.html">cmb</a></span><span class="op">(</span><span class="va">opal_model</span>, <span class="va">data</span><span class="op">)</span>,</span>
 <span>                   parameters <span class="op">=</span> <span class="va">parameters</span>, map <span class="op">=</span> <span class="va">map</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MakeADFun build time:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_build</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"sec\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## MakeADFun build time: 17.14 sec</span></span></code></pre>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Estimated parameters:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## Estimated parameters: 270</span></span></code></pre>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"MakeADFun build time:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_build</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"sec\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Estimated parameters:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
 </div>
-</div>
-<div class="section level2">
-<h2 id="evaluate-and-benchmark">Evaluate and benchmark<a class="anchor" aria-label="anchor" href="#evaluate-and-benchmark"></a>
+</section></section><section class="section level2"><h2 id="evaluate-and-benchmark">Evaluate and benchmark<a class="anchor" aria-label="anchor" href="#evaluate-and-benchmark"></a>
 </h2>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
 <span><span class="va">t_fn</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">nll</span> <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">fn</span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">t_gr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">gr</span>  <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## outer mgc:  13629.29</span></span></code></pre>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">rep</span>  <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">report</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">t_gr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.time.html" class="external-link">system.time</a></span><span class="op">(</span><span class="va">gr</span>  <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">rep</span>  <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="fu">report</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"obj$fn():"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_fn</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"sec  (NLL ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">nll</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## obj$fn(): 0.007 sec  (NLL = 852582 )</span></span></code></pre>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"obj$gr():"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_gr</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"sec  (max|gr| ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">gr</span><span class="op">)</span><span class="op">)</span>, <span class="fl">6</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## obj$gr(): 0.026 sec  (max|gr| = 13629.29 )</span></span></code></pre>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"gr/fn ratio:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_gr</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">t_fn</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">1e-6</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"x\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## gr/fn ratio: 3.7 x</span></span></code></pre>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"obj$fn():"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_fn</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"sec  (NLL ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">nll</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"obj$gr():"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_gr</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"sec  (max|gr| ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">gr</span><span class="op">)</span><span class="op">)</span>, <span class="fl">6</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"gr/fn ratio:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">t_gr</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="va">t_fn</span><span class="op">[</span><span class="st">"elapsed"</span><span class="op">]</span>, <span class="fl">1e-6</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>, <span class="st">"x\n"</span><span class="op">)</span></span></code></pre></div>
+</div>
 <p>Stable timing via <code><a href="https://bench.r-lib.org/reference/mark.html" class="external-link">bench::mark</a></code>:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">par1</span> <span class="op">&lt;-</span> <span class="va">obj</span><span class="op">$</span><span class="va">par</span></span>
 <span><span class="co"># need to perturb the parameters slightly to avoid caching effects</span></span>
 <span><span class="va">bm</span> <span class="op">&lt;-</span> <span class="fu">bench</span><span class="fu">::</span><span class="fu"><a href="https://bench.r-lib.org/reference/mark.html" class="external-link">mark</a></span><span class="op">(</span></span>
@@ -257,68 +251,28 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span>  gr <span class="op">=</span> <span class="va">obj</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">par1</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">par1</span><span class="op">)</span>, <span class="op">-</span><span class="fl">1e-10</span>, <span class="fl">1e-10</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  iterations <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>  check <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29 </span></span>
-<span><span class="co">## outer mgc:  13629.29</span></span></code></pre>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">bm</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"expression"</span>, <span class="st">"min"</span>, <span class="st">"median"</span>, <span class="st">"itr/sec"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
-<pre><code><span><span class="co">## <span style="color: #949494;"># A tibble: 2 × 4</span></span></span>
-<span><span class="co">##   expression      min   median `itr/sec`</span></span>
-<span><span class="co">##   <span style="color: #949494; font-style: italic;">&lt;bch:expr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span> <span style="color: #949494; font-style: italic;">&lt;bch:tm&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">## <span style="color: #BCBCBC;">1</span> fn            6.8ms   6.96ms     143. </span></span>
-<span><span class="co">## <span style="color: #BCBCBC;">2</span> gr           31.6ms  32.22ms      31.0</span></span></code></pre>
+<span><span class="op">)</span></span>
+<span><span class="va">bm</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"expression"</span>, <span class="st">"min"</span>, <span class="st">"median"</span>, <span class="st">"itr/sec"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="likelihood-component-breakdown">Likelihood component breakdown<a class="anchor" aria-label="anchor" href="#likelihood-component-breakdown"></a>
+</section><section class="section level2"><h2 id="likelihood-component-breakdown">Likelihood component breakdown<a class="anchor" aria-label="anchor" href="#likelihood-component-breakdown"></a>
 </h2>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_prior:  "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_prior</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## lp_prior:   0</span></span></code></pre>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_penalty:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_penalty</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## lp_penalty: 0</span></span></code></pre>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_rec:    "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_rec</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## lp_rec:     205.8579</span></span></code></pre>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_cpue:   "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_cpue</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>,</span>
-<span>    <span class="st">" (sum of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_cpue</span><span class="op">)</span>, <span class="st">"obs)\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## lp_cpue:    490.8378  (sum of 268 obs)</span></span></code></pre>
-<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_lf:     "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_lf</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>,</span>
-<span>    <span class="st">" (sum of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_lf</span><span class="op">)</span>, <span class="st">"obs)\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## lp_lf:      133665.5  (sum of 210 obs)</span></span></code></pre>
-<div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_wf:     "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_wf</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>,</span>
-<span>    <span class="st">" (sum of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_wf</span><span class="op">)</span>, <span class="st">"obs)\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## lp_wf:      718157.9  (sum of 112 obs)</span></span></code></pre>
-<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Total NLL: "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">nll</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
-<pre><code><span><span class="co">## Total NLL:  852582</span></span></code></pre>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_prior:  "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_prior</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_penalty:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_penalty</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_rec:    "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_rec</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_cpue:   "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_cpue</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>,</span>
+<span>    <span class="st">" (sum of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_cpue</span><span class="op">)</span>, <span class="st">"obs)\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_lf:     "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_lf</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>,</span>
+<span>    <span class="st">" (sum of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_lf</span><span class="op">)</span>, <span class="st">"obs)\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"lp_wf:     "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_wf</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>,</span>
+<span>    <span class="st">" (sum of"</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">rep</span><span class="op">$</span><span class="va">lp_wf</span><span class="op">)</span>, <span class="st">"obs)\n"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Total NLL: "</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">nll</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="save-or-compare">Save or compare<a class="anchor" aria-label="anchor" href="#save-or-compare"></a>
+</section><section class="section level2"><h2 id="save-or-compare">Save or compare<a class="anchor" aria-label="anchor" href="#save-or-compare"></a>
 </h2>
-<div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">compare</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># ---- Save baseline ----</span></span>
 <span>  <span class="va">baseline</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -467,47 +421,93 @@ same inputs, and check numerical equivalence and speedup.</li>
 <span>  <span class="op">}</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"  %-12s %12.4f %12.4f %12.2e\n"</span>, <span class="st">"Total NLL"</span>, <span class="va">old</span><span class="op">$</span><span class="va">nll</span>, <span class="va">nll</span>, <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">nll</span> <span class="op">-</span> <span class="va">old</span><span class="op">$</span><span class="va">nll</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<pre><code><span><span class="co">## Baseline from: 2026-03-03 21:20:32 </span></span>
-<span><span class="co">##   Description: Pre-refactoring baseline </span></span>
-<span><span class="co">##   opal version: 0.0.3 </span></span>
-<span><span class="co">##   Cross-platform comparison (baseline: windows -&gt; current: unix )</span></span>
-<span><span class="co">##   Using relaxed tolerance: 1e-06 </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## --- Numerical equivalence ---</span></span>
-<span><span class="co">##   nll                        0.00e+00  [OK]</span></span>
-<span><span class="co">##   number_ysa                 3.73e-09  [OK]</span></span>
-<span><span class="co">##   spawning_biomass_y         1.19e-07  [OK]</span></span>
-<span><span class="co">##   catch_pred_fya             2.27e-12  [OK]</span></span>
-<span><span class="co">##   catch_pred_ysf             1.46e-11  [OK]</span></span>
-<span><span class="co">##   hrate_ysa                  5.42e-19  [OK]</span></span>
-<span><span class="co">##   hrate_ysfa                 5.42e-19  [OK]</span></span>
-<span><span class="co">##   lp_penalty                 4.93e-32  [OK]</span></span>
-<span><span class="co">##   lp_rec                     0.00e+00  [OK]</span></span>
-<span><span class="co">##   lp_cpue                    6.93e-14  [OK]</span></span>
-<span><span class="co">##   lp_lf                      1.46e-11  [OK]</span></span>
-<span><span class="co">##   lp_wf                      2.91e-11  [OK]</span></span>
-<span><span class="co">##   max_gradient               0.00e+00  [OK]</span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## Overall: PASS </span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## --- Timing comparison ---</span></span>
-<span><span class="co">##   fn: 0.0 ms -&gt; 7.0 ms  (0.0x)</span></span>
-<span><span class="co">##   gr: 16.1 ms -&gt; 32.2 ms  (0.5x)</span></span>
-<span><span class="co">## </span></span>
-<span><span class="co">## --- Likelihood components ---</span></span>
-<span><span class="co">##   Component        Baseline      Current         Diff</span></span>
-<span><span class="co">##   lp_prior           0.0000       0.0000     0.00e+00</span></span>
-<span><span class="co">##   lp_penalty        -0.0000      -0.0000     4.93e-32</span></span>
-<span><span class="co">##   lp_rec           205.8579     205.8579     0.00e+00</span></span>
-<span><span class="co">##   lp_cpue          490.8378     490.8378     2.27e-13</span></span>
-<span><span class="co">##   lp_lf         133665.5125  133665.5125     2.91e-11</span></span>
-<span><span class="co">##   lp_wf         718157.9275  718157.9275     1.16e-10</span></span>
-<span><span class="co">##   Total NLL     852582.0320  852582.0320     0.00e+00</span></span></code></pre>
 </div>
-  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+</section><script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'light-border',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config);
+    }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script></main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
-
 
 
     <footer><div class="pkgdown-footer-left">

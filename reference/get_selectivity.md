@@ -1,8 +1,8 @@
 # Compute selectivity-at-age from length-based selectivity curves
 
-Defines selectivity as a parametric function of length (logistic or
-double-normal), then converts to selectivity-at-age by
-matrix-multiplying with the probability-of-length-at-age (PLA/ALK).
+Defines selectivity as a parametric function of length (logistic,
+double-normal, or double Richards), then converts to selectivity-at-age
+by matrix-multiplying with the probability-of-length-at-age (PLA/ALK).
 
 ## Usage
 
@@ -21,7 +21,8 @@ get_selectivity(data, par_sel, pla, len_mid)
 
   Numeric matrix of dimensions `[n_fishery, 6]`. Each row is a real-line
   parameter vector. For logistic (sel_type_f == 1), only columns 1:2 are
-  used. For double-normal (sel_type_f == 2), all 6 are used.
+  used. For double-normal (sel_type_f == 2) and double Richards
+  (sel_type_f == 3), all 6 are used.
 
 - pla:
 

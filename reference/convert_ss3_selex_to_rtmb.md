@@ -21,7 +21,8 @@ convert_ss3_selex_to_rtmb(ss3_pars, sel_type_f, sel_lengths)
 
 - sel_type_f:
 
-  Integer vector (length n_fishery). 1 = logistic, 2 = double-normal.
+  Integer vector (length n_fishery). 1 = logistic, 2 = double-normal, 3
+  = double Richards.
 
 - sel_lengths:
 

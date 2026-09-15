@@ -1,10 +1,10 @@
 # Population dynamics
 
-Runs the core age- and season-structured population dynamics loop for
-bigeye tuna. Starts from initial equilibrium numbers (derived from B0
-and h), applies seasonal harvest, natural mortality, spawning, and
-recruitment (Beverton-Holt with log-normal deviates), and computes
-predicted catches and harvest rates.
+Runs the core age- and season-structured population dynamics loop.
+Starts from initial equilibrium numbers (derived from B0 and h), applies
+seasonal harvest, natural mortality, spawning, and recruitment
+(Beverton-Holt with log-normal deviates), and computes predicted catches
+and harvest rates.
 
 ## Usage
 
@@ -22,7 +22,9 @@ do_dynamics(
   spawning_potential_a,
   weight_fya,
   init_number_a,
-  sel_fya
+  init_number0_a,
+  sel_fya,
+  bias_adj_y = NULL
 )
 ```
 
@@ -71,7 +73,7 @@ do_dynamics(
 - spawning_potential_a:
 
   Numeric vector of length `n_age`. Spawning potential at age (maturity
-  × fecundity). Passed explicitly so AD gradients propagate if growth is
+  x fecundity). Passed explicitly so AD gradients propagate if growth is
   ever estimated.
 
 - weight_fya:
@@ -86,11 +88,22 @@ do_dynamics(
   (from
   [`get_initial_numbers`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_initial_numbers.md)).
 
+- init_number0_a:
+
+  Numeric vector of length `n_age`. Initial unfished equilibrium
+  numbers-at-age (from
+  [`get_initial_numbers`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_initial_numbers.md)).
+
 - sel_fya:
 
   Numeric array `[n_fishery, n_year, n_age]`. Fishery-specific
   selectivity at age by year (from
   [`get_selectivity`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_selectivity.md)).
+
+- bias_adj_y:
+
+  Numeric vector of length `n_year`. Recruitment bias adjustment scalar
+  by year.
 
 ## Value
 
@@ -99,6 +112,10 @@ A named list with:
 - number_ysa:
 
   Numbers-at-age array `[n_year+1, n_season, n_age]`.
+
+- number0_ysa:
+
+  Unfished numbers-at-age array `[n_year+1, n_season, n_age]`.
 
 - lp_penalty:
 
@@ -109,6 +126,23 @@ A named list with:
 - catch_pred_fya:
 
   Predicted catch-at-age array `[n_fishery, n_year, n_age]`.
+
+- spawning_biomass_y:
+
+  Spawning biomass trajectory under fishing.
+
+- spawning_biomass0_y:
+
+  Spawning biomass trajectory in the dynamic unfished state.
+
+- static_depletion_y:
+
+  Static depletion trajectory `spawning_biomass_y / B0`.
+
+- dynamic_depletion_y:
+
+  Dynamic depletion trajectory
+  `spawning_biomass_y / spawning_biomass0_y`.
 
 ## Details
 

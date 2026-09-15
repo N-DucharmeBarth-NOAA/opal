@@ -1,50 +1,32 @@
 # Plot spawning biomass
 
-Plot the spawning biomass (tonnes) or relative spawning biomass by year
-for a single model run, a grid of model runs, or an MCMC.
+Plot spawning biomass or relative spawning biomass by year for one or
+more model runs.
 
 ## Usage
 
 ``` r
-plot_biomass_spawning(
-  data_list,
-  object_list,
-  posterior = NULL,
-  probs = c(0.025, 0.975),
-  relative = TRUE,
-  labels = NULL
-)
+plot_biomass_spawning(data_list, object_list, relative = TRUE, labels = NULL)
 ```
 
 ## Arguments
 
 - data_list:
 
-  a `list` containing the data that was passed to `MakeADFun`.
+  A list of model data lists passed to `MakeADFun`.
 
 - object_list:
 
-  a `list` specifying the AD object created using the `MakeADFun`
-  function.
-
-- posterior:
-
-  an `rstan` objected created using the `tmbstan` function.
-
-- probs:
-
-  a numeric vector of probabilities with values in `[0,1]` for plotting
-  quantiles of the posterior distribution. Defaults to the 90% credible
-  interval.
+  A list of AD objects created using `MakeADFun`.
 
 - relative:
 
-  if the plot should be relative spawning biomass.
+  Logical; plot spawning biomass relative to unfished biomass.
 
 - labels:
 
-  a `vector` of labels for the model runs.
+  Optional labels for the model runs.
 
 ## Value
 
-a `ggplot2` object.
+A `ggplot2` object.

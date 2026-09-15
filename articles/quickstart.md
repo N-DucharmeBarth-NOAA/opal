@@ -18,5 +18,6 @@ See
 for a detailed worked example.
 
 ``` r
+
 library(opal)
 ```

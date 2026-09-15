@@ -9,7 +9,7 @@ project_rec_devs(
   data,
   obj,
   mcmc = NULL,
-  first_yr = 1931,
+  first_yr = NULL,
   last_yr = NULL,
   n_proj = 5,
   n_iter = NULL,
@@ -36,7 +36,7 @@ project_rec_devs(
 
 - first_yr:
 
-  a `list` of inputs.
+  the first year sampled. Defaults to the first model year.
 
 - last_yr:
 
