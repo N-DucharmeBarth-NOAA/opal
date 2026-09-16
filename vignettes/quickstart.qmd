@@ -2,7 +2,9 @@
 title: "Quickstart Guide"
 format: html
 execute:
-  eval: false
+  eval: true
+  warning: false
+  message: false
 vignette: >
   %\VignetteIndexEntry{Quickstart Guide}
   %\VignetteEngine{quarto::html}
@@ -11,25 +13,129 @@ vignette: >
 
 ```{r}
 #| include: false
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-# The `opal` Package
 
-`opal` is an open, modular R package for fisheries stock assessment built on [RTMB](https://github.com/kaskr/RTMB) for automatic differentiation and gradient-based optimization.
+This guide fits a fixed-effects assessment for 'opakapaka
+(*Pristipomoides filamentosus*) using the bundled data. The example uses the
+same age convention and selectivity parameterization as its Stock Synthesis 3
+(SS3) reference model, then stores the fitted result as an `opal_fit` S3
+object.
 
-The core workflow involves:
+`opal_fit` is the portable boundary for an assessment: it retains the model
+inputs, fitted parameters, optimization results, and diagnostics without
+serializing RTMB's session-specific objective. An objective is rebuilt only
+when it is needed for reporting or plotting.
 
-1. **Specifying a model** — Define population dynamics, selectivity, biological parameters, and data likelihoods
-2. **Running an optimization** — Fit the model to data and estimate key parameters
+## Load the model recipe
 
-See `vignette("bet")` for a detailed worked example.
+The package includes a sourceable recipe so this vignette and the stored
+example fit use the same data preparation and fixed-effects configuration.
 
 ```{r}
 #| label: setup
-#| eval: false
 library(opal)
+library(RTMB)
+
+source("../inst/scripts/opaka-quickstart.R")
+inputs <- opaka_quickstart_inputs()
 ```
+
+The recipe loads the bundled opakapaka catch, CPUE, and length-composition
+data; uses biological ages 0--43 to align with SS3; applies the SS3 recruitment
+bias ramps; and prepares multinomial length compositions for the commercial
+and research fleets. It fixes life-history parameters at their SS3 values and
+estimates biomass scale, CPUE catchability, recruitment deviations, initial
+age structure, and selectivity for fleets with length data.
+
+```{r}
+#| label: model-dimensions
+data.frame(
+  quantity = c("Years", "Ages", "Fisheries", "Length-composition samples"),
+  value = c(
+    inputs$data$n_year,
+    inputs$data$n_age,
+    inputs$data$n_fishery,
+    length(inputs$data$lf_year)
+  )
+)
+```
+
+## Fit the model
+
+Build the RTMB objective, derive bounds for its active parameters, and optimize
+twice. The second pass starts at the first optimum and is a useful convergence
+check for this small fixed-effects model.
+
+```{r}
+#| label: fit
+control <- list(eval.max = 10000, iter.max = 10000)
+obj <- RTMB::MakeADFun(
+  func = cmb(opal_model, inputs$data),
+  parameters = inputs$parameters,
+  map = inputs$map,
+  silent = TRUE
+)
+bounds <- get_bounds(obj, inputs$parameters)
+
+opt <- nlminb(
+  obj$par, obj$fn, obj$gr,
+  lower = bounds$lower, upper = bounds$upper, control = control
+)
+opt <- nlminb(
+  opt$par, obj$fn, obj$gr,
+  lower = bounds$lower, upper = bounds$upper, control = control
+)
+invisible(obj$fn(opt$par))
+
+fit <- opal_fit(
+  data = inputs$data,
+  obj = obj,
+  opt = opt,
+  bounds = list(lower = bounds$lower, upper = bounds$upper),
+  control = control,
+  estimability = tryCatch(check_estimability(obj), error = identity),
+  diagnostics = list(max_gradient = max(abs(obj$gr(opt$par)))),
+  metadata = list(stock = "Opakapaka", model = "Fixed-effects quickstart")
+)
+fit
+```
+
+## Save a portable fitted model
+
+`save_opal_fit()` writes only portable R data. Reading it back verifies the
+stored scientific contract and rebuilds the transient RTMB objective when it
+is required.
+
+```{r}
+#| label: save-and-read-fit
+fit_path <- tempfile("opaka-quickstart-", fileext = ".rds")
+save_opal_fit(fit, fit_path)
+fit <- read_opal_fit(fit_path, strict = TRUE)
+summary(fit)
+```
+
+## Inspect spawning biomass
+
+Use `opal_fit_object()` only at the runtime boundary required by the existing
+plotting API. For direct derived values, use `opal_fit_report(fit)`.
+
+```{r}
+#| label: spawning-biomass
+#| fig-width: 8
+#| fig-height: 4
+report <- opal_fit_report(fit)
+object <- opal_fit_object(fit)
+
+plot_biomass_spawning(
+  data_list = list(fit$data),
+  object_list = list(object),
+  relative = FALSE,
+  labels = "Fixed effects"
+)
+```
+
+The companion `vignette("opakapaka-fit-review")` reopens the bundled
+`opal_fit` from this workflow for a fast review of the optimization summary,
+CPUE fit, estimability, and gradients without refitting the model.
