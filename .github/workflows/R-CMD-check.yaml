@@ -4,6 +4,10 @@ on:
   push:
     branches: [main, master, dev]
   pull_request:
+  # GitHub Actions cron uses UTC: 11 PM Sunday Auckland time during NZST.
+  # This runs at 12 AM Monday during daylight saving time (NZDT).
+  schedule:
+    - cron: '0 11 * * 0'
 
 name: R-CMD-check.yaml
 
@@ -33,6 +37,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
 
       - uses: r-lib/actions/setup-pandoc@v2
 
