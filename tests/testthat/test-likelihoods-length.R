@@ -335,3 +335,60 @@ test_that("multiple observations: obs_offset advances correctly across observati
   expect_equal(lp[1], expected_nll1, tolerance = 1e-10)
   expect_equal(lp[2], expected_nll2, tolerance = 1e-10)
 })
+
+for (type in 1:3) {
+  test_that(sprintf("get_length_like matches closed-form reference (lf_switch = %d)", type), {
+    fx <- comp_fixture()
+    groups <- attach_obs(base_groups(), integer = type != 2)
+    log_tau <- log(c(0.7, 2.5))
+    args <- comp_args("lf", groups, fx, type, log_tau)
+    expect_equal(do.call(get_length_like, args),
+                 expected_comp_nll(groups, fx, type, log_tau),
+                 tolerance = 1e-10)
+  })
+}
+
+test_that("length composition skips removal and zero-size observations", {
+  fx <- comp_fixture()
+  groups <- attach_obs(rev(base_groups()), integer = TRUE)
+  groups[[1]]$n[2] <- 0
+  removal <- c(0L, 1L)
+  log_tau <- log(c(0.7, 2.5))
+  args <- comp_args("lf", groups, fx, 1, log_tau,
+                    removal_switch_f = removal)
+  expect_equal(do.call(get_length_like, args),
+               expected_comp_nll(groups, fx, 1, log_tau,
+                                 removal_switch_f = removal),
+               tolerance = 1e-10)
+})
+
+test_that("Dirichlet-multinomial rejects a mismatched count total", {
+  fx <- comp_fixture()
+  groups <- attach_obs(base_groups(), integer = TRUE)
+  groups[[1]]$n[1] <- sum(groups[[1]]$obs[1, ]) + 7
+  log_tau <- log(c(0.7, 2.5))
+  args <- comp_args("lf", groups, fx, 3, log_tau)
+  expect_error(do.call(get_length_like, args), "must sum to the integer sample size")
+})
+
+test_that("Dirichlet-multinomial approaches multinomial at high concentration", {
+  fx <- comp_fixture()
+  groups <- attach_obs(base_groups(), integer = TRUE)
+  args <- comp_args("lf", groups, fx, 3, c(18, 18))
+  actual <- do.call(get_length_like, args)
+  expected <- expected_comp_nll(groups, fx, 1, c(0, 0))
+  expect_equal(actual, expected, tolerance = 1e-4)
+})
+
+test_that("multinomial rounds fractional counts in RTMB", {
+  fx <- comp_fixture()
+  groups <- attach_obs(base_groups(), integer = FALSE)
+  args <- comp_args("lf", groups, fx, 1, c(0, 0))
+  actual <- do.call(get_length_like, args)
+  rounded_groups <- groups
+  for (j in seq_along(rounded_groups)) {
+    rounded_groups[[j]]$obs <- round(rounded_groups[[j]]$obs)
+  }
+  expected <- expected_comp_nll(rounded_groups, fx, 1, c(0, 0))
+  expect_equal(actual, expected, tolerance = 1e-10)
+})

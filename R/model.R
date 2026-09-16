@@ -13,12 +13,12 @@ utils::globalVariables(c(
   "removal_switch_f", "alk_ysal", "dl_yal", "catch_obs_ysf", "af_sliced_ysfa",
   "cpue_switch", "cpue_data", "n_index",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_maxbin", "lf_obs", "lf_n",
-  "lf_var_adj", "lf_addtocomp",
+  "lf_var_adj", "lf_addtocomp", "lf_n_int", "lf_n_int_fi",
   "wf_switch", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",
   "wf_n_f", "wf_fishery_f", "wf_fishery", "wf_year", "wf_n",
   "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
   "wt_bin_start", "wt_bin_width",
-  "log_wf_tau", "wf_addtocomp",
+  "log_wf_tau", "wf_addtocomp", "wf_n_int", "wf_n_int_fi",
   "priors", "sel_fa_external"
 ))
 
@@ -235,6 +235,7 @@ opal_model <- function(parameters, data) {
   if (lf_switch > 0 && n_lf > 0) {
     if (!exists("lf_year_fi", inherits = FALSE)) lf_year_fi <- split(lf_year, lf_fishery)
     if (!exists("lf_n_fi", inherits = FALSE)) lf_n_fi <- split(lf_n, lf_fishery)
+    if (!exists("lf_n_int_fi", inherits = FALSE)) lf_n_int_fi <- NULL
     lp_lf <- get_length_like(
       lf_obs_flat = lf_obs_flat,
       lf_obs_ints = lf_obs_ints,
@@ -251,7 +252,8 @@ opal_model <- function(parameters, data) {
       lf_switch = lf_switch,
       n_len = n_len,
       n_lf = n_lf, log_lf_tau = log_lf_tau,
-      lf_addtocomp = lf_addtocomp
+      lf_addtocomp = lf_addtocomp,
+      lf_n_int_fi = lf_n_int_fi
     )
   } else {
     lp_lf <- 0
@@ -260,6 +262,7 @@ opal_model <- function(parameters, data) {
   if (wf_switch > 0 && n_wf > 0) {
     if (!exists("wf_year_fi", inherits = FALSE)) wf_year_fi <- split(wf_year, wf_fishery)
     if (!exists("wf_n_fi", inherits = FALSE)) wf_n_fi <- split(wf_n, wf_fishery)
+    if (!exists("wf_n_int_fi", inherits = FALSE)) wf_n_int_fi <- NULL
     lp_wf <- get_weight_like(
       wf_obs_flat = wf_obs_flat,
       wf_obs_ints = wf_obs_ints,
@@ -278,7 +281,8 @@ opal_model <- function(parameters, data) {
       n_wt = n_wt,
       n_wf = n_wf,
       log_wf_tau = log_wf_tau,
-      wf_addtocomp = wf_addtocomp
+      wf_addtocomp = wf_addtocomp,
+      wf_n_int_fi = wf_n_int_fi
     )
   } else {
     lp_wf <- 0

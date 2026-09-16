@@ -2,7 +2,7 @@
 
 .opal_fit_schema_version <- 1L
 .opal_model_schema_version <- 1L
-.opal_model_scientific_version <- "opal_model_contract_v2"
+.opal_model_scientific_version <- "opal_model_contract_v3"
 .opal_fit_runtime_cache <- new.env(parent = emptyenv())
 
 .opal_fit_or <- function(x, y) {

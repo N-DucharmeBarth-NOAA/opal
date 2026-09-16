@@ -62,13 +62,16 @@ for converting predicted length compositions to weight compositions.}
 \item{\code{wf_obs_in}}{Matrix of observed proportions (n_wf x n_wt).}
 \item{\code{wf_obs_flat}}{Flattened numeric vector of counts (for
 multinomial, \code{wf_switch = 1}).}
-\item{\code{wf_obs_ints}}{Flattened integer vector of rounded counts
-(for Dirichlet-multinomial, \code{wf_switch = 3}).}
+\item{\code{wf_obs_ints}}{Flattened integer counts that sum to
+\code{wf_n_int} per observation (for Dirichlet-multinomial,
+\code{wf_switch = 3}).}
 \item{\code{wf_obs_prop}}{Flattened numeric vector of normalised
 proportions (for Dirichlet, \code{wf_switch = 2}).}
 \item{\code{wf_addtocomp}}{Stored value of the add-to-composition
 constant used to robustify observed composition bins.}
 \item{\code{wf_n}}{Numeric vector of sample sizes per observation row.}
+\item{\code{wf_n_int}}{Integer Dirichlet-multinomial sample sizes
+obtained by half-up rounding of \code{wf_n}.}
 \item{\code{wf_fishery}}{Integer vector of fishery index per observation
 row.}
 \item{\code{wf_fishery_f}}{Integer vector of unique fishery indices with
@@ -76,7 +79,7 @@ WF data.}
 \item{\code{wf_n_f}}{Integer vector of observation counts per fishery.}
 \item{\code{wf_year}}{Integer vector of model timestep per observation
 row.}
-\item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_row_fi}}{Lists split
+\item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_n_int_fi}, \code{wf_row_fi}}{Lists split
 by fishery containing model timesteps, effective sample sizes, and
 row indices. Precomputed so \code{opal_model()} does not rebuild them
 on every objective evaluation.}
@@ -91,6 +94,11 @@ Transforms a pivoted wide-format weight-frequency data frame into
 model-ready arrays and vectors that get_weight_like() expects.
 Also precomputes the rebinning matrix for converting predicted
 length compositions to weight compositions.
+}
+\details{
+Dirichlet-multinomial counts use half-up rounding of effective
+sample sizes and largest-remainder allocation. Observations that round to
+zero are skipped by the Dirichlet-multinomial likelihood.
 }
 \seealso{
 \code{\link{prep_lf_data}}, \code{\link{opal_model}}

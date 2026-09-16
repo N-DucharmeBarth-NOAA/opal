@@ -30,6 +30,7 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_true(is.numeric(d$lf_obs_prop))
   expect_true(is.integer(d$lf_obs_ints))
   expect_true(is.numeric(d$lf_n))
+  expect_true(is.integer(d$lf_n_int))
   expect_true(is.integer(d$lf_fishery))
   expect_true(is.integer(d$lf_year))
   expect_true(is.integer(d$lf_season))
@@ -38,6 +39,7 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_true(is.matrix(d$lf_obs_in))
   expect_true(is.list(d$lf_year_fi))
   expect_true(is.list(d$lf_n_fi))
+  expect_true(is.list(d$lf_n_int_fi))
   expect_true(is.list(d$lf_row_fi))
 
   # lf_obs_flat / lf_obs_prop / lf_obs_ints must be the same length
@@ -53,6 +55,7 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_equal(sum(d$lf_n_f),        d$n_lf)
   expect_equal(d$lf_year_fi, split(d$lf_year, d$lf_fishery))
   expect_equal(d$lf_n_fi, split(d$lf_n, d$lf_fishery))
+  expect_equal(d$lf_n_int_fi, split(d$lf_n_int, d$lf_fishery))
   expect_equal(d$lf_row_fi, split(seq_len(d$n_lf), d$lf_fishery))
 
   # Only the two requested fisheries
@@ -171,12 +174,12 @@ test_that("lf_obs_ints[1:200] matches known values", {
 
   expected_ints <- as.integer(c(
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  0,  0,  1,  3,  7,
-     9, 14, 26, 29, 23, 25, 13, 14,  4,  2,  3,  0,  0,  0,  0,  0,  0,  0,
+    9, 14, 26, 29, 23, 25, 13, 14,  4,  1,  3,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     0,  1,  0,  5, 26, 21, 61, 73, 64, 81, 82, 81, 67, 71, 62,  7,  4,  0,
+    0,  1,  0,  5, 26, 21, 61, 73, 64, 81, 82, 81, 67, 71, 62,  7,  4,  1,
      1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -197,6 +200,31 @@ test_that("lf_obs_prop sums to approximately 1 for each observation", {
   row_sums <- rowSums(mat)
   expect_true(all(abs(row_sums - 1) < 1e-6),
               info = paste("Row sums range:", range(row_sums)))
+})
+
+test_that("lf_obs_ints sums to the stored DM integer sample size", {
+  d <- make_lf_data()
+  offset <- 0L
+  for (j in seq_along(d$lf_fishery_f)) {
+    f <- d$lf_fishery_f[j]
+    n_bins <- d$lf_maxbin[f] - d$lf_minbin[f] + 1L
+    for (i in seq_len(d$lf_n_f[j])) {
+      indices <- offset + seq_len(n_bins)
+      expect_equal(sum(d$lf_obs_ints[indices]), d$lf_n_int_fi[[j]][i])
+      offset <- offset + n_bins
+    }
+  }
+})
+
+test_that("DM integerization uses half-up sizes and preserves totals", {
+  zero_size <- opal:::.opal_integerize_composition(c(0.2, 0.3, 0.5), 0.3)
+  half_size <- opal:::.opal_integerize_composition(c(0.2, 0.3, 0.5), 0.5)
+
+  expect_equal(zero_size$size, 0L)
+  expect_equal(zero_size$counts, c(0L, 0L, 0L))
+  expect_equal(half_size$size, 1L)
+  expect_equal(sum(half_size$counts), half_size$size)
+  expect_equal(half_size$counts, c(0L, 0L, 1L))
 })
 
 # ---- 6. lf_var_adjust scales lf_n by 1/adjust --------------------------------

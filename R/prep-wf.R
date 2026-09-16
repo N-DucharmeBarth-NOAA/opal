@@ -40,13 +40,16 @@
 #'     \item{\code{wf_obs_in}}{Matrix of observed proportions (n_wf x n_wt).}
 #'     \item{\code{wf_obs_flat}}{Flattened numeric vector of counts (for
 #'       multinomial, \code{wf_switch = 1}).}
-#'     \item{\code{wf_obs_ints}}{Flattened integer vector of rounded counts
-#'       (for Dirichlet-multinomial, \code{wf_switch = 3}).}
+#'     \item{\code{wf_obs_ints}}{Flattened integer counts that sum to
+#'       \code{wf_n_int} per observation (for Dirichlet-multinomial,
+#'       \code{wf_switch = 3}).}
 #'     \item{\code{wf_obs_prop}}{Flattened numeric vector of normalised
 #'       proportions (for Dirichlet, \code{wf_switch = 2}).}
 #'     \item{\code{wf_addtocomp}}{Stored value of the add-to-composition
 #'       constant used to robustify observed composition bins.}
 #'     \item{\code{wf_n}}{Numeric vector of sample sizes per observation row.}
+#'     \item{\code{wf_n_int}}{Integer Dirichlet-multinomial sample sizes
+#'       obtained by half-up rounding of \code{wf_n}.}
 #'     \item{\code{wf_fishery}}{Integer vector of fishery index per observation
 #'       row.}
 #'     \item{\code{wf_fishery_f}}{Integer vector of unique fishery indices with
@@ -54,7 +57,7 @@
 #'     \item{\code{wf_n_f}}{Integer vector of observation counts per fishery.}
 #'     \item{\code{wf_year}}{Integer vector of model timestep per observation
 #'       row.}
-#'     \item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_row_fi}}{Lists split
+#'     \item{\code{wf_year_fi}, \code{wf_n_fi}, \code{wf_n_int_fi}, \code{wf_row_fi}}{Lists split
 #'       by fishery containing model timesteps, effective sample sizes, and
 #'       row indices. Precomputed so \code{opal_model()} does not rebuild them
 #'       on every objective evaluation.}
@@ -63,6 +66,9 @@
 #'       \code{[n_fishery]} of variance-adjustment divisors applied to
 #'       \code{wf_n}.}
 #'   }
+#' @details Dirichlet-multinomial counts use half-up rounding of effective
+#' sample sizes and largest-remainder allocation. Observations that round to
+#' zero are skipped by the Dirichlet-multinomial likelihood.
 #' @seealso \code{\link{prep_lf_data}}, \code{\link{opal_model}}
 #' @export
 prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
@@ -144,6 +150,7 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   data$wf_switch    <- as.integer(wf_switch)
   data$wf_obs_in    <- wf_obs
   data$wf_n         <- wf_n
+  data$wf_n_int     <- as.integer(floor(wf_n + 0.5))
   data$wf_fishery   <- as.integer(wf_wide$fishery)
   data$wf_fishery_f <- sort(unique(data$wf_fishery))
   wf_group          <- factor(data$wf_fishery, levels = data$wf_fishery_f)
@@ -160,9 +167,11 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
   n_f           <- length(wf_fishery_f)
   n_wt_local    <- ncol(data$wf_obs_in)
   wf_n_fi       <- split(data$wf_n, wf_group)
+  wf_n_int_fi   <- split(data$wf_n_int, wf_group)
   wf_year_fi    <- split(data$wf_year, wf_group)
   wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), wf_group)
   data$wf_n_fi    <- wf_n_fi
+  data$wf_n_int_fi <- wf_n_int_fi
   data$wf_year_fi <- wf_year_fi
   data$wf_row_fi  <- wf_row_fi
 
@@ -193,8 +202,13 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
                              use.names = FALSE)
 
   # For Dirichlet-multinomial (wf_switch = 3): rounded integer counts
-  data$wf_obs_ints <- unlist(lapply(wf_obs_list,
-                                    function(m) as.integer(t(round(m)))),
+  data$wf_obs_ints <- unlist(Map(function(m, n_int) as.integer(vapply(
+                                      seq_len(nrow(m)),
+                                      function(i) .opal_integerize_composition(
+                                        m[i, ], n_int[i]
+                                      )$counts,
+                                      integer(ncol(m))
+                                    )), wf_obs_list, wf_n_int_fi),
                              use.names = FALSE)
 
   # For Dirichlet (wf_switch = 2): row-normalised proportions
@@ -207,6 +221,17 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
     as.numeric(t(props))
   }), use.names = FALSE)
   data$wf_addtocomp <- wf_addtocomp
+
+  zero_int <- data$wf_n_int == 0L
+  data$wf_dm_zero_n_f <- tabulate(data$wf_fishery[zero_int], data$n_fishery)
+  data$wf_dm_zero_weight_f <- vapply(seq_len(data$n_fishery), function(f) {
+    sum(data$wf_n[zero_int & data$wf_fishery == f])
+  }, numeric(1))
+  if (any(zero_int)) {
+    message("WF Dirichlet-multinomial integerization skipped ", sum(zero_int),
+            " observations with total effective sample size ",
+            signif(sum(data$wf_n[zero_int]), 6), ".")
+  }
 
   return(data)
 }

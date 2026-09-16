@@ -43,6 +43,7 @@ test_that("prep_wf_data attaches expected fields to data", {
   expect_true(is.integer(d$wf_obs_ints))
   expect_true(is.numeric(d$wf_obs_prop))
   expect_true(is.numeric(d$wf_n))
+  expect_true(is.integer(d$wf_n_int))
   expect_true(is.integer(d$wf_fishery))
   expect_true(is.integer(d$wf_fishery_f))
   expect_true(is.integer(d$wf_n_f))
@@ -52,6 +53,7 @@ test_that("prep_wf_data attaches expected fields to data", {
   expect_true(is.numeric(d$wf_var_adjust))
   expect_true(is.list(d$wf_year_fi))
   expect_true(is.list(d$wf_n_fi))
+  expect_true(is.list(d$wf_n_int_fi))
   expect_true(is.list(d$wf_row_fi))
 
   # Row counts must be consistent
@@ -62,6 +64,7 @@ test_that("prep_wf_data attaches expected fields to data", {
   expect_equal(sum(d$wf_n_f),         d$n_wf)
   expect_equal(d$wf_year_fi, split(d$wf_year, d$wf_fishery))
   expect_equal(d$wf_n_fi, split(d$wf_n, d$wf_fishery))
+  expect_equal(d$wf_n_int_fi, split(d$wf_n_int, d$wf_fishery))
   expect_equal(d$wf_row_fi, split(seq_len(d$n_wf), d$wf_fishery))
 
   # Only the two requested fisheries
@@ -195,6 +198,20 @@ test_that("wf_obs_flat, wf_obs_prop, wf_obs_ints all have the same length", {
   d <- make_wf_data()
   expect_equal(length(d$wf_obs_flat), length(d$wf_obs_prop))
   expect_equal(length(d$wf_obs_flat), length(d$wf_obs_ints))
+})
+
+test_that("wf_obs_ints sums to the stored DM integer sample size", {
+  d <- make_wf_data()
+  offset <- 0L
+  for (j in seq_along(d$wf_fishery_f)) {
+    f <- d$wf_fishery_f[j]
+    n_bins <- d$wf_maxbin[f] - d$wf_minbin[f] + 1L
+    for (i in seq_len(d$wf_n_f[j])) {
+      indices <- offset + seq_len(n_bins)
+      expect_equal(sum(d$wf_obs_ints[indices]), d$wf_n_int_fi[[j]][i])
+      offset <- offset + n_bins
+    }
+  }
 })
 
 # ---- 8. Bin alignment error when columns don't match expected structure ---------

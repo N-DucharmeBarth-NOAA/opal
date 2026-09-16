@@ -110,6 +110,7 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
 #' @param lf_fishery_f integer vector of fishery indices for each observation group.
 #' @param lf_year_fi list of integer vectors of year indices for each observation.
 #' @param lf_n_fi list of integer vectors of sample sizes for each observation.
+#' @param lf_n_int_fi optional list of integer Dirichlet-multinomial sample sizes.
 #' @param lf_minbin integer vector `[n_fishery]` of minimum bin index per fishery.
 #' @param lf_maxbin integer vector `[n_fishery]` of maximum bin index per fishery.
 #' @param removal_switch_f integer vector `[n_fishery]` indicating if fishery is removed (0=included, 1=removed).
@@ -120,6 +121,11 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
 #' @param lf_addtocomp small non-negative numeric constant added to predicted
 #'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
 #' @return a \code{numeric} vector of negative log-likelihood contributions, one per observation.
+#' @details For Dirichlet, concentration is `pred * n_i * exp(log_lf_tau[f])`;
+#'   for Dirichlet-multinomial, it is `pred * exp(log_lf_tau[f])`. The
+#'   multinomial branch uses RTMB's integer-rounded count behavior. The
+#'   Dirichlet-multinomial is intended for real counts with variance adjustment
+#'   equal to one; use Dirichlet for fractional effective sample sizes.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
@@ -137,7 +143,8 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
                             lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,
                             lf_minbin, lf_maxbin, removal_switch_f,
                             lf_switch, n_len, n_lf, log_lf_tau,
-                            lf_addtocomp = 1e-08) {
+                            lf_addtocomp = 1e-08,
+                            lf_n_int_fi = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   
@@ -175,7 +182,9 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
       pred <- pred / sum(pred)
       lf_pred[[j]][i, ] <- pred
       n_i <- lf_n_fi[[j]][i]
-      if (removal_switch_f[f] == 0 & n_i > 0) {
+      n_int_i <- if (is.null(lf_n_int_fi)) as.integer(floor(n_i + 0.5)) else lf_n_int_fi[[j]][i]
+      include <- removal_switch_f[f] == 0 & if (lf_switch == 3) n_int_i > 0 else n_i > 0
+      if (include) {
         if (lf_switch == 1) { # Multinomial
           obs_i <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
           lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
@@ -187,8 +196,11 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
         }
         if (lf_switch == 3) { # Dirichlet-multinomial
           obs_i <- lf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
+          if (sum(obs_i) != n_int_i) {
+            stop("Dirichlet-multinomial length counts must sum to the integer sample size. Re-prepare data with prep_lf_data().", call. = FALSE)
+          }
           alpha_i <- pred * exp(log_lf_tau[f])
-          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_i, alpha = alpha_i, log = TRUE)
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
         }
       }
       obs_offset <- obs_offset + nbins
@@ -218,6 +230,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param wf_fishery_f integer vector of fishery indices with WF data.
 #' @param wf_year_fi list of integer vectors of year indices per fishery.
 #' @param wf_n_fi list of integer vectors of sample sizes per fishery.
+#' @param wf_n_int_fi optional list of integer Dirichlet-multinomial sample sizes.
 #' @param wf_minbin integer vector `[n_fishery]` minimum weight bin index.
 #' @param wf_maxbin integer vector `[n_fishery]` maximum weight bin index.
 #' @param removal_switch_f integer vector `[n_fishery]` removal flags.
@@ -228,6 +241,11 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param wf_addtocomp small non-negative numeric constant added to predicted
 #'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
 #' @return numeric vector of negative log-likelihood contributions, one per observation.
+#' @details For Dirichlet, concentration is `pred * n_i * exp(log_wf_tau[f])`;
+#'   for Dirichlet-multinomial, it is `pred * exp(log_wf_tau[f])`. The
+#'   multinomial branch uses RTMB's integer-rounded count behavior. The
+#'   Dirichlet-multinomial is intended for real counts with variance adjustment
+#'   equal to one; use Dirichlet for fractional effective sample sizes.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
@@ -237,7 +255,8 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             wf_n_f, wf_fishery_f, wf_year_fi, wf_n_fi,
                             wf_minbin, wf_maxbin, removal_switch_f,
                             wf_switch, n_wt, n_wf, log_wf_tau,
-                            wf_addtocomp = 1e-08) {
+                            wf_addtocomp = 1e-08,
+                            wf_n_int_fi = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   n_f <- length(wf_n_f)
@@ -274,7 +293,9 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
       pred <- pred / sum(pred)
       wf_pred[[j]][i, ] <- pred
       n_i <- wf_n_fi[[j]][i]
-      if (removal_switch_f[f] == 0 & n_i > 0) {
+      n_int_i <- if (is.null(wf_n_int_fi)) as.integer(floor(n_i + 0.5)) else wf_n_int_fi[[j]][i]
+      include <- removal_switch_f[f] == 0 & if (wf_switch == 3) n_int_i > 0 else n_i > 0
+      if (include) {
         if (wf_switch == 1) { # Multinomial
           obs_i <- wf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
           lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
@@ -286,8 +307,11 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
         }
         if (wf_switch == 3) { # Dirichlet-multinomial
           obs_i <- wf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
+          if (sum(obs_i) != n_int_i) {
+            stop("Dirichlet-multinomial weight counts must sum to the integer sample size. Re-prepare data with prep_wf_data().", call. = FALSE)
+          }
           alpha_i <- pred * exp(log_wf_tau[f])
-          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_i, alpha = alpha_i, log = TRUE)
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
         }
       }
       obs_offset <- obs_offset + nbins
