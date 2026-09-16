@@ -41,6 +41,8 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #'   fishery.
 #' @param sel_fa an optional matrix of selectivity-at-age with dimensions
 #'   \code{[n_fishery, n_age]}.
+#' @param n_season Number of seasons used to translate annual initial fishing
+#'   mortality into seasonal harvest fractions.
 #' @param init_rdev_a an optional \code{vector} of initial age deviations.
 #' @param sigma_r recruitment standard deviation used in lognormal correction.
 #' @param init_bias_adj_a an optional \code{vector} of bias adjustment scalars
@@ -59,6 +61,7 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #'
 get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
                                 init_F_f = NULL, sel_fa = NULL,
+                                n_season = 1L,
                                 init_rdev_a = NULL, sigma_r = 0.6,
                                 init_bias_adj_a = NULL) {
   "[<-" <- ADoverload("[<-")
@@ -78,24 +81,28 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   beta  <- (B0 * (1 - h)) / (5 * h - 1)
 
   # Fished survivorship for Ninit
-  Z_a <- M_a + B0 * 0
+  survival_a <- exp(-M_a)
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
-      if (is.null(dim(sel_fa))) {
-        ## single fishery sel_fa may be passed as vector, not matrix
-        Z_a <- Z_a + init_F_f[1L] * sel_fa
-      } else {
-        for (f in seq_along(init_F_f)) {
-          Z_a <- Z_a + init_F_f[f] * sel_fa[f, ]
-        }
+    u_f <- 1 - exp(-init_F_f / n_season)
+    seasonal_survival_a <- numeric(n_age) + B0 * 0
+    seasonal_survival_a[] <- 1
+    if (is.null(dim(sel_fa))) {
+      # A single-fishery sel_fa may be passed as a vector rather than a matrix.
+      seasonal_survival_a <- seasonal_survival_a - u_f[1L] * sel_fa
+    } else {
+      for (f in seq_along(init_F_f)) {
+        seasonal_survival_a <- seasonal_survival_a - u_f[f] * sel_fa[f, ]
       }
+    }
+    survival_a <- survival_a * seasonal_survival_a^n_season
   }
 
   rel_N <- numeric(n_age) + B0 * 0
   rel_N[1] <- 1
   if (n_age > 1) {
-    for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * exp(-Z_a[a - 1])
+    for (a in 2:n_age) rel_N[a] <- rel_N[a - 1] * survival_a[a - 1]
   }
-  rel_N[n_age] <- rel_N[n_age] / (1 - exp(-Z_a[n_age]))
+  rel_N[n_age] <- rel_N[n_age] / (1 - survival_a[n_age])
 
   # Fished equilibrium recruitment
   SPR_eq <- sum(spawning_potential_a * rel_N)

@@ -52,7 +52,7 @@ ref <- list(
     platform = R.version$platform,
     scientific_version = .opal_model_scientific_version,
     opal_model_signature = .opal_model_metadata()$signature,
-    reason = "Initial reference prior to dev -> main merge"
+    reason = "Align fished initial survival with seasonal harvest-fraction dynamics"
   ),
   par_names = names(obj$par),
   start = snap_point(obj$par),

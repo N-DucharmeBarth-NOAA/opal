@@ -11,6 +11,7 @@ get_initial_numbers(
   spawning_potential_a,
   init_F_f = NULL,
   sel_fa = NULL,
+  n_season = 1L,
   init_rdev_a = NULL,
   sigma_r = 0.6,
   init_bias_adj_a = NULL
@@ -31,6 +32,9 @@ fishery.}
 
 \item{sel_fa}{an optional matrix of selectivity-at-age with dimensions
 \code{[n_fishery, n_age]}.}
+
+\item{n_season}{Number of seasons used to translate annual initial fishing
+mortality into seasonal harvest fractions.}
 
 \item{init_rdev_a}{an optional \code{vector} of initial age deviations.}
 

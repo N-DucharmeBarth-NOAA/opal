@@ -178,6 +178,7 @@ opal_model <- function(parameters, data) {
   init_F_f <- exp(log_init_F_f)
   init <- get_initial_numbers(B0 = B0, h = h, M_a = M_a, spawning_potential_a = spawning_potential_a,
                               init_F_f = init_F_f, sel_fa = sel_fya[, 1, ],
+                              n_season = n_season,
                               init_rdev_a = init_rdev_a, sigma_r = sigma_r,
                               init_bias_adj_a = init_bias_adj_a)
   R0 <- init$R0

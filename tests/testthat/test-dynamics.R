@@ -191,3 +191,25 @@ test_that("init_F_f recovers analytic depletion for single plus-group age (h=1)"
   # For h=1, recruitment is independent of spanning biomass, so R_eq = R0
   expect_equal(as.numeric(init$Ninit), expected_R0 * phi_F, tolerance = 1e-10)
 })
+
+test_that("init_F_f uses seasonal harvest survival for a single plus-group age", {
+  M_single <- 0.3
+  init_F <- 0.3
+  sel_single <- 0.5
+  n_season <- 4L
+  h <- 0.75
+  init <- get_initial_numbers(
+    B0 = 1000, h = h, M_a = M_single, spawning_potential_a = 1,
+    init_F_f = init_F, sel_fa = matrix(sel_single, nrow = 1),
+    n_season = n_season
+  )
+  u <- 1 - exp(-init_F / n_season)
+  survival <- exp(-M_single) * (1 - u * sel_single)^n_season
+  phi_0 <- 1 / (1 - exp(-M_single))
+  expected_R0 <- 1000 / phi_0
+  phi_F <- 1 / (1 - survival)
+  expected_Req <- expected_R0 * (4 * h * phi_F - phi_0 * (1 - h)) /
+    (phi_F * (5 * h - 1))
+
+  expect_equal(as.numeric(init$Ninit), expected_Req * phi_F, tolerance = 1e-10)
+})

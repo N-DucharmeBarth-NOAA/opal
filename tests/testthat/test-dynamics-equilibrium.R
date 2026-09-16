@@ -23,6 +23,18 @@ run_eq <- function(data, init, B0, h, M_a, sp_a, sel_fa,
   )
 }
 
+equilibrium_catch_ysf <- function(init, sel_a, F0, M_a, n_year, n_season) {
+  u <- 1 - exp(-F0 / n_season)
+  seasonal_number_a <- init$Ninit
+  catch_s <- numeric(n_season)
+  for (s in seq_len(n_season)) {
+    catch_s[s] <- u * sum(seasonal_number_a * sel_a)
+    seasonal_number_a <- seasonal_number_a * (1 - u * sel_a) *
+      exp(-M_a / n_season)
+  }
+  array(rep(catch_s, each = n_year), c(n_year, n_season, 1))
+}
+
 test_that("unfished zero-catch dynamics remain at equilibrium", {
   n_age <- 12L
   n_year <- 40L
@@ -85,22 +97,24 @@ test_that("init_F_f equilibrium with logistic selectivity is stationary", {
   sp_a <- c(0, 0, 0.2, 0.6, rep(1, 8))
   sel_a <- plogis(seq_len(n_age) - 4)
   F0 <- 0.3
-  u <- 1 - exp(-F0)
-  init <- get_initial_numbers(
-    B0 = 1e6, h = 0.8, M_a = M_a, spawning_potential_a = sp_a,
-    init_F_f = F0, sel_fa = matrix(sel_a, 1)
-  )
-  catch <- array(u * sum(init$Ninit * sel_a), c(n_year, 1, 1))
-  data <- eq_data(n_year, 1L, 1L, n_age, catch_ysf = catch,
-                  catch_units_f = 2L)
-  dyn <- run_eq(data, init, 1e6, 0.8, M_a, sp_a,
-                sel_fa = matrix(sel_a, 1))
 
-  expect_equal(dyn$spawning_biomass_y,
-               rep(dyn$spawning_biomass_y[1], n_year + 1),
-               tolerance = 1e-8)
-  expect_equal(dyn$number_ysa[n_year + 1, 1, ], init$Ninit,
-               tolerance = 1e-8)
+  for (n_season in c(1L, 4L)) {
+    init <- get_initial_numbers(
+      B0 = 1e6, h = 0.8, M_a = M_a, spawning_potential_a = sp_a,
+      init_F_f = F0, sel_fa = matrix(sel_a, 1), n_season = n_season
+    )
+    catch <- equilibrium_catch_ysf(init, sel_a, F0, M_a, n_year, n_season)
+    data <- eq_data(n_year, n_season, 1L, n_age, catch_ysf = catch,
+                    catch_units_f = 2L)
+    dyn <- run_eq(data, init, 1e6, 0.8, M_a, sp_a,
+                  sel_fa = matrix(sel_a, 1))
+
+    expect_equal(dyn$spawning_biomass_y,
+                 rep(dyn$spawning_biomass_y[1], n_year + 1),
+                 tolerance = 1e-8, label = sprintf("n_season=%d", n_season))
+    expect_equal(dyn$number_ysa[n_year + 1, 1, ], init$Ninit,
+                 tolerance = 1e-8, label = sprintf("n_season=%d", n_season))
+  }
 })
 
 test_that("the unfished trajectory ignores catch", {
