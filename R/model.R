@@ -30,7 +30,6 @@ utils::globalVariables(c(
 opal_globals <- function() {
   list(
     posfun = posfun, 
-    get_M = get_M, 
     get_growth = get_growth,
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
