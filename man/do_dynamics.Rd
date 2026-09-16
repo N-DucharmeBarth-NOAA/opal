@@ -76,6 +76,12 @@ A named list with:
 \item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
 \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
+\item{hrate_ysfa}{Harvest rate array by year, season, fishery, and age
+\code{[n_year+1, n_season, n_fishery, n_age]}.}
+\item{hrate_ysa}{Total harvest rate array by year, season, and age
+\code{[n_year+1, n_season, n_age]}.}
+\item{catch_pred_ysf}{Predicted catch array by year, season, and fishery
+\code{[n_year, n_season, n_fishery]}.}
 \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
 \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
 \item{static_depletion_y}{Static depletion trajectory \code{spawning_biomass_y / B0}.}

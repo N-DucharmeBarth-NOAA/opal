@@ -174,6 +174,12 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
 #'   \item{number0_ysa}{Unfished numbers-at-age array \code{[n_year+1, n_season, n_age]}.}
 #'   \item{lp_penalty}{Total penalty from \code{\link{posfun}} (harvest rate constraints).}
 #'   \item{catch_pred_fya}{Predicted catch-at-age array \code{[n_fishery, n_year, n_age]}.}
+#'   \item{hrate_ysfa}{Harvest rate array by year, season, fishery, and age
+#'     \code{[n_year+1, n_season, n_fishery, n_age]}.}
+#'   \item{hrate_ysa}{Total harvest rate array by year, season, and age
+#'     \code{[n_year+1, n_season, n_age]}.}
+#'   \item{catch_pred_ysf}{Predicted catch array by year, season, and fishery
+#'     \code{[n_year, n_season, n_fishery]}.}
 #'   \item{spawning_biomass_y}{Spawning biomass trajectory under fishing.}
 #'   \item{spawning_biomass0_y}{Spawning biomass trajectory in the dynamic unfished state.}
 #'   \item{static_depletion_y}{Static depletion trajectory \code{spawning_biomass_y / B0}.}
@@ -190,6 +196,9 @@ do_dynamics <- function(data, parameters,
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   getAll(data, parameters, warn = FALSE)
+  if (!all(catch_units_f %in% c(1, 2))) {
+    stop("`catch_units_f` must contain only 1 (weight) or 2 (numbers).", call. = FALSE)
+  }
   if (is.null(bias_adj_y)) bias_adj_y <- rep(1.0, n_year)
   fy <- first_yr_catch - first_yr + 1
   n_age1 <- n_age - 1
@@ -293,6 +302,8 @@ do_dynamics <- function(data, parameters,
   
   return(list(number_ysa = number_ysa, number0_ysa = number0_ysa, lp_penalty = lp_penalty,
               catch_pred_fya = catch_pred_fya,
+              hrate_ysfa = hrate_ysfa, hrate_ysa = hrate_ysa,
+              catch_pred_ysf = catch_pred_ysf,
               spawning_biomass_y = spawning_biomass_y,
               spawning_biomass0_y = spawning_biomass0_y,
               static_depletion_y = static_depletion_y,
@@ -334,6 +345,9 @@ get_harvest_rate <- function(data, y, s, number_ysa, sel_fya, weight_fya) {
   n_age <- data$n_age
   catch_obs_ysf <- data$catch_obs_ysf
   catch_units_f <- data$catch_units_f
+  if (!all(catch_units_f %in% c(1, 2))) {
+    stop("`catch_units_f` must contain only 1 (weight) or 2 (numbers).", call. = FALSE)
+  }
   eps_denom <- 1e-6
   F_f <- numeric(n_fishery)
   h_rate_fa <- array(0, dim = c(n_fishery, n_age))
