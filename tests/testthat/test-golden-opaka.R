@@ -54,7 +54,9 @@ for (point in c("start", "mle")) {
 test_that("bundled opaka quickstart fit is compatible and reproduces its objective", {
   path <- system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
   expect_true(nzchar(path))
-  fit <- suppressWarnings(read_opal_fit(path, strict = TRUE))
+  fit <- suppressWarnings(
+    read_opal_fit(path, strict = TRUE, integrity = "portable")
+  )
   expect_true(opal_fit_compatibility(fit)$compatible)
   expect_identical(names(fit$fit$opt$par), names(opaka_obj()$par))
 })

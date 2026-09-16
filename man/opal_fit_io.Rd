@@ -8,7 +8,12 @@
 \usage{
 save_opal_fit(x, file, compress = "gzip", overwrite = FALSE)
 
-read_opal_fit(file, strict = FALSE, rebuild = strict)
+read_opal_fit(
+  file,
+  strict = FALSE,
+  rebuild = strict,
+  integrity = c("exact", "portable")
+)
 }
 \arguments{
 \item{x}{An \code{opal_fit} object.}
@@ -23,6 +28,10 @@ read_opal_fit(file, strict = FALSE, rebuild = strict)
 
 \item{rebuild}{Rebuild and cache the RTMB objective after reading. Defaults
 to \code{strict}.}
+
+\item{integrity}{Runtime-payload verification mode. \code{"exact"} requires the
+raw serialized payload identity to match. \code{"portable"} permits a mismatch
+across R versions, provided the rebuilt objective is verified.}
 }
 \value{
 \code{save_opal_fit()} invisibly returns the normalized path;

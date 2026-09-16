@@ -393,6 +393,25 @@
   paste0("opal-fit-", .opal_object_checksum(.opal_fit_runtime_payload(x)))
 }
 
+.opal_validate_runtime_identity <- function(
+  x, integrity = c("exact", "portable"),
+  error = "The saved fit runtime identity does not match its payload.") {
+  integrity <- match.arg(integrity)
+  if (identical(x$runtime_id, .opal_fit_runtime_id(x))) return(TRUE)
+  if (identical(integrity, "portable") &&
+      is.character(x$model$r_version) &&
+      length(x$model$r_version) == 1L &&
+      nzchar(x$model$r_version) &&
+      !identical(x$model$r_version, as.character(getRversion()))) {
+    warning(
+      "The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.",
+      call. = FALSE
+    )
+    return(FALSE)
+  }
+  stop(error, call. = FALSE)
+}
+
 .opal_cache_runtime_object <- function(x, obj) {
   assign(x$runtime_id, obj, envir = .opal_fit_runtime_cache)
   invisible(x)
@@ -805,13 +824,23 @@ opal_fit_compatibility <- function(x) {
 #' @param tolerance Relative tolerance passed to [all.equal()].
 #' @param silent Passed to `RTMB::MakeADFun()`.
 #' @param cache Cache the rebuilt objective for this R session.
+#' @param integrity Runtime-payload verification mode. `"exact"` requires the
+#'   raw serialized payload identity to match. `"portable"` permits a mismatch
+#'   across R versions, provided the rebuilt objective is verified.
 #' @return A newly constructed RTMB objective.
 #' @export
 #'
 rebuild_opal_object <- function(x, strict = TRUE, check_objective = TRUE,
                                 tolerance = 1e-6, silent = FALSE,
-                                cache = TRUE) {
+                                cache = TRUE,
+                                integrity = c("exact", "portable")) {
+  integrity <- match.arg(integrity)
   validate_opal_fit(x)
+  runtime_identity_matches <- .opal_validate_runtime_identity(x, integrity)
+  if (!runtime_identity_matches && !isTRUE(check_objective)) {
+    stop("Portable runtime identity requires objective verification.",
+         call. = FALSE)
+  }
   compatibility <- opal_fit_compatibility(x)
   if (length(compatibility$errors)) {
     message <- paste(compatibility$errors, collapse = " ")
@@ -892,24 +921,35 @@ rebuild_opal_object <- function(x, strict = TRUE, check_objective = TRUE,
 #' @param x An `opal_fit` object.
 #' @param fresh Construct an isolated objective instead of using the session
 #'   cache.
+#' @param integrity Runtime-payload verification mode. `"exact"` requires the
+#'   raw serialized payload identity to match. `"portable"` permits a mismatch
+#'   across R versions, provided the rebuilt objective is verified.
 #' @return A fitted RTMB objective.
 #' @export
 #'
-opal_fit_object <- function(x, fresh = FALSE) {
+opal_fit_object <- function(x, fresh = FALSE,
+                            integrity = c("exact", "portable")) {
+  integrity <- match.arg(integrity)
   validate_opal_fit(x)
   if (!is.logical(fresh) || length(fresh) != 1L || is.na(fresh)) {
     stop("`fresh` must be `TRUE` or `FALSE`.", call. = FALSE)
   }
-  if (!identical(x$runtime_id, .opal_fit_runtime_id(x))) {
-    stop("The fit payload was modified without refreshing its runtime identity.",
-         call. = FALSE)
-  }
+  runtime_identity_matches <- .opal_validate_runtime_identity(
+    x, integrity,
+    error = "The fit payload was modified without refreshing its runtime identity."
+  )
+  if (!runtime_identity_matches) fresh <- TRUE
   if (isTRUE(fresh)) {
-    return(rebuild_opal_object(x, strict = TRUE, silent = TRUE, cache = FALSE))
+    return(rebuild_opal_object(
+      x, strict = TRUE, silent = TRUE, cache = !runtime_identity_matches,
+      integrity = integrity
+    ))
   }
   obj <- .opal_cached_runtime_object(x)
   if (is.null(obj)) {
-    obj <- rebuild_opal_object(x, strict = TRUE, silent = TRUE, cache = TRUE)
+    obj <- rebuild_opal_object(
+      x, strict = TRUE, silent = TRUE, cache = TRUE, integrity = integrity
+    )
   }
   obj
 }
@@ -1060,6 +1100,9 @@ opal_as_tmbfit <- function(x) {
 #' @param strict Treat scientific-contract incompatibility as an error.
 #' @param rebuild Rebuild and cache the RTMB objective after reading. Defaults
 #'   to `strict`.
+#' @param integrity Runtime-payload verification mode. `"exact"` requires the
+#'   raw serialized payload identity to match. `"portable"` permits a mismatch
+#'   across R versions, provided the rebuilt objective is verified.
 #' @return `save_opal_fit()` invisibly returns the normalized path;
 #'   `read_opal_fit()` returns an `opal_fit`.
 #' @name opal_fit_io
@@ -1124,7 +1167,9 @@ save_opal_fit <- function(x, file, compress = "gzip", overwrite = FALSE) {
 #' @rdname opal_fit_io
 #' @export
 #'
-read_opal_fit <- function(file, strict = FALSE, rebuild = strict) {
+read_opal_fit <- function(file, strict = FALSE, rebuild = strict,
+                          integrity = c("exact", "portable")) {
+  integrity <- match.arg(integrity)
   if (!is.logical(strict) || length(strict) != 1L || is.na(strict) ||
       !is.logical(rebuild) || length(rebuild) != 1L || is.na(rebuild)) {
     stop("`strict` and `rebuild` must each be `TRUE` or `FALSE`.",
@@ -1132,9 +1177,12 @@ read_opal_fit <- function(file, strict = FALSE, rebuild = strict) {
   }
   x <- readRDS(file)
   validate_opal_fit(x)
-  if (!identical(x$runtime_id, .opal_fit_runtime_id(x))) {
-    stop("The saved fit runtime identity does not match its payload.",
-         call. = FALSE)
+  runtime_identity_matches <- .opal_validate_runtime_identity(x, integrity)
+  if (!runtime_identity_matches && !isTRUE(rebuild)) {
+    warning(
+      "Portable runtime identity was not independently verified because `rebuild = FALSE`.",
+      call. = FALSE
+    )
   }
 
   compatibility <- opal_fit_compatibility(x)
@@ -1147,7 +1195,9 @@ read_opal_fit <- function(file, strict = FALSE, rebuild = strict) {
     if (length(compatibility$errors)) {
       stop("Cannot rebuild an incompatible opal fit.", call. = FALSE)
     }
-    rebuild_opal_object(x, strict = TRUE, silent = TRUE, cache = TRUE)
+    rebuild_opal_object(
+      x, strict = TRUE, silent = TRUE, cache = TRUE, integrity = integrity
+    )
   }
   x
 }

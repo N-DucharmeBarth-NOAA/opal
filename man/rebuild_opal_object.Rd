@@ -10,7 +10,8 @@ rebuild_opal_object(
   check_objective = TRUE,
   tolerance = 1e-06,
   silent = FALSE,
-  cache = TRUE
+  cache = TRUE,
+  integrity = c("exact", "portable")
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ rebuild_opal_object(
 \item{silent}{Passed to \code{RTMB::MakeADFun()}.}
 
 \item{cache}{Cache the rebuilt objective for this R session.}
+
+\item{integrity}{Runtime-payload verification mode. \code{"exact"} requires the
+raw serialized payload identity to match. \code{"portable"} permits a mismatch
+across R versions, provided the rebuilt objective is verified.}
 }
 \value{
 A newly constructed RTMB objective.

@@ -66,6 +66,35 @@ test_that("opal_fit detects changed serialized payloads", {
   expect_error(opal_fit_object(changed), "modified")
 })
 
+test_that("portable integrity permits verified cross-R reads only", {
+  fit <- make_opal_fit_fixture(mcmc = FALSE)
+  path <- tempfile(fileext = ".rds")
+  on.exit(unlink(path), add = TRUE)
+  save_opal_fit(fit, path)
+
+  cross_r <- readRDS(path)
+  cross_r$model$r_version <- "0.0.0"
+  saveRDS(cross_r, path)
+
+  expect_error(
+    read_opal_fit(path, strict = TRUE),
+    "runtime identity"
+  )
+  portable <- suppressWarnings(
+    read_opal_fit(path, strict = TRUE, integrity = "portable")
+  )
+  expect_s3_class(portable, "opal_fit")
+  expect_true(is.function(opal_fit_object(portable, integrity = "portable")$fn))
+
+  same_r <- fit
+  same_r$data$n_year <- same_r$data$n_year + 1L
+  saveRDS(same_r, path)
+  expect_error(
+    read_opal_fit(path, strict = TRUE, integrity = "portable"),
+    "runtime identity"
+  )
+})
+
 test_that("update_opal_fit manages attached results", {
   fit <- make_opal_fit_fixture(mcmc = FALSE)
   old_runtime_id <- fit$runtime_id

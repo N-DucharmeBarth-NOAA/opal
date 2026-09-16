@@ -4,13 +4,17 @@
 \alias{opal_fit_object}
 \title{Access the runtime objective for an opal fit}
 \usage{
-opal_fit_object(x, fresh = FALSE)
+opal_fit_object(x, fresh = FALSE, integrity = c("exact", "portable"))
 }
 \arguments{
 \item{x}{An \code{opal_fit} object.}
 
 \item{fresh}{Construct an isolated objective instead of using the session
 cache.}
+
+\item{integrity}{Runtime-payload verification mode. \code{"exact"} requires the
+raw serialized payload identity to match. \code{"portable"} permits a mismatch
+across R versions, provided the rebuilt objective is verified.}
 }
 \value{
 A fitted RTMB objective.
