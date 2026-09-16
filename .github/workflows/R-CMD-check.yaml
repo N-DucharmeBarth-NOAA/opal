@@ -21,6 +21,7 @@ jobs:
         config:
           # - {os: windows-latest, r: 'release'}
           # - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
+          - {os: ubuntu-22.04,   r: '4.5.2'}
           - {os: ubuntu-22.04,   r: 'release'}
           # - {os: ubuntu-latest,   r: 'oldrel-1'}
 
@@ -47,12 +48,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/renv
-          key: renv-${{ matrix.config.os }}-${{ matrix.config.r }}-${{ hashFiles('renv.lock') }}
-          restore-keys: renv-${{ matrix.config.os }}-${{ matrix.config.r }}-
+          key: renv-v2-${{ matrix.config.os }}-${{ matrix.config.r }}-${{ hashFiles('renv.lock') }}
+          restore-keys: renv-v2-${{ matrix.config.os }}-${{ matrix.config.r }}-
 
       - name: Restore renv environment
         run: |
-          install.packages("renv")
+          install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"))
 
           # 1. TMB first, in its own transaction so it lands in the real library
           renv::restore(packages = c("Rcpp", "Matrix", "RcppEigen", "cpp11",
