@@ -68,36 +68,44 @@ export(update_opal_fit)
 export(validate_opal_fit)
 import(dplyr)
 import(ggplot2)
-importFrom(RTMB,ADREPORT)
-importFrom(RTMB,ADoverload)
-importFrom(RTMB,OBS)
-importFrom(RTMB,REPORT)
-importFrom(RTMB,colSums)
-importFrom(RTMB,dlnorm)
-importFrom(RTMB,dmultinom)
-importFrom(RTMB,dnorm)
-importFrom(RTMB,getAll)
-importFrom(RTMB,logspace_add)
-importFrom(RTMB,pnorm)
-importFrom(RTMB,qlogis)
-importFrom(RTMBdist,dbeta2)
-importFrom(RTMBdist,ddirichlet)
-importFrom(RTMBdist,ddirmult)
-importFrom(RTMBdist,dt2)
+importFrom(RTMB,
+  ADREPORT,
+  ADoverload,
+  OBS,
+  REPORT,
+  colSums,
+  dlnorm,
+  dmultinom,
+  dnorm,
+  getAll,
+  logspace_add,
+  pnorm,
+  qlogis
+)
+importFrom(RTMBdist,
+  dbeta2,
+  ddirichlet,
+  ddirmult,
+  dt2
+)
 importFrom(SparseNUTS,extract_samples)
 importFrom(forecast,auto.arima)
 importFrom(ggridges,geom_density_ridges)
 importFrom(reshape2,melt)
 importFrom(rlang,.data)
 importFrom(scales,pretty_breaks)
-importFrom(stats,ar)
-importFrom(stats,arima.sim)
-importFrom(stats,ave)
-importFrom(stats,cov2cor)
-importFrom(stats,optimHess)
-importFrom(stats,plogis)
-importFrom(stats,rnorm)
-importFrom(stats,sd)
-importFrom(stats,simulate)
-importFrom(utils,setTxtProgressBar)
-importFrom(utils,txtProgressBar)
+importFrom(stats,
+  ar,
+  arima.sim,
+  ave,
+  cov2cor,
+  optimHess,
+  plogis,
+  rnorm,
+  sd,
+  simulate
+)
+importFrom(utils,
+  setTxtProgressBar,
+  txtProgressBar
+)
