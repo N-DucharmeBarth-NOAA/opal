@@ -1,7 +1,15 @@
+#' Opakapaka quickstart model inputs
+#'
+#' Builds the data, parameter, and map configuration used by the Opakapaka
+#' quickstart assessment.
+#'
+#' @return A list with `data`, `parameters`, and `map` elements.
+#' @seealso \code{vignette("quickstart")}
+#' @export
 opaka_quickstart_inputs <- function() {
-  data(opaka_data, package = "opal", envir = environment())
-  data(opaka_lf, package = "opal", envir = environment())
-  data(opaka_parameters, package = "opal", envir = environment())
+  utils::data(opaka_data, package = "opal", envir = environment())
+  utils::data(opaka_lf, package = "opal", envir = environment())
+  utils::data(opaka_parameters, package = "opal", envir = environment())
 
   model_data <- opaka_data
   model_data$n_index <- 2L
@@ -12,14 +20,15 @@ opaka_quickstart_inputs <- function() {
   model_data$age_a <- seq(model_data$min_age, by = 1, length.out = model_data$n_age)
   model_data$sex_ratio <- rep(1, model_data$n_age)
 
+  rlang::check_installed("tidyr", reason = "to reshape the bundled length compositions.")
   lf_wide <- tidyr::pivot_wider(
     opaka_lf,
-    id_cols = c(fishery, year, month, ts),
-    names_from = bin,
-    values_from = value,
+    id_cols = c("fishery", "year", "month", "ts"),
+    names_from = "bin",
+    values_from = "value",
     values_fill = 0
   )
-  lf_wide <- dplyr::arrange(lf_wide, fishery, ts)
+  lf_wide <- lf_wide[order(lf_wide$fishery, lf_wide$ts), ]
   model_data <- prep_lf_data(
     model_data,
     lf_wide,

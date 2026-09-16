@@ -11,6 +11,9 @@ if (getRversion() >= "2.15.1") {
     "lf_obs_prop",
     "log_lf_tau",
     "n_len",
+    "opaka_data",
+    "opaka_lf",
+    "opaka_parameters",
     "spawning_potential",
     "weight"
   ))

@@ -28,9 +28,9 @@ inputs, fitted parameters, optimization results, and diagnostics without
 serializing RTMB's session-specific objective. An objective is rebuilt only
 when it is needed for reporting or plotting.
 
-## Load the model recipe
+## Load the model inputs
 
-The package includes a sourceable recipe so this vignette and the stored
+The package includes a model-input builder so this vignette and the stored
 example fit use the same data preparation and fixed-effects configuration.
 
 ```{r}
@@ -38,11 +38,10 @@ example fit use the same data preparation and fixed-effects configuration.
 library(opal)
 library(RTMB)
 
-source("../inst/scripts/opaka-quickstart.R")
 inputs <- opaka_quickstart_inputs()
 ```
 
-The recipe loads the bundled opakapaka catch, CPUE, and length-composition
+The input builder loads the bundled opakapaka catch, CPUE, and length-composition
 data; uses biological ages 0--43 to align with SS3; applies the SS3 recruitment
 bias ramps; and prepares multinomial length compositions for the commercial
 and research fleets. It fixes life-history parameters at their SS3 values and

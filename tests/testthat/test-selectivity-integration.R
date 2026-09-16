@@ -5,7 +5,7 @@ library(RTMB)
 
 test_that("data includes all required selectivity elements", {
   # Load the complete assessment data object
-  data(wcpo_bet_data)
+  wcpo_bet_data <- get_data("wcpo_bet")
   
   # Verify selectivity type configuration
   expect_true("sel_type_f" %in% names(wcpo_bet_data))

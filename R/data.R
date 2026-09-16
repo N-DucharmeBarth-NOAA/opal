@@ -302,7 +302,7 @@
 #'
 #' A saved reference run for the WCPO bigeye tuna assessment that documents the
 #' objective, gradient, and RTMB report output used by the
-#' `vignettes/baseline.qmd` workflow to detect numerical regressions and timing
+#' `dev/vignettes/baseline.qmd` workflow to detect numerical regressions and timing
 #' changes before and after refactors.
 #'
 #' @details
@@ -330,7 +330,7 @@
 #' @format A named list accessible via `data(opal_baseline)` and
 #'   packaged as `data/opal_baseline.rda`.
 #'
-#' @source `vignettes/baseline.qmd` (the "Save or compare" chunk) which
+#' @source `dev/vignettes/baseline.qmd` (the "Save or compare" chunk) which
 #'   reproduces the reference run saved to `data/opal_baseline.rda`.
 #'
 #' @examples
@@ -346,21 +346,21 @@
 #'
 #' The full data list used for testing in the opal baseline model.
 #'
-#' @source \code{vignettes/baseline.qmd}
+#' @source \code{dev/vignettes/baseline.qmd}
 "opal_baseline_data"
 
 #' Opal Baseline Parameters
 #'
 #' The full parameter list used for testing in the opal baseline model.
 #'
-#' @source \code{vignettes/baseline.qmd}
+#' @source \code{dev/vignettes/baseline.qmd}
 "opal_baseline_parameters"
 
 #' Opal Baseline Map
 #'
 #' The parameter map used for testing in the opal baseline model.
 #'
-#' @source \code{vignettes/baseline.qmd}
+#' @source \code{dev/vignettes/baseline.qmd}
 "opal_baseline_map"
 
 #' 'Opakapaka Stock Assessment Data

@@ -18,6 +18,7 @@
 ^\.positai$
 ^\.claude$
 ^inst/scripts$
+^data-raw$
 ^inst/scripts/bns_perf\.data$
 ^inst/scripts/bns_perf\.data\.old$
 ^dev/vignettes$

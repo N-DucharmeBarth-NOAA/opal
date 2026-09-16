@@ -10,22 +10,26 @@ Purpose: help AI coding agents be immediately productive working on the **opal**
 
 | Path | Contents |
 |------|----------|
-| `R/` | All package source code (23 files). Core logic lives here. |
+| `R/` | All package source code. Core logic lives here. |
 | `man/` | roxygen2-generated `.Rd` help files. **Do not edit by hand.** |
-| `data/` | Bundled `.rda` datasets (`wcpo_bet_data`, `wcpo_bet_lf`, `wcpo_bet_wf`, `wcpo_bet_parameters`) |
+| `data/` | Bundled `.rda` datasets (`wcpo_bet_*`, `opaka_*`, and `opal_baseline*`) |
+| `inst/extdata/` | Bundled portable fitted-model objects and other package files. |
+| `data-raw/` | Scripts used to generate package data and test references. |
+| `dev/vignettes/` | Development-only analysis and baseline workflows. |
 | `tests/testthat/` | `testthat` edition 3 test suite |
-| `vignettes/` | `quickstart.Rmd` (overview) and `bet.Rmd` (full worked example) |
+| `vignettes/` | Quarto vignettes including `quickstart.qmd` and `opakapaka-fit-review.qmd`. |
 | `renv/` | `renv` lockfile and library for reproducible dependencies |
-| `.github/workflows/` | CI: R-CMD-check, pkgdown deploy, roxygen2, Rmd rendering |
+| `.github/workflows/` | CI: R CMD check, pkgdown deployment, documentation, and self-tests. |
 | `DESCRIPTION`, `NAMESPACE` | Standard R package metadata (roxygen2-managed) |
 
 ## Where to start
 
 1. **README.md** — package overview and installation
-2. **`vignettes/bet.Rmd`** — full worked tutorial: data prep → model fitting → diagnostics → plots
-3. **`R/model.R`** (`opal_model()`) — the central model function that orchestrates all components
-4. **`R/dynamics.R`** (`do_dynamics()`) — age-season forward population simulation
-5. **`R/likelihoods.R`** — CPUE, length-composition, and weight-composition likelihood components
+2. **`vignettes/quickstart.qmd`** — worked Opakapaka tutorial: inputs → model fitting → diagnostics → plots
+3. **`R/example-opaka.R`** (`opaka_quickstart_inputs()`) — the shared quickstart configuration
+4. **`R/model.R`** (`opal_model()`) — the central model function that orchestrates all components
+5. **`R/dynamics.R`** (`do_dynamics()`) — age-season forward population simulation
+6. **`R/likelihoods.R`** — CPUE, length-composition, and weight-composition likelihood components
 
 ## Architecture
 
@@ -33,7 +37,7 @@ Purpose: help AI coding agents be immediately productive working on the **opal**
 The core function in `R/model.R`. It is an RTMB-compatible closure that:
 1. Unpacks data + parameters via `getAll(data, parameters)`
 2. Runs modular steps in sequence: growth → PLA → weight-at-age → biology → selectivity → initial numbers → dynamics → priors → likelihoods
-3. Aggregates NLL: `nll = lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)`
+3. Aggregates NLL: `nll = lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)`
 4. Reports derived quantities via `REPORT()` (spawning biomass, numbers-at-age, etc.)
 
 Usage: `RTMB::MakeADFun(func = cmb(opal_model, data), parameters = params, map = map)`
@@ -65,24 +69,17 @@ where `cmb(f, d)` creates `function(p) f(p, d)`.
 | `project_dynamics()` | `projections.R` | Forward projections from posterior |
 | `plot_*()` | `plots.R` | ggplot2 visualization functions |
 
-### Typical workflow (from `vignettes/bet.Rmd`)
+### Typical workflow (from `vignettes/quickstart.qmd`)
 ```r
 library(opal)
-data    <- wcpo_bet_data
-lf      <- wcpo_bet_lf
-params  <- wcpo_bet_parameters
-
-# Prepare composition data
-data <- prep_lf_data(data, lf_wide = pivot_wider(...))
-
-# Configure
-params  <- get_parameters(data)
-priors  <- get_priors(params, data)
-map     <- get_map(params)
-bounds  <- get_bounds(obj, params)
+inputs <- opaka_quickstart_inputs()
+data <- inputs$data
+params <- inputs$parameters
+map <- inputs$map
 
 # Build AD object
 obj <- MakeADFun(func = cmb(opal_model, data), parameters = params, map = map)
+bounds <- get_bounds(obj, params)
 
 # Optimize (double run for convergence)
 opt <- nlminb(obj$par, obj$fn, obj$gr, lower = bounds$lower, upper = bounds$upper)
@@ -159,8 +156,8 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 - **R packages** are managed with `renv/`. Run `renv::activate()` then `renv::restore()` to set up.
 - **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`, `dplyr`, `forecast`
 - **Documentation**: roxygen2-based. After editing `R/*.R` files, regenerate with `devtools::document()`.
-- **Tests**: `testthat` edition 3. Run with `devtools::test()`. Tests cover dynamics, growth, all three likelihood types, selectivity, data prep, rebinning, and utilities.
-- **CI**: GitHub Actions run `R CMD check`, pkgdown site builds, roxygen2 re-generation, and Rmd rendering.
+- **Tests**: `testthat` edition 3, run with `devtools::test()`. Shared fixtures live in `helper-*.R` (`opaka_inputs()`, `opaka_obj()`, `synth_*()`); do not build models at the top level of test files. `tests/testthat/_reference/` holds numerical reference outputs. Never create or overwrite them from a test; regenerate them only with `data-raw/make-test-references.R` in a PR that explains the numerical change, bumps `.opal_model_scientific_version`, and regenerates `inst/extdata/opaka_quickstart_fit.rds`. Simulation self-tests are gated by `OPAL_SELFTEST=true` and run in `.github/workflows/selftest.yaml`.
+- **CI**: GitHub Actions run `R CMD check` on Ubuntu only and ignore vignettes; they also build pkgdown and regenerate documentation.
 - **Branch workflow**: PRs go against `dev`; `main` is the stable release branch.
 
 ## Debugging tips
