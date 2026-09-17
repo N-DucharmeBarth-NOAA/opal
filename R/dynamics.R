@@ -313,7 +313,7 @@ do_dynamics <- function(data, parameters,
 #' Harvest rate calculation
 #'
 #' Computes age-specific harvest rates by fishery for a single year-season
-#' combination, using the Baranov catch equation.
+#' combination, using a Pope-type exploitation fraction.
 #'
 #' \code{weight_fya} is passed as an explicit argument (not read from
 #' \code{data}) so that AD gradients propagate correctly if growth parameters
