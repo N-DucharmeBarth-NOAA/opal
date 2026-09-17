@@ -18,7 +18,8 @@ knitr::opts_chunk$set(
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
+[![codecov-main](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
+[![codecov-dev](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/branch/dev/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
 <!-- badges: end -->
 
 ## Overview
