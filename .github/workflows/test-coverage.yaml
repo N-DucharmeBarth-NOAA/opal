@@ -18,6 +18,8 @@ jobs:
       id-token: write
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      RENV_PATHS_ROOT: ~/.local/share/renv
+      RENV_CONFIG_CACHE_SYMLINKS: FALSE
 
     steps:
       - uses: actions/checkout@v6
@@ -26,10 +28,35 @@ jobs:
         with:
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
+      - uses: r-lib/actions/setup-r@v2
         with:
-          extra-packages: any::covr, any::xml2
-          needs: coverage
+          r-version: "4.5.2"
+          use-public-rspm: true
+
+      - name: Cache renv packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/renv
+          key: renv-v2-ubuntu-22.04-4.5.2-${{ hashFiles('renv.lock') }}
+          restore-keys: renv-v2-ubuntu-22.04-4.5.2-
+
+      - name: Restore renv environment
+        run: |
+          install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"))
+          renv::restore(packages = c(
+            "Rcpp", "Matrix", "RcppEigen", "cpp11",
+            "BH", "RcppParallel", "rapidjsonr", "TMB"
+          ))
+          TMB:::install.contrib(
+            "https://github.com/vtrijoulet/OSA_multivariate_dists/archive/main.zip"
+          )
+          stopifnot(file.exists(system.file(
+            "include/contrib/OSA_multivariate_dists-main/distr.hpp",
+            package = "TMB"
+          )))
+          renv::restore()
+          renv::install(c("covr", "xml2"))
+        shell: Rscript {0}
 
       - name: Test coverage
         run: |
