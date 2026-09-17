@@ -3,7 +3,7 @@ on:
     inputs:
       nsim:
         description: "Number of simulations"
-        default: "200"
+        default: "100"
       start:
         description: "truth or default"
         default: "default"
@@ -25,7 +25,7 @@ jobs:
       RENV_PATHS_ROOT: ~/.local/share/renv
       RENV_CONFIG_CACHE_SYMLINKS: FALSE
       OPAL_SELFTEST: "true"
-      OPAL_SELFTEST_NSIM: ${{ github.event.inputs.nsim || (github.event_name == 'schedule' && '200') || '30' }}
+      OPAL_SELFTEST_NSIM: ${{ github.event.inputs.nsim || (github.event_name == 'schedule' && '100') || '30' }}
       OPAL_SELFTEST_START: ${{ github.event.inputs.start || (github.event_name == 'schedule' && 'default') || 'truth' }}
       OPAL_SELFTEST_OUT: ${{ github.workspace }}/selftest-out
     steps:

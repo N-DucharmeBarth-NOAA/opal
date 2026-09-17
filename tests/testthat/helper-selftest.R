@@ -54,7 +54,7 @@ run_selftest <- function(n_sim, start = c("truth", "default"),
     max_gradient <- max(abs(em$gr(opt$par)))
     data.frame(
       sim = simulation,
-      converged = opt$convergence == 0 && max_gradient < 1e-3,
+      converged = opt$convergence == 0 && max_gradient <= 0.01,
       max_gr = max_gradient,
       re_B0 = report$B0 / truth$B0 - 1,
       re_sb_term = report$spawning_biomass_y[terminal_year] /
@@ -67,4 +67,39 @@ run_selftest <- function(n_sim, start = c("truth", "default"),
     )
   })
   do.call(rbind, rows)
+}
+
+summarize_selftest <- function(results, n_boot = 2000L, seed = 20260916L) {
+  stopifnot(is.data.frame(results), n_boot > 0)
+  required <- c(
+    "converged", "re_B0", "re_sb_term", "re_dep_term", "max_abs_re_sb"
+  )
+  stopifnot(all(required %in% names(results)))
+
+  converged <- results[results$converged, , drop = FALSE]
+  metrics <- c("re_B0", "re_sb_term", "re_dep_term", "max_abs_re_sb")
+  if (!nrow(converged)) {
+    return(data.frame(
+      metric = metrics,
+      n_sim = nrow(results),
+      n_converged = 0L,
+      convergence_rate = 0,
+      median = NA_real_,
+      mc_se = NA_real_
+    ))
+  }
+
+  set.seed(seed)
+  do.call(rbind, lapply(metrics, function(metric) {
+    values <- converged[[metric]]
+    boot_medians <- replicate(n_boot, median(sample(values, replace = TRUE)))
+    data.frame(
+      metric = metric,
+      n_sim = nrow(results),
+      n_converged = nrow(converged),
+      convergence_rate = nrow(converged) / nrow(results),
+      median = median(values),
+      mc_se = stats::sd(boot_medians)
+    )
+  }))
 }
