@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Usage question or discussion
+    url: https://github.com/N-DucharmeBarth-NOAA/opal/discussions
+    about: For questions about how to use opal, rather than bugs or requests.
