@@ -1,4 +1,4 @@
-# opal 0.0.3.9000
+# opal 0.0.4
 
 - 2026/09/16 ([c5dcdf1](https://github.com/N-DucharmeBarth-NOAA/opal/commit/c5dcdf1025e4be1647b4a0a9c200e4221df5691c)): Dirichlet-multinomial composition preparation now preserves half-up rounded
   effective sample sizes with largest-remainder integer counts. Existing saved
