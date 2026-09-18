@@ -38,7 +38,7 @@ jobs:
       # different code path from renv 1.2.x's graph installer. Set to "FALSE"
       # to go back to renv's own installer — with compResidual handled out of
       # band below, the build should pass either way.
-      RENV_CONFIG_PAK_ENABLED: "TRUE"
+      RENV_CONFIG_PAK_ENABLED: "FALSE"
 
     steps:
       - uses: actions/checkout@v4
