@@ -34,33 +34,73 @@ jobs:
       RENV_PATHS_ROOT: ~/.local/share/renv
       RENV_CONFIG_CACHE_SYMLINKS: FALSE
       R_KEEP_PKG_SOURCE: yes
+      # Hand package installation to pak, which resolves and installs on a
+      # different code path from renv 1.2.x's graph installer. Set to "FALSE"
+      # to go back to renv's own installer — with compResidual handled out of
+      # band below, the build should pass either way.
+      RENV_CONFIG_PAK_ENABLED: "TRUE"
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
 
+      # renv reports these as missing SystemRequirements (fs, curl, gert).
+      # The font/image libraries are not in that warning but are needed
+      # whenever systemfonts/textshaping/ragg fall back to a source build,
+      # which is what happens on R 4.6 until P3M has jammy binaries.
+      # Deliberately NOT installed here:
+      #   pandoc          - provided by setup-pandoc and quarto; apt would
+      #                     install jammy's 2.9 and shadow it
+      #   pandoc-citeproc - retired upstream, folded into pandoc at 2.11;
+      #                     the warning comes from a stale record in loo
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            libcurl4-openssl-dev \
+            libgit2-dev \
+            libssl-dev \
+            libxml2-dev \
+            libfontconfig1-dev \
+            libfreetype6-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libpng-dev \
+            libtiff5-dev \
+            libjpeg-dev
+
       - uses: r-lib/actions/setup-pandoc@v2
 
       - uses: quarto-dev/quarto-actions/setup@v2
 
       - uses: r-lib/actions/setup-r@v2
+        id: setup-r
         with:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
+      # Key on the resolved R version rather than the matrix label, so that a
+      # 'release' bump gets a clean key instead of colliding with the cache
+      # built under the previous release. (For the 4.5.2 entry this produces
+      # exactly the same key as before, so that cache stays warm.)
       - name: Cache renv packages
         uses: actions/cache@v4
         with:
           path: ~/.local/share/renv
-          key: renv-v2-${{ matrix.config.os }}-${{ matrix.config.r }}-${{ hashFiles('renv.lock') }}
-          restore-keys: renv-v2-${{ matrix.config.os }}-${{ matrix.config.r }}-
+          key: renv-v2-${{ matrix.config.os }}-${{ steps.setup-r.outputs.installed-r-version }}-${{ hashFiles('renv.lock') }}
+          restore-keys: renv-v2-${{ matrix.config.os }}-${{ steps.setup-r.outputs.installed-r-version }}-
 
-      - name: Restore renv environment
+      - name: Install renv and pak
         run: |
-          install.packages("renv", repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"))
+          install.packages(c("renv", "pak"),
+                           repos = Sys.getenv("RENV_CONFIG_REPOS_OVERRIDE"))
+        shell: Rscript {0}
 
+      - name: Install TMB and graft OSA headers
+        run: |
           # 1. TMB first, in its own transaction so it lands in the real library
           renv::restore(packages = c("Rcpp", "Matrix", "RcppEigen", "cpp11",
                            "BH", "RcppParallel", "rapidjsonr","TMB"))
@@ -72,10 +112,85 @@ jobs:
           stopifnot(file.exists(system.file(
             "include/contrib/OSA_multivariate_dists-main/distr.hpp", package = "TMB"
           )))
+        shell: Rscript {0}
 
-          # 3. everything else, compResidual included
-          renv::restore()
+      # 3. compResidual, out of band.
+      #
+      # It lives in a sub-directory of its GitHub repo, and the repo and the
+      # sub-directory share a name. renv 1.2.x's graph installer collides on
+      # that while staging sources:
+      #   Failed to prepare 'compResidual': target file
+      #   '/tmp/.../renv-graph-staging-*/compResidual' already exists
+      # Only visible on a cold cache — with a warm renv cache the package is
+      # linked and this code path never runs.
+      #
+      # So fetch the sources ourselves, at the SHA recorded in renv.lock, and
+      # install from the unpacked directory.
+      - name: Install compResidual from sources
+        run: |
+          lock <- renv::lockfile_read("renv.lock")
+          rec  <- lock$Packages$compResidual
+          stopifnot(!is.null(rec))
+
+          user   <- rec$RemoteUsername
+          repo   <- rec$RemoteRepo
+          subdir <- if (!is.null(rec$RemoteSubdir)) rec$RemoteSubdir else ""
+          ref    <- if (!is.null(rec$RemoteSha)) rec$RemoteSha else rec$RemoteRef
+          message("compResidual: ", user, "/", repo, " @ ", ref,
+                  if (nzchar(subdir)) paste0(" [", subdir, "]") else "")
+
+          tarball <- file.path(tempdir(), "compResidual.tar.gz")
+          download.file(
+            sprintf("https://github.com/%s/%s/archive/%s.tar.gz", user, repo, ref),
+            tarball, mode = "wb"
+          )
+          exdir <- file.path(tempdir(), "compResidual-src")
+          untar(tarball, exdir = exdir)
+
+          root <- list.dirs(exdir, recursive = FALSE)
+          stopifnot(length(root) == 1L)
+          pkgdir <- if (nzchar(subdir)) file.path(root, subdir) else root
+          stopifnot(file.exists(file.path(pkgdir, "DESCRIPTION")))
+
+          # renv handles a plain local directory fine; keep pak out of this one
+          # call so the path is deterministic regardless of the global setting.
+          pak_enabled <- getOption("renv.config.pak.enabled")
+          options(renv.config.pak.enabled = FALSE)
+          renv::install(pkgdir)
+          options(renv.config.pak.enabled = pak_enabled)
+
+          stopifnot(requireNamespace("compResidual", quietly = TRUE))
+        shell: Rscript {0}
+
+      # 4. everything else, from a lockfile with the compResidual record
+      #    removed so restore() does not undo step 3.
+      - name: Restore renv environment
+        run: |
+          lock <- renv::lockfile_read("renv.lock")
+          lock$Packages$compResidual <- NULL
+          trimmed <- file.path(tempdir(), "renv-without-compResidual.lock")
+          renv::lockfile_write(lock, file = trimmed)
+
+          renv::restore(lockfile = trimmed)
           renv::install("rcmdcheck")
+        shell: Rscript {0}
+
+      # Cheap insurance: if anything above reinstalled TMB, distr.hpp is gone
+      # and downstream compiles fail with confusing errors much later.
+      - name: Verify TMB contrib headers survived
+        run: |
+          hdr <- system.file(
+            "include/contrib/OSA_multivariate_dists-main/distr.hpp", package = "TMB"
+          )
+          if (!nzchar(hdr) || !file.exists(hdr)) {
+            message("TMB contrib headers missing after restore; re-grafting.")
+            TMB:::install.contrib(
+              "https://github.com/vtrijoulet/OSA_multivariate_dists/archive/main.zip"
+            )
+          }
+          stopifnot(file.exists(system.file(
+            "include/contrib/OSA_multivariate_dists-main/distr.hpp", package = "TMB"
+          )))
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
