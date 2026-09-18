@@ -12,7 +12,8 @@ n_fishery, n_year, n_age, sel_type_f.}
 
 \item{par_sel}{Numeric matrix of dimensions \verb{[n_fishery, 6]}. Each row is
 a real-line parameter vector. For logistic (sel_type_f == 1), only
-columns 1:2 are used. For double-normal (sel_type_f == 2), all 6 are used.}
+columns 1:2 are used. For double-normal (sel_type_f == 2) and double
+Richards (sel_type_f == 3), all 6 are used.}
 
 \item{pla}{Numeric matrix of dimensions \verb{[n_len, n_age]} containing
 probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.}
@@ -23,8 +24,8 @@ probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.}
 3D array \code{sel_fya} of dimensions \verb{[n_fishery, n_year, n_age]}.
 }
 \description{
-Defines selectivity as a parametric function of length (logistic or
-double-normal), then converts to selectivity-at-age by matrix-multiplying
+Defines selectivity as a parametric function of length (logistic,
+double-normal, or double Richards), then converts to selectivity-at-age by matrix-multiplying
 with the probability-of-length-at-age (PLA/ALK).
 }
 \details{

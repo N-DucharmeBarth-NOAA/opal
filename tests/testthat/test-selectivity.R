@@ -184,3 +184,34 @@ test_that("Mixed logistic and double-normal fisheries convert correctly", {
   # Logistic fleet should have zeros in columns 3:6
   expect_equal(rtmb_pars[2, 3:6], c(0, 0, 0, 0))
 })
+
+test_that("selectivity dispatches all supported curve types", {
+  len <- seq(20, 180, by = 2)
+  data <- list(n_fishery = 3, n_year = 2, n_age = length(len),
+               sel_type_f = c(1L, 2L, 3L))
+  par_sel <- rbind(c(0, 0, 0, 0, 0, 0),
+                   c(0, 0, 0, 0, -9, -9),
+                   c(0, 0, 0, 0, 0, 0))
+  sel <- get_selectivity(data, par_sel, diag(length(len)), len)
+  expect_equal(sel[1, 1, ], sel_logistic(len, par_sel[1, ]))
+  expect_equal(sel[2, 1, ], sel_double_normal(len, par_sel[2, ]))
+  expect_equal(sel[3, 1, ], sel_double_richards(len, par_sel[3, ]))
+  data$sel_type_f[3] <- 4L
+  expect_error(get_selectivity(data, par_sel, diag(length(len)), len), "Unknown sel_type")
+})
+
+test_that("SS3 converters explicitly handle double Richards", {
+  len <- seq(20, 180, by = 2)
+  ss3 <- matrix(c(100, 10, NA, NA, NA, NA,
+                  100, -5, 3, 4, -9, 9,
+                  NA, NA, NA, NA, NA, NA), nrow = 3, byrow = TRUE)
+  expect_error(convert_ss3_selex_to_rtmb(ss3, c(1L, 2L, 3L), len),
+               "no SS3 equivalent")
+  par_sel <- rbind(c(0, 0, 0, 0, 0, 0),
+                   c(0, -5, 3, 4, -9, 9),
+                   c(1, 2, 3, 4, 5, 6))
+  converted <- convert_rtmb_selex_to_ss3(par_sel, c(1L, 2L, 3L), len)
+  expect_true(all(is.na(converted[3, -(1:2)])))
+  expect_equal(converted$peak_or_inflection[1], mean(len))
+  expect_equal(converted$top_logit_or_width[2], -5)
+})

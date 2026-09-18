@@ -4,7 +4,7 @@
 \alias{get_recruitment}
 \title{Calculate recruitment}
 \usage{
-get_recruitment(sbio, rdev, B0, alpha, beta, sigma_r = 0.6)
+get_recruitment(sbio, rdev, B0, alpha, beta, sigma_r = 0.6, bias_adj = 1)
 }
 \arguments{
 \item{sbio}{Spawning biomass.}
@@ -16,6 +16,9 @@ get_recruitment(sbio, rdev, B0, alpha, beta, sigma_r = 0.6)
 \item{alpha, beta}{Beverton-Holt stock recruitment parameters.}
 
 \item{sigma_r}{Lognormal SD of recruitment deviations.}
+
+\item{bias_adj}{Bias adjustment scalar (typically year-specific) applied to
+the lognormal correction term.}
 }
 \value{
 Recruitment value (numeric).

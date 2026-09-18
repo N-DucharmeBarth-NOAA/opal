@@ -1,3 +1,32 @@
+# Round composition counts while preserving the integer sample size.
+.opal_integerize_composition <- function(composition, sample_size) {
+  stopifnot(
+    is.numeric(composition),
+    all(is.finite(composition)),
+    all(composition >= 0),
+    length(sample_size) == 1L,
+    is.finite(sample_size),
+    sample_size >= 0
+  )
+  size <- as.integer(floor(sample_size + 0.5))
+  if (size == 0L) {
+    return(list(counts = integer(length(composition)), size = size))
+  }
+  composition_sum <- sum(composition)
+  if (composition_sum == 0) {
+    stop("`composition` must contain positive mass when `sample_size` rounds above zero.",
+         call. = FALSE)
+  }
+  scaled <- composition / composition_sum * size
+  counts <- as.integer(floor(scaled))
+  remainder <- size - sum(counts)
+  if (remainder > 0L) {
+    order_index <- order(-(scaled - counts), seq_along(counts))
+    counts[order_index[seq_len(remainder)]] <- counts[order_index[seq_len(remainder)]] + 1L
+  }
+  list(counts = counts, size = size)
+}
+
 #' Prepare length composition data for model input
 #'
 #' Transforms a pivoted wide-format length-frequency data frame (one row per fishery
@@ -36,6 +65,9 @@
 #'   Applied after proportions are computed so that observed compositions are
 #'   unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 #'   feature.
+#' @param lf_addtocomp small non-negative numeric constant added to observed
+#'   composition proportions after tail compression and before renormalisation.
+#'   This robustifies zero bins. Default \code{1e-08}.
 #'
 #' @return The input \code{data} list with the following elements appended or
 #'   updated:
@@ -46,6 +78,8 @@
 #'     \item{\code{lf_obs_in}}{Matrix of observed proportions,
 #'       \code{[n_obs x n_len]}.}
 #'     \item{\code{lf_n}}{Numeric vector of sample sizes per observation row.}
+#'     \item{\code{lf_n_int}}{Integer Dirichlet-multinomial sample sizes
+#'       obtained by half-up rounding of \code{lf_n}.}
 #'     \item{\code{lf_fishery}}{Integer vector of fishery index per observation
 #'       row.}
 #'     \item{\code{lf_fishery_f}}{Integer vector of unique fishery indices with
@@ -53,6 +87,10 @@
 #'     \item{\code{lf_n_f}}{Integer vector of observation counts per fishery.}
 #'     \item{\code{lf_year}}{Integer vector of model timestep index (1-based)
 #'       per observation row.}
+#'     \item{\code{lf_year_fi}, \code{lf_n_fi}, \code{lf_n_int_fi}, \code{lf_row_fi}}{Lists split
+#'       by fishery containing model timesteps, effective sample sizes, and
+#'       row indices. Precomputed so \code{opal_model()} does not rebuild them
+#'       on every objective evaluation.}
 #'     \item{\code{lf_season}}{Integer vector of season index (all 1).}
 #'     \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
 #'     \item{\code{lf_var_adjust}}{Passed through from argument; numeric vector
@@ -65,10 +103,13 @@
 #'       plain-R access in \code{get_length_like}.}
 #'     \item{\code{lf_obs_flat}}{Flattened numeric vector of counts (for
 #'       multinomial, \code{lf_switch = 1}).}
-#'     \item{\code{lf_obs_ints}}{Flattened integer vector of rounded counts
-#'       (for Dirichlet-multinomial, \code{lf_switch = 3}).}
+#'     \item{\code{lf_obs_ints}}{Flattened integer counts that sum to
+#'       \code{lf_n_int} per observation (for Dirichlet-multinomial,
+#'       \code{lf_switch = 3}).}
 #'     \item{\code{lf_obs_prop}}{Flattened numeric vector of normalised
 #'       proportions (for Dirichlet, \code{lf_switch = 2}).}
+#'     \item{\code{lf_addtocomp}}{Stored value of the add-to-composition
+#'       constant used to robustify observed composition bins.}
 #'     \item{\code{lf_nbins}}{Number of bins used in each observation (scalar,
 #'       derived from the first fishery's min/max bin setting).}
 #'   }
@@ -77,7 +118,9 @@
 #' Rows in \code{lf_wide} with a total sample size of zero are silently
 #' removed before any other processing.  Bin alignment between the data frame
 #' columns and the model's length structure is checked with
-#' \code{stopifnot()}.
+#' \code{stopifnot()}. Dirichlet-multinomial counts use half-up rounding of
+#' effective sample sizes and largest-remainder allocation. Observations that
+#' round to zero are skipped by the Dirichlet-multinomial likelihood.
 #'
 #' @seealso \code{\link{get_length_like}}, \code{\link{opal_model}}
 #' @export
@@ -88,7 +131,8 @@ prep_lf_data <- function(data,
                          lf_minbin         = NULL,
                          lf_maxbin         = NULL,
                          lf_var_adjust     = NULL,
-                         lf_cap            = NULL) {
+                         lf_cap            = NULL,
+                         lf_addtocomp      = 1e-08) {
 
   # ---- 1. Extract bin columns and build obs-count matrix ----
   meta_cols <- c("fishery", "year", "month", "ts")
@@ -107,8 +151,7 @@ prep_lf_data <- function(data,
 
   # ---- 3b. Cap effective sample sizes ----
   if (!is.null(lf_cap)) {
-    stopifnot("lf_cap must be a positive integer" =
-                length(lf_cap) == 1L && is.numeric(lf_cap) && lf_cap > 0)
+    stopifnot("lf_cap must be a positive integer" = length(lf_cap) == 1L && is.numeric(lf_cap) && lf_cap > 0)
     lf_n <- pmin(lf_n, lf_cap)
   }
 
@@ -145,9 +188,11 @@ prep_lf_data <- function(data,
   data$lf_switch       <- as.integer(lf_switch)
   data$lf_obs_in       <- lf_obs
   data$lf_n            <- lf_n
+  data$lf_n_int        <- as.integer(floor(lf_n + 0.5))
   data$lf_fishery      <- as.integer(lf_wide$fishery)
-  data$lf_fishery_f    <- unique(data$lf_fishery)
-  data$lf_n_f          <- as.integer(table(data$lf_fishery))
+  data$lf_fishery_f    <- sort(unique(data$lf_fishery))
+  lf_group             <- factor(data$lf_fishery, levels = data$lf_fishery_f)
+  data$lf_n_f          <- as.integer(table(lf_group))
   data$lf_year         <- as.integer(lf_wide$ts)  # model timestep (1-based)
   data$lf_season       <- rep(1L, nrow(lf_wide))
   data$lf_minbin        <- lf_minbin
@@ -161,22 +206,31 @@ prep_lf_data <- function(data,
   lf_n_f        <- data$lf_n_f
   n_f           <- length(lf_fishery_f)
   n_len_local   <- ncol(data$lf_obs_in)
-  lf_n_fi       <- split(data$lf_n, data$lf_fishery)
-  lf_row_fi     <- split(seq_len(nrow(data$lf_obs_in)), data$lf_fishery)
+  lf_n_fi       <- split(data$lf_n, lf_group)
+  lf_n_int_fi   <- split(data$lf_n_int, lf_group)
+  lf_year_fi    <- split(data$lf_year, lf_group)
+  lf_row_fi     <- split(seq_len(nrow(data$lf_obs_in)), lf_group)
+  data$lf_n_fi    <- lf_n_fi
+  data$lf_n_int_fi <- lf_n_int_fi
+  data$lf_year_fi <- lf_year_fi
+  data$lf_row_fi  <- lf_row_fi
 
   lf_obs_list <- vector("list", n_f)
   for (j in seq_len(n_f)) {
     f    <- lf_fishery_f[j]
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]
-    rows <- lf_row_fi[[j]]
+    group_name <- as.character(f)
+    rows <- lf_row_fi[[group_name]]
     m    <- matrix(0, lf_n_f[j], bmax - bmin + 1L)
     for (i in seq_len(lf_n_f[j])) {
       obs <- data$lf_obs_in[rows[i], ]
       if (bmin > 1)          obs[bmin] <- sum(obs[1:bmin])
       if (bmax < n_len_local) obs[bmax] <- sum(obs[bmax:n_len_local])
       obs     <- obs[bmin:bmax]
-      m[i, ]  <- obs * lf_n_fi[[j]][i]
+      obs     <- obs + lf_addtocomp
+      obs     <- obs / sum(obs)
+      m[i, ]  <- obs * lf_n_fi[[group_name]][i]
     }
     lf_obs_list[[j]] <- m
   }
@@ -187,21 +241,40 @@ prep_lf_data <- function(data,
 
   # For multinomial (lf_switch = 1): unrounded counts
   data$lf_obs_flat <- unlist(lapply(lf_obs_list,
-                                    function(m) as.numeric(t(m))))
+                                    function(m) as.numeric(t(m))),
+                             use.names = FALSE)
 
   # For Dirichlet-multinomial (lf_switch = 3): rounded integer counts
-  data$lf_obs_ints <- unlist(lapply(lf_obs_list,
-                                    function(m) as.integer(t(round(m)))))
+  data$lf_obs_ints <- unlist(Map(function(m, n_int) as.integer(vapply(
+                                      seq_len(nrow(m)),
+                                      function(i) .opal_integerize_composition(
+                                        m[i, ], n_int[i]
+                                      )$counts,
+                                      integer(ncol(m))
+                                    )), lf_obs_list, lf_n_int_fi),
+                             use.names = FALSE)
 
   # For Dirichlet (lf_switch = 2): row-normalised proportions
   data$lf_obs_prop <- unlist(lapply(lf_obs_list, function(m) {
     props <- t(apply(m, 1, function(row) {
       p <- row / sum(row)
-      p <- p + 1e-8
+      p <- p + lf_addtocomp
       p / sum(p)
     }))
     as.numeric(t(props))
-  }))
+  }), use.names = FALSE)
+  data$lf_addtocomp <- lf_addtocomp
+
+  zero_int <- data$lf_n_int == 0L
+  data$lf_dm_zero_n_f <- tabulate(data$lf_fishery[zero_int], data$n_fishery)
+  data$lf_dm_zero_weight_f <- vapply(seq_len(data$n_fishery), function(f) {
+    sum(data$lf_n[zero_int & data$lf_fishery == f])
+  }, numeric(1))
+  if (any(zero_int)) {
+    message("LF Dirichlet-multinomial integerization skipped ", sum(zero_int),
+            " observations with total effective sample size ",
+            signif(sum(data$lf_n[zero_int]), 6), ".")
+  }
 
   # Number of bins per observation (scalar; same for all obs when bmin/bmax are uniform)
   data$lf_nbins <- ncol(lf_obs_list[[1]])

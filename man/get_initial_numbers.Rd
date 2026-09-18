@@ -4,7 +4,18 @@
 \alias{get_initial_numbers}
 \title{Initial numbers and Beverton-Holt parameters}
 \usage{
-get_initial_numbers(B0, h, M_a, spawning_potential_a)
+get_initial_numbers(
+  B0,
+  h,
+  M_a,
+  spawning_potential_a,
+  init_F_f = NULL,
+  sel_fa = NULL,
+  n_season = 1L,
+  init_rdev_a = NULL,
+  sigma_r = 0.6,
+  init_bias_adj_a = NULL
+)
 }
 \arguments{
 \item{B0}{Unfished spawning biomass.}
@@ -14,17 +25,36 @@ get_initial_numbers(B0, h, M_a, spawning_potential_a)
 \item{M_a}{a \code{vector} of natural mortality at age.}
 
 \item{spawning_potential_a}{a \code{vector} of spawning potential at age
-(maturity × fecundity).}
+(maturity x fecundity).}
+
+\item{init_F_f}{an optional \code{vector} of initial fishing mortality by
+fishery.}
+
+\item{sel_fa}{an optional matrix of selectivity-at-age with dimensions
+\code{[n_fishery, n_age]}.}
+
+\item{n_season}{Number of seasons used to translate annual initial fishing
+mortality into seasonal harvest fractions.}
+
+\item{init_rdev_a}{an optional \code{vector} of initial age deviations.}
+
+\item{sigma_r}{recruitment standard deviation used in lognormal correction.}
+
+\item{init_bias_adj_a}{an optional \code{vector} of bias adjustment scalars
+for initial age deviations. Defaults to zero so fixed zero initial
+deviations do not alter the equilibrium initial age structure.}
 }
 \value{
 A list containing:
 \describe{
 \item{Ninit}{Initial numbers-at-age (vector).}
+\item{Ninit0}{Initial unfished numbers-at-age (vector).}
 \item{R0}{Unfished recruitment (scalar).}
 \item{alpha}{BH alpha parameter.}
 \item{beta}{BH beta parameter.}
 }
 }
 \description{
-Computes the initial equilibrium numbers-at-age, unfished recruitment (R0), and Beverton-Holt stock-recruitment parameters.
+Computes the initial equilibrium numbers-at-age, unfished recruitment (R0),
+and Beverton-Holt stock-recruitment parameters.
 }

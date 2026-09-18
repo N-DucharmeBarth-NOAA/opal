@@ -34,7 +34,7 @@ A named list with:
 }
 \description{
 Computes age-specific harvest rates by fishery for a single year-season
-combination, using the Baranov catch equation.
+combination, using a Pope-type exploitation fraction.
 }
 \details{
 \code{weight_fya} is passed as an explicit argument (not read from
