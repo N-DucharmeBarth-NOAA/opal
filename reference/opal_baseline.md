@@ -2,8 +2,8 @@
 
 A saved reference run for the WCPO bigeye tuna assessment that documents
 the objective, gradient, and RTMB report output used by the
-`vignettes/baseline.qmd` workflow to detect numerical regressions and
-timing changes before and after refactors.
+`dev/vignettes/baseline.qmd` workflow to detect numerical regressions
+and timing changes before and after refactors.
 
 ## Usage
 
@@ -18,8 +18,8 @@ A named list accessible via `data(opal_baseline)` and packaged as
 
 ## Source
 
-`vignettes/baseline.qmd` (the "Save or compare" chunk) which reproduces
-the reference run saved to `data/opal_baseline.rda`.
+`dev/vignettes/baseline.qmd` (the "Save or compare" chunk) which
+reproduces the reference run saved to `data/opal_baseline.rda`.
 
 ## Details
 

@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,6 +43,7 @@
     <li><a class="dropdown-item" href="articles/quickstart.html">Quickstart Guide</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -67,126 +68,176 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><strong>opal</strong> — the <strong>o</strong>pen <strong>p</strong>opulation <strong>a</strong>ssessment <strong>l</strong>ibrary — is an open, modular R package for fisheries stock assessment built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a> for automatic differentiation and gradient-based optimization.</p>
+<p><strong>opal</strong>, the <strong>o</strong>pen <strong>p</strong>opulation <strong>a</strong>ssessment <strong>l</strong>ibrary, is an open-source, modular R package for fisheries stock assessment. It is built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a>, which provides automatic differentiation of the objective function, gradient-based optimization, and the Laplace approximation for random effects. The full model is written in R, so it can be read, modified, and extended without working in C++.</p>
+<p>opal builds on the <code>sbt</code> package developed by <a href="https://www.quantifish.co.nz/" class="external-link">Quantifish</a> for the CCSBT southern bluefin tuna assessment, and draws on design elements from SS3, MULTIFAN-CL, WHAM, SPoRC, and CASAL2. It is being developed in support of <strong>WCPFC Project 123: Scoping the next generation of tuna stock assessment software</strong>.</p>
+<blockquote>
+<p><strong>Development status:</strong> opal is under active development. Case studies are illustrative and are not intended to inform management advice. Interfaces may change between versions.</p>
+</blockquote>
+</div>
+<div class="section level2">
+<h2 id="resources">Resources<a class="anchor" aria-label="anchor" href="#resources"></a>
+</h2>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Resource</th>
+<th>Contents</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><a href="https://connect.fisheries.noaa.gov/opal/" class="external-link">Project website</a></td>
+<td>Project background, development plan and governance, the WCPFC SC22 working paper and presentation, and the ’opakapaka case study</td>
+</tr>
+<tr>
+<td><a href="https://n-ducharmebarth-noaa.github.io/opal/">Package documentation</a></td>
+<td>Function reference, vignettes, and changelog (pkgdown)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/N-DucharmeBarth-NOAA/opal-documentation" class="external-link">opal-documentation</a></td>
+<td>Quarto source for the project website and WCPFC documents</td>
+</tr>
+<tr>
+<td><a href="https://github.com/N-DucharmeBarth-NOAA/opal/issues" class="external-link">Issues</a></td>
+<td>Bug reports, feature requests, and development discussion</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level2">
+<h2 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
+</h2>
+<ul>
+<li>
+<strong>Population dynamics</strong>: Age- and season-structured dynamics conditioned on observed catch (in weight or numbers). Seasonal harvest rates are solved from catch and vulnerable abundance, with a <code><a href="reference/posfun.html">posfun()</a></code> penalty that keeps total harvest below one. Beverton–Holt recruitment with log-normal deviates and SS3-style bias-adjustment ramps, fished or unfished initial equilibrium, and static and dynamic depletion.</li>
+<li>
+<strong>Growth and biology</strong>: von Bertalanffy growth (L1/L2/k) with variability in length at age, represented as a probability-of-length-at-age matrix. Maturity, weight, and fecundity can be supplied at age or at length; length-based inputs are converted on the AD tape so gradients propagate when growth is estimated.</li>
+<li>
+<strong>Selectivity</strong>: Logistic, double-normal, double-Richards, and length-based forms, with helpers to convert between SS3 and opal selectivity parameterizations.</li>
+<li>
+<strong>Data and likelihoods</strong>: Log-normal CPUE with multiple indices; length and weight compositions with multinomial, Dirichlet, or Dirichlet-multinomial likelihoods (weight compositions are predicted by rebinning from length); and user-specified priors.</li>
+<li>
+<strong>Estimation and diagnostics</strong>: Optimization with <code><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb()</a></code> and <code><a href="reference/get_bounds.html">get_bounds()</a></code>; estimability checks, correlated-parameter detection, and parameter tables (<code><a href="reference/check_estimability.html">check_estimability()</a></code>, <code><a href="reference/get_cor_pairs.html">get_cor_pairs()</a></code>, <code><a href="reference/get_par_table.html">get_par_table()</a></code>). Observations are marked with RTMB’s <code><a href="https://rdrr.io/pkg/RTMB/man/TMB-interface.html" class="external-link">OBS()</a></code>, which supports simulation with <code>obj$simulate()</code> and one-step-ahead residuals.</li>
+<li>
+<strong>Bayesian inference</strong>: No-U-turn sampling through <a href="https://github.com/noaa-afsc/SparseNUTS" class="external-link"><code>SparseNUTS</code></a>, using <code><a href="reference/opal_globals.html">opal_globals()</a></code>.</li>
+<li>
+<strong>Projections</strong>: Forward projections of dynamics, recruitment deviations, and selectivity (<code><a href="reference/project_dynamics.html">project_dynamics()</a></code>, <code><a href="reference/project_rec_devs.html">project_rec_devs()</a></code>, <code><a href="reference/project_selectivity.html">project_selectivity()</a></code>).</li>
+<li>
+<strong>Portable fitted models</strong>: An <code>opal_fit</code> object stores data, fitted parameters, optimizer output, MCMC draws, diagnostics, derived results, and provenance, and rebuilds the RTMB objective on demand.</li>
+</ul>
 <div class="section level3">
-<h3 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
+<h3 id="case-studies">Case studies<a class="anchor" aria-label="anchor" href="#case-studies"></a>
 </h3>
 <ul>
 <li>
-<strong>Age-structured population dynamics with length-based processes</strong>: Forward simulation using the Baranov catch equation with flexible natural mortality, growth, and selectivity options</li>
+<strong>’Opakapaka</strong> (<em>Pristipomoides filamentosus</em>): a fixed-effects assessment benchmarked against its SS3 reference model. It is the basis for the Quickstart vignette, the bundled example fit, and the package’s numerical regression and simulation self-tests.</li>
 <li>
-<strong>Modular design</strong>: Population model components (growth, selectivity, recruitment, likelihoods) are implemented as standalone functions that can be combined as needed</li>
-<li>
-<strong>Multiple likelihood options</strong>: Supports log-normal CPUE, and multinomial, Dirichlet, and Dirichlet-multinomial length &amp; weight composition likelihoods</li>
-<li>
-<strong>Parameter estimation and diagnostics</strong>: Gradient-based optimization via <code>nlminb</code>, OSA residuals, likelihood profiling, estimability checks, and parameter correlation summaries</li>
-<li>
-<strong>Portable fitted-model storage</strong>: Save fitted parameters, optimizer results, MCMC draws, diagnostics, projections, and provenance in a validated <code>opal_fit</code> object</li>
-<li>
-<strong>Uncertainty quantification and projections (<em>planned</em>)</strong>: MCMC sampling via <code>SparseNUTS</code>, and forward projections from estimated or sampled parameter sets</li>
-<li>
-<strong>Open source</strong>: Released under an open-source license with documented functions and reproducible workflows</li>
+<strong>WCPO bigeye tuna</strong> (<em>Thunnus obesus</em>): a high-dimensional quarterly assessment (15 fisheries, 40 age classes, length and weight compositions) compared against SS3 and MULTIFAN-CL. Development workflows are in <code>dev/vignettes/</code>.</li>
 </ul>
-</div>
-<div class="section level3">
-<h3 id="purpose">Purpose<a class="anchor" aria-label="anchor" href="#purpose"></a>
-</h3>
-<p>opal is designed for fisheries stock assessment analysts and population modelling researchers who need a transparent, reproducible framework for quantitative population assessment.</p>
+<p>Both case studies are described in the SC22 working paper on the <a href="https://connect.fisheries.noaa.gov/opal/" class="external-link">project website</a>.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of opal from GitHub:</p>
+<p>Install the development version of opal from GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"N-DucharmeBarth-NOAA/opal"</span><span class="op">)</span></span></code></pre></div>
-<p>If you encounter an error that the dependency <a href="https://github.com/noaa-afsc/SparseNUTS" class="external-link"><code>SparseNUTS</code></a> is not available, you will need to install it manually. <code>SparseNUTS</code> is not currently on CRAN. First, install <code>StanEstimators</code>:</p>
+<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"N-DucharmeBarth-NOAA/opal"</span><span class="op">)</span></span></code></pre></div>
+<p>opal depends on <a href="https://github.com/noaa-afsc/SparseNUTS" class="external-link"><code>SparseNUTS</code></a>, which is not on CRAN. If installation fails because <code>SparseNUTS</code> is unavailable, install <code>StanEstimators</code> first (preferably in a fresh R session):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># we recommend running this is a fresh R session or restarting your current session</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">'StanEstimators'</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'https://andrjohns.r-universe.dev'</span>, <span class="st">'https://cloud.r-project.org'</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>Now install the latest version of <code>SparseNUTS</code>:</p>
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span></span>
+<span>  <span class="st">"StanEstimators"</span>,</span>
+<span>  repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://andrjohns.r-universe.dev"</span>, <span class="st">"https://cloud.r-project.org"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Then install <code>SparseNUTS</code> and retry the opal installation:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"noaa-afsc/SparseNUTS"</span><span class="op">)</span></span></code></pre></div>
-<p>Ensure you have RTMB installed:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"RTMB"</span><span class="op">)</span></span></code></pre></div>
+<p>For development, the package environment is pinned with <code>renv</code>; run <code><a href="https://rstudio.github.io/renv/reference/restore.html" class="external-link">renv::restore()</a></code> from the repository root.</p>
 </div>
 <div class="section level2">
-<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<p>Fit the bundled ’opakapaka example and store the result as a portable <code>opal_fit</code>. The full walkthrough is in <code><a href="articles/quickstart.html">vignette("quickstart")</a></code>.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Build a basic population model</span></span>
-<span><span class="co"># (Example code will depend on your API—update with actual function calls)</span></span></code></pre></div>
+<span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opaka_quickstart_inputs.html">opaka_quickstart_inputs</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu">MakeADFun</span><span class="op">(</span></span>
+<span>  func <span class="op">=</span> <span class="fu"><a href="reference/cmb.html">cmb</a></span><span class="op">(</span><span class="va">opal_model</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>,</span>
+<span>  parameters <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">parameters</span>,</span>
+<span>  map <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">map</span>,</span>
+<span>  silent <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">bounds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_bounds.html">get_bounds</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">parameters</span><span class="op">)</span></span>
+<span><span class="va">control</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>eval.max <span class="op">=</span> <span class="fl">10000</span>, iter.max <span class="op">=</span> <span class="fl">10000</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">opt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span>, <span class="va">obj</span><span class="op">$</span><span class="va">fn</span>, <span class="va">obj</span><span class="op">$</span><span class="va">gr</span>,</span>
+<span>              lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span>, control <span class="op">=</span> <span class="va">control</span><span class="op">)</span></span>
+<span><span class="va">opt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb</a></span><span class="op">(</span><span class="va">opt</span><span class="op">$</span><span class="va">par</span>, <span class="va">obj</span><span class="op">$</span><span class="va">fn</span>, <span class="va">obj</span><span class="op">$</span><span class="va">gr</span>,</span>
+<span>              lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span>, control <span class="op">=</span> <span class="va">control</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit.html">opal_fit</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">data</span>,</span>
+<span>  obj <span class="op">=</span> <span class="va">obj</span>,</span>
+<span>  opt <span class="op">=</span> <span class="va">opt</span>,</span>
+<span>  bounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span><span class="op">)</span>,</span>
+<span>  control <span class="op">=</span> <span class="va">control</span>,</span>
+<span>  estimability <span class="op">=</span> <span class="fu"><a href="reference/check_estimability.html">check_estimability</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span>,</span>
+<span>  metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>stock <span class="op">=</span> <span class="st">"Opakapaka"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p>To review a fit without refitting, open the bundled example (<code><a href="articles/opakapaka-fit-review.html">vignette("opakapaka-fit-review")</a></code>):</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_io.html">read_opal_fit</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"opaka_quickstart_fit.rds"</span>, package <span class="op">=</span> <span class="st">"opal"</span><span class="op">)</span>,</span>
+<span>  strict <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  integrity <span class="op">=</span> <span class="st">"portable"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The bundled fit may have been saved under a different R version. Portable integrity permits that difference while still checking model compatibility and requiring the rebuilt objective to match the saved value.</p>
 </div>
 <div class="section level2">
 <h2 id="saving-fitted-models">Saving fitted models<a class="anchor" aria-label="anchor" href="#saving-fitted-models"></a>
 </h2>
-<p><code><a href="reference/opal_fit.html">opal_fit()</a></code> provides one portable object for a fitted model and its associated results. It deliberately does not serialize the transient RTMB objective; <code><a href="reference/opal_fit_io.html">read_opal_fit()</a></code> reconstructs that objective from the saved data, fitted parameters, map, and random-effect specification.</p>
+<p><code>opal_fit</code> does not serialize the transient RTMB objective. <code><a href="reference/opal_fit_io.html">read_opal_fit()</a></code> validates the saved object against the current scientific model version, and <code><a href="reference/opal_fit_object.html">opal_fit_object()</a></code> rebuilds the objective from the stored data, parameters, map, and random-effect specification, then checks that it reproduces the saved objective value.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit.html">opal_fit</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">data</span>,</span>
-<span>  obj <span class="op">=</span> <span class="va">obj</span>,</span>
-<span>  opt <span class="op">=</span> <span class="va">opt</span>,</span>
-<span>  bounds <span class="op">=</span> <span class="va">bounds</span>,</span>
-<span>  estimability <span class="op">=</span> <span class="fu"><a href="reference/check_estimability.html">check_estimability</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span>,</span>
-<span>  mcmc <span class="op">=</span> <span class="va">mcmc_fit</span>,</span>
-<span>  derived <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>projections <span class="op">=</span> <span class="va">projections</span><span class="op">)</span>,</span>
-<span>  metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>stock <span class="op">=</span> <span class="st">"WCPO bigeye"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/opal_fit_io.html">save_opal_fit</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"fit.rds"</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_io.html">read_opal_fit</a></span><span class="op">(</span><span class="st">"fit.rds"</span>, strict <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/opal_fit_io.html">save_opal_fit</a></span><span class="op">(</span><span class="va">fit</span>, <span class="st">"bet-fit.rds"</span><span class="op">)</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_io.html">read_opal_fit</a></span><span class="op">(</span><span class="st">"bet-fit.rds"</span>, strict <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_object.html">opal_fit_object</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span>    <span class="co"># rebuilt objective, cached for the session</span></span>
+<span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_report.html">opal_fit_report</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span> <span class="co"># REPORT() output at the fitted parameters</span></span>
 <span></span>
-<span><span class="co"># Recreated from the portable fitted state and cached for this R session</span></span>
-<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_object.html">opal_fit_object</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_fit_report.html">opal_fit_report</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Add or replace later results without changing the fitted model</span></span>
+<span><span class="co"># Attach later results without changing the fitted state</span></span>
 <span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/update_opal_fit.html">update_opal_fit</a></span><span class="op">(</span></span>
 <span>  <span class="va">fit</span>,</span>
+<span>  mcmc <span class="op">=</span> <span class="va">mcmc_fit</span>,</span>
 <span>  derived <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>retrospective <span class="op">=</span> <span class="va">retrospective_results</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Use <code>opal_as_tmbfit(fit)</code> when an existing plotting or diagnostic function expects the original <code>SparseNUTS</code> <code>tmbfit</code> structure.</p>
-</div>
-<div class="section level2">
-<h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
-</h2>
-<p>For detailed examples and function reference, see the <a href="vignettes/">vignettes</a> and inline function documentation (<code>?opal</code>).</p>
+<p>Fits saved under a different R version can be read with <code>integrity = "portable"</code>, which accepts the change provided the rebuilt objective matches. <code>opal_as_tmbfit(fit)</code> converts stored MCMC output to the <code>SparseNUTS</code> <code>tmbfit</code> structure for existing plotting and diagnostic functions.</p>
 </div>
 <div class="section level2">
 <h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>
 </h2>
-<p>Contributions are welcome. Please open an issue or submit a pull request with enhancements or bug fixes.</p>
-<div class="section level3">
-<h3 id="branch-structure">Branch Structure<a class="anchor" aria-label="anchor" href="#branch-structure"></a>
-</h3>
-<p>opal uses a standard development workflow:</p>
+<p>Contributions are welcome. Please read <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> before opening a pull request. In brief:</p>
 <ul>
-<li>
-<strong><code>main</code></strong>: Stable release branch. Code here represents tested, production-ready versions of the package.</li>
-<li>
-<strong><code>dev</code></strong>: Active development branch. New features, bug fixes, and improvements are developed and tested here before being merged into <code>main</code>.</li>
+<li>Open an <a href="https://github.com/N-DucharmeBarth-NOAA/opal/issues" class="external-link">issue</a> to discuss substantial changes before starting work.</li>
+<li>Submit pull requests against the <code>dev</code> branch; <code>main</code> is the stable release branch.</li>
+<li>Any change that alters model numerics must follow the regeneration protocol described in <a href="CONTRIBUTING.html#numerical-changes">CONTRIBUTING.md</a>: show the golden test failing, document the change in <code>NEWS.md</code>, bump <code>.opal_model_scientific_version</code>, and regenerate the test reference and bundled example fit.</li>
 </ul>
-<p><strong>Workflow</strong>: Submit pull requests against the <code>dev</code> branch. Once features are tested and validated, they are incorporated into <code>main</code> for release.</p>
-</div>
-<div class="section level3">
-<h3 id="using-github-copilot">Using GitHub Copilot<a class="anchor" aria-label="anchor" href="#using-github-copilot"></a>
-</h3>
-<p>If you use GitHub Copilot to assist with development, please select <code>dev</code> as the base branch from the dropdown menu when assigning work to Copilot (the default is <code>main</code>). This ensures your feature branches and pull requests follow our development workflow.</p>
-</div>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
 </h2>
-<p>See <a href="LICENSE">LICENSE</a> for terms and conditions.</p>
+<p>opal is released under the GNU General Public License, version 3 or later. See <a href="LICENSE">LICENSE</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<p>If you use opal in your research, please cite it appropriately. Details will be provided as the package matures.</p>
+<p>A formal package citation is not yet available. In the meantime, please cite the WCPFC SC22 working paper describing opal, available from the <a href="https://connect.fisheries.noaa.gov/opal/" class="external-link">project website</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="disclaimer">Disclaimer<a class="anchor" aria-label="anchor" href="#disclaimer"></a>
@@ -205,6 +256,12 @@
 </ul>
 </div>
 
+<div class="community">
+<h2 data-toc-skip>Community</h2>
+<ul class="list-unstyled">
+<li><a href="CONTRIBUTING.html">Contributing guide</a></li>
+</ul>
+</div>
 
 <div class="citation">
 <h2 data-toc-skip>Citation</h2>
@@ -226,6 +283,8 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://codecov.io/gh/N-DucharmeBarth-NOAA/opal" class="external-link"><img src="https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/graph/badge.svg?token=6JY6W5MDDN" alt="codecov-main"></a></li>
+<li><a href="https://codecov.io/gh/N-DucharmeBarth-NOAA/opal" class="external-link"><img src="https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/branch/dev/graph/badge.svg?token=6JY6W5MDDN" alt="codecov-dev"></a></li>
 </ul>
 </div>
 

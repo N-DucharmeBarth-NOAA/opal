@@ -11,10 +11,10 @@ model inputs, fitted parameters, optimization results, and diagnostics
 without serializing RTMB’s session-specific objective. An objective is
 rebuilt only when it is needed for reporting or plotting.
 
-## Load the model recipe
+## Load the model inputs
 
-The package includes a sourceable recipe so this vignette and the stored
-example fit use the same data preparation and fixed-effects
+The package includes a model-input builder so this vignette and the
+stored example fit use the same data preparation and fixed-effects
 configuration.
 
 ``` r
@@ -22,11 +22,10 @@ configuration.
 library(opal)
 library(RTMB)
 
-source("../inst/scripts/opaka-quickstart.R")
 inputs <- opaka_quickstart_inputs()
 ```
 
-The recipe loads the bundled opakapaka catch, CPUE, and
+The input builder loads the bundled opakapaka catch, CPUE, and
 length-composition data; uses biological ages 0–43 to align with SS3;
 applies the SS3 recruitment bias ramps; and prepares multinomial length
 compositions for the commercial and research fleets. It fixes
@@ -92,14 +91,14 @@ fit <- opal_fit(
 fit
 #> <opal_fit>
 #>   Model:        opal_model (schema 1)
-#>   opal version: 0.0.3
+#>   opal version: 0.0.4
 #>   Parameters:   127 active
 #>   Objective:    1832.412
 #>   Convergence:  0
 #>   Estimability: All 127 active fixed-effect parameters are estimable.
 #>   MCMC:         not stored
 #>   Derived sets: 0
-#>   Created:      2026-09-16 00:45:33 UTC
+#>   Created:      2026-09-21 22:01:11 UTC
 ```
 
 ## Save a portable fitted model
@@ -118,7 +117,7 @@ summary(fit)
 #> opal fitted-model summary
 #> 
 #>       model model_schema     scientific_version opal_version
-#>  opal_model            1 opal_model_contract_v1        0.0.3
+#>  opal_model            1 opal_model_contract_v4        0.0.4
 #> 
 #> Optimization
 #>  method n_parameters objective convergence                  message

@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,6 +43,7 @@
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -75,7 +76,8 @@
     <section class="section level2"><h2 id="review-an-opal_fit">Review an <code>opal_fit</code>
 <a class="anchor" aria-label="anchor" href="#review-an-opal_fit"></a>
 </h2>
-<p>This vignette examines the portable fixed-effects opakapaka fit created for the Quickstart. It rebuilds the transient RTMB objective only to obtain model predictions, so no optimization is performed here.</p>
+<p>This vignette examines the portable fixed-effects opakapaka fit created for the Quickstart. It rebuilds the transient RTMB objective only to obtain model predictions, so no optimisation is performed here.</p>
+<p>The bundled fit may have been saved under a different R version. Portable integrity permits that difference while still checking model compatibility and requiring the rebuilt objective to match the saved value.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span>
@@ -84,23 +86,23 @@
 <span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nzchar</a></span><span class="op">(</span><span class="va">fit_path</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"The bundled opakapaka quickstart fit is unavailable."</span>, call. <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_io.html">read_opal_fit</a></span><span class="op">(</span><span class="va">fit_path</span>, strict <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_io.html">read_opal_fit</a></span><span class="op">(</span><span class="va">fit_path</span>, strict <span class="op">=</span> <span class="cn">TRUE</span>, integrity <span class="op">=</span> <span class="st">"portable"</span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; &lt;opal_fit&gt;</span></span>
 <span><span class="co">#&gt;   Model:        opal_model (schema 1)</span></span>
-<span><span class="co">#&gt;   opal version: 0.0.3</span></span>
+<span><span class="co">#&gt;   opal version: 0.0.4</span></span>
 <span><span class="co">#&gt;   Parameters:   127 active</span></span>
 <span><span class="co">#&gt;   Objective:    1832.412</span></span>
 <span><span class="co">#&gt;   Convergence:  0</span></span>
 <span><span class="co">#&gt;   Estimability: All 127 active fixed-effect parameters are estimable.</span></span>
 <span><span class="co">#&gt;   MCMC:         not stored</span></span>
 <span><span class="co">#&gt;   Derived sets: 0</span></span>
-<span><span class="co">#&gt;   Created:      2026-09-16 00:14:52 UTC</span></span>
+<span><span class="co">#&gt;   Created:      2026-09-21 20:58:28 UTC</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; opal fitted-model summary</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;       model model_schema     scientific_version opal_version</span></span>
-<span><span class="co">#&gt;  opal_model            1 opal_model_contract_v1        0.0.3</span></span>
+<span><span class="co">#&gt;  opal_model            1 opal_model_contract_v4        0.0.4</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Optimization</span></span>
 <span><span class="co">#&gt;  method n_parameters objective convergence                  message</span></span>
@@ -112,7 +114,7 @@
 </h3>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">object</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_object.html">opal_fit_object</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">object</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_object.html">opal_fit_object</a></span><span class="op">(</span><span class="va">fit</span>, integrity <span class="op">=</span> <span class="st">"portable"</span><span class="op">)</span></span>
 <span><span class="va">plot_data</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">data</span></span>
 <span><span class="va">plot_data</span><span class="op">$</span><span class="va">cpue_data</span><span class="op">$</span><span class="va">season</span> <span class="op">&lt;-</span> <span class="fl">1L</span></span>
 <span><span class="fu"><a href="../reference/plot_cpue.html">plot_cpue</a></span><span class="op">(</span><span class="va">plot_data</span>, <span class="va">object</span><span class="op">)</span></span></code></pre></div>
@@ -150,7 +152,7 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $maximum_gradient</span></span>
-<span><span class="co">#&gt; [1] 0.0004657295</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.003773483</span></span></code></pre></div>
 </div>
 </section></section><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {

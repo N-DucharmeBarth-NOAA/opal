@@ -4,7 +4,12 @@
 
 This vignette examines the portable fixed-effects opakapaka fit created
 for the Quickstart. It rebuilds the transient RTMB objective only to
-obtain model predictions, so no optimization is performed here.
+obtain model predictions, so no optimisation is performed here.
+
+The bundled fit may have been saved under a different R version.
+Portable integrity permits that difference while still checking model
+compatibility and requiring the rebuilt objective to match the saved
+value.
 
 ``` r
 
@@ -14,23 +19,23 @@ fit_path <- system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
 if (!nzchar(fit_path)) {
   stop("The bundled opakapaka quickstart fit is unavailable.", call. = FALSE)
 }
-fit <- read_opal_fit(fit_path, strict = TRUE)
+fit <- read_opal_fit(fit_path, strict = TRUE, integrity = "portable")
 fit
 #> <opal_fit>
 #>   Model:        opal_model (schema 1)
-#>   opal version: 0.0.3
+#>   opal version: 0.0.4
 #>   Parameters:   127 active
 #>   Objective:    1832.412
 #>   Convergence:  0
 #>   Estimability: All 127 active fixed-effect parameters are estimable.
 #>   MCMC:         not stored
 #>   Derived sets: 0
-#>   Created:      2026-09-16 00:14:52 UTC
+#>   Created:      2026-09-21 20:58:28 UTC
 summary(fit)
 #> opal fitted-model summary
 #> 
 #>       model model_schema     scientific_version opal_version
-#>  opal_model            1 opal_model_contract_v1        0.0.3
+#>  opal_model            1 opal_model_contract_v4        0.0.4
 #> 
 #> Optimization
 #>  method n_parameters objective convergence                  message
@@ -43,7 +48,7 @@ summary(fit)
 
 ``` r
 
-object <- opal_fit_object(fit)
+object <- opal_fit_object(fit, integrity = "portable")
 plot_data <- fit$data
 plot_data$cpue_data$season <- 1L
 plot_cpue(plot_data, object)
@@ -80,5 +85,5 @@ list(
 #> 
 #> 
 #> $maximum_gradient
-#> [1] 0.0004657295
+#> [1] 0.003773483
 ```

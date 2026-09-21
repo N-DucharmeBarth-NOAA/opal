@@ -102,6 +102,11 @@ The input `data` list with the following elements appended or updated:
 
   Numeric vector of sample sizes per observation row.
 
+- `lf_n_int`:
+
+  Integer Dirichlet-multinomial sample sizes obtained by half-up
+  rounding of `lf_n`.
+
 - `lf_fishery`:
 
   Integer vector of fishery index per observation row.
@@ -118,7 +123,7 @@ The input `data` list with the following elements appended or updated:
 
   Integer vector of model timestep index (1-based) per observation row.
 
-- `lf_year_fi`, `lf_n_fi`, `lf_row_fi`:
+- `lf_year_fi`, `lf_n_fi`, `lf_n_int_fi`, `lf_row_fi`:
 
   Lists split by fishery containing model timesteps, effective sample
   sizes, and row indices. Precomputed so
@@ -157,8 +162,8 @@ The input `data` list with the following elements appended or updated:
 
 - `lf_obs_ints`:
 
-  Flattened integer vector of rounded counts (for Dirichlet-multinomial,
-  `lf_switch = 3`).
+  Flattened integer counts that sum to `lf_n_int` per observation (for
+  Dirichlet-multinomial, `lf_switch = 3`).
 
 - `lf_obs_prop`:
 
@@ -181,6 +186,9 @@ Rows in `lf_wide` with a total sample size of zero are silently removed
 before any other processing. Bin alignment between the data frame
 columns and the model's length structure is checked with
 [`stopifnot()`](https://rdrr.io/r/base/stopifnot.html).
+Dirichlet-multinomial counts use half-up rounding of effective sample
+sizes and largest-remainder allocation. Observations that round to zero
+are skipped by the Dirichlet-multinomial likelihood.
 
 ## See also
 

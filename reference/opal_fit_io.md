@@ -9,7 +9,12 @@ and can rebuild its transient RTMB objective.
 ``` r
 save_opal_fit(x, file, compress = "gzip", overwrite = FALSE)
 
-read_opal_fit(file, strict = FALSE, rebuild = strict)
+read_opal_fit(
+  file,
+  strict = FALSE,
+  rebuild = strict,
+  integrity = c("exact", "portable")
+)
 ```
 
 ## Arguments
@@ -39,6 +44,12 @@ read_opal_fit(file, strict = FALSE, rebuild = strict)
 
   Rebuild and cache the RTMB objective after reading. Defaults to
   `strict`.
+
+- integrity:
+
+  Runtime-payload verification mode. `"exact"` requires the raw
+  serialized payload identity to match. `"portable"` permits a mismatch
+  across R versions, provided the rebuilt objective is verified.
 
 ## Value
 

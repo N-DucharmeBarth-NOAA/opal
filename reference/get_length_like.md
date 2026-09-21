@@ -24,7 +24,8 @@ get_length_like(
   n_len,
   n_lf,
   log_lf_tau,
-  lf_addtocomp = 1e-08
+  lf_addtocomp = 1e-08,
+  lf_n_int_fi = NULL
 )
 ```
 
@@ -108,7 +109,20 @@ get_length_like(
   small non-negative numeric constant added to predicted proportions
   before normalisation to robustify zero bins. Default `1e-08`.
 
+- lf_n_int_fi:
+
+  optional list of integer Dirichlet-multinomial sample sizes.
+
 ## Value
 
 a `numeric` vector of negative log-likelihood contributions, one per
 observation.
+
+## Details
+
+For Dirichlet, concentration is `pred * n_i * exp(log_lf_tau[f])`; for
+Dirichlet-multinomial, it is `pred * exp(log_lf_tau[f])`. The
+multinomial branch uses RTMB's integer-rounded count behavior. The
+Dirichlet-multinomial is intended for real counts with variance
+adjustment equal to one; use Dirichlet for fractional effective sample
+sizes.

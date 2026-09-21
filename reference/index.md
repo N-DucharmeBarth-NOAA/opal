@@ -31,12 +31,6 @@
 - [`extract_fixed()`](https://n-ducharmebarth-noaa.github.io/opal/reference/extract_fixed.md)
   : Extract fixed effects
 
-- [`get_M()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_M.md)
-  : Natural mortality at age
-
-- [`get_M_length()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_M_length.md)
-  : Natural mortality at length
-
 - [`get_bias_adj_vector()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bias_adj_vector.md)
   : Calculate Recruitment Bias Adjustment Ramp
 
@@ -109,6 +103,9 @@
 
 - [`opaka_parameters`](https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_parameters.md)
   : 'Opakapaka Stock Assessment Parameters
+
+- [`opaka_quickstart_inputs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_quickstart_inputs.md)
+  : Opakapaka quickstart model inputs
 
 - [`opaka_truth`](https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_truth.md)
   : Opakapaka SS3 OM/EM truth and EM output (extracted)

@@ -5,7 +5,7 @@ Access the runtime objective for an opal fit
 ## Usage
 
 ``` r
-opal_fit_object(x, fresh = FALSE)
+opal_fit_object(x, fresh = FALSE, integrity = c("exact", "portable"))
 ```
 
 ## Arguments
@@ -17,6 +17,12 @@ opal_fit_object(x, fresh = FALSE)
 - fresh:
 
   Construct an isolated objective instead of using the session cache.
+
+- integrity:
+
+  Runtime-payload verification mode. `"exact"` requires the raw
+  serialized payload identity to match. `"portable"` permits a mismatch
+  across R versions, provided the rebuilt objective is verified.
 
 ## Value
 

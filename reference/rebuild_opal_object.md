@@ -13,7 +13,8 @@ rebuild_opal_object(
   check_objective = TRUE,
   tolerance = 1e-06,
   silent = FALSE,
-  cache = TRUE
+  cache = TRUE,
+  integrity = c("exact", "portable")
 )
 ```
 
@@ -43,6 +44,12 @@ rebuild_opal_object(
 - cache:
 
   Cache the rebuilt objective for this R session.
+
+- integrity:
+
+  Runtime-payload verification mode. `"exact"` requires the raw
+  serialized payload identity to match. `"portable"` permits a mismatch
+  across R versions, provided the rebuilt objective is verified.
 
 ## Value
 

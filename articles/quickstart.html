@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,6 +43,7 @@
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -74,18 +75,17 @@
 
     <p>This guide fits a fixed-effects assessment for ’opakapaka (<em>Pristipomoides filamentosus</em>) using the bundled data. The example uses the same age convention and selectivity parameterization as its Stock Synthesis 3 (SS3) reference model, then stores the fitted result as an <code>opal_fit</code> S3 object.</p>
 <p><code>opal_fit</code> is the portable boundary for an assessment: it retains the model inputs, fitted parameters, optimization results, and diagnostics without serializing RTMB’s session-specific objective. An objective is rebuilt only when it is needed for reporting or plotting.</p>
-<section class="level2"><h2 id="load-the-model-recipe">Load the model recipe<a class="anchor" aria-label="anchor" href="#load-the-model-recipe"></a>
+<section class="level2"><h2 id="load-the-model-inputs">Load the model inputs<a class="anchor" aria-label="anchor" href="#load-the-model-inputs"></a>
 </h2>
-<p>The package includes a sourceable recipe so this vignette and the stored example fit use the same data preparation and fixed-effects configuration.</p>
+<p>The package includes a model-input builder so this vignette and the stored example fit use the same data preparation and fixed-effects configuration.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"../inst/scripts/opaka-quickstart.R"</span><span class="op">)</span></span>
-<span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu">opaka_quickstart_inputs</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opaka_quickstart_inputs.html">opaka_quickstart_inputs</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
-<p>The recipe loads the bundled opakapaka catch, CPUE, and length-composition data; uses biological ages 0–43 to align with SS3; applies the SS3 recruitment bias ramps; and prepares multinomial length compositions for the commercial and research fleets. It fixes life-history parameters at their SS3 values and estimates biomass scale, CPUE catchability, recruitment deviations, initial age structure, and selectivity for fleets with length data.</p>
+<p>The input builder loads the bundled opakapaka catch, CPUE, and length-composition data; uses biological ages 0–43 to align with SS3; applies the SS3 recruitment bias ramps; and prepares multinomial length compositions for the commercial and research fleets. It fixes life-history parameters at their SS3 values and estimates biomass scale, CPUE catchability, recruitment deviations, initial age structure, and selectivity for fleets with length data.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
@@ -140,14 +140,14 @@
 <span><span class="va">fit</span></span>
 <span><span class="co">#&gt; &lt;opal_fit&gt;</span></span>
 <span><span class="co">#&gt;   Model:        opal_model (schema 1)</span></span>
-<span><span class="co">#&gt;   opal version: 0.0.3</span></span>
+<span><span class="co">#&gt;   opal version: 0.0.4</span></span>
 <span><span class="co">#&gt;   Parameters:   127 active</span></span>
 <span><span class="co">#&gt;   Objective:    1832.412</span></span>
 <span><span class="co">#&gt;   Convergence:  0</span></span>
 <span><span class="co">#&gt;   Estimability: All 127 active fixed-effect parameters are estimable.</span></span>
 <span><span class="co">#&gt;   MCMC:         not stored</span></span>
 <span><span class="co">#&gt;   Derived sets: 0</span></span>
-<span><span class="co">#&gt;   Created:      2026-09-16 00:45:33 UTC</span></span></code></pre></div>
+<span><span class="co">#&gt;   Created:      2026-09-21 22:01:11 UTC</span></span></code></pre></div>
 </div>
 </section><section class="level2"><h2 id="save-a-portable-fitted-model">Save a portable fitted model<a class="anchor" aria-label="anchor" href="#save-a-portable-fitted-model"></a>
 </h2>
@@ -161,7 +161,7 @@
 <span><span class="co">#&gt; opal fitted-model summary</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;       model model_schema     scientific_version opal_version</span></span>
-<span><span class="co">#&gt;  opal_model            1 opal_model_contract_v1        0.0.3</span></span>
+<span><span class="co">#&gt;  opal_model            1 opal_model_contract_v4        0.0.4</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Optimization</span></span>
 <span><span class="co">#&gt;  method n_parameters objective convergence                  message</span></span>

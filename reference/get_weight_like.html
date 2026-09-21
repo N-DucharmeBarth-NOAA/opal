@@ -13,7 +13,7 @@ Gradients propagate through PLA to growth parameters when estimated."><meta prop
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,6 +27,7 @@ Gradients propagate through PLA to growth parameters when estimated."><meta prop
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/N-DucharmeBarth-NOAA/opal" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
@@ -70,7 +71,8 @@ Gradients propagate through PLA to growth parameters when estimated.</p>
 <span>  <span class="va">n_wt</span>,</span>
 <span>  <span class="va">n_wf</span>,</span>
 <span>  <span class="va">log_wf_tau</span>,</span>
-<span>  wf_addtocomp <span class="op">=</span> <span class="fl">1e-08</span></span>
+<span>  wf_addtocomp <span class="op">=</span> <span class="fl">1e-08</span>,</span>
+<span>  wf_n_int_fi <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -153,10 +155,22 @@ from prep_wf_data().</p></dd>
 <dd><p>small non-negative numeric constant added to predicted
 proportions before normalisation to robustify zero bins. Default <code>1e-08</code>.</p></dd>
 
+
+<dt id="arg-wf-n-int-fi">wf_n_int_fi<a class="anchor" aria-label="anchor" href="#arg-wf-n-int-fi"></a></dt>
+<dd><p>optional list of integer Dirichlet-multinomial sample sizes.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>numeric vector of negative log-likelihood contributions, one per observation.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>For Dirichlet, concentration is <code>pred * n_i * exp(log_wf_tau[f])</code>;
+for Dirichlet-multinomial, it is <code>pred * exp(log_wf_tau[f])</code>. The
+multinomial branch uses RTMB's integer-rounded count behavior. The
+Dirichlet-multinomial is intended for real counts with variance adjustment
+equal to one; use Dirichlet for fractional effective sample sizes.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

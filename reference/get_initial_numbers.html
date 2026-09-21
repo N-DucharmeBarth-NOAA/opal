@@ -9,7 +9,7 @@ and Beverton-Holt stock-recruitment parameters."><meta property="og:image" conte
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,6 +23,7 @@ and Beverton-Holt stock-recruitment parameters."><meta property="og:image" conte
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/N-DucharmeBarth-NOAA/opal" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
@@ -53,6 +54,7 @@ and Beverton-Holt stock-recruitment parameters.</p>
 <span>  <span class="va">spawning_potential_a</span>,</span>
 <span>  init_F_f <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sel_fa <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  n_season <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  init_rdev_a <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sigma_r <span class="op">=</span> <span class="fl">0.6</span>,</span>
 <span>  init_bias_adj_a <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -90,6 +92,11 @@ fishery.</p></dd>
 <code>[n_fishery, n_age]</code>.</p></dd>
 
 
+<dt id="arg-n-season">n_season<a class="anchor" aria-label="anchor" href="#arg-n-season"></a></dt>
+<dd><p>Number of seasons used to translate annual initial fishing
+mortality into seasonal harvest fractions.</p></dd>
+
+
 <dt id="arg-init-rdev-a">init_rdev_a<a class="anchor" aria-label="anchor" href="#arg-init-rdev-a"></a></dt>
 <dd><p>an optional <code>vector</code> of initial age deviations.</p></dd>
 
@@ -121,8 +128,21 @@ deviations do not alter the equilibrium initial age structure.</p></dd>
 <dt>beta</dt>
 <dd><p>BH beta parameter.</p></dd>
 
+<dt>lp_penalty</dt>
+<dd><p>Penalty for constrained initial survival or recruitment.</p></dd>
+
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Seasonal survival and equilibrium recruitment relative to \(R_0\)
+are continued smoothly below <code>0.001</code> to keep trial initial states
+positive. The continuation is <code>eps / (2 - x / eps)</code> and adds
+<code>(eps - x)^2 / eps</code> to the penalty when <code>x &lt; eps</code>.
+Values at or above the threshold are unchanged. A positive penalty marks
+a constrained trial state, not a valid fished equilibrium, and must be
+included in the fitting objective (as it is in <code><a href="opal_model.html">opal_model()</a></code>).</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

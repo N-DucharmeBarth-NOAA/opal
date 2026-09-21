@@ -127,6 +127,21 @@ A named list with:
 
   Predicted catch-at-age array `[n_fishery, n_year, n_age]`.
 
+- hrate_ysfa:
+
+  Harvest rate array by year, season, fishery, and age
+  `[n_year+1, n_season, n_fishery, n_age]`.
+
+- hrate_ysa:
+
+  Total harvest rate array by year, season, and age
+  `[n_year+1, n_season, n_age]`.
+
+- catch_pred_ysf:
+
+  Predicted catch array by year, season, and fishery
+  `[n_year, n_season, n_fishery]`.
+
 - spawning_biomass_y:
 
   Spawning biomass trajectory under fishing.

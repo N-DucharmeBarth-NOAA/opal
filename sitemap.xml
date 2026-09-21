@@ -1,13 +1,16 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/404.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/CONTRIBUTING.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/DISCLAIMER.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/LICENSE.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/PULL_REQUEST_TEMPLATE.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/opakapaka-fit-review.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/articles/quickstart.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/authors.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/copilot-instructions.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/index.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/news/index.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/cmb.html</loc></url>
@@ -17,8 +20,6 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/double_richards_natural.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/evaluate_priors.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/extract_fixed.html</loc></url>
-<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_M.html</loc></url>
-<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_M_length.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_bias_adj_vector.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/get_cor_pairs.html</loc></url>
@@ -45,6 +46,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_data.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_lf.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_parameters.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_quickstart_inputs.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opaka_truth.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_as_tmbfit.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/reference/opal_baseline.html</loc></url>

@@ -13,6 +13,7 @@ get_initial_numbers(
   spawning_potential_a,
   init_F_f = NULL,
   sel_fa = NULL,
+  n_season = 1L,
   init_rdev_a = NULL,
   sigma_r = 0.6,
   init_bias_adj_a = NULL
@@ -45,6 +46,11 @@ get_initial_numbers(
 
   an optional matrix of selectivity-at-age with dimensions
   `[n_fishery, n_age]`.
+
+- n_season:
+
+  Number of seasons used to translate annual initial fishing mortality
+  into seasonal harvest fractions.
 
 - init_rdev_a:
 
@@ -83,3 +89,18 @@ A list containing:
 - beta:
 
   BH beta parameter.
+
+- lp_penalty:
+
+  Penalty for constrained initial survival or recruitment.
+
+## Details
+
+Seasonal survival and equilibrium recruitment relative to \\R_0\\ are
+continued smoothly below `0.001` to keep trial initial states positive.
+The continuation is `eps / (2 - x / eps)` and adds `(eps - x)^2 / eps`
+to the penalty when `x < eps`. Values at or above the threshold are
+unchanged. A positive penalty marks a constrained trial state, not a
+valid fished equilibrium, and must be included in the fitting objective
+(as it is in
+[`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_model.md)).

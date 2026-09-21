@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="articles/quickstart.html">Quickstart Guide</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/N-DucharmeBarth-NOAA/opal" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
@@ -41,30 +42,46 @@
 <p>Purpose: help AI coding agents be immediately productive working on the <strong>opal</strong> R package — the <strong>o</strong>pen <strong>p</strong>opulation <strong>a</strong>ssessment <strong>l</strong>ibrary for fisheries stock assessment.</p>
 <div class="section level2">
 <h2 id="big-picture">Big picture<a class="anchor" aria-label="anchor" href="#big-picture"></a></h2>
-<p><code>opal</code> is an R package that implements age- and season-structured population dynamics models for fisheries stock assessment. It is built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a> for automatic differentiation, enabling gradient-based optimization (<code>nlminb</code>) and MCMC sampling (<code>SparseNUTS</code>). The primary application is WCPO bigeye tuna (BET), but the design is general.</p>
+<p><code>opal</code> is an R package that implements age- and season-structured population dynamics models for fisheries stock assessment. It is built on <a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a> for automatic differentiation, enabling gradient-based optimization (<code>nlminb</code>), the Laplace approximation for random effects, and MCMC sampling (<code>SparseNUTS</code>).</p>
+<p>Two case studies drive development:</p>
+<ul><li>
+<strong>’Opakapaka</strong> — the bundled quickstart model. It is the basis for <code>vignettes/</code>, the bundled example fit, the golden regression test, and the simulation self-tests. Start here.</li>
+<li>
+<strong>WCPO bigeye tuna (BET)</strong> — a high-dimensional quarterly model with length and weight compositions. Its workflows live in <code>dev/vignettes/</code> and are not built with the package.</li>
+</ul><p>The design is general and is not specific to either case study.</p>
 </div>
 <div class="section level2">
 <h2 id="repo-layout">Repo layout<a class="anchor" aria-label="anchor" href="#repo-layout"></a></h2>
 <table class="table"><colgroup><col width="37%"><col width="62%"></colgroup><thead><tr><th>Path</th>
 <th>Contents</th>
 </tr></thead><tbody><tr><td><code>R/</code></td>
-<td>All package source code (23 files). Core logic lives here.</td>
+<td>All package source code. Core logic lives here.</td>
 </tr><tr><td><code>man/</code></td>
 <td>roxygen2-generated <code>.Rd</code> help files. <strong>Do not edit by hand.</strong>
 </td>
 </tr><tr><td><code>data/</code></td>
-<td>Bundled <code>.rda</code> datasets (<code>wcpo_bet_data</code>, <code>wcpo_bet_lf</code>, <code>wcpo_bet_wf</code>, <code>wcpo_bet_parameters</code>)</td>
+<td>Bundled <code>.rda</code> datasets (<code>wcpo_bet_*</code>, <code>opaka_*</code>, and <code>opal_baseline*</code>)</td>
+</tr><tr><td><code>inst/extdata/</code></td>
+<td>Bundled portable fitted-model objects and other package files.</td>
+</tr><tr><td><code>data-raw/</code></td>
+<td>Scripts used to generate package data and test references.</td>
+</tr><tr><td><code>dev/vignettes/</code></td>
+<td>Development-only analysis and baseline workflows.</td>
 </tr><tr><td><code>tests/testthat/</code></td>
 <td>
 <code>testthat</code> edition 3 test suite</td>
+</tr><tr><td><code>tests/testthat/_reference/</code></td>
+<td>Numerical reference outputs. <strong>Never write these from a test.</strong>
+</td>
 </tr><tr><td><code>vignettes/</code></td>
-<td>
-<code>quickstart.Rmd</code> (overview) and <code>bet.Rmd</code> (full worked example)</td>
+<td>Quarto vignettes including <code>quickstart.qmd</code> and <code>opakapaka-fit-review.qmd</code>.</td>
 </tr><tr><td><code>renv/</code></td>
 <td>
 <code>renv</code> lockfile and library for reproducible dependencies</td>
 </tr><tr><td><code>.github/workflows/</code></td>
-<td>CI: R-CMD-check, pkgdown deploy, roxygen2, Rmd rendering</td>
+<td>CI: R CMD check, pkgdown deployment, documentation, and self-tests.</td>
+</tr><tr><td><code>.github/CONTRIBUTING.md</code></td>
+<td>Contribution guide: branches, PR requirements, numerical-change protocol.</td>
 </tr><tr><td>
 <code>DESCRIPTION</code>, <code>NAMESPACE</code>
 </td>
@@ -75,7 +92,11 @@
 <ol style="list-style-type: decimal"><li>
 <strong>README.md</strong> — package overview and installation</li>
 <li>
-<strong><code>vignettes/bet.Rmd</code></strong> — full worked tutorial: data prep → model fitting → diagnostics → plots</li>
+<strong><code>.github/CONTRIBUTING.md</code></strong> — what a pull request must satisfy, including the numerical-change protocol</li>
+<li>
+<strong><code>vignettes/quickstart.qmd</code></strong> — worked Opakapaka tutorial: inputs → model fitting → diagnostics → plots</li>
+<li>
+<strong><code>R/example-opaka.R</code></strong> (<code><a href="reference/opaka_quickstart_inputs.html">opaka_quickstart_inputs()</a></code>) — the shared quickstart configuration</li>
 <li>
 <strong><code>R/model.R</code></strong> (<code><a href="reference/opal_model.html">opal_model()</a></code>) — the central model function that orchestrates all components</li>
 <li>
@@ -88,7 +109,7 @@
 <div class="section level3">
 <h3 id="model-function-opal_modelparameters-data">Model function: <code>opal_model(parameters, data)</code>
 <a class="anchor" aria-label="anchor" href="#model-function-opal_modelparameters-data"></a></h3>
-<p>The core function in <code>R/model.R</code>. It is an RTMB-compatible closure that: 1. Unpacks data + parameters via <code>getAll(data, parameters)</code> 2. Runs modular steps in sequence: growth → PLA → weight-at-age → biology → selectivity → initial numbers → dynamics → priors → likelihoods 3. Aggregates NLL: <code>nll = lp_prior + lp_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)</code> 4. Reports derived quantities via <code>REPORT()</code> (spawning biomass, numbers-at-age, etc.)</p>
+<p>The core function in <code>R/model.R</code>. It is an RTMB-compatible closure that: 1. Unpacks data + parameters via <code>getAll(data, parameters)</code> 2. Runs modular steps in sequence: growth → PLA → weight-at-age → biology → selectivity → initial numbers → dynamics → priors → likelihoods 3. Aggregates NLL: <code>nll = lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)</code> 4. Reports derived quantities via <code>REPORT()</code> (spawning biomass, numbers-at-age, etc.)</p>
 <p>Usage: <code>RTMB::MakeADFun(func = cmb(opal_model, data), parameters = params, map = map)</code> where <code>cmb(f, d)</code> creates <code>function(p) f(p, d)</code>.</p>
 </div>
 <div class="section level3">
@@ -104,45 +125,54 @@
 </tr><tr><td><code><a href="reference/get_pla.html">get_pla()</a></code></td>
 <td><code>growth.R</code></td>
 <td>Probability-of-length-at-age matrix (age-length key)</td>
+</tr><tr><td>
+<code><a href="reference/resolve_bio_vector.html">resolve_bio_vector()</a></code>, <code><a href="reference/get_maturity_at_age.html">get_maturity_at_age()</a></code>, <code><a href="reference/get_weight_at_length.html">get_weight_at_length()</a></code>
+</td>
+<td><code>growth.R</code></td>
+<td>Age- or length-based biological inputs, converted on the AD tape</td>
 </tr><tr><td><code><a href="reference/get_selectivity.html">get_selectivity()</a></code></td>
 <td><code>selectivity.R</code></td>
-<td>Logistic or double-normal selectivity (length-based → age via PLA)</td>
+<td>Dispatches to <code><a href="reference/sel_logistic.html">sel_logistic()</a></code>, <code><a href="reference/sel_double_normal.html">sel_double_normal()</a></code>, <code><a href="reference/sel_double_richards.html">sel_double_richards()</a></code>, or <code><a href="reference/sel_length.html">sel_length()</a></code> (length-based → age via PLA)</td>
+</tr><tr><td>
+<code><a href="reference/convert_ss3_selex_to_rtmb.html">convert_ss3_selex_to_rtmb()</a></code>, <code><a href="reference/convert_rtmb_selex_to_ss3.html">convert_rtmb_selex_to_ss3()</a></code>
+</td>
+<td><code>selectivity.R</code></td>
+<td>Translate selectivity parameterizations to and from SS3</td>
 </tr><tr><td><code><a href="reference/get_initial_numbers.html">get_initial_numbers()</a></code></td>
 <td><code>dynamics.R</code></td>
 <td>Equilibrium N-at-age, R0, BH alpha/beta</td>
 </tr><tr><td><code><a href="reference/do_dynamics.html">do_dynamics()</a></code></td>
 <td><code>dynamics.R</code></td>
-<td>Forward age-season simulation with Baranov catch equation</td>
+<td>Forward age-season simulation, conditioned on observed catch</td>
 </tr><tr><td><code><a href="reference/get_harvest_rate.html">get_harvest_rate()</a></code></td>
 <td><code>dynamics.R</code></td>
-<td>Per-fishery harvest rates with <code>posfun</code> penalty</td>
+<td>Per-fishery harvest rates (catch / vulnerable abundance) with <code>posfun</code> penalty</td>
 </tr><tr><td><code><a href="reference/get_recruitment.html">get_recruitment()</a></code></td>
 <td><code>recruitment.R</code></td>
 <td>Beverton-Holt SRR with log-normal deviations</td>
 </tr><tr><td><code><a href="reference/get_cpue_like.html">get_cpue_like()</a></code></td>
 <td><code>likelihoods.R</code></td>
-<td>Log-normal CPUE likelihood</td>
+<td>Log-normal CPUE likelihood, <code>n_index</code> indices</td>
 </tr><tr><td><code><a href="reference/get_length_like.html">get_length_like()</a></code></td>
 <td><code>likelihoods.R</code></td>
 <td>Multinomial / Dirichlet / Dirichlet-multinomial LF likelihood</td>
 </tr><tr><td><code><a href="reference/get_weight_like.html">get_weight_like()</a></code></td>
 <td><code>likelihoods.R</code></td>
-<td>Same three options for weight compositions</td>
+<td>Same three options for weight compositions (predicted by rebinning from length)</td>
 </tr><tr><td>
-<code><a href="reference/get_M.html">get_M()</a></code>, <code><a href="reference/get_M_length.html">get_M_length()</a></code>
+<code><a href="reference/get_priors.html">get_priors()</a></code>, <code><a href="reference/evaluate_priors.html">evaluate_priors()</a></code>
 </td>
-<td><code>natural-mortality.R</code></td>
-<td>Piecewise or Lorenzen natural mortality</td>
-</tr><tr><td><code><a href="reference/evaluate_priors.html">evaluate_priors()</a></code></td>
 <td><code>priors.R</code></td>
-<td>Prior evaluation (normal, lognormal, beta, t)</td>
+<td>Prior specification and evaluation (normal, lognormal, beta, t)</td>
 </tr><tr><td><code><a href="reference/get_parameters.html">get_parameters()</a></code></td>
 <td><code>parameters.R</code></td>
 <td>Default parameter list</td>
 </tr><tr><td><code><a href="reference/get_map.html">get_map()</a></code></td>
 <td><code>parameters.R</code></td>
 <td>Default map (which params to fix)</td>
-</tr><tr><td><code><a href="reference/get_bounds.html">get_bounds()</a></code></td>
+</tr><tr><td>
+<code><a href="reference/get_bounds.html">get_bounds()</a></code>, <code><a href="reference/check_bounds.html">check_bounds()</a></code>
+</td>
 <td><code>parameters.R</code></td>
 <td>Optimization bounds for <code>nlminb</code>
 </td>
@@ -160,32 +190,28 @@
 </tr><tr><td><code><a href="reference/prep_wf_data.html">prep_wf_data()</a></code></td>
 <td><code>prep-wf.R</code></td>
 <td>Prepare weight-frequency data for model</td>
-</tr><tr><td><code><a href="reference/project_dynamics.html">project_dynamics()</a></code></td>
+</tr><tr><td>
+<code><a href="reference/project_dynamics.html">project_dynamics()</a></code>, <code><a href="reference/project_rec_devs.html">project_rec_devs()</a></code>, <code><a href="reference/project_selectivity.html">project_selectivity()</a></code>
+</td>
 <td><code>projections.R</code></td>
-<td>Forward projections from posterior</td>
+<td>Forward projections from estimated or sampled parameters</td>
 </tr><tr><td><code>plot_*()</code></td>
 <td><code>plots.R</code></td>
 <td>ggplot2 visualization functions</td>
-</tr></tbody></table></div>
+</tr></tbody></table><p><code>NAMESPACE</code> is the authoritative list of exports; check it before assuming a function exists.</p>
+</div>
 <div class="section level3">
-<h3 id="typical-workflow-from-vignettesbetrmd">Typical workflow (from <code>vignettes/bet.Rmd</code>)<a class="anchor" aria-label="anchor" href="#typical-workflow-from-vignettesbetrmd"></a></h3>
+<h3 id="typical-workflow-from-vignettesquickstartqmd">Typical workflow (from <code>vignettes/quickstart.qmd</code>)<a class="anchor" aria-label="anchor" href="#typical-workflow-from-vignettesquickstartqmd"></a></h3>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span>
-<span><span class="va">data</span>    <span class="op">&lt;-</span> <span class="va">wcpo_bet_data</span></span>
-<span><span class="va">lf</span>      <span class="op">&lt;-</span> <span class="va">wcpo_bet_lf</span></span>
-<span><span class="va">params</span>  <span class="op">&lt;-</span> <span class="va">wcpo_bet_parameters</span></span>
-<span></span>
-<span><span class="co"># Prepare composition data</span></span>
-<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/prep_lf_data.html">prep_lf_data</a></span><span class="op">(</span><span class="va">data</span>, lf_wide <span class="op">=</span> <span class="fu">pivot_wider</span><span class="op">(</span><span class="va">...</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Configure</span></span>
-<span><span class="va">params</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_parameters.html">get_parameters</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span>
-<span><span class="va">priors</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_priors.html">get_priors</a></span><span class="op">(</span><span class="va">params</span>, <span class="va">data</span><span class="op">)</span></span>
-<span><span class="va">map</span>     <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_map.html">get_map</a></span><span class="op">(</span><span class="va">params</span><span class="op">)</span></span>
-<span><span class="va">bounds</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_bounds.html">get_bounds</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">params</span><span class="op">)</span></span>
+<span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opaka_quickstart_inputs.html">opaka_quickstart_inputs</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">inputs</span><span class="op">$</span><span class="va">data</span></span>
+<span><span class="va">params</span> <span class="op">&lt;-</span> <span class="va">inputs</span><span class="op">$</span><span class="va">parameters</span></span>
+<span><span class="va">map</span> <span class="op">&lt;-</span> <span class="va">inputs</span><span class="op">$</span><span class="va">map</span></span>
 <span></span>
 <span><span class="co"># Build AD object</span></span>
 <span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu">MakeADFun</span><span class="op">(</span>func <span class="op">=</span> <span class="fu"><a href="reference/cmb.html">cmb</a></span><span class="op">(</span><span class="va">opal_model</span>, <span class="va">data</span><span class="op">)</span>, parameters <span class="op">=</span> <span class="va">params</span>, map <span class="op">=</span> <span class="va">map</span><span class="op">)</span></span>
+<span><span class="va">bounds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_bounds.html">get_bounds</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">params</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Optimize (double run for convergence)</span></span>
 <span><span class="va">opt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="va">par</span>, <span class="va">obj</span><span class="op">$</span><span class="va">fn</span>, <span class="va">obj</span><span class="op">$</span><span class="va">gr</span>, lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span><span class="op">)</span></span>
@@ -208,6 +234,7 @@
 <div class="section level3">
 <h3 id="portable-fitted-model-objects">Portable fitted-model objects<a class="anchor" aria-label="anchor" href="#portable-fitted-model-objects"></a></h3>
 <p><code>opal_fit</code> is the durable boundary for model results. It stores plain-R data, fitted parameters, the parameter map, optimizer output, normalized MCMC draws, diagnostics, arbitrary derived results (for example projections), and provenance. RTMB objectives contain session-specific environments and external pointers, so they are cached in memory but never serialized. Use <code><a href="reference/opal_fit_object.html">opal_fit_object()</a></code> or <code><a href="reference/opal_fit_report.html">opal_fit_report()</a></code> to rebuild/access runtime state and <code><a href="reference/update_opal_fit.html">update_opal_fit()</a></code> to attach later MCMC or derived results.</p>
+<p>Saved fits record <code>.opal_model_scientific_version</code>. <code><a href="reference/opal_fit_io.html">read_opal_fit()</a></code> uses it to identify fits created under an earlier model contract, which is why a numerical change requires a version bump (see below).</p>
 </div>
 </div>
 <div class="section level2">
@@ -217,6 +244,10 @@
 <strong><code>ADoverload</code> at function top</strong>: Every function touching AD values must call <code>"[&lt;-" &lt;- ADoverload("[&lt;-")</code> (and sometimes <code>"c" &lt;- ADoverload("c")</code>) before any array subset-assignment.</li>
 <li>
 <strong><code>getAll()</code> unpacking</strong>: Both <code><a href="reference/opal_model.html">opal_model()</a></code> and <code><a href="reference/do_dynamics.html">do_dynamics()</a></code> use <code>getAll(data, parameters, warn = FALSE)</code> to unpack list elements into local scope.</li>
+<li>
+<strong>No class-stripping coercions</strong>: Base R functions such as <code><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix()</a></code> and <code><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector()</a></code> strip the <code>advector</code> class. Fix the coercion where the type is lost, not in the receiving function.</li>
+<li>
+<strong>Pass derived biology explicitly</strong>: <code><a href="reference/do_dynamics.html">do_dynamics()</a></code> and the likelihoods take <code>M_a</code>, <code>spawning_potential_a</code>, and <code>weight_fya</code> as arguments rather than reading them from <code>data</code>, so gradients propagate when the underlying parameters are estimated.</li>
 <li>
 <strong><code>REPORT()</code> / <code>OBS()</code></strong>: RTMB’s mechanisms for reporting derived quantities and marking simulation-capable observations.</li>
 <li>
@@ -261,13 +292,14 @@
 <div class="section level2">
 <h2 id="data-structure">Data structure<a class="anchor" aria-label="anchor" href="#data-structure"></a></h2>
 <p>The <code>data</code> list contains 25+ elements defining the model dimensions and observations:</p>
-<ul><li>Dimensions: <code>n_year</code>, <code>n_season</code>, <code>n_age</code>, <code>n_fishery</code>, <code>n_len</code>
+<ul><li>Dimensions: <code>n_year</code>, <code>n_season</code>, <code>n_age</code>, <code>n_fishery</code>, <code>n_len</code>, <code>n_wt</code>, <code>n_index</code>
 </li>
 <li>Observations: <code>catch_obs_ysf</code>, <code>cpue_*</code>, <code>lf_*</code>, <code>wf_*</code>
 </li>
 <li>Biology: <code>M_a</code> or M parameters, <code>maturity_at_length</code>, <code>lw_a</code>, <code>lw_b</code>
 </li>
-<li>Switches: <code>lf_switch</code> (1=multinomial, 2=Dirichlet, 3=DM), <code>wf_switch</code> (0=off, or 1/2/3)</li>
+<li>Switches: <code>lf_switch</code> (1=multinomial, 2=Dirichlet, 3=DM), <code>wf_switch</code> (0=off, or 1/2/3), <code>catch_units_f</code> (1=weight, 2=numbers), <code>removal_switch_f</code>
+</li>
 <li>Array naming convention uses dimension suffixes: <code>_ysf</code> (year-season-fishery), <code>_fya</code> (fishery-year-age), <code>_ysa</code> (year-season-age)</li>
 </ul><p>Composition data is prepared via <code><a href="reference/prep_lf_data.html">prep_lf_data()</a></code> and <code><a href="reference/prep_wf_data.html">prep_wf_data()</a></code>, which convert wide-format data frames to the flat vector format the model expects.</p>
 </div>
@@ -279,14 +311,26 @@
 <strong>Key dependencies</strong>: <code>RTMB</code>, <code>RTMBdist</code>, <code>SparseNUTS</code>, <code>ggplot2</code>, <code>dplyr</code>, <code>forecast</code>
 </li>
 <li>
-<strong>Documentation</strong>: roxygen2-based. After editing <code>R/*.R</code> files, regenerate with <code>devtools::document()</code>.</li>
+<strong>Documentation</strong>: roxygen2-based. After editing <code>R/*.R</code> files, regenerate with <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code>. The <code>document.yaml</code> workflow also regenerates and commits <code>man/</code> and <code>NAMESPACE</code> on pushes touching <code>R/</code>, so pull before continuing on a branch.</li>
 <li>
-<strong>Tests</strong>: <code>testthat</code> edition 3. Run with <code>devtools::test()</code>. Tests cover dynamics, growth, all three likelihood types, selectivity, data prep, rebinning, and utilities.</li>
+<strong>Tests</strong>: <code>testthat</code> edition 3, run with <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code>. Shared fixtures live in <code>helper-*.R</code> (<code>opaka_inputs()</code>, <code>opaka_obj()</code>, <code>synth_*()</code>); do not build models at the top level of test files. <code>tests/testthat/_reference/</code> holds numerical reference outputs — <strong>never create or overwrite them from a test</strong>; regenerate them only through the protocol below. Simulation self-tests are gated by <code>OPAL_SELFTEST=true</code> (see also <code>OPAL_SELFTEST_NSIM</code>, <code>OPAL_SELFTEST_START</code>, <code>OPAL_SELFTEST_OUT</code>) and run in <code>.github/workflows/selftest.yaml</code>. Calibration limits documented at the top of a self-test file must not be changed without rerunning the calibration and recording it there.</li>
 <li>
-<strong>CI</strong>: GitHub Actions run <code>R CMD check</code>, pkgdown site builds, roxygen2 re-generation, and Rmd rendering.</li>
+<strong>CI</strong>: GitHub Actions run <code>R CMD check</code> on Ubuntu only and ignore vignettes; they also build pkgdown and regenerate documentation.</li>
 <li>
 <strong>Branch workflow</strong>: PRs go against <code>dev</code>; <code>main</code> is the stable release branch.</li>
 </ul></div>
+<div class="section level2">
+<h2 id="numerical-changes">Numerical changes<a class="anchor" aria-label="anchor" href="#numerical-changes"></a></h2>
+<p>A change is numerical if it alters the objective, gradient, or any <code>REPORT()</code> element for an existing model configuration — for example changes to dynamics, likelihoods, priors, data preparation, parameter transformations, or defaults. <code>tests/testthat/test-golden-opaka.R</code> compares all three against a stored reference at the starting values and the MLE, and will fail when this happens.</p>
+<p>Do <strong>not</strong> loosen tolerances, edit a reference file directly, or regenerate references from inside a test. If the change was not intended to alter numerics, treat the failure as a bug and find the cause.</p>
+<p>If the change is intended, follow the regeneration protocol, all within one PR:</p>
+<ol style="list-style-type: decimal"><li>Show the golden test failing.</li>
+<li>Document the change in <code>NEWS.md</code>.</li>
+<li>Bump <code>.opal_model_scientific_version</code>.</li>
+<li>Regenerate <code>tests/testthat/_reference/opaka-quickstart.rds</code> with <code>data-raw/make-test-references.R</code>.</li>
+<li>Regenerate <code>inst/extdata/opaka_quickstart_fit.rds</code> with <code>data-raw/generate-opaka-quickstart-fit.R</code>.</li>
+</ol><p>The PR description must include the step 1 failure and explain why the new values are correct (comparison with a reference model, an analytical result, or a targeted test of the changed component). Adding a new <code>REPORT()</code> element does not require regeneration; removing or renaming one does. See <code>.github/CONTRIBUTING.md</code> for the full contribution guide.</p>
+</div>
 <div class="section level2">
 <h2 id="debugging-tips">Debugging tips<a class="anchor" aria-label="anchor" href="#debugging-tips"></a></h2>
 <ul><li>Run <code>check_estimability(obj)</code> after fitting to detect non-identifiable parameters via Hessian eigenvalue analysis.</li>
@@ -301,15 +345,21 @@
 <li>
 <strong>Preserve exported API signatures</strong>: All exported functions are documented in <code>man/</code> and used in vignettes. Changing signatures requires updating roxygen docs, NAMESPACE, and vignettes.</li>
 <li>
-<strong>Run tests after changes</strong>: <code>devtools::test()</code> covers the core components. If adding new functionality, add corresponding tests in <code>tests/testthat/</code>.</li>
+<strong>Run tests after changes</strong>: <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code> covers the core components. If adding new functionality, add corresponding tests in <code>tests/testthat/</code>.</li>
 <li>
-<strong>Regenerate docs</strong>: After editing roxygen comments in <code>R/</code> files, run <code>devtools::document()</code> to update <code>man/</code> and <code>NAMESPACE</code>.</li>
+<strong>Regenerate docs</strong>: After editing roxygen comments in <code>R/</code> files, run <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code> to update <code>man/</code> and <code>NAMESPACE</code>.</li>
 <li>
-<strong>Keep patches minimal</strong>: Modify one <code>R/</code> file at a time, run <code>devtools::test()</code> and <code>devtools::check()</code> to validate.</li>
+<strong>Keep patches minimal</strong>: Modify one <code>R/</code> file at a time, run <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code> and <code><a href="https://devtools.r-lib.org/reference/check.html" class="external-link">devtools::check()</a></code> to validate.</li>
 <li>
 <strong>Composition data flow</strong>: When modifying likelihood functions, understand the full pipeline: raw data → <code><a href="reference/prep_lf_data.html">prep_lf_data()</a></code>/<code><a href="reference/prep_wf_data.html">prep_wf_data()</a></code> → flat vectors → likelihood function. The <code>lf_switch</code>/<code>wf_switch</code> controls which distribution is used.</li>
 <li>
 <strong>Selectivity changes</strong>: When modifying selectivity, update <code>par_sel</code> dimensions, <code><a href="reference/get_map.html">get_map()</a></code> (which elements are fixed), and <code><a href="reference/get_bounds.html">get_bounds()</a></code> simultaneously.</li>
+<li>
+<strong>Flag numerical impact</strong>: State in the PR description whether a change alters model numerics, and follow the protocol above if it does.</li>
+<li>
+<strong>Documentation tone</strong>: Keep documentation and vignettes factual and concise. No promotional language; state limitations and known differences from other platforms directly.</li>
+<li>
+<strong>Version control</strong>: Commit changes with clear messages, referencing related issues or PRs. Ensure that <code>.opal_model_scientific_version</code> is updated appropriately to reflect the changes made.</li>
 </ul></div>
 </div>
 

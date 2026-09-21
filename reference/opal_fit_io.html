@@ -11,7 +11,7 @@ rebuild its transient RTMB objective."><meta property="og:image" content="https:
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,6 +25,7 @@ rebuild its transient RTMB objective."><meta property="og:image" content="https:
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/N-DucharmeBarth-NOAA/opal" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
@@ -51,7 +52,12 @@ rebuild its transient RTMB objective.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">save_opal_fit</span><span class="op">(</span><span class="va">x</span>, <span class="va">file</span>, compress <span class="op">=</span> <span class="st">"gzip"</span>, overwrite <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">read_opal_fit</span><span class="op">(</span><span class="va">file</span>, strict <span class="op">=</span> <span class="cn">FALSE</span>, rebuild <span class="op">=</span> <span class="va">strict</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">read_opal_fit</span><span class="op">(</span></span>
+<span>  <span class="va">file</span>,</span>
+<span>  strict <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  rebuild <span class="op">=</span> <span class="va">strict</span>,</span>
+<span>  integrity <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"exact"</span>, <span class="st">"portable"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -81,6 +87,12 @@ rebuild its transient RTMB objective.</p>
 <dt id="arg-rebuild">rebuild<a class="anchor" aria-label="anchor" href="#arg-rebuild"></a></dt>
 <dd><p>Rebuild and cache the RTMB objective after reading. Defaults
 to <code>strict</code>.</p></dd>
+
+
+<dt id="arg-integrity">integrity<a class="anchor" aria-label="anchor" href="#arg-integrity"></a></dt>
+<dd><p>Runtime-payload verification mode. <code>"exact"</code> requires the
+raw serialized payload identity to match. <code>"portable"</code> permits a mismatch
+across R versions, provided the rebuilt objective is verified.</p></dd>
 
 </dl></div>
     <div class="section level2">

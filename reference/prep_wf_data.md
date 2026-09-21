@@ -107,8 +107,8 @@ data list with the following weight composition elements appended:
 
 - `wf_obs_ints`:
 
-  Flattened integer vector of rounded counts (for Dirichlet-multinomial,
-  `wf_switch = 3`).
+  Flattened integer counts that sum to `wf_n_int` per observation (for
+  Dirichlet-multinomial, `wf_switch = 3`).
 
 - `wf_obs_prop`:
 
@@ -123,6 +123,11 @@ data list with the following weight composition elements appended:
 - `wf_n`:
 
   Numeric vector of sample sizes per observation row.
+
+- `wf_n_int`:
+
+  Integer Dirichlet-multinomial sample sizes obtained by half-up
+  rounding of `wf_n`.
 
 - `wf_fishery`:
 
@@ -140,7 +145,7 @@ data list with the following weight composition elements appended:
 
   Integer vector of model timestep per observation row.
 
-- `wf_year_fi`, `wf_n_fi`, `wf_row_fi`:
+- `wf_year_fi`, `wf_n_fi`, `wf_n_int_fi`, `wf_row_fi`:
 
   Lists split by fishery containing model timesteps, effective sample
   sizes, and row indices. Precomputed so
@@ -155,6 +160,12 @@ data list with the following weight composition elements appended:
 
   Passed through from argument; numeric vector `[n_fishery]` of
   variance-adjustment divisors applied to `wf_n`.
+
+## Details
+
+Dirichlet-multinomial counts use half-up rounding of effective sample
+sizes and largest-remainder allocation. Observations that round to zero
+are skipped by the Dirichlet-multinomial likelihood.
 
 ## See also
 
