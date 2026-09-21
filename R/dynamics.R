@@ -48,6 +48,13 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #' @param init_bias_adj_a an optional \code{vector} of bias adjustment scalars
 #'   for initial age deviations. Defaults to zero so fixed zero initial
 #'   deviations do not alter the equilibrium initial age structure.
+#' @details Seasonal survival and equilibrium recruitment relative to \eqn{R_0}
+#'   are continued smoothly below \code{0.001} to keep trial initial states
+#'   positive. The continuation is \code{eps / (2 - x / eps)} and adds
+#'   \code{(eps - x)^2 / eps} to the penalty when \code{x < eps}.
+#'   Values at or above the threshold are unchanged. A positive penalty marks
+#'   a constrained trial state, not a valid fished equilibrium, and must be
+#'   included in the fitting objective (as it is in \code{opal_model()}).
 #' @return A list containing:
 #' \describe{
 #'   \item{Ninit}{Initial numbers-at-age (vector).}
@@ -55,6 +62,7 @@ get_unfished_init <- function(B0, h, M_a, spawning_potential_a) {
 #'   \item{R0}{Unfished recruitment (scalar).}
 #'   \item{alpha}{BH alpha parameter.}
 #'   \item{beta}{BH beta parameter.}
+#'   \item{lp_penalty}{Penalty for constrained initial survival or recruitment.}
 #' }
 #' @importFrom RTMB ADoverload
 #' @export
@@ -66,6 +74,16 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
                                 init_bias_adj_a = NULL) {
   "[<-" <- ADoverload("[<-")
   n_age <- length(M_a)
+
+  # Rational positive continuation without parameter-dependent R branching.
+  # Both tails stay finite, unlike an exponential floor at severe violations.
+  constrain_initial <- function(x, eps = 0.001) {
+    distance <- x - eps
+    shortfall <- (abs(distance) - distance) / 2
+    excess <- (abs(distance) + distance) / 2
+    list(value = (eps + excess) / (1 + shortfall / eps),
+         penalty = sum(shortfall^2) / eps)
+  }
 
   # Unfished survivorship for R0, alpha, beta
   rel_N0 <- numeric(n_age) + B0 * 0
@@ -81,6 +99,7 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   beta  <- (B0 * (1 - h)) / (5 * h - 1)
 
   # Fished survivorship for Ninit
+  lp_penalty <- B0 * 0
   survival_a <- exp(-M_a)
   if (!is.null(init_F_f) && !is.null(sel_fa)) {
     u_f <- 1 - exp(-init_F_f / n_season)
@@ -94,6 +113,11 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
         seasonal_survival_a <- seasonal_survival_a - u_f[f] * sel_fa[f, ]
       }
     }
+    # Constrain before taking the power: even season counts would otherwise
+    # hide negative seasonal survival.
+    safe_survival <- constrain_initial(seasonal_survival_a)
+    seasonal_survival_a <- safe_survival$value
+    lp_penalty <- lp_penalty + safe_survival$penalty
     survival_a <- survival_a * seasonal_survival_a^n_season
   }
 
@@ -108,6 +132,12 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
   SPR_eq <- sum(spawning_potential_a * rel_N)
   R_eq   <- alpha - (beta / SPR_eq)
 
+  # Excessive fishing may also eliminate a positive BH equilibrium even when
+  # seasonal survival is positive. Keep that trial state finite and penalised.
+  safe_recruitment <- constrain_initial(R_eq / R0)
+  R_eq <- R0 * safe_recruitment$value
+  lp_penalty <- lp_penalty + safe_recruitment$penalty
+
   Ninit <- R_eq * rel_N
   Ninit0 <- R0 * rel_N0
 
@@ -119,7 +149,8 @@ get_initial_numbers <- function(B0, h, M_a, spawning_potential_a,
     }
   }
 
-  return(list(Ninit = Ninit, Ninit0 = Ninit0, R0 = R0, alpha = alpha, beta = beta))
+  return(list(Ninit = Ninit, Ninit0 = Ninit0, R0 = R0, alpha = alpha, beta = beta,
+              lp_penalty = lp_penalty))
 }
 
 #' Population dynamics

@@ -192,7 +192,8 @@ opal_model <- function(parameters, data) {
                      sel_fya = sel_fya, bias_adj_y = bias_adj_y)
   
   number_ysa <- dyn$number_ysa
-  lp_penalty <- dyn$lp_penalty
+  lp_init_penalty <- init$lp_penalty
+  lp_penalty <- dyn$lp_penalty + lp_init_penalty
   catch_pred_fya <- dyn$catch_pred_fya
   comp_pred_fya <- catch_pred_fya
   for (f in seq_len(n_fishery)) {
@@ -296,6 +297,7 @@ opal_model <- function(parameters, data) {
   
   REPORT(lp_prior)
   REPORT(lp_penalty)
+  REPORT(lp_init_penalty)
   REPORT(lp_rec)
   REPORT(lp_init_rec)
   REPORT(lp_cpue)
