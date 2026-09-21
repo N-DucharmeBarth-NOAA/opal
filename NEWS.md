@@ -1,5 +1,9 @@
 # opal 0.0.4
 
+- 2026/09/22 ([2ae7722](https://github.com/N-DucharmeBarth-NOAA/opal/commit/2ae772291b8d3deae5b3f25f172a99124d149091)): Use portable integrity in the bundled-fit examples so they run across R
+  versions while retaining strict model compatibility and objective checks.
+  Build the package website on pull requests to `dev` as well as `main`.
+  Model numerics are unchanged.
 - 2026/09/22 ([06f0d7c](https://github.com/N-DucharmeBarth-NOAA/opal/commit/06f0d7ce2cc1c868fe4873b289f244a78a69a451)): Constrain and penalise initial seasonal survival before seasonal
   compounding when fisheries overlap, and protect equilibrium recruitment from
   becoming negative under excessive initial fishing. The initialisation penalty

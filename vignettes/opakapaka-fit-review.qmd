@@ -20,7 +20,11 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 This vignette examines the portable fixed-effects opakapaka fit created for
 the Quickstart. It rebuilds the transient RTMB objective only to obtain model
-predictions, so no optimization is performed here.
+predictions, so no optimisation is performed here.
+
+The bundled fit may have been saved under a different R version. Portable
+integrity permits that difference while still checking model compatibility and
+requiring the rebuilt objective to match the saved value.
 
 ```{r}
 #| label: load-fit
@@ -30,7 +34,7 @@ fit_path <- system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
 if (!nzchar(fit_path)) {
   stop("The bundled opakapaka quickstart fit is unavailable.", call. = FALSE)
 }
-fit <- read_opal_fit(fit_path, strict = TRUE)
+fit <- read_opal_fit(fit_path, strict = TRUE, integrity = "portable")
 fit
 summary(fit)
 ```
@@ -41,7 +45,7 @@ summary(fit)
 #| label: cpue-fit
 #| fig-width: 8
 #| fig-height: 5
-object <- opal_fit_object(fit)
+object <- opal_fit_object(fit, integrity = "portable")
 plot_data <- fit$data
 plot_data$cpue_data$season <- 1L
 plot_cpue(plot_data, object)

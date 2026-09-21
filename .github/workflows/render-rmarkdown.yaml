@@ -3,6 +3,7 @@ on:
     paths: 
       - '**.Rmd'
       - '**.qmd' # Added to capture your Quarto vignettes
+      - '.github/workflows/render-rmarkdown.yaml'
 
 name: render-documents
 
@@ -74,9 +75,19 @@ jobs:
         shell: Rscript {0}
 
       - name: Render Documents and Commit Results
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           # Identify changed Rmd and qmd files
-          FILES=($(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '[.](Rmd|qmd)$'))
+          # New branches have no previous commit; compare their changes to dev.
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            BEFORE_SHA=$(git merge-base origin/dev "$GITHUB_SHA")
+          fi
+          git diff --name-only -z "$BEFORE_SHA" "$GITHUB_SHA" -- '*.Rmd' '*.qmd' > "$RUNNER_TEMP/opal-changed-documents"
+          FILES=()
+          while IFS= read -r -d '' file; do
+            FILES+=("$file")
+          done < "$RUNNER_TEMP/opal-changed-documents"
           
           # Render using the appropriate engine
           Rscript -e 'for (f in commandArgs(TRUE)) {
@@ -86,7 +97,7 @@ jobs:
             } else {
               rmarkdown::render(f)
             }
-          }' ${FILES[*]}
+          }' "${FILES[@]}"
           
           git config --local user.name "$GITHUB_ACTOR"
           git config --local user.email "$GITHUB_ACTOR@users.noreply.github.com"
