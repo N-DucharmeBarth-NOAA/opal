@@ -1,6 +1,6 @@
 # opal 0.0.4
 
-- 2026/09/22: Constrain and penalise initial seasonal survival before seasonal
+- 2026/09/22 ([06f0d7c](https://github.com/N-DucharmeBarth-NOAA/opal/commit/06f0d7ce2cc1c868fe4873b289f244a78a69a451)): Constrain and penalise initial seasonal survival before seasonal
   compounding when fisheries overlap, and protect equilibrium recruitment from
   becoming negative under excessive initial fishing. The initialisation penalty
   is included in the model objective and reported as `lp_init_penalty`.
