@@ -6,7 +6,8 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
+[![codecov-main](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
+[![codecov-dev](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/branch/dev/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
 <!-- badges: end -->
 
 ## Overview
@@ -163,9 +164,15 @@ To review a fit without refitting, open the bundled example
 ``` r
 fit <- read_opal_fit(
   system.file("extdata", "opaka_quickstart_fit.rds", package = "opal"),
-  strict = TRUE
+  strict = TRUE,
+  integrity = "portable"
 )
 ```
+
+The bundled fit may have been saved under a different R version.
+Portable integrity permits that difference while still checking model
+compatibility and requiring the rebuilt objective to match the saved
+value.
 
 ## Saving fitted models
 

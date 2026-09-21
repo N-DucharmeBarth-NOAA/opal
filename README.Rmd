@@ -124,9 +124,14 @@ To review a fit without refitting, open the bundled example (`vignette("opakapak
 ``` r
 fit <- read_opal_fit(
   system.file("extdata", "opaka_quickstart_fit.rds", package = "opal"),
-  strict = TRUE
+  strict = TRUE,
+  integrity = "portable"
 )
 ```
+
+The bundled fit may have been saved under a different R version. Portable
+integrity permits that difference while still checking model compatibility and
+requiring the rebuilt objective to match the saved value.
 
 ## Saving fitted models
 
