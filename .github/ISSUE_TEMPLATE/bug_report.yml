@@ -1,0 +1,93 @@
+name: Bug report
+description: Report incorrect behaviour, an error, or a numerical discrepancy
+title: "[Bug]: "
+labels: ["bug", "status: triage_needed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filling out this report, please search the existing issues to see
+        whether the problem has already been reported. If it has, add a comment to
+        the open issue, or link to the related but closed issue here.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: What did you expect to happen, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reprex
+    attributes:
+      label: Minimal reproducible example
+      description: |
+        Please include a
+        [reprex](https://reprex.tidyverse.org/articles/reprex-dos-and-donts.html).
+        If the problem depends on a model configuration or data object, attach the
+        smallest object that reproduces it. If you have not come across reprexes
+        before, the [tidyverse blog](https://www.tidyverse.org/help/#reprex) is a
+        good starting point.
+      render: r
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area does this affect?
+      multiple: true
+      options:
+        - Population dynamics
+        - Growth / biology
+        - Likelihoods
+        - Data preparation
+        - Estimation / optimisation
+        - Reporting or plotting
+        - Documentation or vignettes
+        - Other / not sure
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Which version of opal are you seeing the problem on?
+      description: |
+        Output of `packageVersion("opal")`. If a version number is not relevant,
+        a commit hash is fine.
+    validations:
+      required: false
+
+  - type: textarea
+    id: session-info
+    attributes:
+      label: Session information
+      description: Output of `sessionInfo()` or `sessioninfo::session_info()`.
+      render: text
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Which OS are you seeing the problem on?
+      multiple: true
+      options:
+        - Windows
+        - Mac
+        - Linux
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: |
+        Screenshots, comparisons against a reference platform (SS3, MFCL), or
+        explanations you have already ruled out.
+    validations:
+      required: false

@@ -9,11 +9,12 @@
 #' @param L1 Numeric. Length at age A1 (may be AD).
 #' @param L2 Numeric. Length at age A2 (may be AD).
 #' @param log_k Numeric. VB growth coefficient (may be AD).
+#' @param min_age Integer. Minimum age (default 1L).
 #' @return Numeric vector of length \code{n_age}: mean length at each age
-#'   \code{a = 1, ..., n_age}.
+#'   \code{a = min_age, ..., min_age + n_age - 1}.
 #' @export
-get_growth <- function(n_age, A1, A2, L1, L2, log_k) {
-  ages <- 1:n_age
+get_growth <- function(n_age, A1, A2, L1, L2, log_k, min_age = 1L) {
+  ages <- seq(min_age, by = 1, length.out = n_age)
   k   <- exp(log_k)
   mu_a <- L1 + (L2 - L1) * (1 - exp(-k * (ages - A1))) / (1 - exp(-k * (A2 - A1)))
   return(mu_a)

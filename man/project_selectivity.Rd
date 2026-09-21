@@ -2,17 +2,15 @@
 % Please edit documentation in R/projections.R
 \name{project_selectivity}
 \alias{project_selectivity}
-\title{Project recruitment deviates}
+\title{Project selectivity}
 \usage{
 project_selectivity(
   data,
   obj,
-  mcmc = NULL,
-  first_yr = 2000,
+  first_yr = NULL,
   last_yr = NULL,
   n_proj = 5,
-  n_iter = NULL,
-  arima = TRUE
+  n_iter = 1
 )
 }
 \arguments{
@@ -20,21 +18,18 @@ project_selectivity(
 
 \item{obj}{a \code{list} of parameter values.}
 
-\item{mcmc}{a \code{list} of parameter values.}
-
-\item{first_yr}{the first year.}
+\item{first_yr}{the first year sampled. Defaults to the first model year.}
 
 \item{last_yr}{the last year.}
 
 \item{n_proj}{the number of projection years.}
 
-\item{n_iter}{a \code{list} of inputs.}
-
-\item{arima}{default = TRUE, FALSE = "lognormal"}
+\item{n_iter}{the number of simulated trajectories.}
 }
 \value{
-the negative log-likelihood (NLL) value.
+An array of projected selectivity by iteration, fishery, year, and
+age.
 }
 \description{
-Project recruitment deviates
+Project selectivity
 }

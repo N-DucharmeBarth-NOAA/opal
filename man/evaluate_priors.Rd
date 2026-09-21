@@ -18,11 +18,13 @@ A \code{numeric} value.
 Evaluate priors
 }
 \examples{
-\dontrun{
-  parameters <- list(par_log_m4 = log(0.167))
+{
+  parameters <- list(log_B0 = log(1e6))
   priors <- list(
-    par_log_m4 = list(type = "normal", par1 = log(0.12), par2 = 0.4, 
-                      index = which("par_log_m4" == names(parameters)))
+    log_B0 = list(
+      type = "normal", par1 = log(1e6), par2 = 1,
+      index = which("log_B0" == names(parameters))
+    )
   )
   evaluate_priors(parameters, priors)
 }

@@ -77,8 +77,9 @@ test_that("predicted proportions at length sum to 1", {
   pla <- matrix(0, n_len, n_age)
   for (a in 1:n_age) pla[min(a * 2, n_len), a] <- 1
 
+  addtocomp <- 1e-8
   pred <- c(pla %*% catch_a)
-  pred <- (pred + 1e-8) / sum(pred + 1e-8)
+  pred <- (pred + addtocomp) / sum(pred + addtocomp)
   expect_equal(sum(pred), 1.0, tolerance = 1e-10)
 })
 
@@ -257,8 +258,9 @@ test_that("multinomial NLL matches dmultinom reference value", {
   catch_pred_fya <- array(0, dim = c(2L, 1L, n_age))
   catch_pred_fya[1, 1, ] <- c(3, 1)  # bin 2 gets 3x weight of bin 4
 
+  addtocomp <- 1e-8
   pred_raw <- c(pla %*% catch_pred_fya[1, 1, ])
-  pred     <- (pred_raw + 1e-8) / sum(pred_raw + 1e-8)
+  pred     <- (pred_raw + addtocomp) / sum(pred_raw + addtocomp)
   obs      <- c(0, 60, 0, 40)
   expected_nll <- -dmultinom(obs, prob = pred, log = TRUE)
 
@@ -270,6 +272,16 @@ test_that("multinomial NLL matches dmultinom reference value", {
 
   lp <- do.call(get_length_like, s)
   expect_equal(lp[1], expected_nll, tolerance = 1e-10)
+})
+
+test_that("lf_addtocomp argument changes multinomial NLL", {
+  s_default <- make_lf_args(lf_switch = 1)
+  s_custom  <- make_lf_args(lf_switch = 1)
+  s_custom$lf_addtocomp <- 1e-3
+
+  lp_default <- do.call(get_length_like, s_default)
+  lp_custom  <- do.call(get_length_like, s_custom)
+  expect_false(isTRUE(all.equal(lp_default, lp_custom)))
 })
 
 test_that("multiple observations: obs_offset advances correctly across observations", {
@@ -322,4 +334,61 @@ test_that("multiple observations: obs_offset advances correctly across observati
   lp <- do.call(get_length_like, lf_args)
   expect_equal(lp[1], expected_nll1, tolerance = 1e-10)
   expect_equal(lp[2], expected_nll2, tolerance = 1e-10)
+})
+
+for (type in 1:3) {
+  test_that(sprintf("get_length_like matches closed-form reference (lf_switch = %d)", type), {
+    fx <- comp_fixture()
+    groups <- attach_obs(base_groups(), integer = type != 2)
+    log_tau <- log(c(0.7, 2.5))
+    args <- comp_args("lf", groups, fx, type, log_tau)
+    expect_equal(do.call(get_length_like, args),
+                 expected_comp_nll(groups, fx, type, log_tau),
+                 tolerance = 1e-10)
+  })
+}
+
+test_that("length composition skips removal and zero-size observations", {
+  fx <- comp_fixture()
+  groups <- attach_obs(rev(base_groups()), integer = TRUE)
+  groups[[1]]$n[2] <- 0
+  removal <- c(0L, 1L)
+  log_tau <- log(c(0.7, 2.5))
+  args <- comp_args("lf", groups, fx, 1, log_tau,
+                    removal_switch_f = removal)
+  expect_equal(do.call(get_length_like, args),
+               expected_comp_nll(groups, fx, 1, log_tau,
+                                 removal_switch_f = removal),
+               tolerance = 1e-10)
+})
+
+test_that("Dirichlet-multinomial rejects a mismatched count total", {
+  fx <- comp_fixture()
+  groups <- attach_obs(base_groups(), integer = TRUE)
+  groups[[1]]$n[1] <- sum(groups[[1]]$obs[1, ]) + 7
+  log_tau <- log(c(0.7, 2.5))
+  args <- comp_args("lf", groups, fx, 3, log_tau)
+  expect_error(do.call(get_length_like, args), "must sum to the integer sample size")
+})
+
+test_that("Dirichlet-multinomial approaches multinomial at high concentration", {
+  fx <- comp_fixture()
+  groups <- attach_obs(base_groups(), integer = TRUE)
+  args <- comp_args("lf", groups, fx, 3, c(18, 18))
+  actual <- do.call(get_length_like, args)
+  expected <- expected_comp_nll(groups, fx, 1, c(0, 0))
+  expect_equal(actual, expected, tolerance = 1e-4)
+})
+
+test_that("multinomial rounds fractional counts in RTMB", {
+  fx <- comp_fixture()
+  groups <- attach_obs(base_groups(), integer = FALSE)
+  args <- comp_args("lf", groups, fx, 1, c(0, 0))
+  actual <- do.call(get_length_like, args)
+  rounded_groups <- groups
+  for (j in seq_along(rounded_groups)) {
+    rounded_groups[[j]]$obs <- round(rounded_groups[[j]]$obs)
+  }
+  expected <- expected_comp_nll(rounded_groups, fx, 1, c(0, 0))
+  expect_equal(actual, expected, tolerance = 1e-10)
 })

@@ -108,3 +108,57 @@ test_that("resolve_bio_vector uses PLA for length-basis when n_age < n_len", {
   expect_equal(result, expected)
   expect_equal(length(result), n_age)
 })
+
+# Tests for get_par_table ----
+
+# Regression test: overlapping numeric map levels across parameter groups
+# must not cause obj_par_idx to be shorter than length(obj$par).
+# The bug: par_sel freed with levels c(1,2) and init_rdev_a with levels 1:n_age
+# share the strings "1" and "2" in the global seen_map_vals set, causing
+# init_rdev_a[1:2] to be dropped from obj_par_idx.
+
+test_that("get_par_table handles overlapping map levels across parameter groups", {
+  skip_if_not_installed("RTMB")
+  library(RTMB)
+
+  # Minimal model: two scalar parameters, one matrix parameter, one vector parameter
+  # par_sel uses levels 1:2; init_rdev_a uses levels 1:4 — overlap on "1","2"
+  params <- list(
+    log_B0      = 0.0,
+    par_sel     = matrix(c(1.0, 2.0), nrow = 1, ncol = 2),
+    init_rdev_a = rep(0.0, 4)
+  )
+
+  # map: free par_sel[1,1] as level 1, par_sel[1,2] as level 2;
+  #       free init_rdev_a[1:4] as levels 1,2,3,4 (levels 1 & 2 overlap with par_sel)
+  map <- list(
+    par_sel     = factor(c(1, 2)),
+    init_rdev_a = factor(1:4)
+  )
+
+  # Trivial AD function
+  f <- function(p) {
+    getAll(p)
+    sum(par_sel^2) + sum(init_rdev_a^2) + log_B0^2
+  }
+
+  obj <- MakeADFun(func = f, parameters = params, map = map, silent = TRUE)
+
+  # obj$par should have 1 + 2 + 4 = 7 elements
+  expect_equal(length(obj$par), 7L)
+
+  lower <- rep(-10, length(obj$par))
+  upper <- rep( 10, length(obj$par))
+
+  # Must produce no warnings about replacement length mismatch
+  expect_no_warning(
+    tbl <- get_par_table(obj, params, map, lower = lower, upper = upper,
+                         include = "all_est")
+  )
+
+  # All 7 estimated parameters should appear (rdev groups not filtered for all_est)
+  expect_equal(nrow(tbl), 7L)
+
+  # Gradient check column should be populated (not NA) for all rows
+  expect_true(all(!is.na(tbl$gr_chk)))
+})

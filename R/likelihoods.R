@@ -1,38 +1,88 @@
-#' CPUE index likelihood
+#' CPUE index likelihood (multi-index)
 #'
-#' Computes the likelihood for a standardized CPUE index using a log-linear model.
+#' Computes the likelihood for one or more standardised CPUE/survey indices
+#' using a log-linear model. Each index has its own catchability (q),
+#' extra variance (tau), power parameter (omega), and effort creep.
+#' Mean-centering of predicted CPUE is performed within each index.
 #'
-#' @param data a \code{list} of data inputs (cpue_data, cpue_switch, etc.).
-#' @param parameters a \code{list} of parameter values (log_cpue_tau, log_cpue_omega, cpue_creep, log_cpue_q, etc.).
+#' @param cpue_data a \code{list} of data inputs. Must contain:
+#'   \describe{
+#'     \item{cpue_data}{data.frame with columns \code{ts}, \code{fishery},
+#'       \code{value}, \code{se}, \code{units}, and \code{index}.}
+#'     \item{cpue_switch}{integer switch (0 = skip likelihood).}
+#'     \item{n_index}{integer number of distinct indices.}
+#'   }
+#' @param parameters a \code{list} of parameter values. Must contain:
+#'   \describe{
+#'     \item{log_cpue_q}{numeric vector \code{[n_index]}.}
+#'     \item{log_cpue_tau}{numeric vector \code{[n_index]}.}
+#'     \item{log_cpue_omega}{numeric vector \code{[n_index]}.}
+#'   }
 #' @param number_ysa a 3D \code{array} `[n_year, n_season, n_age]` of numbers-at-age.
 #' @param sel_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of selectivity by fishery, year, and age.
 #' @param weight_fya a 3D \code{array} `[n_fishery, n_year, n_age]` of weight-at-age by fishery and year.
-#' @param creep_init scalar initialization value for creeping adjustment (default 1).
-#' @return a \code{numeric} vector of negative log-likelihood contributions.
-#' @importFrom RTMB ADoverload dnorm
+#' @param cpue_switch boolean flag to calculate the cpue likelihood.
+#' @return numeric vector of length \code{nrow(cpue_data)} with per-observation
+#'   negative log-likelihood contributions.
+#' @importFrom RTMB ADoverload dnorm OBS REPORT
 #' @export
 #' 
-get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, creep_init = 1) {
+get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya, cpue_switch = 1L) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-  getAll(data, parameters, warn = FALSE)
-  cpue_tau <- exp(log_cpue_tau)
-  cpue_omega <- exp(log_cpue_omega)
+  data_n_index <- NULL
+  if (is.list(cpue_data) && !is.data.frame(cpue_data) && !is.null(cpue_data$cpue_data)) {
+    if (!is.null(cpue_data$cpue_switch)) cpue_switch <- cpue_data$cpue_switch
+    data_n_index <- cpue_data$n_index
+    cpue_data <- cpue_data$cpue_data
+  }
+  log_cpue_q <- parameters$log_cpue_q
+  log_cpue_tau <- parameters$log_cpue_tau
+  log_cpue_omega <- parameters$log_cpue_omega
+  cpue_creep <- parameters$cpue_creep
   n_cpue <- nrow(cpue_data)
-  cpue_adjust <- cpue_log_pred <- lp <- numeric(n_cpue)
-  cpue_adjust[1] <- creep_init
-  for (i in 2:n_cpue) cpue_adjust[i] <- cpue_adjust[i - 1] + cpue_creep
-  cpue_sigma <- sqrt(cpue_data$se^2 + cpue_tau^2)
+  if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
+  n_index <- max(
+    cpue_data$index,
+    length(log_cpue_q),
+    length(log_cpue_tau),
+    length(log_cpue_omega),
+    if (is.null(cpue_creep)) 1L else length(cpue_creep),
+    if (is.null(data_n_index)) 1L else data_n_index
+  )
+  if (is.null(cpue_creep)) cpue_creep <- rep(0, n_index)
+  if (length(log_cpue_q) == 1L && n_index > 1L) log_cpue_q <- rep(log_cpue_q, n_index)
+  if (length(log_cpue_tau) == 1L && n_index > 1L) log_cpue_tau <- rep(log_cpue_tau, n_index)
+  if (length(log_cpue_omega) == 1L && n_index > 1L) log_cpue_omega <- rep(log_cpue_omega, n_index)
+  if (length(cpue_creep) == 1L && n_index > 1L) cpue_creep <- rep(cpue_creep, n_index)
+  cpue_log_pred <- cpue_adjust <- cpue_sigma <- lp <- numeric(n_cpue)
+  for (idx in seq_len(n_index)) {
+    rows <- which(cpue_data$index == idx)
+    if (length(rows) == 0) next
+    cpue_adjust[rows[1]] <- 1
+    if (length(rows) > 1) {
+      for (j in 2:length(rows)) {
+        cpue_adjust[rows[j]] <- cpue_adjust[rows[j - 1]] + cpue_creep[idx]
+      }
+    }
+  }
   for (i in seq_len(n_cpue)) {
     y <- cpue_data$ts[i]
-    # s <- cpue_data$season[i]
     f <- cpue_data$fishery[i]
-    cpue_n <- number_ysa[y, 1,] * sel_fya[f, y,]
+    idx <- cpue_data$index[i]
+    cpue_n <- number_ysa[y, 1, ] * sel_fya[f, y, ]
     if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y,] # 1=weight, 2=numbers
     sum_n <- sum(cpue_n) + 1e-6
-    cpue_log_pred[i] <- log(cpue_adjust[i]) + cpue_omega * log(sum_n)
+    cpue_log_pred[i] <- log(cpue_adjust[i]) + exp(log_cpue_omega[idx]) * log(sum_n)
   }
-  cpue_log_pred <- cpue_log_pred - log(mean(exp(cpue_log_pred))) + log_cpue_q
+  for (idx in seq_len(n_index)) {
+    rows <- which(cpue_data$index == idx)
+    if (length(rows) == 0) next
+    centre <- log(mean(exp(cpue_log_pred[rows])))
+    cpue_log_pred[rows] <- cpue_log_pred[rows] - centre + log_cpue_q[idx]
+    tau_idx <- exp(log_cpue_tau[idx])
+    cpue_sigma[rows] <- sqrt(cpue_data$se[rows]^2 + tau_idx^2)
+  }
   cpue_log_obs <- log(cpue_data$value)
   cpue_log_obs <- OBS(cpue_log_obs)
   if (cpue_switch > 0) {
@@ -60,6 +110,7 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
 #' @param lf_fishery_f integer vector of fishery indices for each observation group.
 #' @param lf_year_fi list of integer vectors of year indices for each observation.
 #' @param lf_n_fi list of integer vectors of sample sizes for each observation.
+#' @param lf_n_int_fi optional list of integer Dirichlet-multinomial sample sizes.
 #' @param lf_minbin integer vector `[n_fishery]` of minimum bin index per fishery.
 #' @param lf_maxbin integer vector `[n_fishery]` of maximum bin index per fishery.
 #' @param removal_switch_f integer vector `[n_fishery]` indicating if fishery is removed (0=included, 1=removed).
@@ -67,7 +118,14 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
 #' @param n_len integer number of length bins.
 #' @param n_lf integer total number of length composition observations.
 #' @param log_lf_tau numeric vector `[n_fishery]` of log-scale variance adjustment parameters.
+#' @param lf_addtocomp small non-negative numeric constant added to predicted
+#'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
 #' @return a \code{numeric} vector of negative log-likelihood contributions, one per observation.
+#' @details For Dirichlet, concentration is `pred * n_i * exp(log_lf_tau[f])`;
+#'   for Dirichlet-multinomial, it is `pred * exp(log_lf_tau[f])`. The
+#'   multinomial branch uses RTMB's integer-rounded count behavior. The
+#'   Dirichlet-multinomial is intended for real counts with variance adjustment
+#'   equal to one; use Dirichlet for fractional effective sample sizes.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
@@ -78,13 +136,15 @@ get_cpue_like <- function(data, parameters, number_ysa, sel_fya, weight_fya, cre
 #         #   # Small constant added to both terms for numerical safety and exact
 #         #   # cancellation at perfect fit.
 #         #   n_eff <- lf_n[i] * exp(log_lf_tau[f])
-#         #   lp[i] <- -n_eff * sum(obs * log(pred + 1e-8))
-#         #   lp[i] <- lp[i] + n_eff * sum(obs * log(obs + 1e-8))
+#         #   lp[i] <- -n_eff * sum(obs * log(pred + lf_addtocomp))
+#         #   lp[i] <- lp[i] + n_eff * sum(obs * log(obs + lf_addtocomp))
 get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
                             catch_pred_fya, pla,
                             lf_n_f, lf_fishery_f, lf_year_fi, lf_n_fi,
                             lf_minbin, lf_maxbin, removal_switch_f,
-                            lf_switch, n_len, n_lf, log_lf_tau) {
+                            lf_switch, n_len, n_lf, log_lf_tau,
+                            lf_addtocomp = 1e-08,
+                            lf_n_int_fi = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   
@@ -100,7 +160,13 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
   idx <- 0L
   obs_offset <- 0L
   for (j in seq_len(n_f)) {
-    f <- lf_fishery_f[j]
+    f    <- lf_fishery_f[j]
+    ys   <- lf_year_fi[[j]]            # all observed years for fishery f
+  
+    # ONE matmul: [n_obs_f x n_age] %*% [n_age x n_len] -> [n_obs_f x n_len]
+    catch_ya <- catch_pred_fya[f, ys, ]    # [n_obs_f x n_age]
+    pred_yl  <- catch_ya %*% t(pla)        # [n_obs_f x n_len], replaces the inner loop matvecs
+
     bmin <- lf_minbin[f]
     bmax <- lf_maxbin[f]
     nbins <- bmax - bmin + 1L
@@ -108,16 +174,17 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
     for (i in seq_len(lf_n_f[j])) {
       idx <- idx + 1L
       y <- lf_year_fi[[j]][i]
-      catch_a <- catch_pred_fya[f, y, ]
-      pred <- c(pla %*% catch_a)
+      pred <- pred_yl[i, ]                 # simple row slice, no matvec
       if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
       if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
       pred <- pred[bmin:bmax]
-      pred <- pred + 1e-8
+      pred <- pred + lf_addtocomp
       pred <- pred / sum(pred)
       lf_pred[[j]][i, ] <- pred
       n_i <- lf_n_fi[[j]][i]
-      if (removal_switch_f[f] == 0 & n_i > 0) {
+      n_int_i <- if (is.null(lf_n_int_fi)) as.integer(floor(n_i + 0.5)) else lf_n_int_fi[[j]][i]
+      include <- removal_switch_f[f] == 0 & if (lf_switch == 3) n_int_i > 0 else n_i > 0
+      if (include) {
         if (lf_switch == 1) { # Multinomial
           obs_i <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
           lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
@@ -129,14 +196,16 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
         }
         if (lf_switch == 3) { # Dirichlet-multinomial
           obs_i <- lf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
+          if (sum(obs_i) != n_int_i) {
+            stop("Dirichlet-multinomial length counts must sum to the integer sample size. Re-prepare data with prep_lf_data().", call. = FALSE)
+          }
           alpha_i <- pred * exp(log_lf_tau[f])
-          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_i, alpha = alpha_i, log = TRUE)
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
         }
       }
       obs_offset <- obs_offset + nbins
     }
   }
-  
   REPORT(lf_pred)
   return(lp)
 }
@@ -161,6 +230,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param wf_fishery_f integer vector of fishery indices with WF data.
 #' @param wf_year_fi list of integer vectors of year indices per fishery.
 #' @param wf_n_fi list of integer vectors of sample sizes per fishery.
+#' @param wf_n_int_fi optional list of integer Dirichlet-multinomial sample sizes.
 #' @param wf_minbin integer vector `[n_fishery]` minimum weight bin index.
 #' @param wf_maxbin integer vector `[n_fishery]` maximum weight bin index.
 #' @param removal_switch_f integer vector `[n_fishery]` removal flags.
@@ -168,7 +238,14 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param n_wt integer number of weight bins.
 #' @param n_wf integer total number of WF observations.
 #' @param log_wf_tau numeric vector `[n_fishery]` log-scale variance adjustment.
+#' @param wf_addtocomp small non-negative numeric constant added to predicted
+#'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
 #' @return numeric vector of negative log-likelihood contributions, one per observation.
+#' @details For Dirichlet, concentration is `pred * n_i * exp(log_wf_tau[f])`;
+#'   for Dirichlet-multinomial, it is `pred * exp(log_wf_tau[f])`. The
+#'   multinomial branch uses RTMB's integer-rounded count behavior. The
+#'   Dirichlet-multinomial is intended for real counts with variance adjustment
+#'   equal to one; use Dirichlet for fractional effective sample sizes.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
 #' @importFrom RTMBdist ddirichlet ddirmult
 #' @export
@@ -177,10 +254,11 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             catch_pred_fya, pla, wf_rebin_matrix,
                             wf_n_f, wf_fishery_f, wf_year_fi, wf_n_fi,
                             wf_minbin, wf_maxbin, removal_switch_f,
-                            wf_switch, n_wt, n_wf, log_wf_tau) {
+                            wf_switch, n_wt, n_wf, log_wf_tau,
+                            wf_addtocomp = 1e-08,
+                            wf_n_int_fi = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
-
   n_f <- length(wf_n_f)
   wf_pred <- vector("list", n_f)
   lp <- numeric(n_wf)
@@ -192,26 +270,32 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
 
   idx <- 0L
   obs_offset <- 0L
+  # Precompute combined age-to-weight projection once per likelihood call.
+  # rebin_pla: [n_wt x n_age] = wf_rebin_matrix [n_wt x n_len] %*% pla [n_len x n_age]
+  rebin_pla <- wf_rebin_matrix %*% pla
   for (j in seq_len(n_f)) {
     f <- wf_fishery_f[j]
     bmin <- wf_minbin[f]
     bmax <- wf_maxbin[f]
     nbins <- bmax - bmin + 1L
     wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
+    # ONE matmul per fishery: [n_obs_f x n_age] %*% [n_age x n_wt] -> [n_obs_f x n_wt]
+    ys <- wf_year_fi[[j]]
+    catch_ya <- catch_pred_fya[f, ys, ] # [n_obs_f x n_age]
+    pred_yw <- catch_ya %*% t(rebin_pla) # [n_obs_f x n_wt]
     for (i in seq_len(wf_n_f[j])) {
       idx <- idx + 1L
-      y <- wf_year_fi[[j]][i]
-      catch_a <- catch_pred_fya[f, y, ]
-      pred_at_length <- c(pla %*% catch_a)
-      pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
+      pred_at_weight <- pred_yw[i, ] # simple row slice, no matvec
       if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
       if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
       pred <- pred_at_weight[bmin:bmax]
-      pred <- pred + 1e-8
+      pred <- pred + wf_addtocomp
       pred <- pred / sum(pred)
       wf_pred[[j]][i, ] <- pred
       n_i <- wf_n_fi[[j]][i]
-      if (removal_switch_f[f] == 0 & n_i > 0) {
+      n_int_i <- if (is.null(wf_n_int_fi)) as.integer(floor(n_i + 0.5)) else wf_n_int_fi[[j]][i]
+      include <- removal_switch_f[f] == 0 & if (wf_switch == 3) n_int_i > 0 else n_i > 0
+      if (include) {
         if (wf_switch == 1) { # Multinomial
           obs_i <- wf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
           lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
@@ -223,14 +307,16 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
         }
         if (wf_switch == 3) { # Dirichlet-multinomial
           obs_i <- wf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
+          if (sum(obs_i) != n_int_i) {
+            stop("Dirichlet-multinomial weight counts must sum to the integer sample size. Re-prepare data with prep_wf_data().", call. = FALSE)
+          }
           alpha_i <- pred * exp(log_wf_tau[f])
-          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_i, alpha = alpha_i, log = TRUE)
+          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
         }
       }
       obs_offset <- obs_offset + nbins
     }
   }
-
   REPORT(wf_pred)
   return(lp)
 }

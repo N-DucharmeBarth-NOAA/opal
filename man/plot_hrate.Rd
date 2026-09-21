@@ -4,30 +4,20 @@
 \alias{plot_hrate}
 \title{Plot harvest rate}
 \usage{
-plot_hrate(
-  data,
-  object,
-  posterior = NULL,
-  probs = c(0.025, 0.975),
-  years = 2013:2022,
-  ...
-)
+plot_hrate(data, object, years = NULL, ...)
 }
 \arguments{
-\item{data}{a \code{list} containing the data that was passed to \code{MakeADFun}.}
+\item{data}{A model data list passed to \code{MakeADFun}.}
 
-\item{object}{a \code{list} specifying the AD object created using \code{MakeADFun}.}
+\item{object}{The AD object created using \code{MakeADFun}.}
 
-\item{posterior}{an \code{rstan} objected created using the \code{tmbstan} function.}
+\item{years}{Optional years to show. The default plots every model year from
+the first catch year onwards.}
 
-\item{probs}{a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.}
-
-\item{years}{the years to show on the plot.}
-
-\item{...}{options passed on to \code{geom_density_ridges}.}
+\item{...}{Options passed to \code{geom_density_ridges}.}
 }
 \value{
-a \code{ggplot2} object.
+A \code{ggplot2} object.
 }
 \description{
 Plot harvest rate by year, season, and age.

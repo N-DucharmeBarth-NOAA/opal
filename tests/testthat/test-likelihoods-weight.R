@@ -90,9 +90,10 @@ test_that("predicted weight proportions sum to 1", {
   wf_rebin_matrix <- matrix(0, n_wt, n_len)
   for (w in seq_len(n_wt)) wf_rebin_matrix[w, ((w - 1) * 2 + 1):(w * 2)] <- 1
 
+  addtocomp <- 1e-8
   pred_at_length <- c(pla %*% catch_a)
   pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
-  pred <- (pred_at_weight + 1e-8) / sum(pred_at_weight + 1e-8)
+  pred <- (pred_at_weight + addtocomp) / sum(pred_at_weight + addtocomp)
   expect_equal(sum(pred), 1.0, tolerance = 1e-10)
 })
 
@@ -220,4 +221,76 @@ test_that("mass conservation through rebin: sum(pred_at_weight) ~ sum(pred_at_le
   pred_at_weight <- c(wf_rebin_matrix %*% pred_at_length)
 
   expect_equal(sum(pred_at_weight), sum(pred_at_length), tolerance = 1e-10)
+})
+
+test_that("wf_addtocomp argument changes multinomial NLL", {
+  # Use sparse obs so zero/near-zero bins have leverage under addtocomp
+  obs_sparse <- rep(0, 10)
+  obs_sparse[c(3, 7)] <- c(0.6, 0.4)
+
+  s_default <- make_wf_args(wf_switch = 1, obs_row = obs_sparse)
+  # Make the predictions non-uniform so +0.1 actually changes proportion shape! 
+  s_default$catch_pred_fya[ , , 1:5] <- 5
+
+  s_custom  <- s_default
+  s_custom$wf_addtocomp <- 0.1
+
+  lp_default <- do.call(get_weight_like, s_default)
+  lp_custom  <- do.call(get_weight_like, s_custom)
+  expect_false(isTRUE(all.equal(lp_default, lp_custom)))
+})
+
+wf_reference_rebin <- function() {
+  source_edges <- 0:12
+  weight_edges <- 0.01 * source_edges^3
+  rebin_matrix(weight_edges,
+               seq(0, ceiling(max(weight_edges)), length.out = 9))
+}
+
+for (type in 1:3) {
+  test_that(sprintf("get_weight_like matches closed-form reference (wf_switch = %d)", type), {
+    fx <- comp_fixture()
+    rebin <- wf_reference_rebin()
+    groups <- attach_obs(list(
+      list(f = 1L, ys = c(1L, 2L), bmin = 1L, bmax = 8L, n = c(60, 90)),
+      list(f = 2L, ys = c(3L, 4L), bmin = 2L, bmax = 6L, n = c(30, 45))
+    ), integer = type != 2)
+    log_tau <- log(c(1.3, 0.4))
+    args <- comp_args("wf", groups, fx, type, log_tau, rebin = rebin)
+    expect_equal(do.call(get_weight_like, args),
+                 expected_comp_nll(groups, fx, type, log_tau, rebin = rebin),
+                 tolerance = 1e-10)
+  })
+}
+
+test_that("weight composition skips removal and zero-size observations", {
+  fx <- comp_fixture()
+  rebin <- wf_reference_rebin()
+  groups <- attach_obs(rev(list(
+    list(f = 1L, ys = c(1L, 2L), bmin = 1L, bmax = 8L, n = c(60, 90)),
+    list(f = 2L, ys = c(3L, 4L), bmin = 2L, bmax = 6L, n = c(30, 45))
+  )), integer = TRUE)
+  groups[[1]]$n[2] <- 0
+  removal <- c(0L, 1L)
+  log_tau <- log(c(1.3, 0.4))
+  args <- comp_args("wf", groups, fx, 1, log_tau, rebin = rebin,
+                    removal_switch_f = removal)
+  expect_equal(do.call(get_weight_like, args),
+               expected_comp_nll(groups, fx, 1, log_tau, rebin = rebin,
+                                 removal_switch_f = removal),
+               tolerance = 1e-10)
+})
+
+test_that("weight multinomial rounds fractional counts in RTMB", {
+  fx <- comp_fixture()
+  rebin <- wf_reference_rebin()
+  groups <- attach_obs(list(
+    list(f = 1L, ys = 1L, bmin = 1L, bmax = 8L, n = 60)
+  ), integer = FALSE)
+  args <- comp_args("wf", groups, fx, 1, c(0, 0), rebin = rebin)
+  actual <- do.call(get_weight_like, args)
+  rounded_groups <- groups
+  rounded_groups[[1]]$obs <- round(rounded_groups[[1]]$obs)
+  expected <- expected_comp_nll(rounded_groups, fx, 1, c(0, 0), rebin = rebin)
+  expect_equal(actual, expected, tolerance = 1e-10)
 })

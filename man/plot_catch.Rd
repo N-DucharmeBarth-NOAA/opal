@@ -4,31 +4,19 @@
 \alias{plot_catch}
 \title{Plot catch}
 \usage{
-plot_catch(
-  data,
-  obj,
-  posterior = NULL,
-  proj = NULL,
-  probs = c(0.05, 0.95),
-  plot_resid = FALSE
-)
+plot_catch(data, obj, plot_resid = FALSE)
 }
 \arguments{
-\item{data}{a \code{list} containing the data that was passed to \code{MakeADFun}.}
+\item{data}{A model data list passed to \code{MakeADFun}.}
 
-\item{obj}{a \code{list} specifying the AD object created using \code{MakeADFun}.}
+\item{obj}{The AD object created using \code{MakeADFun}.}
 
-\item{posterior}{an \code{rstan} objected created using the \code{tmbstan} function.}
-
-\item{proj}{an \code{rstan} objected created using the \code{tmbstan} function.}
-
-\item{probs}{a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.}
-
-\item{plot_resid}{plot the residual or not.}
+\item{plot_resid}{Logical; plot catch residuals instead of observed and
+predicted catch.}
 }
 \value{
-a \code{ggplot2} object.
+A \code{ggplot2} object.
 }
 \description{
-Plot catch (in thousands of tonnes) by year, season, and fishery.
+Plot catch by year and fishery.
 }

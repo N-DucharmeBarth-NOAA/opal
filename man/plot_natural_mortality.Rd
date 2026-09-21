@@ -4,19 +4,15 @@
 \alias{plot_natural_mortality}
 \title{Plot natural mortality}
 \usage{
-plot_natural_mortality(data, object, posterior = NULL, probs = c(0.025, 0.975))
+plot_natural_mortality(data, object)
 }
 \arguments{
-\item{data}{a \code{list} containing the data that was passed to \code{MakeADFun}.}
+\item{data}{A model data list passed to \code{MakeADFun}.}
 
-\item{object}{a \code{list} specifying the AD object created using \code{MakeADFun}.}
-
-\item{posterior}{an \code{rstan} objected created using the \code{tmbstan} function.}
-
-\item{probs}{a numeric vector of probabilities with values in \code{[0,1]} for plotting quantiles of the posterior distribution.}
+\item{object}{The AD object created using \code{MakeADFun}.}
 }
 \value{
-a \code{ggplot2} object.
+A \code{ggplot2} object.
 }
 \description{
 Plot natural mortality (M) by age.

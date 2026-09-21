@@ -21,7 +21,9 @@ get_weight_like(
   wf_switch,
   n_wt,
   n_wf,
-  log_wf_tau
+  log_wf_tau,
+  wf_addtocomp = 1e-08,
+  wf_n_int_fi = NULL
 )
 }
 \arguments{
@@ -61,6 +63,11 @@ from prep_wf_data().}
 \item{n_wf}{integer total number of WF observations.}
 
 \item{log_wf_tau}{numeric vector \verb{[n_fishery]} log-scale variance adjustment.}
+
+\item{wf_addtocomp}{small non-negative numeric constant added to predicted
+proportions before normalisation to robustify zero bins. Default \code{1e-08}.}
+
+\item{wf_n_int_fi}{optional list of integer Dirichlet-multinomial sample sizes.}
 }
 \value{
 numeric vector of negative log-likelihood contributions, one per observation.
@@ -70,4 +77,11 @@ Computes likelihood for observed weight compositions using the PLA
 matrix and a precomputed rebinning matrix. The prediction pipeline is:
 catch_at_age -> PLA -> pred_at_length -> rebin_matrix -> pred_at_weight.
 Gradients propagate through PLA to growth parameters when estimated.
+}
+\details{
+For Dirichlet, concentration is \code{pred * n_i * exp(log_wf_tau[f])};
+for Dirichlet-multinomial, it is \code{pred * exp(log_wf_tau[f])}. The
+multinomial branch uses RTMB's integer-rounded count behavior. The
+Dirichlet-multinomial is intended for real counts with variance adjustment
+equal to one; use Dirichlet for fractional effective sample sizes.
 }

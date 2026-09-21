@@ -1,0 +1,36 @@
+name: Feature or change request
+description: Request new functionality or a change to current behaviour
+title: "[Request]: "
+labels: ["enhancement", "status: triage_needed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search the existing issues first. Requests that are already tracked
+        should get a comment on the open issue rather than a new one.
+
+  - type: textarea
+    id: request
+    attributes:
+      label: Describe the problem, idea, or request and, if possible, provide a solution.
+      description: |
+        Please cover (1) the feature or change to current behaviour; (2) the problem
+        that led to you thinking you should submit an issue; and (3) a proposed
+        solution.
+      placeholder: |
+        I would like <x> because I am frustrated when <y> happens and this
+        could be fixed by <z>.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: |
+        Add any other context or screenshots here. For example, if the feature is
+        necessary to satisfy the terms of reference of a fishery management body,
+        please explain why and name the body. Or, if alternative solutions exist —
+        including how SS3 or MFCL handle this — please describe them.
+    validations:
+      required: false

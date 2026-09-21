@@ -1,7 +1,7 @@
 # Tests for prep_lf_data()
 
 # Shared fixture ----------------------------------------------------------------
-# Mirrors the setup in vignettes/bet.Rmd: load wcpo_bet_data + wcpo_bet_lf,
+# Mirrors the setup in vignettes/bet.qmd: load wcpo_bet_data + wcpo_bet_lf,
 # pivot to wide format, and call prep_lf_data() with lf_keep_fisheries = c(8, 9).
 
 make_lf_data <- function(lf_keep_fisheries = c(8, 9), ...) {
@@ -30,12 +30,17 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_true(is.numeric(d$lf_obs_prop))
   expect_true(is.integer(d$lf_obs_ints))
   expect_true(is.numeric(d$lf_n))
+  expect_true(is.integer(d$lf_n_int))
   expect_true(is.integer(d$lf_fishery))
   expect_true(is.integer(d$lf_year))
   expect_true(is.integer(d$lf_season))
   expect_true(is.integer(d$lf_n_f))
   expect_true(is.integer(d$lf_fishery_f))
   expect_true(is.matrix(d$lf_obs_in))
+  expect_true(is.list(d$lf_year_fi))
+  expect_true(is.list(d$lf_n_fi))
+  expect_true(is.list(d$lf_n_int_fi))
+  expect_true(is.list(d$lf_row_fi))
 
   # lf_obs_flat / lf_obs_prop / lf_obs_ints must be the same length
   expect_equal(length(d$lf_obs_flat), length(d$lf_obs_prop))
@@ -48,6 +53,10 @@ test_that("prep_lf_data attaches expected fields to data", {
   expect_equal(length(d$lf_year),    d$n_lf)
   expect_equal(length(d$lf_season),  d$n_lf)
   expect_equal(sum(d$lf_n_f),        d$n_lf)
+  expect_equal(d$lf_year_fi, split(d$lf_year, d$lf_fishery))
+  expect_equal(d$lf_n_fi, split(d$lf_n, d$lf_fishery))
+  expect_equal(d$lf_n_int_fi, split(d$lf_n_int, d$lf_fishery))
+  expect_equal(d$lf_row_fi, split(seq_len(d$n_lf), d$lf_fishery))
 
   # Only the two requested fisheries
   expect_setequal(d$lf_fishery_f, c(8L, 9L))
@@ -113,46 +122,46 @@ test_that("lf_obs_prop[1:200] matches known values", {
   d <- make_lf_data()
 
   expected_prop <- c(
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 5.823330e-03, 1.011450e-02, 9.999991e-09, 9.999991e-09,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 5.823330e-03, 1.011450e-02, 1.99999715000361e-08, 1.99999715000361e-08,
     4.291180e-03, 1.442964e-02, 3.748955e-02, 5.256707e-02, 8.157424e-02,
     1.503250e-01, 1.632490e-01, 1.334347e-01, 1.446396e-01, 7.541787e-02,
-    7.740474e-02, 2.155174e-02, 8.606320e-03, 1.908070e-02, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 1.094704e-03,
+    7.740474e-02, 2.155174e-02, 8.606320e-03, 1.908070e-02, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.094704e-03,
     1.047525e-04, 7.500254e-03, 3.653435e-02, 3.030852e-02, 8.682098e-02,
     1.036535e-01, 9.043489e-02, 1.147306e-01, 1.151160e-01, 1.145796e-01,
     9.516045e-02, 9.990747e-02, 8.700818e-02, 9.599046e-03, 5.415297e-03,
-    6.769209e-04, 1.353832e-03, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09,
-    9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09, 9.999991e-09
+    6.769209e-04, 1.353832e-03, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08,
+    1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08, 1.99999715000361e-08
   )
 
   expect_equal(d$lf_obs_prop[1:200], expected_prop, tolerance = 1e-6)
@@ -165,12 +174,12 @@ test_that("lf_obs_ints[1:200] matches known values", {
 
   expected_ints <- as.integer(c(
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  0,  0,  1,  3,  7,
-     9, 14, 26, 29, 23, 25, 13, 14,  4,  2,  3,  0,  0,  0,  0,  0,  0,  0,
+    9, 14, 26, 29, 23, 25, 13, 14,  4,  1,  3,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-     0,  1,  0,  5, 26, 21, 61, 73, 64, 81, 82, 81, 67, 71, 62,  7,  4,  0,
+    0,  1,  0,  5, 26, 21, 61, 73, 64, 81, 82, 81, 67, 71, 62,  7,  4,  1,
      1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -191,6 +200,31 @@ test_that("lf_obs_prop sums to approximately 1 for each observation", {
   row_sums <- rowSums(mat)
   expect_true(all(abs(row_sums - 1) < 1e-6),
               info = paste("Row sums range:", range(row_sums)))
+})
+
+test_that("lf_obs_ints sums to the stored DM integer sample size", {
+  d <- make_lf_data()
+  offset <- 0L
+  for (j in seq_along(d$lf_fishery_f)) {
+    f <- d$lf_fishery_f[j]
+    n_bins <- d$lf_maxbin[f] - d$lf_minbin[f] + 1L
+    for (i in seq_len(d$lf_n_f[j])) {
+      indices <- offset + seq_len(n_bins)
+      expect_equal(sum(d$lf_obs_ints[indices]), d$lf_n_int_fi[[j]][i])
+      offset <- offset + n_bins
+    }
+  }
+})
+
+test_that("DM integerization uses half-up sizes and preserves totals", {
+  zero_size <- opal:::.opal_integerize_composition(c(0.2, 0.3, 0.5), 0.3)
+  half_size <- opal:::.opal_integerize_composition(c(0.2, 0.3, 0.5), 0.5)
+
+  expect_equal(zero_size$size, 0L)
+  expect_equal(zero_size$counts, c(0L, 0L, 0L))
+  expect_equal(half_size$size, 1L)
+  expect_equal(sum(half_size$counts), half_size$size)
+  expect_equal(half_size$counts, c(0L, 0L, 1L))
 })
 
 # ---- 6. lf_var_adjust scales lf_n by 1/adjust --------------------------------
@@ -308,4 +342,75 @@ test_that("lf_var_adjust is stored on data and matches the input", {
   adjust <- seq(0.5, length.out = d$n_fishery, by = 0.1)
   d2     <- make_lf_data(lf_var_adjust = adjust)
   expect_equal(d2$lf_var_adjust, adjust)
+})
+
+test_that("lf_addtocomp is stored on data and matches the input", {
+  d <- make_lf_data(lf_addtocomp = 1e-3)
+  expect_equal(d$lf_addtocomp, 1e-3)
+})
+
+test_that("lf_addtocomp > 0 gives strictly positive lf_obs_flat bins", {
+  d <- make_lf_data(lf_addtocomp = 1e-3)
+  expect_true(all(d$lf_obs_flat > 0))
+})
+
+test_that("lf_obs_flat row sums equal effective sample sizes after addtocomp", {
+  d <- make_lf_data(lf_addtocomp = 1e-3)
+
+  offset <- 0L
+  for (j in seq_along(d$lf_fishery_f)) {
+    f <- d$lf_fishery_f[j]
+    nbins <- d$lf_maxbin[f] - d$lf_minbin[f] + 1L
+    n_obs <- d$lf_n_f[j]
+    rows <- split(seq_len(d$n_lf), d$lf_fishery)[[as.character(f)]]
+    for (i in seq_len(n_obs)) {
+      idx <- (offset + 1L):(offset + nbins)
+      expect_equal(sum(d$lf_obs_flat[idx]), d$lf_n[rows[i]], tolerance = 1e-8)
+      offset <- offset + nbins
+    }
+  }
+})
+
+test_that("lf_addtocomp = 0 keeps some zero bins in lf_obs_flat", {
+  d <- make_lf_data(lf_addtocomp = 0)
+  expect_true(any(d$lf_obs_flat == 0))
+})
+
+test_that("lf_obs_prop depends on lf_addtocomp", {
+  d_small <- make_lf_data(lf_addtocomp = 1e-8)
+  d_large <- make_lf_data(lf_addtocomp = 1e-2)
+  expect_false(isTRUE(all.equal(d_small$lf_obs_prop, d_large$lf_obs_prop)))
+})
+
+test_that("prep_lf_data aligns grouped outputs when input fishery order changes", {
+  data(wcpo_bet_data, package = "opal", envir = environment())
+  data(wcpo_bet_lf,   package = "opal", envir = environment())
+
+  lf_wide <- wcpo_bet_lf |>
+    tidyr::pivot_wider(
+      id_cols     = c(fishery, year, month, ts),
+      names_from  = bin,
+      values_from = value,
+      values_fill = 0
+    )
+
+  lf_wide_sorted <- lf_wide |>
+    dplyr::arrange(fishery, ts)
+  lf_wide_reversed <- lf_wide |>
+    dplyr::filter(fishery %in% c(8, 9)) |>
+    dplyr::arrange(dplyr::desc(fishery), ts)
+
+  d_sorted <- prep_lf_data(wcpo_bet_data, lf_wide_sorted,
+                           lf_keep_fisheries = c(8, 9))
+  d_reversed <- prep_lf_data(wcpo_bet_data, lf_wide_reversed,
+                             lf_keep_fisheries = c(8, 9))
+
+  expect_equal(d_reversed$lf_fishery_f, d_sorted$lf_fishery_f)
+  expect_equal(d_reversed$lf_n_f, d_sorted$lf_n_f)
+  expect_equal(d_reversed$lf_year_fi, d_sorted$lf_year_fi)
+  expect_equal(d_reversed$lf_n_fi, d_sorted$lf_n_fi)
+  expect_equal(d_reversed$lf_obs_data$obs, d_sorted$lf_obs_data$obs)
+  expect_equal(d_reversed$lf_obs_flat, d_sorted$lf_obs_flat)
+  expect_equal(d_reversed$lf_obs_ints, d_sorted$lf_obs_ints)
+  expect_equal(d_reversed$lf_obs_prop, d_sorted$lf_obs_prop)
 })

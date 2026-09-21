@@ -1,0 +1,65 @@
+---
+title: "Review an Opakapaka Fit"
+format: html
+execute:
+  eval: true
+  warning: false
+  message: false
+vignette: >
+  %\VignetteIndexEntry{Review an Opakapaka Fit}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Review an `opal_fit`
+
+This vignette examines the portable fixed-effects opakapaka fit created for
+the Quickstart. It rebuilds the transient RTMB objective only to obtain model
+predictions, so no optimisation is performed here.
+
+The bundled fit may have been saved under a different R version. Portable
+integrity permits that difference while still checking model compatibility and
+requiring the rebuilt objective to match the saved value.
+
+```{r}
+#| label: load-fit
+library(opal)
+
+fit_path <- system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
+if (!nzchar(fit_path)) {
+  stop("The bundled opakapaka quickstart fit is unavailable.", call. = FALSE)
+}
+fit <- read_opal_fit(fit_path, strict = TRUE, integrity = "portable")
+fit
+summary(fit)
+```
+
+## CPUE fit
+
+```{r}
+#| label: cpue-fit
+#| fig-width: 8
+#| fig-height: 5
+object <- opal_fit_object(fit, integrity = "portable")
+plot_data <- fit$data
+plot_data$cpue_data$season <- 1L
+plot_cpue(plot_data, object)
+```
+
+## Diagnostics
+
+The compact estimability result and maximum absolute gradient were saved with
+the fit. They can be inspected without creating a new objective.
+
+```{r}
+#| label: diagnostics
+list(
+  estimability = fit$fit$estimability,
+  maximum_gradient = fit$fit$diagnostics$max_gradient
+)
+```

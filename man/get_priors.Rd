@@ -7,7 +7,7 @@
 get_priors(parameters, data = NULL)
 }
 \arguments{
-\item{parameters}{A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the \code{get_parameters()} function.}
+\item{parameters}{A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the \code{get_parameters()} function. Vector parameters (e.g., \code{log_cpue_q}) are supported.}
 
 \item{data}{A \code{list} of data inputs (optional). Used to retrieve prior
 center values for growth/variability parameters (e.g.,
@@ -17,7 +17,5 @@ center values for growth/variability parameters (e.g.,
 A \code{list} of priors.
 }
 \description{
-Don't include priors for recruitment deviates (par_rdev_y) or selectivity
-(e.g., par_log_sel_1) here because they are dealt with in the \code{get_recruitment_prior()}
-and \code{get_selectivity_prior()} functions.
+Get priors
 }

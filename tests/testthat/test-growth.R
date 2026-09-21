@@ -166,14 +166,14 @@ test_that("maturity_a * fecundity_a equals maturity_a * weight_a when fecundity 
 })
 
 test_that("growth model matches MFCL outputs with MFCL parameters", {
-  # MFCL baseline parameters (from bet.Rmd vignette)
+  # MFCL baseline parameters (from bet.qmd vignette)
   L1_mfcl <- 30.9192
   L2_mfcl <- 153.4431
   k_mfcl <- log(0.09825)
   CV1_mfcl <- log(0.16101)
   CV2_mfcl <- log(0.1075122)
   
-  # Expected MFCL outputs from bet.Rmd
+  # Expected MFCL outputs from bet.qmd
   mean_length_at_age_expected <- c(
     30.9192, 40.2986, 49.3364, 57.9282, 66.0202, 73.5897, 80.6340, 87.1632,
     93.1955, 98.7541, 103.8652, 108.5561, 112.8550, 116.7893, 120.3860, 123.6709,

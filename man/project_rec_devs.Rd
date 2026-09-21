@@ -8,7 +8,7 @@ project_rec_devs(
   data,
   obj,
   mcmc = NULL,
-  first_yr = 1931,
+  first_yr = NULL,
   last_yr = NULL,
   n_proj = 5,
   n_iter = NULL,
@@ -25,7 +25,7 @@ project_rec_devs(
 
 \item{mcmc}{a \code{list} of parameter values.}
 
-\item{first_yr}{a \code{list} of inputs.}
+\item{first_yr}{the first year sampled. Defaults to the first model year.}
 
 \item{last_yr}{a \code{list} of inputs.}
 

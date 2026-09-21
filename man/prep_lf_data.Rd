@@ -12,7 +12,8 @@ prep_lf_data(
   lf_minbin = NULL,
   lf_maxbin = NULL,
   lf_var_adjust = NULL,
-  lf_cap = NULL
+  lf_cap = NULL,
+  lf_addtocomp = 1e-08
 )
 }
 \arguments{
@@ -52,6 +53,10 @@ effective sample size is capped: \eqn{n_i = \min(n_i, \text{lf\_cap})}.
 Applied after proportions are computed so that observed compositions are
 unaffected.  Default \code{NULL} (no cap).  This is a Multifan-CL legacy
 feature.}
+
+\item{lf_addtocomp}{small non-negative numeric constant added to observed
+composition proportions after tail compression and before renormalisation.
+This robustifies zero bins. Default \code{1e-08}.}
 }
 \value{
 The input \code{data} list with the following elements appended or
@@ -63,6 +68,8 @@ boundary and midpoint vectors derived from the scalar inputs.}
 \item{\code{lf_obs_in}}{Matrix of observed proportions,
 \code{[n_obs x n_len]}.}
 \item{\code{lf_n}}{Numeric vector of sample sizes per observation row.}
+\item{\code{lf_n_int}}{Integer Dirichlet-multinomial sample sizes
+obtained by half-up rounding of \code{lf_n}.}
 \item{\code{lf_fishery}}{Integer vector of fishery index per observation
 row.}
 \item{\code{lf_fishery_f}}{Integer vector of unique fishery indices with
@@ -70,6 +77,10 @@ LF data.}
 \item{\code{lf_n_f}}{Integer vector of observation counts per fishery.}
 \item{\code{lf_year}}{Integer vector of model timestep index (1-based)
 per observation row.}
+\item{\code{lf_year_fi}, \code{lf_n_fi}, \code{lf_n_int_fi}, \code{lf_row_fi}}{Lists split
+by fishery containing model timesteps, effective sample sizes, and
+row indices. Precomputed so \code{opal_model()} does not rebuild them
+on every objective evaluation.}
 \item{\code{lf_season}}{Integer vector of season index (all 1).}
 \item{\code{lf_minbin}, \code{lf_maxbin}}{Passed through from arguments.}
 \item{\code{lf_var_adjust}}{Passed through from argument; numeric vector
@@ -82,10 +93,13 @@ removal flags (all 0).}
 plain-R access in \code{get_length_like}.}
 \item{\code{lf_obs_flat}}{Flattened numeric vector of counts (for
 multinomial, \code{lf_switch = 1}).}
-\item{\code{lf_obs_ints}}{Flattened integer vector of rounded counts
-(for Dirichlet-multinomial, \code{lf_switch = 3}).}
+\item{\code{lf_obs_ints}}{Flattened integer counts that sum to
+\code{lf_n_int} per observation (for Dirichlet-multinomial,
+\code{lf_switch = 3}).}
 \item{\code{lf_obs_prop}}{Flattened numeric vector of normalised
 proportions (for Dirichlet, \code{lf_switch = 2}).}
+\item{\code{lf_addtocomp}}{Stored value of the add-to-composition
+constant used to robustify observed composition bins.}
 \item{\code{lf_nbins}}{Number of bins used in each observation (scalar,
 derived from the first fishery's min/max bin setting).}
 }
@@ -102,7 +116,9 @@ filters to a subset of fisheries, and appends every derived object directly to
 Rows in \code{lf_wide} with a total sample size of zero are silently
 removed before any other processing.  Bin alignment between the data frame
 columns and the model's length structure is checked with
-\code{stopifnot()}.
+\code{stopifnot()}. Dirichlet-multinomial counts use half-up rounding of
+effective sample sizes and largest-remainder allocation. Observations that
+round to zero are skipped by the Dirichlet-multinomial likelihood.
 }
 \seealso{
 \code{\link{get_length_like}}, \code{\link{opal_model}}
