@@ -23,7 +23,7 @@ test_that("get_initial_numbers returns correct list elements", {
   spawning_potential_a <- c(0, 0.2, 0.6, 1.0, 1.0)
 
   init <- get_initial_numbers(B0, h, M_a, spawning_potential_a)
-  expect_named(init, c("Ninit", "Ninit0", "R0", "alpha", "beta"))
+  expect_named(init, c("Ninit", "Ninit0", "R0", "alpha", "beta", "lp_penalty"))
   expect_equal(length(init$Ninit), length(M_a))
   expect_equal(length(init$Ninit0), length(M_a))
   expect_true(init$R0 > 0)

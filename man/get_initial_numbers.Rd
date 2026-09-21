@@ -52,9 +52,19 @@ A list containing:
 \item{R0}{Unfished recruitment (scalar).}
 \item{alpha}{BH alpha parameter.}
 \item{beta}{BH beta parameter.}
+\item{lp_penalty}{Penalty for constrained initial survival or recruitment.}
 }
 }
 \description{
 Computes the initial equilibrium numbers-at-age, unfished recruitment (R0),
 and Beverton-Holt stock-recruitment parameters.
+}
+\details{
+Seasonal survival and equilibrium recruitment relative to \eqn{R_0}
+are continued smoothly below \code{0.001} to keep trial initial states
+positive. The continuation is \code{eps / (2 - x / eps)} and adds
+\code{(eps - x)^2 / eps} to the penalty when \code{x < eps}.
+Values at or above the threshold are unchanged. A positive penalty marks
+a constrained trial state, not a valid fished equilibrium, and must be
+included in the fitting objective (as it is in \code{opal_model()}).
 }
