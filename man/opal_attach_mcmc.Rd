@@ -21,5 +21,29 @@ opal_attach_mcmc(x, mcmc, settings = list(), check = TRUE, check_args = list())
 An updated \code{opal_obj}. Previous selected draws are retained in history.
 }
 \description{
-Attach posterior draws to an Opal object
+Validate and store posterior draws for the object's current configuration.
+Parameter names must identify the active model layout. Matrices contain
+draws in rows and named variables in columns; arrays use iteration, chain,
+and variable dimensions. Use \code{\link[=opal_mcmc]{opal_mcmc()}} to run a new sampler.
 }
+\details{
+A failed or unchecked import does not replace a previously checked, passing
+posterior; inspect \code{x$mcmc_history} for unselected attempts. Parameter-only
+imports lack sampler diagnostics, so a passing MCMC check requires richer
+sampler output. Full joint draws are required for random-effect projections.
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

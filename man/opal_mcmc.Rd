@@ -38,6 +38,38 @@ warned about, preserving any existing posterior. The default sampler skips
 internal optimisation; an MLE is optional. The default stan metric supports
 bounds. Random effects are sampled jointly by default, over their full
 domain, while fixed effects retain the object's bounds. Change bounds
-with opal_update(), not sampler arguments. Use laplace = TRUE and metric = 'unit'
+with \code{\link[=opal_update]{opal_update()}}. Use \code{laplace = TRUE} and \code{metric = "unit"}
 for marginal sampling.
 }
+\details{
+Defaults are four chains, four cores, 1,000 warm-up iterations, and 500
+retained iterations per chain. Set \code{seed} and choose effort appropriate to
+the assessment. After sampling, inspect \code{x$validation$mcmc} and
+\code{x$mcmc_history}; a failed or unchecked attempt cannot replace a previously
+checked, passing posterior. \code{\link[=opal_as_tmbfit]{opal_as_tmbfit()}} exposes the selected samples
+to SparseNUTS plotting and diagnostic tools.
+}
+\examples{
+\dontrun{
+assessment <- opal_read("assessment.rds")
+assessment <- opal_mcmc(assessment, seed = 42, chains = 4, cores = 4,
+                        num_warmup = 1000, num_samples = 500)
+summary(assessment)
+opal_save(assessment, "assessment-sampled.rds")
+}
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

@@ -42,6 +42,14 @@
 #' @param seed Optional random seed, restored after the projection.
 #' @param ... Arguments passed to [project_dynamics()], including future inputs.
 #' @return An updated `opal_obj` with a stored projection.
+#' @details
+#' Read the stored output from `x$derived[[name]]$result`; `settings` records
+#' the future inputs and seed, and `identity` records the source result.
+#' Set a seed separately before stochastic recruitment or selectivity helpers;
+#' the `seed` argument here controls the dynamics projection only.
+#' For a complete worked example, see `vignette("projections")`.
+#' @family assessment workflow
+#' @seealso [project_rec_devs()], [project_selectivity()], [project_dynamics()]
 #' @export
 opal_project <- function(x, uncertainty = NULL, name = "projection", seed = NULL, ...) {
   validate_opal_obj(x)

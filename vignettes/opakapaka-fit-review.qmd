@@ -19,8 +19,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 # Review a saved assessment
 
 This vignette upgrades the bundled legacy `opal_fit` to `opal_obj`. It
-examines the portable fixed-effects opakapaka fit created for the Quickstart. It rebuilds the transient RTMB objective only to obtain model
-predictions, so no optimisation is performed here.
+examines the portable fixed-effects opakapaka fit created for the
+[Quickstart](quickstart.qmd). It rebuilds the transient RTMB objective to
+verify the stored objective and obtain predictions, without optimisation.
 
 The bundled fit may have been saved under a different R version. Portable
 integrity permits that difference while still checking model compatibility and
@@ -60,3 +61,33 @@ list(
   maximum_gradient = fit$fit$diagnostics$max_gradient
 )
 ```
+
+Refresh the reusable fit checks with `opal_check()`. The stage remains
+`fitted` whether checks pass or fail; inspect the validation record before
+interpreting the assessment.
+
+```{r}
+#| label: refresh-checks
+fit <- opal_check(fit, scope = "fit")
+fit$validation$fit$metrics
+summary(fit)
+```
+
+## Continue and save the assessment
+
+Metadata changes preserve the fitted result. Configuration changes through
+`opal_update()` clear dependent results so that another fit or sampler run
+cannot accidentally use stale outputs.
+
+```{r}
+#| label: save-reviewed
+fit <- opal_update(fit, metadata = list(label = "Reviewed baseline"))
+path <- tempfile(fileext = ".rds")
+opal_save(fit, path)
+restored <- opal_read(path, rebuild = TRUE)
+stopifnot(isTRUE(all.equal(opal_report(fit), opal_report(restored))))
+unlink(path)
+```
+
+See the [projection guide](projections.qmd) to carry this object into a
+future-catch scenario, or `opal_mcmc()` to add posterior sampling.

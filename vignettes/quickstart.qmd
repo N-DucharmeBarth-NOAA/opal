@@ -90,6 +90,7 @@ fit_path <- tempfile("opaka-quickstart-", fileext = ".rds")
 opal_save(fit, fit_path)
 fit <- opal_read(fit_path, rebuild = TRUE)
 summary(fit)
+unlink(fit_path)
 ```
 
 ## Inspect spawning biomass
@@ -150,4 +151,6 @@ rejected.
 `opal_fit(data, obj, opt, ...)` still supports the legacy constructor.
 `opal_from_fit()` converts an existing fit, and `opal_read()` upgrades legacy
 saved fits after verifying the rebuilt objective, without refitting. The
-companion `vignette("opakapaka-fit-review")` demonstrates this migration.
+companion [saved-fit review](opakapaka-fit-review.qmd) demonstrates this migration.
+The [projection guide](projections.qmd) gives a complete runnable example
+with future catch, recruitment, selectivity, and saved projection provenance.

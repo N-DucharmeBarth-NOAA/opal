@@ -424,39 +424,61 @@
   NULL
 }
 
-#' Create a portable fitted opal model object
+#' Fit an Opal assessment
 #'
-#' Captures the plain R state needed to reproduce a fitted opal model without
-#' serializing the transient RTMB objective. The objective is retained only in
-#' a session cache and can be rebuilt with [rebuild_opal_object()]. Optional
-#' SparseNUTS output is normalized to a package-owned `opal_mcmc` payload.
+#' Pass an [opal_obj()] to optimise its model with `nlminb()`, retain the
+#' optimiser passes, and run [opal_check()]. The default is two sequential
+#' passes. A completed optimisation does not guarantee convergence: inspect
+#' `summary(assessment)` and `assessment$validation$fit` before using results.
+#'
+#' @details
+#' For the object workflow, use `opal_fit(assessment, n_passes = 2L,
+#' control = NULL, check = TRUE, check_args = list())`. Configuration comes
+#' from the object; change bounds, maps, or metadata with [opal_update()].
+#' Omitting `control` uses the stored controls, or the Opal defaults.
+#' Refitting an unchanged target preserves its posterior with the provenance
+#' of the fit that originally supplied it. Failed checks warn and retain results.
+#'
+#' The legacy call `opal_fit(data, obj, opt, ...)` remains available to capture
+#' an already fitted RTMB model. Arguments marked legacy below apply only to
+#' that interface. New custom-optimiser workflows should use [opal_attach_fit()].
+#' Convert an existing legacy fit with [opal_from_fit()].
 #'
 #' @param data An `opal_obj` to optimise, or the legacy named model data list
 #'   used to construct `obj`. With an `opal_obj`, returns an updated object.
-#' @param obj Fitted RTMB objective created with `opal_model`.
-#' @param opt Optimizer result, normally returned by [stats::nlminb()].
-#' @param bounds Optional bounds data frame from [get_bounds()] or a list with
+#' @param obj Legacy only: fitted RTMB objective. Omit for an `opal_obj`.
+#' @param opt Legacy only: optimiser result. Omit for an `opal_obj`.
+#' @param bounds Legacy only: bounds data frame from [get_bounds()] or a list with
 #'   `lower` and `upper`.
-#' @param control Optional optimizer control list.
-#' @param estimability Optional output from [check_estimability()]. A compact
+#' @param control Optional control list passed to [stats::nlminb()].
+#' @param estimability Legacy only: output from [check_estimability()]. A compact
 #'   summary is retained.
-#' @param diagnostics Optional named list of fit diagnostics.
-#' @param metadata Optional named list of user metadata.
-#' @param mcmc Optional SparseNUTS-style fit, posterior matrix, or
+#' @param diagnostics Legacy only: named list of fit diagnostics.
+#' @param metadata Legacy only: named list of user metadata.
+#' @param mcmc Legacy only: SparseNUTS-style fit, posterior matrix, or
 #'   iteration-chain-variable array.
-#' @param mcmc_settings Optional named list of sampler settings not already
+#' @param mcmc_settings Legacy only: named list of sampler settings not already
 #'   present in `mcmc`.
-#' @param derived Optional named list of portable derived results, such as
+#' @param derived Legacy only: named list of portable derived results, such as
 #'   projections or retrospective summaries.
-#' @param makeadfun_args Optional named list of additional arguments needed to
+#' @param makeadfun_args Legacy only: named list of additional arguments needed to
 #'   rebuild `RTMB::MakeADFun()`. Core arguments are reserved.
-#' @param optimizer Non-empty character name of the optimizer used.
+#' @param optimizer Legacy only: non-empty character name of the optimiser used.
 #' @param n_passes Number of sequential optimisation passes for an `opal_obj`.
 #' @param check Run fitting diagnostics for an `opal_obj`.
 #' @param check_args Named arguments passed to [opal_check()].
 #'
 #' @return With an `opal_obj`, an updated `opal_obj`. Legacy constructor calls
 #'   return `opal_fit`; use [opal_from_fit()] to migrate them.
+#' @family assessment workflow
+#' @examples
+#' inputs <- opaka_quickstart_inputs()
+#' assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+#' \donttest{
+#' assessment <- opal_fit(assessment)
+#' summary(assessment)
+#' assessment$validation$fit
+#' }
 #' @export
 #'
 opal_fit <- function(data, obj, opt, bounds = NULL, control = NULL,

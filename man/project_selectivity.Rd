@@ -16,7 +16,7 @@ project_selectivity(
 \arguments{
 \item{data}{An Opal object or model data list.}
 
-\item{obj}{a \code{list} of parameter values.}
+\item{obj}{For legacy data-list calls, the RTMB objective. Omit for an Opal object.}
 
 \item{first_yr}{the first year sampled. Defaults to the first model year.}
 
@@ -31,5 +31,11 @@ An array of projected selectivity by iteration, fishery, year, and
 age.
 }
 \description{
-Project selectivity
+Generate future selectivity from a selected historical period in the object's
+point report. For each age and fishery, variable positive selectivities are
+sampled independently on the log scale; constant values are repeated.
+This does not propagate posterior uncertainty in selectivity parameters.
+}
+\seealso{
+\code{\link[=opal_project]{opal_project()}}, \code{\link[=project_dynamics]{project_dynamics()}}
 }

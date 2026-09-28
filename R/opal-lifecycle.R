@@ -8,6 +8,18 @@
 #' @param priors Optional replacement for `data$priors`.
 #' @param metadata Named metadata to merge.
 #' @return An updated `opal_obj`; the input object is not modified.
+#' @details
+#' Changes to data, priors, parameters, maps, random effects, bounds, or RTMB
+#' construction settings clear dependent fits, posteriors, diagnostics, and
+#' projections. Metadata is merged, and optimiser controls can change without
+#' invalidating results. A supplied map is retained unless explicitly replaced;
+#' check its dimensions when changing parameter structure.
+#' @family assessment workflow
+#' @examples
+#' inputs <- opaka_quickstart_inputs()
+#' assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+#' labelled <- opal_update(assessment, metadata = list(label = "Baseline"))
+#' summary(labelled)
 #' @export
 opal_update <- function(x, data, parameters, map, random, bounds, control,
                         makeadfun_args, priors, metadata) {
@@ -64,6 +76,16 @@ opal_update <- function(x, data, parameters, map, random, bounds, control,
 #' @param check Run fitting diagnostics after attachment.
 #' @param check_args Named arguments passed to [opal_check()].
 #' @return A fitted `opal_obj`.
+#' @description
+#' Attach a result from an external optimiser to the configuration that produced
+#' it. The objective, parameter layout, and bounds are verified before retaining
+#' the point. For ordinary optimisation, use [opal_fit()].
+#' @family assessment workflow
+#' @examples
+#' assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+#'                                    package = "opal"))
+#' # Reattach the already verified optimum; no optimisation is performed.
+#' assessment <- opal_attach_fit(assessment, assessment$fit$opt, check = FALSE)
 #' @export
 opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
   x <- opal_build(x)
@@ -142,6 +164,22 @@ opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
 #' @param min_ess Minimum bulk and tail effective sample sizes.
 #' @param stop_on_failure Stop rather than warn when a check fails.
 #' @return The object with an attached validation record.
+#' @details
+#' Fit checks cover optimiser convergence, maximum absolute gradient, a
+#' positive-definite Hessian, parameter bounds, and finite non-negative numbers
+#' at age. MCMC checks require at least two chains, finite R-hat and effective
+#' sample sizes within the thresholds, known sampler diagnostics, no
+#' divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
+#' prevent a passing MCMC check, even if imported parameter draws are usable.
+#' The record is stored in `x$validation[[scope]]`, including metrics, settings,
+#' and the identity of the checked result. These checks do not establish
+#' scientific adequacy of a model or projection scenario.
+#' @family assessment workflow
+#' @examples
+#' assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+#'                                    package = "opal"))
+#' assessment <- opal_check(assessment, scope = "fit")
+#' assessment$validation$fit$metrics
 #' @export
 opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
                        max_rhat = 1.01, min_ess = 100, stop_on_failure = FALSE) {

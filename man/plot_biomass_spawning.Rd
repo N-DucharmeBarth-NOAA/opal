@@ -14,7 +14,7 @@ plot_biomass_spawning(
 \arguments{
 \item{data_list}{An Opal object, list of Opal objects, or list of model data lists.}
 
-\item{object_list}{A list of AD objects created using \code{MakeADFun}.}
+\item{object_list}{Omit for Opal objects. For legacy calls, a list of RTMB objectives.}
 
 \item{relative}{Logical; plot spawning biomass relative to unfished biomass.}
 
@@ -26,4 +26,9 @@ A \code{ggplot2} object.
 \description{
 Plot spawning biomass or relative spawning biomass by year for one or more
 model runs.
+}
+\examples{
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+plot_biomass_spawning(assessment, relative = FALSE, labels = "Baseline")
 }

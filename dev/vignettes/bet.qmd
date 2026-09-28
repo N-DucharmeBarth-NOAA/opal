@@ -16,7 +16,7 @@ vignette: >
   %\VignetteIndexEntry{The BET model}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{quarto::html}
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 
@@ -27,10 +27,16 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Introduction
 
-`opal` is an open, modular R package for fisheries stock assessment built on 
-[RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. It includes 
-bundled data from the western and central Pacific Ocean (WCPO) bigeye tuna (BET) 
-stock assessment. This vignette demonstrates model setup, fitting, and 
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
+
+`opal` is an open, modular R package for fisheries stock assessment built on
+[RTMB](https://github.com/kaskr/RTMB) for automatic differentiation. It includes
+bundled data from the western and central Pacific Ocean (WCPO) bigeye tuna (BET)
+stock assessment. This vignette demonstrates model setup, fitting, and
 diagnostics using those data.
 
 # Load inputs
@@ -95,13 +101,13 @@ real_age <- ages / 4
 ggplot(data = data.frame(age = real_age, M = data$M), aes(x = age, y = M)) +
   geom_line() + geom_point() +
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
-  labs(x = "Age (years)", y = "M (quarterly rate)", 
+  labs(x = "Age (years)", y = "M (quarterly rate)",
        title = "Natural Mortality-at-Age")
 
 # Maturity at length
 len_mid <- seq(data$len_bin_start + data$len_bin_width / 2,
                by = data$len_bin_width, length.out = data$n_len)
-ggplot(data = data.frame(length = len_mid, maturity = data$maturity), 
+ggplot(data = data.frame(length = len_mid, maturity = data$maturity),
        aes(x = length, y = maturity)) +
   geom_line() + geom_point() +
   scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
@@ -161,7 +167,7 @@ var_adjust_scalars[8] <- 5000 # keep LF8 present but much less influential
 # var_adjust_scalars[c(1, 4, 5, 6, 15)] <- 1 / 40000
 # var_adjust_scalars[] <- 1 / 4e9
 
-data <- prep_lf_data(data = data, lf_wide = lf_wide, 
+data <- prep_lf_data(data = data, lf_wide = lf_wide,
                      lf_keep_fisheries = c(8, 9, 10, 11, 12, 13, 14),
                      lf_var_adjust = var_adjust_scalars)
 lf_year_lookup <- lf_wide %>%
@@ -224,7 +230,7 @@ data$wf_calendar_year_fi <- split(data$wf_calendar_year, data$wf_fishery)
 
 Define the initial parameter values. Growth parameters (`log_L1`, `log_L2`,
 `log_k`, `log_CV1`, `log_CV2`) and selectivity (`par_sel`) are initialised at
-reasonable starting values. Load these from the bundled `wcpo_bet_parameters` 
+reasonable starting values. Load these from the bundled `wcpo_bet_parameters`
 data object:
 
 ```{r}
@@ -372,12 +378,12 @@ map <- list(
 )
 ```
 
-## Build the AD object
+## Create the assessment and inspect its runtime
 
-Using the `data`, the `parameters`, the parameter `map`, and the model
-(`opal_model`), the AD object is created using RTMB's `MakeADFun` function.
-Optionally, we could also specify random effects here 
-(e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model 
+Store the data, parameters, and map in an `opal_obj`. Obtain an isolated
+RTMB runtime for the customised optimiser and simulation diagnostics below.
+Optionally, we could also specify random effects here
+(e.g. `random = "rdev_y"`), but we'll start with a simpler fixed-effects model
 to check everything is working first.
 
 ```{r}
@@ -396,7 +402,9 @@ data$wf_switch <- 1 # multinomial likelihood on flat counts (default)
 # data$wf_switch <- 2 # Dirichlet
 # data$wf_switch <- 3 # Dirichlet-multinomial
 
-obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+assessment <- opal_obj(data = data, parameters = parameters, map = map)
+
+obj <- opal_rtmb(assessment, fresh = TRUE)
 obj$env$tracemgc <- FALSE
 obj$par
 names(obj$par)
@@ -428,7 +436,7 @@ plot(obj$report()$spawning_biomass_y, type = "l",
 #| fig-height: 4
 #| fig-width: 7
 #| fig-cap: Initial predicted catch by fleet compared with observed catch.
-plot_catch(data = data, obj = obj)
+plot_catch(assessment)
 ```
 
 ## Parameter bounds
@@ -565,52 +573,29 @@ if (fit_grad < 1e-2) {
 
 ## Portable fit object
 
-Store the optimised model in an `opal_obj`. This example keeps its customised
-optimisation and diagnostics, then converts the legacy constructor result. The fit retains the model inputs,
-parameter map, optimizer output, bounds, diagnostics, and enough information to
-rebuild the transient RTMB objective in a later R session. MCMC output and
-derived products such as projections can be attached later with
-`opal_attach_mcmc()` and `opal_project()`.
+Retain the result in the same `opal_obj`. The customised gradient-only
+optimiser above avoids forming a large Hessian on every pass. Attach its
+result with `opal_attach_fit()` and record its diagnostic measurements as
+metadata. Standard fit validation remains explicitly unchecked here; the
+conditional estimability calculation above is not a complete passing check.
 
 ```{r}
 #| label: make-opal-fit
 #| echo: true
 #| message: false
-legacy_fit <- opal_fit(
-  data = data,
-  obj = obj,
-  opt = opt,
-  bounds = list(lower = Lwr, upper = Upr),
-  control = control,
-  estimability = fit_estimability,
-  diagnostics = list(
-    max_gradient = fit_grad,
-    max_kkt_gradient = fit_kkt_grad,
-    likelihood_components = c(
-      prior = fit_rep$lp_prior,
-      penalty = fit_rep$lp_penalty,
-      recruitment = fit_rep$lp_rec,
-      cpue = sum(fit_rep$lp_cpue),
-      length = sum(fit_rep$lp_lf),
-      weight = sum(fit_rep$lp_wf)
-    )
-  ),
-  metadata = list(
-    stock = "WCPO bigeye tuna",
-    workflow = "BET vignette"
-  )
-)
-
-# Upgrade without refitting; retain the custom diagnostics above.
-fit <- opal_from_fit(legacy_fit)
-
-# Downstream code works from the portable assessment.
-obj <- opal_rtmb(fit)
+assessment <- opal_update(assessment,
+  bounds = list(lower = Lwr, upper = Upr), control = control,
+  metadata = list(stock = "WCPO bigeye tuna", workflow = "BET vignette",
+                  custom_diagnostics = list(max_gradient = fit_grad,
+                                            max_kkt_gradient = fit_kkt_grad)))
+fit <- opal_attach_fit(assessment, opt, check = FALSE)
+obj <- opal_rtmb(fit, fresh = TRUE)
 fit_rep <- opal_report(fit)
-fit
+summary(fit)
 
-# Persist the portable fit when running an assessment:
-# opal_save(fit, "bet-opal-fit.rds")
+# Persist the portable assessment when running this workflow:
+# opal_save(fit, "bet-assessment.rds")
+# fit <- opal_read("bet-assessment.rds")
 ```
 
 ```{r}
@@ -1041,15 +1026,16 @@ sel_par_tbl %>%
 
 ## Diagnostics
 
-The estimability result computed with the fit is stored in compact form, so it
-travels with the other model diagnostics:
+Inspect the conditional estimability calculation from the custom optimiser.
+It may be `NULL` when the gradient check prevented the Hessian calculation.
+Use `opal_check(fit)` when a complete standard fit check is appropriate:
 
 ```{r}
 #| label: check-estimability
 #| echo: true
 #| message: false
 #| eval: true
-fit$fit$estimability
+fit_estimability
 ```
 
 Look for any parameters with high correlations (absolute correlation > 0.95) using the `get_cor_pairs` function:
@@ -1117,10 +1103,10 @@ if (data$cpue_switch == 0) {
   cat("CPUE likelihood is switched off (cpue_switch = 0), so no predicted CPUE to show.\n")
 } else {
   rep <- obj$report(obj$env$last.par.best)
-  
+
   df <- data$cpue_data %>%
     mutate(obs_id = row_number(), pred = rep$cpue_pred, sigma = rep$cpue_sigma)
-  
+
   # Simulations
   n_sim <- 0
   df_sim <- if (n_sim > 0) {
@@ -1145,7 +1131,7 @@ if (data$cpue_switch == 0) {
       sim = numeric()
     )
   }
-  
+
   month_levels <- sort(unique(data$cpue_data$month))
   fish_levels <- sort(unique(data$cpue_data$fishery))
   format_facets <- function(d) {
@@ -1157,7 +1143,7 @@ if (data$cpue_switch == 0) {
   }
   df <- format_facets(df)
   df_sim <- format_facets(df_sim)
-  
+
   ggplot(data = df, aes(x = year)) +
     {if (n_sim > 0) geom_line(data = df_sim, aes(y = sim, group = sim_id),
                               colour = "lightblue", alpha = 0.5, linewidth = 0.3)} +
@@ -1184,8 +1170,8 @@ if (data$cpue_switch == 0) {
 #| fig-width: 7
 #| fig-cap: Predicted catch and catch residual diagnostics for the initial model state.
 sum(fit_rep$catch_pred_ysf - data$catch_obs_ysf)
-plot_catch(data = data, obj = obj)
-plot_catch(data = data, obj = obj, plot_resid = TRUE)
+plot_catch(fit)
+plot_catch(fit, plot_resid = TRUE)
 ```
 
 Inspect predicted vs observed length compositions when the length-composition

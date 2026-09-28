@@ -7,11 +7,17 @@ vignette: >
   %\VignetteIndexEntry{Projections and uncertainty: MVN vs MCMC}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{quarto::html}
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 
 # Overview
+
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
 
 This vignette demonstrates the full simulation-estimation-projection workflow in
 `opal`:
@@ -32,7 +38,7 @@ This vignette demonstrates the full simulation-estimation-projection workflow in
 6. **Compare** the resulting uncertainty envelopes against the true simulated
    trajectory.
 
-See `vignette("bet")` for a detailed walkthrough of the BET model setup.
+See [the BET development workflow](bet.qmd) for a detailed walkthrough of the BET model setup.
 
 ---
 
@@ -115,7 +121,7 @@ catch information to distinguish individual year-class strengths.
 #| message: false
 # Build a temporary model to extract life-history arrays for generation-time
 # calculation; no optimisation is performed here.
-obj_tmp <- MakeADFun(func = cmb(opal_model, data), parameters = parameters,
+assessment_tmp <- opal_obj(data = data, parameters = parameters,
                      map = list(
                        log_h=factor(NA), log_sigma_r=factor(NA), log_B0=factor(NA),
                        cpue_creep=factor(NA), log_cpue_tau=factor(NA),
@@ -129,6 +135,7 @@ obj_tmp <- MakeADFun(func = cmb(opal_model, data), parameters = parameters,
                                                 ncol(parameters$par_sel))),
                        rdev_y=factor(rep(NA, length(parameters$rdev_y)))
                      ))
+obj_tmp <- opal_rtmb(assessment_tmp, fresh = TRUE)
 rep_tmp <- obj_tmp$report()
 
 # Generation time = mean age of spawners at unfished equilibrium (0-based ages)
@@ -175,7 +182,8 @@ map <- list(
 #| label: make-obj
 #| output: false
 #| message: false
-obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+assessment <- opal_obj(data = data, parameters = parameters, map = map)
+obj <- opal_rtmb(assessment, fresh = TRUE)
 
 Lwr <- rep(-Inf, length(obj$par))
 Upr <- rep( Inf, length(obj$par))
@@ -187,10 +195,11 @@ Lwr[grep("rdev_y",     names(obj$par))] <- -5
 Upr[grep("rdev_y",     names(obj$par))] <-  5
 
 control <- list(eval.max = 5000, iter.max = 5000)
-opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
-              lower = Lwr, upper = Upr, control = control)
-opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
-              lower = Lwr, upper = Upr, control = control)
+assessment <- opal_update(assessment,
+  bounds = list(lower = Lwr, upper = Upr), control = control)
+assessment <- opal_fit(assessment, n_passes = 2L)
+opt <- assessment$fit$opt
+obj <- opal_rtmb(assessment, fresh = TRUE)
 
 cat("Max gradient:", max(abs(obj$gr())), "\n")
 cat("NLL:", opt$objective, "\n")
@@ -244,8 +253,9 @@ parameters, then draw a single CPUE realisation:
 #| label: simulate
 #| message: false
 # Build model object with modified catch
-obj_alt <- MakeADFun(func = cmb(opal_model, data_alt), parameters = parameters,
+assessment_alt <- opal_obj(data = data_alt, parameters = parameters,
                      map = map)
+obj_alt <- opal_rtmb(assessment_alt, fresh = TRUE)
 
 # Evaluate at original MLE so internal state = recovery trajectory
 invisible(obj_alt$fn(opt$par))
@@ -291,21 +301,21 @@ observations and gives us a known "truth" for the projection comparison:
 #| label: refit
 #| output: false
 #| message: false
-obj_sim <- MakeADFun(func = cmb(opal_model, data_sim),
-                     parameters = parameters, map = map)
+assessment_sim <- opal_obj(data = data_sim, parameters = parameters, map = map)
+obj_sim <- opal_rtmb(assessment_sim, fresh = TRUE)
 
-opt_sim <- nlminb(start = obj_sim$par, objective = obj_sim$fn,
-                  gradient = obj_sim$gr,
-                  lower = Lwr, upper = Upr, control = control)
-opt_sim <- nlminb(start = opt_sim$par, objective = obj_sim$fn,
-                  gradient = obj_sim$gr,
-                  lower = Lwr, upper = Upr, control = control)
+assessment_sim <- opal_update(assessment_sim,
+  bounds = list(lower = Lwr, upper = Upr), control = control)
+assessment_sim <- opal_fit(assessment_sim, n_passes = 2L)
+opt_sim <- assessment_sim$fit$opt
+obj_sim <- opal_rtmb(assessment_sim, fresh = TRUE)
 
 cat("Max gradient (refitted):", max(abs(obj_sim$gr())), "\n")
 ```
 
-Add data-driven prior centres using the refitted MLE estimates, then rebuild
-`obj_sim` so the AD tape carries the priors for MCMC sampling:
+Add data-driven prior centres using the refitted MLE estimates. This changes
+the scientific target, so update the assessment and refit before comparing
+its Hessian uncertainty with MCMC from the same target:
 
 ```{r}
 #| label: wire-priors
@@ -321,10 +331,12 @@ data_sim$prior_log_cpue_q_mean <- opt_sim$par["log_cpue_q"]
 # values themselves only serve as fallback and do not matter here.
 data_sim$priors <- get_priors(parameters, data_sim)
 
-# Rebuild obj_sim with updated data (AD tape must capture data$priors)
-obj_sim <- MakeADFun(func = cmb(opal_model, data_sim),
-                     parameters = parameters, map = map)
-invisible(obj_sim$fn(opt_sim$par))
+# Start the updated target from the previous fitted parameters.
+assessment_sim <- opal_update(assessment_sim, data = data_sim,
+                               parameters = assessment_sim$fit$parameters)
+assessment_sim <- opal_fit(assessment_sim)
+opt_sim <- assessment_sim$fit$opt
+obj_sim <- opal_rtmb(assessment_sim, fresh = TRUE)
 ```
 
 Compute Hessian-based standard errors for derived quantities via the delta
@@ -448,8 +460,7 @@ n_iter <- 200  # uncertainty iterations
 
 # Projected recruitment deviates — ARIMA-based simulation from the fitted series
 rdev_proj <- project_rec_devs(
-  data     = data_sim,
-  obj      = obj_sim,
+  data = assessment_sim, uncertainty = "fit",
   first_yr = data_sim$first_yr,
   n_proj   = n_proj,
   n_iter   = n_iter
@@ -457,8 +468,7 @@ rdev_proj <- project_rec_devs(
 
 # Projected selectivity — replicate mean selectivity over the last 10 fitted years
 sel_proj <- project_selectivity(
-  data     = data_sim,
-  obj      = obj_sim,
+  data = assessment_sim,
   first_yr = data_sim$last_yr - 9,
   n_proj   = n_proj,
   n_iter   = n_iter
@@ -473,7 +483,7 @@ for (y in seq_len(n_proj)) {
 
 ## Approach 1: MVN simulation
 
-When `mcmc = NULL`, `project_dynamics()` samples parameter sets from a
+When `uncertainty = "mvn"`, `project_dynamics()` samples parameter sets from a
 multivariate-normal distribution centred on the MLE, using the inverse Hessian
 as the covariance matrix.  The sampling is performed on working (unconstrained)
 scales — log for positive parameters, logit for autocorrelation parameters —
@@ -484,9 +494,8 @@ native parameter space before each call to `obj$report()`.
 #| label: proj-mvn
 #| output: false
 proj_mvn <- project_dynamics(
-  data      = data_sim,
-  object    = obj_sim,
-  mcmc      = NULL,          # triggers MVN path
+  data = assessment_sim, uncertainty = "mvn",
+
   n_proj    = n_proj,
   n_iter    = n_iter,
   rdev_y    = rdev_proj$rdev_y,
@@ -497,25 +506,23 @@ proj_mvn <- project_dynamics(
 
 ## Approach 2: MCMC posteriors
 
-Run a No-U-Turn sampler (NUTS) chain via `SparseNUTS`.  The `opal_globals()`
-call exports all helper functions needed for likelihood evaluation inside the
-MCMC workers.
+Run a No-U-Turn sampler (NUTS) chain via `SparseNUTS`.  `opal_mcmc()` supplies worker dependencies and retains the samples in the
+assessment object.
 
 ```{r}
 #| label: mcmc-sampling
 #| eval: false
 #| output: false
-mcmc_fit <- SparseNUTS::sample_snuts(
-  obj         = obj_sim,
-  globals     = opal_globals(),
+assessment_sim <- opal_mcmc(
+  assessment_sim,
   num_samples = 500,
   num_warmup  = 1000,
   chains      = n_chains_mcmc,
   cores       = min(n_chains_mcmc, parallel::detectCores()),
-  metric      = "dense"     # full Hessian-based mass matrix — captures B0/q/rdev_y correlations
+  metric      = "stan"     # full Hessian-based mass matrix — captures B0/q/rdev_y correlations
 )
 
-saveRDS(mcmc_fit, "inst/extdata/mcmc_fit.rds")
+opal_save(assessment_sim, "bet-assessment-sampled.rds")
 ```
 
 For the MCMC path, projected recruitment deviates are generated by fitting an
@@ -529,10 +536,14 @@ because all MVN iterations share the same conditional-expectation history.
 ```{r}
 #| label: rdev-proj-mcmc
 #| output: false
+# Import the bundled legacy draws for this configuration. A new run can
+# instead resume with opal_read("bet-assessment-sampled.rds").
+assessment_sim <- opal_attach_mcmc(assessment_sim, mcmc_fit)
+summary(assessment_sim)
+mcmc_fit <- opal_as_tmbfit(assessment_sim)
 rdev_proj_mcmc <- project_rec_devs(
-  data     = data_sim,
-  obj      = obj_sim,
-  mcmc     = mcmc_fit,              # ARIMA fitted to each posterior draw's rdev_y series
+  data = assessment_sim, uncertainty = "mcmc",
+
   first_yr = data_sim$first_yr,    # match the estimated rdev period
   n_proj   = n_proj,
   n_iter   = n_iter
@@ -543,9 +554,8 @@ rdev_proj_mcmc <- project_rec_devs(
 #| label: proj-mcmc
 #| output: false
 proj_mcmc <- project_dynamics(
-  data        = data_sim,
-  object      = obj_sim,
-  mcmc        = mcmc_fit,      # triggers MCMC path
+  data = assessment_sim, uncertainty = "mcmc",
+
   n_proj      = n_proj,
   n_iter      = n_iter,
   rdev_y      = rdev_proj_mcmc$rdev_y,

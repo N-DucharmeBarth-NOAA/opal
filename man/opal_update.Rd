@@ -34,3 +34,31 @@ Changes to the scientific configuration clear dependent fits, samples, and
 reports. Metadata and optimiser controls do not alter the scientific target.
 Defaults are resolved again when their upstream configuration changes.
 }
+\details{
+Changes to data, priors, parameters, maps, random effects, bounds, or RTMB
+construction settings clear dependent fits, posteriors, diagnostics, and
+projections. Metadata is merged, and optimiser controls can change without
+invalidating results. A supplied map is retained unless explicitly replaced;
+check its dimensions when changing parameter structure.
+}
+\examples{
+inputs <- opaka_quickstart_inputs()
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+labelled <- opal_update(assessment, metadata = list(label = "Baseline"))
+summary(labelled)
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}}
+}
+\concept{assessment workflow}

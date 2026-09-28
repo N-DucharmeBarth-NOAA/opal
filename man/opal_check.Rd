@@ -34,3 +34,35 @@ Checks retain the object even when diagnostics fail. Validation records are
 tied to the exact fitted or sampled state and are separate from lifecycle
 stage. Short MCMC smoke tests are not evidence of convergence.
 }
+\details{
+Fit checks cover optimiser convergence, maximum absolute gradient, a
+positive-definite Hessian, parameter bounds, and finite non-negative numbers
+at age. MCMC checks require at least two chains, finite R-hat and effective
+sample sizes within the thresholds, known sampler diagnostics, no
+divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
+prevent a passing MCMC check, even if imported parameter draws are usable.
+The record is stored in \code{x$validation[[scope]]}, including metrics, settings,
+and the identity of the checked result. These checks do not establish
+scientific adequacy of a model or projection scenario.
+}
+\examples{
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+assessment <- opal_check(assessment, scope = "fit")
+assessment$validation$fit$metrics
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

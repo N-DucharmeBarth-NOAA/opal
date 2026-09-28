@@ -19,5 +19,28 @@ opal_attach_fit(x, opt, check = TRUE, check_args = list())
 A fitted \code{opal_obj}.
 }
 \description{
-Attach an externally optimised Opal fit
+Attach a result from an external optimiser to the configuration that produced
+it. The objective, parameter layout, and bounds are verified before retaining
+the point. For ordinary optimisation, use \code{\link[=opal_fit]{opal_fit()}}.
 }
+\examples{
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+# Reattach the already verified optimum; no optimisation is performed.
+assessment <- opal_attach_fit(assessment, assessment$fit$opt, check = FALSE)
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

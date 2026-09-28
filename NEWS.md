@@ -1,5 +1,10 @@
 # opal 0.0.4
 
+- 2026/09/29: Make assessment objects the primary documentation workflow, add
+  a runnable projection vignette, organise the function reference, and publish
+  a separately labelled development pkgdown site with internal-link checks.
+  Model numerics and function interfaces are unchanged.
+
 - 2026/09/29: Introduce the staged `opal_obj` workflow: configuration, two-pass
   fitting, MCMC, diagnostics, direct plots, projections with source identities,
   and portable `opal_save()`/`opal_read()` persistence. Preserve legacy fit

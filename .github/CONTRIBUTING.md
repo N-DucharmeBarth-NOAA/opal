@@ -55,7 +55,7 @@ TMB:::install.contrib(
 )
 ```
 
-`SparseNUTS` is not on CRAN. If it fails to restore, see the installation notes in the [README](../README.md#installation).
+`SparseNUTS` is not on CRAN. If it fails to restore, see the [installation notes](https://n-ducharmebarth-noaa.github.io/opal/dev/index.html#installation).
 
 ## Development workflow
 
@@ -139,7 +139,11 @@ Add entries under the development version heading at the top of `NEWS.md`, follo
 
 ## Continuous integration
 
-GitHub Actions run `R CMD check` on Ubuntu (vignettes are not built during the check), regenerate documentation, run simulation self-tests, and build the pkgdown site. The pkgdown site is deployed from `main`.
+GitHub Actions run `R CMD check` on Ubuntu (vignettes are not built during the check), regenerate documentation, run simulation self-tests, and build the pkgdown site. The release pkgdown site is deployed from `main`; pushes to `dev` build and
+deploy development documentation under `/opal/dev/`. Both builds check local
+links and retain the rendered site as a workflow artifact. Development
+vignettes under `dev/vignettes/` are run deliberately, separately from the
+three package vignettes.
 
 ## Coding agents
 

@@ -5,6 +5,17 @@
 #' @param check Run posterior diagnostics.
 #' @param check_args Arguments passed to [opal_check()].
 #' @return An updated `opal_obj`. Previous selected draws are retained in history.
+#' @description
+#' Validate and store posterior draws for the object's current configuration.
+#' Parameter names must identify the active model layout. Matrices contain
+#' draws in rows and named variables in columns; arrays use iteration, chain,
+#' and variable dimensions. Use [opal_mcmc()] to run a new sampler.
+#' @details
+#' A failed or unchecked import does not replace a previously checked, passing
+#' posterior; inspect `x$mcmc_history` for unselected attempts. Parameter-only
+#' imports lack sampler diagnostics, so a passing MCMC check requires richer
+#' sampler output. Full joint draws are required for random-effect projections.
+#' @family assessment workflow
 #' @export
 opal_attach_mcmc <- function(x, mcmc, settings = list(), check = TRUE,
                              check_args = list()) {
@@ -46,7 +57,7 @@ opal_attach_mcmc <- function(x, mcmc, settings = list(), check = TRUE,
 #' internal optimisation; an MLE is optional. The default stan metric supports
 #' bounds. Random effects are sampled jointly by default, over their full
 #' domain, while fixed effects retain the object's bounds. Change bounds
-#' with opal_update(), not sampler arguments. Use laplace = TRUE and metric = 'unit'
+#' with [opal_update()]. Use `laplace = TRUE` and `metric = "unit"`
 #' for marginal sampling.
 #' @param x A configured or fitted `opal_obj`.
 #' @param sampler `"snuts"` or a function accepting an `obj` argument and sampler settings.
@@ -56,6 +67,22 @@ opal_attach_mcmc <- function(x, mcmc, settings = list(), check = TRUE,
 #' @param ... Named sampler settings, including seed, chains, cores,
 #'   num_samples, and num_warmup. The obj, globals, lower, and upper arguments are reserved.
 #' @return An updated `opal_obj`, including portable samples and attempt history.
+#' @details
+#' Defaults are four chains, four cores, 1,000 warm-up iterations, and 500
+#' retained iterations per chain. Set `seed` and choose effort appropriate to
+#' the assessment. After sampling, inspect `x$validation$mcmc` and
+#' `x$mcmc_history`; a failed or unchecked attempt cannot replace a previously
+#' checked, passing posterior. [opal_as_tmbfit()] exposes the selected samples
+#' to SparseNUTS plotting and diagnostic tools.
+#' @family assessment workflow
+#' @examples
+#' \dontrun{
+#' assessment <- opal_read("assessment.rds")
+#' assessment <- opal_mcmc(assessment, seed = 42, chains = 4, cores = 4,
+#'                         num_warmup = 1000, num_samples = 500)
+#' summary(assessment)
+#' opal_save(assessment, "assessment-sampled.rds")
+#' }
 #' @export
 opal_mcmc <- function(x, sampler = "snuts", init = "auto", check = TRUE,
                       check_args = list(), ...) {

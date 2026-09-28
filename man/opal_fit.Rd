@@ -2,7 +2,7 @@
 % Please edit documentation in R/opal-fit.R
 \name{opal_fit}
 \alias{opal_fit}
-\title{Create a portable fitted opal model object}
+\title{Fit an Opal assessment}
 \usage{
 opal_fit(
   data,
@@ -27,35 +27,35 @@ opal_fit(
 \item{data}{An \code{opal_obj} to optimise, or the legacy named model data list
 used to construct \code{obj}. With an \code{opal_obj}, returns an updated object.}
 
-\item{obj}{Fitted RTMB objective created with \code{opal_model}.}
+\item{obj}{Legacy only: fitted RTMB objective. Omit for an \code{opal_obj}.}
 
-\item{opt}{Optimizer result, normally returned by \code{\link[stats:nlminb]{stats::nlminb()}}.}
+\item{opt}{Legacy only: optimiser result. Omit for an \code{opal_obj}.}
 
-\item{bounds}{Optional bounds data frame from \code{\link[=get_bounds]{get_bounds()}} or a list with
+\item{bounds}{Legacy only: bounds data frame from \code{\link[=get_bounds]{get_bounds()}} or a list with
 \code{lower} and \code{upper}.}
 
-\item{control}{Optional optimizer control list.}
+\item{control}{Optional control list passed to \code{\link[stats:nlminb]{stats::nlminb()}}.}
 
-\item{estimability}{Optional output from \code{\link[=check_estimability]{check_estimability()}}. A compact
+\item{estimability}{Legacy only: output from \code{\link[=check_estimability]{check_estimability()}}. A compact
 summary is retained.}
 
-\item{diagnostics}{Optional named list of fit diagnostics.}
+\item{diagnostics}{Legacy only: named list of fit diagnostics.}
 
-\item{metadata}{Optional named list of user metadata.}
+\item{metadata}{Legacy only: named list of user metadata.}
 
-\item{mcmc}{Optional SparseNUTS-style fit, posterior matrix, or
+\item{mcmc}{Legacy only: SparseNUTS-style fit, posterior matrix, or
 iteration-chain-variable array.}
 
-\item{mcmc_settings}{Optional named list of sampler settings not already
+\item{mcmc_settings}{Legacy only: named list of sampler settings not already
 present in \code{mcmc}.}
 
-\item{derived}{Optional named list of portable derived results, such as
+\item{derived}{Legacy only: named list of portable derived results, such as
 projections or retrospective summaries.}
 
-\item{makeadfun_args}{Optional named list of additional arguments needed to
+\item{makeadfun_args}{Legacy only: named list of additional arguments needed to
 rebuild \code{RTMB::MakeADFun()}. Core arguments are reserved.}
 
-\item{optimizer}{Non-empty character name of the optimizer used.}
+\item{optimizer}{Legacy only: non-empty character name of the optimiser used.}
 
 \item{n_passes}{Number of sequential optimisation passes for an \code{opal_obj}.}
 
@@ -68,8 +68,44 @@ With an \code{opal_obj}, an updated \code{opal_obj}. Legacy constructor calls
 return \code{opal_fit}; use \code{\link[=opal_from_fit]{opal_from_fit()}} to migrate them.
 }
 \description{
-Captures the plain R state needed to reproduce a fitted opal model without
-serializing the transient RTMB objective. The objective is retained only in
-a session cache and can be rebuilt with \code{\link[=rebuild_opal_object]{rebuild_opal_object()}}. Optional
-SparseNUTS output is normalized to a package-owned \code{opal_mcmc} payload.
+Pass an \code{\link[=opal_obj]{opal_obj()}} to optimise its model with \code{nlminb()}, retain the
+optimiser passes, and run \code{\link[=opal_check]{opal_check()}}. The default is two sequential
+passes. A completed optimisation does not guarantee convergence: inspect
+\code{summary(assessment)} and \code{assessment$validation$fit} before using results.
 }
+\details{
+For the object workflow, use \code{opal_fit(assessment, n_passes = 2L, control = NULL, check = TRUE, check_args = list())}. Configuration comes
+from the object; change bounds, maps, or metadata with \code{\link[=opal_update]{opal_update()}}.
+Omitting \code{control} uses the stored controls, or the Opal defaults.
+Refitting an unchanged target preserves its posterior with the provenance
+of the fit that originally supplied it. Failed checks warn and retain results.
+
+The legacy call \code{opal_fit(data, obj, opt, ...)} remains available to capture
+an already fitted RTMB model. Arguments marked legacy below apply only to
+that interface. New custom-optimiser workflows should use \code{\link[=opal_attach_fit]{opal_attach_fit()}}.
+Convert an existing legacy fit with \code{\link[=opal_from_fit]{opal_from_fit()}}.
+}
+\examples{
+inputs <- opaka_quickstart_inputs()
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+\donttest{
+assessment <- opal_fit(assessment)
+summary(assessment)
+assessment$validation$fit
+}
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

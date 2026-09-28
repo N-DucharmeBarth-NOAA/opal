@@ -16,6 +16,12 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Introduction
 
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
+
 This example compares the existing SS3 pattern-24 double-normal selectivity
 with the six-parameter double Richards curve for the ResFish fleet in the
 bundled opakapaka assessment. Both models retain the commercial logistic
@@ -23,7 +29,7 @@ selectivity, use the same data and likelihoods, and estimate the same
 selectivity parameters. This is an illustrative curve-family comparison, not
 an assessment recommendation or an evaluation of parameter identifiability.
 
-The double Richards curve has an ascending and descending generalized-logistic
+The double Richards curve has an ascending and descending generalised-logistic
 limb. Its six real-line parameters respectively control the ascending 50% point,
 ascending width, ascending shape, separation to the descending 50% point,
 descending width, and descending shape. Shape parameters of zero give logistic
@@ -31,8 +37,8 @@ limbs. Unlike the double-normal curve, the double Richards curve is smooth in
 both length and its parameters. Its raw peak is not rescaled, so overlapping
 limbs can produce a peak below one.
 
-Each fitted assessment is retained as an `opal_fit` S3 object. `opal_fit`
-stores portable model inputs, fitted parameters, bounds, optimization output,
+Each assessment is retained as an `opal_obj` S3 object. `opal_obj`
+stores portable model inputs, fitted parameters, bounds, optimiser output,
 and diagnostics, while `opal_report()` rebuilds or retrieves the
 session-specific RTMB objective only when a report is needed.
 
@@ -167,7 +173,6 @@ fit_model <- function(data, parameters, selectivity) {
   assessment <- opal_obj(data, parameters, map,
                           metadata = list(selectivity = selectivity))
   assessment <- opal_fit(assessment)
-  assessment$fit$diagnostics$max_gradient <- assessment$validation$fit$metrics$max_gradient
   assessment
 
 }
@@ -180,8 +185,8 @@ report_dr <- opal_report(fit_dr)
 data.frame(
   model = c("Double-normal", "Double Richards"),
   convergence = c(fit_dn$fit$opt$convergence, fit_dr$fit$opt$convergence),
-  maximum_gradient = c(fit_dn$fit$diagnostics$max_gradient,
-                       fit_dr$fit$diagnostics$max_gradient),
+  maximum_gradient = c(fit_dn$validation$fit$metrics$max_gradient,
+                       fit_dr$validation$fit$metrics$max_gradient),
   nll = c(fit_dn$fit$opt$objective, fit_dr$fit$opt$objective)
 )
 ```

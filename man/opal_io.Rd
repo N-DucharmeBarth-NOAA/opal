@@ -29,7 +29,10 @@ opal_read(
 \item{strict}{Reject incompatible scientific contracts. FALSE permits
 inspection only; runtime access still rejects an incompatible model.}
 
-\item{integrity}{Legacy cross-R verification mode.}
+\item{integrity}{Verification mode for legacy files: \code{"portable"} checks
+the rebuilt objective across R versions; \code{"exact"} also requires the
+original runtime checksum. New-format files always verify their payload
+checksum, independently of this legacy option.}
 }
 \value{
 Save returns the path invisibly; read returns an \code{opal_obj}.
@@ -40,3 +43,33 @@ payload; their transient RTMB objective is never serialised. Reads verify
 the checksum and scientific contract. Legacy fits are converted with
 objective verification. No read operation optimises or samples.
 }
+\details{
+Assign the return value of \code{opal_read()} to resume work in another session.
+Use \code{rebuild = TRUE} to verify runtime reconstruction immediately. Existing
+files are protected by default; set \code{overwrite = TRUE} deliberately when
+saving an updated assessment to the same path.
+}
+\examples{
+inputs <- opaka_quickstart_inputs()
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+path <- tempfile(fileext = ".rds")
+opal_save(assessment, path)
+restored <- opal_read(path, rebuild = TRUE)
+summary(restored)
+unlink(path)
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

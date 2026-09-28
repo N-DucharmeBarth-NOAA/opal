@@ -7,10 +7,16 @@ vignette: >
   %\VignetteIndexEntry{Save & Compare Refactoring Baseline}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{quarto::html}
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 # Introduction
+
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
 
 This vignette saves a complete numerical baseline of the `opal` BET model
 before a refactoring change, then compares a post-refactoring build against
@@ -176,17 +182,17 @@ map <- list(
 )
 ```
 
-## Build the AD object
+## Create the assessment and inspect its runtime
 
 ```{r}
 #| label: make-adfun
 #| echo: true
 #| message: false
 t_build <- system.time({
-  obj <- MakeADFun(func = cmb(opal_model, data),
-                   parameters = parameters, map = map)
+  assessment <- opal_obj(data = data, parameters = parameters, map = map)
+  obj <- opal_rtmb(assessment, fresh = TRUE)
 })
-cat("MakeADFun build time:", round(t_build["elapsed"], 2), "sec\n")
+cat("Assessment and runtime build time:", round(t_build["elapsed"], 2), "sec\n")
 cat("Estimated parameters:", length(obj$par), "\n")
 ```
 

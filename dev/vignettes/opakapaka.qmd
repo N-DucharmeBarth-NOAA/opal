@@ -7,7 +7,7 @@ vignette: >
   %\VignetteIndexEntry{'Opakapaka case study: benchmarking opal against Stock Synthesis 3}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{quarto::html}
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 
@@ -17,6 +17,12 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
 # Introduction
+
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
 
 This vignette documents the configuration, fitting, and cross-platform
 benchmarking of an `opal` stock assessment model for 'opakapaka
@@ -314,10 +320,11 @@ map <- list(
 )
 ```
 
-## Build the AD object
+## Create the assessment and inspect its runtime
 
-Using the `data`, the `parameters`, the parameter `map`, and the model
-(`opal_model`), the AD object is created using RTMB's `MakeADFun` function:
+Store the data, parameters, and map in an `opal_obj`. An isolated RTMB
+runtime supports the detailed diagnostics below; fitting and persistence
+operate on the assessment object:
 
 ```{r}
 #| label: make-adfun
@@ -327,7 +334,8 @@ data$lf_switch <- 0 # skip length comps initially (removal only)
 # data$lf_switch <- 1L # multinomial likelihood
 # data$cpue_switch <- 0L
 # Can set random = "rdev_y" to treat recruitment deviations as random effects, but start with fixed effects for simplicity
-obj <- MakeADFun(func = cmb(opal_model, data), parameters = parameters, map = map)
+assessment <- opal_obj(data = data, parameters = parameters, map = map)
+obj <- opal_rtmb(assessment, fresh = TRUE)
 unique(names(obj$par))
 obj$fn()
 obj$gr()
@@ -393,8 +401,9 @@ map_aspm <- map
 map_aspm$rdev_y     <- factor(rep(NA, length(parameters_aspm$rdev_y)))
 map_aspm$init_rdev_a <- factor(rep(NA, data$n_age))
 
-obj_aspm <- MakeADFun(func = cmb(opal_model, data_aspm),
-                      parameters = parameters_aspm, map = map_aspm)
+assessment_aspm <- opal_obj(data = data_aspm, parameters = parameters_aspm, map = map_aspm)
+
+obj_aspm <- opal_rtmb(assessment_aspm, fresh = TRUE)
 unique(names(obj_aspm$par))
 obj_aspm$fn()
 ```
@@ -420,15 +429,11 @@ Upr_aspm[grep("log_cpue_q", names(obj_aspm$par))] <- log(10)
 #| echo: true
 #| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
-opt_aspm <- nlminb(start = obj_aspm$par, objective = obj_aspm$fn,
-                   gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
-                   control = control)
-opt_aspm <- nlminb(start = opt_aspm$par, objective = obj_aspm$fn,
-                   gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
-                   control = control)
-opt_aspm <- nlminb(start = opt_aspm$par, objective = obj_aspm$fn,
-                   gradient = obj_aspm$gr, lower = Lwr_aspm, upper = Upr_aspm,
-                   control = control)
+assessment_aspm <- opal_update(assessment_aspm,
+  bounds = list(lower = Lwr_aspm, upper = Upr_aspm), control = control)
+assessment_aspm <- opal_fit(assessment_aspm, n_passes = 3L)
+opt_aspm <- assessment_aspm$fit$opt
+obj_aspm <- opal_rtmb(assessment_aspm, fresh = TRUE)
 ```
 
 ```{r}
@@ -489,19 +494,19 @@ deviations (`rdev_y`) and initial age-structure deviations (`init_rdev_a`),
 allowing the model to track interannual recruitment variability. It fits the
 CPUE index only; length compositions remain off.
 
-Optimise using the `nlminb` function, run twice to ensure convergence:
+Fit the assessment with three sequential optimiser passes, then inspect
+the diagnostics; repeated optimisation alone does not establish convergence:
 
 ```{r}
 #| label: run-nlminb
 #| echo: true
 #| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
-opt <- nlminb(start = obj$par, objective = obj$fn, gradient = obj$gr,
-              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
-opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
-              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
-opt <- nlminb(start = opt$par, objective = obj$fn, gradient = obj$gr,
-              hessian = obj$he, lower = Lwr, upper = Upr, control = control)
+assessment <- opal_update(assessment,
+  bounds = list(lower = Lwr, upper = Upr), control = control)
+assessment <- opal_fit(assessment, n_passes = 3L)
+opt <- assessment$fit$opt
+obj <- opal_rtmb(assessment, fresh = TRUE)
 obj$fn()
 max(abs(obj$gr()))
 obj$report()$lp_prior
@@ -862,51 +867,51 @@ four model variants that progressively relax constraints:
 # Build parameter list with all values at SS3 MLEs
 parameters_ss3 <- parameters  # start from the current parameter list
 
-# B0: SS3's SSB_Virgin = 4785.86 
+# B0: SS3's SSB_Virgin = 4785.86
 parameters_ss3$log_B0 <- log(4785.86)
 
-# Steepness, sigma_r 
-parameters_ss3$log_h <- log(0.76) 
-parameters_ss3$log_sigma_r <- log(0.52) 
+# Steepness, sigma_r
+parameters_ss3$log_h <- log(0.76)
+parameters_ss3$log_sigma_r <- log(0.52)
 
 # CPUE catchability (from ss.par LnQ_base)
-parameters_ss3$log_cpue_q <- c(-3.74414655161, -6.23387027572) 
+parameters_ss3$log_cpue_q <- c(-3.74414655161, -6.23387027572)
 
 # Recruitment deviations: use SS3's full recdev vector
 ss3_early <- c(
-  -0.100388081942, -0.0133231316797, -0.0205218842101, -0.0243787483951, -0.0254464045204, 
-  -0.0309043433115, -0.0323683089752, -0.0347861084933, -0.0410012292256, -0.0465287465557, 
-  -0.0483985193582, -0.0650709835384, -0.0730960186062, -0.0793601697985, -0.0916013103317, 
-  -0.0711755058129, -0.0873595560193, -0.0955446758745, -0.0806933151000, -0.0368260177671, 
+  -0.100388081942, -0.0133231316797, -0.0205218842101, -0.0243787483951, -0.0254464045204,
+  -0.0309043433115, -0.0323683089752, -0.0347861084933, -0.0410012292256, -0.0465287465557,
+  -0.0483985193582, -0.0650709835384, -0.0730960186062, -0.0793601697985, -0.0916013103317,
+  -0.0711755058129, -0.0873595560193, -0.0955446758745, -0.0806933151000, -0.0368260177671,
   0.00663148238291, -0.0369263951583
-) 
+)
 
 ss3_recdev2 <- c(
-  0.0898798722060, -0.0919739062107, -0.0488564460371, -0.0797260689764, 1.83829650229, 
-  -0.873301204449, -0.490428267008, -0.157171136291, -0.232120826122, 0.953858054349, 
-  -0.737573581568, -1.08461065089, -0.637868159763, -0.934868322300, -1.72922585297, 
-  -0.699373643035, -2.02175315411, -2.20933860510, 1.36337011943, -1.07372072783, 
-  0.00685259273854, 0.0182242930198, 0.0427099426272, 0.0662006349269, 0.0694910737975, 
-  0.0758887519085, 0.0793469633128, 0.0726814957641, 0.0758684448321, 0.0756207512152, 
-  0.0688521101610, 0.0828900343037, 0.0715624551603, 0.0730163471792, 0.0890257135687, 
-  0.0783664017535, 0.0806897553991, -0.755963354768, -0.0525403469453, 0.666734524461, 
-  -0.511914821670, 0.600711769603, 0.483259386264, -0.124994792101, -0.628092867573, 
-  0.335410237277, 0.572806369958, -0.896710824827, 0.367139586377, -0.139086836557, 
-  -0.0176418339395, -0.313022461971, -0.284929128456, 0.297020376982, -0.545617764725, 
-  -1.20081598781, -0.482796197420, -1.15050091740, -0.183455169268, -1.27372662907, 
-  0.562755219094, -0.0884643712166, -0.678641658554, -0.181153422133, 0.223682687681, 
-  0.503069168537, -0.240753189196, 0.310816321640, 0.589877497159, -0.0449985095147, 
-  -0.525425283716, -0.102773027444, -0.810755125650, -0.0540447620912, -0.0641558428572, 
-  -0.226062803588, 0.251881337494, 0.314568302935, 0.460729603143, 0.546857137016, 
-  0.328741809160, 0.0844776134106, -0.00794988734173, -0.621421981067, -0.816127773538, 
-  -0.0339354219406, -1.25151257570, -0.245244520498, 0.978242288327, 0.0661896749837, 
-  -0.340074963625, -1.20599618914, 0.0272569302965, 0.795699552551, -0.955887084821, 
-  0.939729029175, 0.657807067048, 0.820398283059, -0.0250147568033, -0.471654518218, 
-  -0.182452156358, -0.0406356927574, 0.153207399783, -0.0964843056519, -0.0170828802073, 
-  -0.201316841963, 0.0793882544085, 0.320280198818, 0.304378032386, -0.570128219659, 
-  0.577409302896, 0.473936474269, 0.106050739082, 0.185694724022, -0.0214486454327, 
+  0.0898798722060, -0.0919739062107, -0.0488564460371, -0.0797260689764, 1.83829650229,
+  -0.873301204449, -0.490428267008, -0.157171136291, -0.232120826122, 0.953858054349,
+  -0.737573581568, -1.08461065089, -0.637868159763, -0.934868322300, -1.72922585297,
+  -0.699373643035, -2.02175315411, -2.20933860510, 1.36337011943, -1.07372072783,
+  0.00685259273854, 0.0182242930198, 0.0427099426272, 0.0662006349269, 0.0694910737975,
+  0.0758887519085, 0.0793469633128, 0.0726814957641, 0.0758684448321, 0.0756207512152,
+  0.0688521101610, 0.0828900343037, 0.0715624551603, 0.0730163471792, 0.0890257135687,
+  0.0783664017535, 0.0806897553991, -0.755963354768, -0.0525403469453, 0.666734524461,
+  -0.511914821670, 0.600711769603, 0.483259386264, -0.124994792101, -0.628092867573,
+  0.335410237277, 0.572806369958, -0.896710824827, 0.367139586377, -0.139086836557,
+  -0.0176418339395, -0.313022461971, -0.284929128456, 0.297020376982, -0.545617764725,
+  -1.20081598781, -0.482796197420, -1.15050091740, -0.183455169268, -1.27372662907,
+  0.562755219094, -0.0884643712166, -0.678641658554, -0.181153422133, 0.223682687681,
+  0.503069168537, -0.240753189196, 0.310816321640, 0.589877497159, -0.0449985095147,
+  -0.525425283716, -0.102773027444, -0.810755125650, -0.0540447620912, -0.0641558428572,
+  -0.226062803588, 0.251881337494, 0.314568302935, 0.460729603143, 0.546857137016,
+  0.328741809160, 0.0844776134106, -0.00794988734173, -0.621421981067, -0.816127773538,
+  -0.0339354219406, -1.25151257570, -0.245244520498, 0.978242288327, 0.0661896749837,
+  -0.340074963625, -1.20599618914, 0.0272569302965, 0.795699552551, -0.955887084821,
+  0.939729029175, 0.657807067048, 0.820398283059, -0.0250147568033, -0.471654518218,
+  -0.182452156358, -0.0406356927574, 0.153207399783, -0.0964843056519, -0.0170828802073,
+  -0.201316841963, 0.0793882544085, 0.320280198818, 0.304378032386, -0.570128219659,
+  0.577409302896, 0.473936474269, 0.106050739082, 0.185694724022, -0.0214486454327,
   -0.304247844565, -0.794738878920, 0.360593778732, -0.440429885505, -0.0979735757953, 0.00000000000
-) 
+)
 
 parameters_ss3$init_rdev_a <- rev(c(ss3_early, ss3_recdev2[1:22]))
 parameters_ss3$init_rdev_a[1] <- ss3_recdev2[22]  # 1949 dev at age 0
@@ -918,7 +923,7 @@ parameters_ss3$rdev_y <- c(ss3_recdev2[23:length(ss3_recdev2)], 0.0)
 parameters_ss3$par_sel <- parameters$par_sel
 
 # Initial F
-parameters_ss3$log_init_F_f <- c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1)) 
+parameters_ss3$log_init_F_f <- c(log(0.0119122), rep(log(1e-8), data$n_fishery - 1))
 
 # ---- Platoon-weighted selectivity-at-age override ----
 # Values extracted from SS3 AGE_SELEX report (Asel2)
@@ -926,39 +931,39 @@ platoon_frac <- c(1)
 
 # Fleet 1 (Comm) - Asel2 for single platoon (ages 0-43)
 sel1_p1 <- c(
-  0, 0.000743477, 0.28038, 0.883339, 0.988619, 0.998576, 0.999738, 0.999931, 
-  0.999976, 0.999989, 0.999994, 0.999997, 0.999998, 0.999998, 0.999999, 0.999999, 
-  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 
-  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 
-  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 
+  0, 0.000743477, 0.28038, 0.883339, 0.988619, 0.998576, 0.999738, 0.999931,
+  0.999976, 0.999989, 0.999994, 0.999997, 0.999998, 0.999998, 0.999999, 0.999999,
+  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999,
+  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999,
+  0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999, 0.999999,
   0.999999, 0.999999, 0.999999, 0.999999
 )
 
 # Fleet 2 (Non_comm) - Asel2 for single platoon (ages 0-43)
 sel2_p1 <- c(
-  0, 0.0191573, 0.189067, 0.56362, 0.818265, 0.923212, 0.963411, 0.980038, 
-  0.987707, 0.991629, 0.993818, 0.99513, 0.995963, 0.996516, 0.996897, 0.997166, 
-  0.997362, 0.997505, 0.997613, 0.997694, 0.997755, 0.997803, 0.997839, 0.997867, 
-  0.997889, 0.997906, 0.997919, 0.99793, 0.997938, 0.997944, 0.997949, 0.997953, 
-  0.997956, 0.997958, 0.99796, 0.997962, 0.997963, 0.997964, 0.997964, 0.997965, 
+  0, 0.0191573, 0.189067, 0.56362, 0.818265, 0.923212, 0.963411, 0.980038,
+  0.987707, 0.991629, 0.993818, 0.99513, 0.995963, 0.996516, 0.996897, 0.997166,
+  0.997362, 0.997505, 0.997613, 0.997694, 0.997755, 0.997803, 0.997839, 0.997867,
+  0.997889, 0.997906, 0.997919, 0.99793, 0.997938, 0.997944, 0.997949, 0.997953,
+  0.997956, 0.997958, 0.99796, 0.997962, 0.997963, 0.997964, 0.997964, 0.997965,
   0.997965, 0.997966, 0.997966, 0.997966
 )
 
 # Fleet 3 (ResFish) - Asel2 for single platoon (ages 0-43)
 sel3_p1 <- c(
-  0, 0.989487, 0.999614, 0.906725, 0.599267, 0.369316, 0.263631, 0.219743, 
-  0.200867, 0.192082, 0.187625, 0.185176, 0.183734, 0.182834, 0.182246, 0.181847, 
-  0.181568, 0.181367, 0.181221, 0.181112, 0.181031, 0.180969, 0.180922, 0.180885, 
-  0.180857, 0.180835, 0.180819, 0.180805, 0.180795, 0.180787, 0.180781, 0.180776, 
-  0.180772, 0.180769, 0.180767, 0.180765, 0.180763, 0.180762, 0.180761, 0.180761, 
+  0, 0.989487, 0.999614, 0.906725, 0.599267, 0.369316, 0.263631, 0.219743,
+  0.200867, 0.192082, 0.187625, 0.185176, 0.183734, 0.182834, 0.182246, 0.181847,
+  0.181568, 0.181367, 0.181221, 0.181112, 0.181031, 0.180969, 0.180922, 0.180885,
+  0.180857, 0.180835, 0.180819, 0.180805, 0.180795, 0.180787, 0.180781, 0.180776,
+  0.180772, 0.180769, 0.180767, 0.180765, 0.180763, 0.180762, 0.180761, 0.180761,
   0.18076, 0.18076, 0.180759, 0.180759
 )
 
 # Platoon-weighted selectivity-at-age by fleet
 sel_fa <- matrix(0, nrow = 3, ncol = 44)
-sel_fa[1, ] <- platoon_frac[1] * sel1_p1 
-sel_fa[2, ] <- platoon_frac[1] * sel2_p1 
-sel_fa[3, ] <- platoon_frac[1] * sel3_p1 
+sel_fa[1, ] <- platoon_frac[1] * sel1_p1
+sel_fa[2, ] <- platoon_frac[1] * sel2_p1
+sel_fa[3, ] <- platoon_frac[1] * sel3_p1
 
 data$sel_fa_external <- sel_fa
 
@@ -985,13 +990,13 @@ map_fixed <- list(
 # ---- Build and evaluate: without selectivity override ----
 data_no_sel <- data
 data_no_sel$sel_fa_external <- NULL
-obj_check_nosel <- MakeADFun(func = cmb(opal_model, data_no_sel),
-                             parameters = parameters_ss3, map = map_fixed)
+assessment_check_nosel <- opal_obj(data = data_no_sel, parameters = parameters_ss3, map = map_fixed)
+obj_check_nosel <- opal_rtmb(assessment_check_nosel, fresh = TRUE)
 rep_check_nosel <- obj_check_nosel$report()
 
 # ---- Build and evaluate: with selectivity override ----
-obj_check <- MakeADFun(func = cmb(opal_model, data),
-                       parameters = parameters_ss3, map = map_fixed)
+assessment_check <- opal_obj(data = data, parameters = parameters_ss3, map = map_fixed)
+obj_check <- opal_rtmb(assessment_check, fresh = TRUE)
 rep_check <- obj_check$report()
 
 cat("Without selectivity override:\n")
@@ -1067,9 +1072,9 @@ map_est$log_cpue_q <- NULL
 # map_est$log_init_F_f <- factor(c(1, rep(NA, data$n_fishery - 1)))
 
 # Build object using opal PLA model (with selectivity override)
-obj_est <- MakeADFun(func = cmb(opal_model, data_no_sel),
-                     parameters = parameters_ss3,
+assessment_est <- opal_obj(data = data_no_sel, parameters = parameters_ss3,
                      map = map_est)
+obj_est <- opal_rtmb(assessment_est, fresh = TRUE)
 
 # Parameter bounds (relevant parameters only)
 Lwr <- rep(-Inf, length(obj_est$par))
@@ -1085,12 +1090,11 @@ Upr[grep("log_init_F_f", names(obj_est$par))] <- log(3)
 
 # Optimize (2-stage run for stability)
 control <- list(eval.max = 10000, iter.max = 10000)
-opt_est <- nlminb(start = obj_est$par, objective = obj_est$fn,
-                  gradient = obj_est$gr, lower = Lwr, upper = Upr,
-                  control = control)
-opt_est <- nlminb(start = opt_est$par, objective = obj_est$fn,
-                  gradient = obj_est$gr, lower = Lwr, upper = Upr,
-                  control = control)
+assessment_est <- opal_update(assessment_est,
+  bounds = list(lower = Lwr, upper = Upr), control = control)
+assessment_est <- opal_fit(assessment_est, n_passes = 2L)
+opt_est <- assessment_est$fit$opt
+obj_est <- opal_rtmb(assessment_est, fresh = TRUE)
 
 cat("estimation convergence:", opt_est$convergence, "\n")
 cat("max gradient:", max(abs(obj_est$gr())), "\n")
@@ -1171,15 +1175,15 @@ map_lf <- map
 map_lf$par_sel <- factor(map_sel)
 ```
 
-## Build the AD object
+## Create the assessment and inspect its runtime
 
 ```{r}
 #| label: lf-make-adfun
 #| echo: true
 #| message: false
-obj_lf <- MakeADFun(func = cmb(opal_model, data_lf),
-                    parameters = parameters,
+assessment_lf <- opal_obj(data = data_lf, parameters = parameters,
                     map = map_lf)
+obj_lf <- opal_rtmb(assessment_lf, fresh = TRUE)
 unique(names(obj_lf$par))
 obj_lf$fn()   # should be finite
 ```
@@ -1212,15 +1216,11 @@ Upr_lf[grep("par_sel",     names(obj_lf$par))] <-  7
 #| echo: true
 #| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
-opt_lf <- nlminb(start = obj_lf$par, objective = obj_lf$fn,
-                 gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
-                 control = control)
-opt_lf <- nlminb(start = opt_lf$par, objective = obj_lf$fn,
-                 gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
-                 control = control)
-opt_lf <- nlminb(start = opt_lf$par, objective = obj_lf$fn,
-                 gradient = obj_lf$gr, lower = Lwr_lf, upper = Upr_lf,
-                 control = control)
+assessment_lf <- opal_update(assessment_lf,
+  bounds = list(lower = Lwr_lf, upper = Upr_lf), control = control)
+assessment_lf <- opal_fit(assessment_lf, n_passes = 3L)
+opt_lf <- assessment_lf$fit$opt
+obj_lf <- opal_rtmb(assessment_lf, fresh = TRUE)
 ```
 
 ```{r}
@@ -1429,9 +1429,10 @@ data_cc$cpue_switch <- 0L   # exclude CPUE from likelihood
 map_cc <- map_lf
 map_cc$log_cpue_q <- factor(rep(NA, length(parameters$log_cpue_q)))
 
-obj_cc <- MakeADFun(func = cmb(opal_model, data_cc),
-                    parameters = parameters,
+assessment_cc <- opal_obj(data = data_cc, parameters = parameters,
                     map = map_cc)
+
+obj_cc <- opal_rtmb(assessment_cc, fresh = TRUE)
 unique(names(obj_cc$par))
 obj_cc$fn()   # should be finite
 ```
@@ -1462,15 +1463,11 @@ Upr_cc[grep("par_sel",     names(obj_cc$par))] <-  7
 #| echo: true
 #| results: hide
 control <- list(eval.max = 10000, iter.max = 10000)
-opt_cc <- nlminb(start = obj_cc$par, objective = obj_cc$fn,
-                 gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
-                 control = control)
-opt_cc <- nlminb(start = opt_cc$par, objective = obj_cc$fn,
-                 gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
-                 control = control)
-opt_cc <- nlminb(start = opt_cc$par, objective = obj_cc$fn,
-                 gradient = obj_cc$gr, lower = Lwr_cc, upper = Upr_cc,
-                 control = control)
+assessment_cc <- opal_update(assessment_cc,
+  bounds = list(lower = Lwr_cc, upper = Upr_cc), control = control)
+assessment_cc <- opal_fit(assessment_cc, n_passes = 3L)
+opt_cc <- assessment_cc$fit$opt
+obj_cc <- opal_rtmb(assessment_cc, fresh = TRUE)
 ```
 
 ```{r}

@@ -5,6 +5,12 @@
 #' @param x A legacy `opal_fit` or an `opal_obj`.
 #' @param integrity Legacy runtime verification mode; portable permits verified cross-R reads.
 #' @return An `opal_obj`.
+#' @family assessment workflow
+#' @examples
+#' legacy <- read_opal_fit(system.file("extdata", "opaka_quickstart_fit.rds",
+#'                                    package = "opal"), integrity = "portable")
+#' assessment <- opal_from_fit(legacy)
+#' summary(assessment)
 #' @export
 opal_from_fit <- function(x, integrity = c("portable", "exact")) {
   if (inherits(x, "opal_obj")) {
@@ -48,9 +54,26 @@ opal_from_fit <- function(x, integrity = c("portable", "exact")) {
 #' @param rebuild Rebuild a configured object's runtime after reading.
 #' @param strict Reject incompatible scientific contracts. FALSE permits
 #'   inspection only; runtime access still rejects an incompatible model.
-#' @param integrity Legacy cross-R verification mode.
+#' @param integrity Verification mode for legacy files: `"portable"` checks
+#'   the rebuilt objective across R versions; `"exact"` also requires the
+#'   original runtime checksum. New-format files always verify their payload
+#'   checksum, independently of this legacy option.
 #' @return Save returns the path invisibly; read returns an `opal_obj`.
 #' @name opal_io
+#' @details
+#' Assign the return value of `opal_read()` to resume work in another session.
+#' Use `rebuild = TRUE` to verify runtime reconstruction immediately. Existing
+#' files are protected by default; set `overwrite = TRUE` deliberately when
+#' saving an updated assessment to the same path.
+#' @family assessment workflow
+#' @examples
+#' inputs <- opaka_quickstart_inputs()
+#' assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+#' path <- tempfile(fileext = ".rds")
+#' opal_save(assessment, path)
+#' restored <- opal_read(path, rebuild = TRUE)
+#' summary(restored)
+#' unlink(path)
 #' @export
 opal_save <- function(x, file, compress = "gzip", overwrite = FALSE) {
   .opal_obj_flag(overwrite, "overwrite")

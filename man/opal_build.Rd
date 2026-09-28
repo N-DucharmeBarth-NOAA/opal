@@ -21,5 +21,34 @@ opal_rtmb(x, fresh = FALSE)
 transient RTMB objective. Use \code{fresh = TRUE} for isolated mutable work.
 }
 \description{
-Build or access an Opal runtime objective
+\code{opal_build()} resolves omitted parameters, maps, and bounds, then checks
+that the initial objective and gradient are finite. It does not optimise.
+\code{opal_fit()} and \code{opal_mcmc()} call it automatically.
 }
+\details{
+Call \code{opal_build()} before requesting the runtime of an unresolved object.
+Use \code{opal_rtmb(assessment, fresh = TRUE)} for external optimisation,
+simulation, profiling, or other work that mutates RTMB state. The runtime is
+transient; save the assessment with \code{\link[=opal_save]{opal_save()}}, not the RTMB object.
+}
+\examples{
+inputs <- opaka_quickstart_inputs()
+assessment <- opal_build(opal_obj(inputs$data, inputs$parameters, inputs$map))
+runtime <- opal_rtmb(assessment, fresh = TRUE)
+runtime$fn(runtime$par)
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

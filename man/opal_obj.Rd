@@ -25,7 +25,9 @@ opal_obj(
 
 \item{random}{Names of random-effect parameters.}
 
-\item{bounds}{Bounds accepted by \code{\link[=get_bounds]{get_bounds()}}, or NULL to derive them.}
+\item{bounds}{A data frame with \code{lower} and \code{upper} columns, or a list of
+numeric \code{lower} and \code{upper} vectors in active RTMB parameter order.
+Use \code{NULL} to derive bounds with \code{\link[=get_bounds]{get_bounds()}}.}
 
 \item{control}{Optimiser controls.}
 
@@ -44,8 +46,30 @@ posterior samples remain ordinary R data. RTMB objectives are cached only
 within the current session. Explicit inputs are recommended for custom
 stocks; \code{model} identifies a bundled parameter configuration when needed.
 }
+\details{
+Use one object throughout the workflow: construct, optionally build, fit,
+sample, report, and save. \code{summary()} reports the lifecycle stage separately
+from fit and MCMC checks. Results live in \verb{$fit}, \verb{$mcmc}, \verb{$validation}, and
+\verb{$derived}; labels live in \verb{$provenance$metadata}. Use \code{\link[=opal_update]{opal_update()}} to
+change configuration rather than assigning directly to scientific fields.
+}
 \examples{
 inputs <- opaka_quickstart_inputs()
 x <- opal_obj(inputs$data, inputs$parameters, inputs$map)
 summary(x)
 }
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

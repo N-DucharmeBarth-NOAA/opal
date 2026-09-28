@@ -26,3 +26,27 @@ of its source fit or posterior. Inputs for future recruitment, selectivity,
 and catch remain explicit scientific choices. Updating the model or
 replacing the source fit/posterior clears stored projections.
 }
+\details{
+Read the stored output from \code{x$derived[[name]]$result}; \code{settings} records
+the future inputs and seed, and \code{identity} records the source result.
+Set a seed separately before stochastic recruitment or selectivity helpers;
+the \code{seed} argument here controls the dynamics projection only.
+For a complete worked example, see \code{vignette("projections")}.
+}
+\seealso{
+\code{\link[=project_rec_devs]{project_rec_devs()}}, \code{\link[=project_selectivity]{project_selectivity()}}, \code{\link[=project_dynamics]{project_dynamics()}}
+
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_report]{opal_report()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

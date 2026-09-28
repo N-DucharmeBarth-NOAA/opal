@@ -102,6 +102,10 @@ plot_catch <- function(data, obj = NULL, plot_resid = FALSE) {
 #' @import ggplot2
 #' @import dplyr
 #' @importFrom scales pretty_breaks
+#' @examples
+#' assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+#'                                    package = "opal"))
+#' plot_cpue(assessment)
 #' @export
 #'
 plot_cpue <- function(data, object = NULL) {
@@ -140,13 +144,17 @@ plot_cpue <- function(data, object = NULL) {
 #' model runs.
 #'
 #' @param data_list An Opal object, list of Opal objects, or list of model data lists.
-#' @param object_list A list of AD objects created using \code{MakeADFun}.
+#' @param object_list Omit for Opal objects. For legacy calls, a list of RTMB objectives.
 #' @param relative Logical; plot spawning biomass relative to unfished biomass.
 #' @param labels Optional labels for the model runs.
 #' @return A \code{ggplot2} object.
 #' @import ggplot2
 #' @import dplyr
 #' @importFrom scales pretty_breaks
+#' @examples
+#' assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+#'                                    package = "opal"))
+#' plot_biomass_spawning(assessment, relative = FALSE, labels = "Baseline")
 #' @export
 #'
 plot_biomass_spawning <- function(data_list, object_list = NULL, relative = TRUE,

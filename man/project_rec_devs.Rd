@@ -22,25 +22,31 @@ project_rec_devs(
 \arguments{
 \item{data}{An Opal object or model data list.}
 
-\item{obj}{a \code{list} of parameter values.}
+\item{obj}{For legacy data-list calls, the RTMB objective. Omit for an Opal object.}
 
-\item{mcmc}{a \code{list} of parameter values.}
+\item{mcmc}{Legacy data-list calls only: a SparseNUTS fit. Opal objects use
+their stored posterior when \code{uncertainty = "mcmc"}.}
 
 \item{first_yr}{the first year sampled. Defaults to the first model year.}
 
-\item{last_yr}{a \code{list} of inputs.}
+\item{last_yr}{Last historical year used to estimate future variability.
+Defaults to the final model year.}
 
-\item{n_proj}{a \code{list} of inputs.}
+\item{n_proj}{Number of future model years.}
 
-\item{n_iter}{a \code{list} of inputs.}
+\item{n_iter}{Number of trajectories. Defaults to one for fitted values,
+or all retained draws for MCMC. MCMC uses the first \code{n_iter} draws in
+the same order as \code{\link[=project_dynamics]{project_dynamics()}}.}
 
 \item{max.p}{Maximum value of p, or the maximum value of p (the AR order) to consider.}
 
-\item{max.d}{Maximum value of d, or the maximum value of q (the MA order) to consider.}
+\item{max.d}{Maximum differencing order considered by \code{forecast::auto.arima()}.}
 
-\item{max.q}{Maximum value of q}
+\item{max.q}{Maximum moving-average order considered by \code{forecast::auto.arima()}.}
 
-\item{arima}{default = TRUE, FALSE = "lognormal"}
+\item{arima}{If \code{TRUE}, select an ARIMA model and bootstrap future
+innovations. If \code{FALSE}, fit an autoregressive model with \code{\link[stats:ar]{stats::ar()}}
+and simulate with \code{\link[stats:arima.sim]{stats::arima.sim()}}.}
 
 \item{uncertainty}{For Opal objects, choose \code{fit} or \code{mcmc}.}
 }
@@ -52,4 +58,7 @@ Opal-object inputs reconstruct the full historical recruitment vector,
 including fixed and mapped years, for each draw. Set first_yr and last_yr
 to choose the period used to estimate future variability. Constant histories
 produce constant projections. Legacy list inputs retain their original path.
+}
+\seealso{
+\code{\link[=opal_project]{opal_project()}}, \code{\link[=project_dynamics]{project_dynamics()}}
 }

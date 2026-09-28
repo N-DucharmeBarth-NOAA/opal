@@ -13,5 +13,27 @@ opal_report(x)
 The named model report at the stored parameters.
 }
 \description{
-Report a configured or fitted Opal model
+Rebuilds an isolated RTMB objective when needed and evaluates the report at
+the stored fitted point, or the configured point if the object is unfitted.
+This returns point predictions, not posterior summaries.
 }
+\examples{
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+head(opal_report(assessment)$spawning_biomass_y)
+}
+\seealso{
+Other assessment workflow:
+\code{\link[=opal_attach_fit]{opal_attach_fit()}},
+\code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
+\code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_check]{opal_check()}},
+\code{\link[=opal_fit]{opal_fit()}},
+\code{\link[=opal_from_fit]{opal_from_fit()}},
+\code{\link{opal_io}},
+\code{\link[=opal_mcmc]{opal_mcmc()}},
+\code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_project]{opal_project()}},
+\code{\link[=opal_update]{opal_update()}}
+}
+\concept{assessment workflow}

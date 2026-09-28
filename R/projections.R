@@ -1,15 +1,17 @@
 #' Project dynamics
 #'
 #' Forward-projects population dynamics for \code{n_proj} years using either
-#' MCMC posterior draws (when \code{mcmc} is supplied) or multivariate-normal
-#' (MVN) draws derived from the Hessian-based variance-covariance matrix at the
-#' MLE (when \code{mcmc = NULL}).
+#' stored MCMC posterior draws (`uncertainty = "mcmc"`) or multivariate-normal
+#' draws from a fitted fixed-effects model (`uncertainty = "mvn"`).
+#' Pass the assessment as `data`; its runtime and posterior are used internally.
+#' Use [opal_project()] to retain the result and its provenance in the object.
 #'
 #' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
-#' @param object The RTMB AD object returned by \code{RTMB::MakeADFun}, after
-#'   optimisation.
+#' @param object For legacy data-list calls, the fitted RTMB objective.
+#'   Omit when `data` is an Opal object.
 #' @param uncertainty For Opal objects, choose `mcmc` or `mvn` explicitly when a posterior exists. Random effects require complete joint posterior draws.
-#' @param mcmc Optional. MCMC fit object returned by \code{SparseNUTS}.  When
+#' @param mcmc Legacy data-list calls only: a SparseNUTS fit. Omit for Opal
+#'   objects, which use their stored posterior. In the legacy interface, when
 #'   supplied, posterior draws are used for the projection.  When \code{NULL}
 #'   (default), MVN draws are generated from the Hessian-derived
 #'   variance-covariance matrix.
@@ -221,7 +223,7 @@ project_dynamics <- function(data, object = NULL, mcmc = NULL, n_proj = 5, n_ite
 #' Project selectivity
 #' 
 #' @param data An Opal object or model data list.
-#' @param obj a \code{list} of parameter values.
+#' @param obj For legacy data-list calls, the RTMB objective. Omit for an Opal object.
 #' @param first_yr the first year sampled. Defaults to the first model year.
 #' @param last_yr the last year.
 #' @param n_proj the number of projection years.
@@ -229,6 +231,12 @@ project_dynamics <- function(data, object = NULL, mcmc = NULL, n_proj = 5, n_ite
 #' @return An array of projected selectivity by iteration, fishery, year, and
 #'   age.
 #' @importFrom stats rnorm sd
+#' @description
+#' Generate future selectivity from a selected historical period in the object's
+#' point report. For each age and fishery, variable positive selectivities are
+#' sampled independently on the log scale; constant values are repeated.
+#' This does not propagate posterior uncertainty in selectivity parameters.
+#' @seealso [opal_project()], [project_dynamics()]
 #' @export
 #' 
 project_selectivity <- function(data, obj = NULL, first_yr = NULL, last_yr = NULL,
@@ -276,22 +284,29 @@ project_selectivity <- function(data, obj = NULL, first_yr = NULL, last_yr = NUL
 #' produce constant projections. Legacy list inputs retain their original path.
 #' 
 #' @param data An Opal object or model data list.
-#' @param obj a \code{list} of parameter values.
+#' @param obj For legacy data-list calls, the RTMB objective. Omit for an Opal object.
 #' @param uncertainty For Opal objects, choose `fit` or `mcmc`.
-#' @param mcmc a \code{list} of parameter values.
+#' @param mcmc Legacy data-list calls only: a SparseNUTS fit. Opal objects use
+#'   their stored posterior when `uncertainty = "mcmc"`.
 #' @param first_yr the first year sampled. Defaults to the first model year.
-#' @param last_yr a \code{list} of inputs.
-#' @param n_proj a \code{list} of inputs.
-#' @param n_iter a \code{list} of inputs.
+#' @param last_yr Last historical year used to estimate future variability.
+#'   Defaults to the final model year.
+#' @param n_proj Number of future model years.
+#' @param n_iter Number of trajectories. Defaults to one for fitted values,
+#'   or all retained draws for MCMC. MCMC uses the first `n_iter` draws in
+#'   the same order as [project_dynamics()].
 #' @param max.p Maximum value of p, or the maximum value of p (the AR order) to consider.
-#' @param max.d Maximum value of d, or the maximum value of q (the MA order) to consider.
-#' @param max.q Maximum value of q
-#' @param arima default = TRUE, FALSE = "lognormal"
+#' @param max.d Maximum differencing order considered by `forecast::auto.arima()`.
+#' @param max.q Maximum moving-average order considered by `forecast::auto.arima()`.
+#' @param arima If `TRUE`, select an ARIMA model and bootstrap future
+#'   innovations. If `FALSE`, fit an autoregressive model with [stats::ar()]
+#'   and simulate with [stats::arima.sim()].
 #' @return a \code{list} of projected recruitment deviates and ARIMA specifications.
 #' @importFrom SparseNUTS extract_samples
 #' @importFrom forecast auto.arima
 #' @importFrom stats simulate ar arima.sim
 #' @importFrom utils txtProgressBar setTxtProgressBar
+#' @seealso [opal_project()], [project_dynamics()]
 #' @export
 #' 
 project_rec_devs <- function(data, obj = NULL, mcmc = NULL, first_yr = NULL, last_yr = NULL, n_proj = 5, n_iter = NULL,

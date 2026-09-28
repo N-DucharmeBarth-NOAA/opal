@@ -15,7 +15,7 @@
 **opal**, the **o**pen **p**opulation **a**ssessment **l**ibrary, is an
 open-source, modular R package for fisheries stock assessment. It is
 built on [RTMB](https://github.com/kaskr/RTMB), which provides automatic
-differentiation of the objective function, gradient-based optimization,
+differentiation of the objective function, gradient-based optimisation,
 and the Laplace approximation for random effects. The full model is
 written in R, so it can be read, modified, and extended without working
 in C++.
@@ -36,7 +36,8 @@ assessment software**.
 | Resource | Contents |
 |----|----|
 | [Project website](https://connect.fisheries.noaa.gov/opal/) | Project background, development plan and governance, the WCPFC SC22 working paper and presentation, and the ’opakapaka case study |
-| [Package documentation](https://n-ducharmebarth-noaa.github.io/opal/) | Function reference, vignettes, and changelog (pkgdown) |
+| [Development documentation](https://n-ducharmebarth-noaa.github.io/opal/dev/) | The `dev` object workflow, function reference, vignettes, and changelog |
+| [Release documentation](https://n-ducharmebarth-noaa.github.io/opal/) | Documentation published from `main` |
 | [opal-documentation](https://github.com/N-DucharmeBarth-NOAA/opal-documentation) | Quarto source for the project website and WCPFC documents |
 | [Issues](https://github.com/N-DucharmeBarth-NOAA/opal/issues) | Bug reports, feature requests, and development discussion |
 
@@ -56,20 +57,21 @@ assessment software**.
   on the AD tape so gradients propagate when growth is estimated.
 - **Selectivity**: Logistic, double-normal, double-Richards, and
   length-based forms, with helpers to convert between SS3 and opal
-  selectivity parameterizations.
+  selectivity parameterisations.
 - **Data and likelihoods**: Log-normal CPUE with multiple indices;
   length and weight compositions with multinomial, Dirichlet, or
   Dirichlet-multinomial likelihoods (weight compositions are predicted
   by rebinning from length); and user-specified priors.
-- **Estimation and diagnostics**: Optimization with `nlminb()` and
-  `get_bounds()`; estimability checks, correlated-parameter detection,
-  and parameter tables (`check_estimability()`, `get_cor_pairs()`,
-  `get_par_table()`). Observations are marked with RTMB’s `OBS()`, which
-  supports simulation with `obj$simulate()` and one-step-ahead
-  residuals.
-- **Bayesian inference**: No-U-turn sampling through
-  [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS), using
-  `opal_globals()`.
+- **Estimation and diagnostics**: Fit an `opal_obj` with `opal_fit()`
+  and check it with `opal_check()`; estimability checks,
+  correlated-parameter detection, and parameter tables
+  (`check_estimability()`, `get_cor_pairs()`, `get_par_table()`).
+  Observations are marked with RTMB’s `OBS()`, which supports simulation
+  with `obj$simulate()` and one-step-ahead residuals.
+- **Bayesian inference**: No-U-turn sampling with
+  [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS) through
+  `opal_mcmc(assessment)`, which manages the runtime, worker
+  dependencies, bounds, and sample storage.
 - **Projections**: Forward projections of dynamics, recruitment
   deviations, and selectivity (`project_dynamics()`,
   `project_rec_devs()`, `project_selectivity()`).
@@ -125,7 +127,9 @@ For development, the package environment is pinned with `renv`; run
 ## Quick start
 
 Fit the bundled ’opakapaka example using one portable `opal_obj`. The
-full walkthrough is in `vignette("quickstart")`.
+full walkthrough is in the [Quickstart
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.html)
+(or `vignette("quickstart")` when installed with vignettes).
 
 ``` r
 library(opal)
@@ -185,8 +189,11 @@ assessment <- opal_read(
 )
 ```
 
-See `vignette("opakapaka-fit-review")` for the complete saved-fit
-review.
+See the [saved-fit
+review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.html)
+and [projection
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.html)
+for complete object-based examples.
 
 ## Contributing
 
@@ -208,7 +215,7 @@ request. In brief:
 ## License
 
 opal is released under the GNU General Public License, version 3 or
-later. See [LICENSE](LICENSE).
+later. See [the GPL licence](https://www.gnu.org/licenses/gpl-3.0.html).
 
 ## Citation
 

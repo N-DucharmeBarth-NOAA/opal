@@ -45,3 +45,127 @@ footer:
   structure:
     left: developed_by
     right: built_with
+
+
+development:
+  mode: release
+  destination: dev
+
+articles:
+  - title: Assessment workflow
+    navbar: ~
+    contents:
+      - quickstart
+      - opakapaka-fit-review
+      - projections
+
+reference:
+  - title: Assessment objects
+    desc: Create, fit, sample, inspect, and save one portable assessment.
+    contents:
+      - opal_obj
+      - opal_build
+      - opal_fit
+      - opal_update
+      - opal_attach_fit
+      - opal_mcmc
+      - opal_attach_mcmc
+      - opal_check
+      - opal_report
+      - opal_io
+      - summary.opal_obj
+      - validate_opal_obj
+      - opal_from_fit
+      - opal_as_tmbfit
+  - title: Projections
+    desc: Specify future assumptions and retain projections with their source assessment.
+    contents:
+      - opal_project
+      - project_dynamics
+      - project_rec_devs
+      - project_selectivity
+  - title: Plots
+    desc: Pass an assessment object directly to the model plots.
+    contents:
+      - plot_biomass_spawning
+      - plot_catch
+      - plot_cpue
+      - plot_hrate
+      - plot_initial_numbers
+      - plot_natural_mortality
+      - plot_recruitment
+  - title: Model inputs and diagnostics
+    desc: Prepare data, configure parameters, and inspect the underlying RTMB model.
+    contents:
+      - opaka_quickstart_inputs
+      - get_data
+      - get_parameters
+      - get_map
+      - get_bounds
+      - get_priors
+      - prep_lf_data
+      - prep_wf_data
+      - check_bounds
+      - check_estimability
+      - get_cor_pairs
+      - get_par_table
+      - extract_fixed
+  - title: Model components
+    desc: Lower-level functions used by the assessment model and advanced workflows.
+    contents:
+      - cmb
+      - convert_rtmb_selex_to_ss3
+      - convert_ss3_selex_to_rtmb
+      - do_dynamics
+      - double_richards_natural
+      - evaluate_priors
+      - get_bias_adj_vector
+      - get_cpue_like
+      - get_growth
+      - get_harvest_rate
+      - get_initial_numbers
+      - get_length_like
+      - get_maturity_at_age
+      - get_pla
+      - get_recruitment
+      - get_recruitment_prior
+      - get_sd_at_age
+      - get_selectivity
+      - get_unfished_init
+      - get_weight_at_length
+      - get_weight_like
+      - opal_globals
+      - opal_model
+      - posfun
+      - rebin_counts
+      - rebin_matrix
+      - resolve_bio_vector
+      - sel_double_normal
+      - sel_double_richards
+      - sel_length
+      - sel_logistic
+  - title: Bundled data
+    desc: Example inputs and numerical baseline datasets.
+    contents:
+      - opaka_data
+      - opaka_lf
+      - opaka_parameters
+      - opaka_truth
+      - opal_baseline
+      - opal_baseline_data
+      - opal_baseline_map
+      - opal_baseline_parameters
+      - wcpo_bet_data
+      - wcpo_bet_lf
+      - wcpo_bet_parameters
+      - wcpo_bet_wf
+  - title: Legacy fit compatibility
+    desc: Compatibility helpers for older opal_fit files; use opal_obj for new assessments.
+    contents:
+      - opal_fit_compatibility
+      - opal_fit_io
+      - opal_fit_object
+      - opal_fit_report
+      - rebuild_opal_object
+      - update_opal_fit
+      - validate_opal_fit

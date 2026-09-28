@@ -190,12 +190,21 @@ validate_opal_obj <- function(x, results = FALSE) {
 #' @param parameters Named initial parameter list, or NULL for bundled defaults.
 #' @param map RTMB map. NULL resolves defaults; `list()` explicitly frees all parameters.
 #' @param random Names of random-effect parameters.
-#' @param bounds Bounds accepted by [get_bounds()], or NULL to derive them.
+#' @param bounds A data frame with `lower` and `upper` columns, or a list of
+#'   numeric `lower` and `upper` vectors in active RTMB parameter order.
+#'   Use `NULL` to derive bounds with [get_bounds()].
 #' @param control Optimiser controls.
 #' @param model Optional bundled configuration name for [get_parameters()].
 #' @param makeadfun_args Additional portable arguments for `RTMB::MakeADFun()`.
 #' @param metadata Named user metadata.
 #' @return An `opal_obj`. Construction never optimises or samples.
+#' @details
+#' Use one object throughout the workflow: construct, optionally build, fit,
+#' sample, report, and save. `summary()` reports the lifecycle stage separately
+#' from fit and MCMC checks. Results live in `$fit`, `$mcmc`, `$validation`, and
+#' `$derived`; labels live in `$provenance$metadata`. Use [opal_update()] to
+#' change configuration rather than assigning directly to scientific fields.
+#' @family assessment workflow
 #' @export
 #' @examples
 #' inputs <- opaka_quickstart_inputs()
@@ -275,6 +284,21 @@ opal_obj <- function(data, parameters = NULL, map = NULL, random = character(),
 #' @param silent Silence RTMB construction messages.
 #' @return `opal_build()` returns the updated object; `opal_rtmb()` returns a
 #'   transient RTMB objective. Use `fresh = TRUE` for isolated mutable work.
+#' @description
+#' `opal_build()` resolves omitted parameters, maps, and bounds, then checks
+#' that the initial objective and gradient are finite. It does not optimise.
+#' `opal_fit()` and `opal_mcmc()` call it automatically.
+#' @details
+#' Call `opal_build()` before requesting the runtime of an unresolved object.
+#' Use `opal_rtmb(assessment, fresh = TRUE)` for external optimisation,
+#' simulation, profiling, or other work that mutates RTMB state. The runtime is
+#' transient; save the assessment with [opal_save()], not the RTMB object.
+#' @family assessment workflow
+#' @examples
+#' inputs <- opaka_quickstart_inputs()
+#' assessment <- opal_build(opal_obj(inputs$data, inputs$parameters, inputs$map))
+#' runtime <- opal_rtmb(assessment, fresh = TRUE)
+#' runtime$fn(runtime$par)
 #' @export
 opal_build <- function(x, silent = TRUE) {
   validate_opal_obj(x)
@@ -330,6 +354,15 @@ opal_rtmb <- function(x, fresh = FALSE) {
 #' Report a configured or fitted Opal model
 #' @param x An `opal_obj`.
 #' @return The named model report at the stored parameters.
+#' @description
+#' Rebuilds an isolated RTMB objective when needed and evaluates the report at
+#' the stored fitted point, or the configured point if the object is unfitted.
+#' This returns point predictions, not posterior summaries.
+#' @family assessment workflow
+#' @examples
+#' assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+#'                                    package = "opal"))
+#' head(opal_report(assessment)$spawning_biomass_y)
 #' @export
 opal_report <- function(x) {
   object <- opal_rtmb(x, fresh = TRUE)

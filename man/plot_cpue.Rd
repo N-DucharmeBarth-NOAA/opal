@@ -17,3 +17,8 @@ A \code{ggplot2} object.
 \description{
 Plot observed and predicted CPUE by season and fishery.
 }
+\examples{
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+plot_cpue(assessment)
+}
