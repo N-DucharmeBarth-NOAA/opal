@@ -14,8 +14,8 @@ vignette: >
 This example carries one `opal_obj` from a saved fixed-effects assessment
 through a five-year projection and a save/read round trip. Ten trajectories
 keep the example quick; they demonstrate the interface and do not provide
-assessment-quality uncertainty estimates. See the [Quickstart](quickstart.qmd)
-for fitting and the [saved-fit review](opakapaka-fit-review.qmd) for diagnostics.
+assessment-quality uncertainty estimates. See the [Quickstart](quickstart.html)
+for fitting and the [saved-fit review](opakapaka-fit-review.html) for diagnostics.
 
 ## Load and check the assessment
 
@@ -26,6 +26,21 @@ assessment <- opal_read(system.file(
   "extdata", "opaka_quickstart_fit.rds", package = "opal"
 ))
 assessment <- opal_check(assessment, scope = "fit")
+summary(assessment)
+```
+
+The saved fit may pass the optimiser's stopping rule while missing Opal's
+stricter gradient check. Continue optimisation from the saved point when
+needed, with the same model and tolerance. The following bounded continuation
+must pass before this example proceeds. Reading alone never refits a model.
+
+```{r}
+#| label: refine-assessment
+for (attempt in seq_len(3L)) {
+  if (isTRUE(assessment$validation$fit$passes)) break
+  assessment <- opal_fit(assessment)
+}
+stopifnot(isTRUE(assessment$validation$fit$passes))
 summary(assessment)
 ```
 

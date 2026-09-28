@@ -20,7 +20,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 This vignette upgrades the bundled legacy `opal_fit` to `opal_obj`. It
 examines the portable fixed-effects opakapaka fit created for the
-[Quickstart](quickstart.qmd). It rebuilds the transient RTMB objective to
+[Quickstart](quickstart.html). It rebuilds the transient RTMB objective to
 verify the stored objective and obtain predictions, without optimisation.
 
 The bundled fit may have been saved under a different R version. Portable
@@ -73,6 +73,13 @@ fit$validation$fit$metrics
 summary(fit)
 ```
 
+The bundled legacy fit's maximum gradient can exceed the default `0.001`
+tolerance even with optimiser convergence code zero. That is a failed
+diagnostic check, not a read or migration failure. This review preserves the
+saved point; the [Quickstart](quickstart.html) and
+[projection guide](projections.html) demonstrate bounded continuation from
+that point before using a fit that passes the checks.
+
 ## Continue and save the assessment
 
 Metadata changes preserve the fitted result. Configuration changes through
@@ -89,5 +96,5 @@ stopifnot(isTRUE(all.equal(opal_report(fit), opal_report(restored))))
 unlink(path)
 ```
 
-See the [projection guide](projections.qmd) to carry this object into a
+See the [projection guide](projections.html) to carry this object into a
 future-catch scenario, or `opal_mcmc()` to add posterior sampling.

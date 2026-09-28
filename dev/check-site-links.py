@@ -36,6 +36,8 @@ for path, page in pages.items():
         # Release/development navigation may point to the other published site.
         if not target.is_relative_to(root):
             continue
+        if target.suffix.lower() in (".qmd", ".rmd"):
+            errors.append(f"{path.relative_to(root)}: links to source instead of rendered page: {link}")
         if not target.exists():
             errors.append(f"{path.relative_to(root)}: missing {link}")
         elif url.fragment and target in pages and unquote(url.fragment) not in pages[target].ids:

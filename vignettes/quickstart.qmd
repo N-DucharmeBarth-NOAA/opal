@@ -78,6 +78,22 @@ fit
 fit$validation$fit
 ```
 
+The optimiser can return convergence code zero while the maximum gradient
+still exceeds the default tolerance of `0.001`. Inspect the recorded metrics.
+If needed, continue from the stored optimum, keeping the same configuration
+and tolerance. This example allows up to three further calls and stops if
+the checks still fail; it does not treat the `fitted` stage as acceptance.
+
+```{r}
+#| label: refine-fit
+for (attempt in seq_len(3L)) {
+  if (isTRUE(fit$validation$fit$passes)) break
+  fit <- opal_fit(fit)
+}
+stopifnot(isTRUE(fit$validation$fit$passes))
+summary(fit)
+```
+
 ## Save a portable fitted model
 
 `opal_save()` stores ordinary R data with a payload checksum. `opal_read()`
@@ -151,6 +167,6 @@ rejected.
 `opal_fit(data, obj, opt, ...)` still supports the legacy constructor.
 `opal_from_fit()` converts an existing fit, and `opal_read()` upgrades legacy
 saved fits after verifying the rebuilt objective, without refitting. The
-companion [saved-fit review](opakapaka-fit-review.qmd) demonstrates this migration.
-The [projection guide](projections.qmd) gives a complete runnable example
+companion [saved-fit review](opakapaka-fit-review.html) demonstrates this migration.
+The [projection guide](projections.html) gives a complete runnable example
 with future catch, recruitment, selectivity, and saved projection provenance.
