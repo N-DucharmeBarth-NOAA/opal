@@ -4,9 +4,9 @@ This example carries one `opal_obj` from a saved fixed-effects
 assessment through a five-year projection and a save/read round trip.
 Ten trajectories keep the example quick; they demonstrate the interface
 and do not provide assessment-quality uncertainty estimates. See the
-[Quickstart](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.qmd)
+[Quickstart](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.md)
 for fitting and the [saved-fit
-review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.qmd)
+review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.md)
 for diagnostics.
 
 ## Load and check the assessment
@@ -25,6 +25,27 @@ summary(assessment)
     Active parameters: 127
     Objective: 1832.412
     Fit check: failed  | MCMC check: not run 
+
+The saved fit may pass the optimiser’s stopping rule while missing
+Opal’s stricter gradient check. Continue optimisation from the saved
+point when needed, with the same model and tolerance. The following
+bounded continuation must pass before this example proceeds. Reading
+alone never refits a model.
+
+``` r
+
+for (attempt in seq_len(3L)) {
+  if (isTRUE(assessment$validation$fit$passes)) break
+  assessment <- opal_fit(assessment)
+}
+stopifnot(isTRUE(assessment$validation$fit$passes))
+summary(assessment)
+```
+
+    <opal_obj> fitted
+    Active parameters: 127
+    Objective: 1832.412
+    Fit check: passed  | MCMC check: not run 
 
 ## Choose future inputs
 

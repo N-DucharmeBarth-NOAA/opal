@@ -4,7 +4,7 @@
 
 This vignette upgrades the bundled legacy `opal_fit` to `opal_obj`. It
 examines the portable fixed-effects opakapaka fit created for the
-[Quickstart](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.qmd).
+[Quickstart](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.md).
 It rebuilds the transient RTMB objective to verify the stored objective
 and obtain predictions, without optimisation.
 
@@ -105,6 +105,16 @@ summary(fit)
 #> Fit check: failed  | MCMC check: not run
 ```
 
+The bundled legacy fit’s maximum gradient can exceed the default `0.001`
+tolerance even with optimiser convergence code zero. That is a failed
+diagnostic check, not a read or migration failure. This review preserves
+the saved point; the
+[Quickstart](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.md)
+and [projection
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.md)
+demonstrate bounded continuation from that point before using a fit that
+passes the checks.
+
 ### Continue and save the assessment
 
 Metadata changes preserve the fitted result. Configuration changes
@@ -124,7 +134,7 @@ unlink(path)
 ```
 
 See the [projection
-guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.qmd)
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.md)
 to carry this object into a future-catch scenario, or
 [`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_mcmc.md)
 to add posterior sampling.

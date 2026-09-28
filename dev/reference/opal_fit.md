@@ -174,7 +174,7 @@ assessment$validation$fit
 #> [1] 0
 #> 
 #> $metrics$max_gradient
-#> [1] 0.0009558889
+#> [1] 0.0009666844
 #> 
 #> $metrics$positive_hessian
 #> [1] TRUE
@@ -194,7 +194,7 @@ assessment$validation$fit
 #> [1] "082a2a20f7e2f341704e5452b7b2312f"
 #> 
 #> $identity$fit
-#> [1] "8efe536e503a96af2d24ae545fc58c85"
+#> [1] "cc9b031fee185b8057263994268e118b"
 #> 
 #> 
 #> $settings
@@ -209,7 +209,7 @@ assessment$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-09-28 23:15:38 UTC"
+#> [1] "2026-09-28 23:21:13 UTC"
 #> 
 # }
 ```

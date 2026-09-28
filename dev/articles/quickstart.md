@@ -79,7 +79,7 @@ fit$validation$fit
 #> [1] 0
 #> 
 #> $metrics$max_gradient
-#> [1] 0.0009558889
+#> [1] 0.0009666844
 #> 
 #> $metrics$positive_hessian
 #> [1] TRUE
@@ -99,7 +99,7 @@ fit$validation$fit
 #> [1] "082a2a20f7e2f341704e5452b7b2312f"
 #> 
 #> $identity$fit
-#> [1] "8efe536e503a96af2d24ae545fc58c85"
+#> [1] "cc9b031fee185b8057263994268e118b"
 #> 
 #> 
 #> $settings
@@ -114,7 +114,28 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-09-28 23:16:09 UTC"
+#> [1] "2026-09-28 23:22:08 UTC"
+```
+
+The optimiser can return convergence code zero while the maximum
+gradient still exceeds the default tolerance of `0.001`. Inspect the
+recorded metrics. If needed, continue from the stored optimum, keeping
+the same configuration and tolerance. This example allows up to three
+further calls and stops if the checks still fail; it does not treat the
+`fitted` stage as acceptance.
+
+``` r
+
+for (attempt in seq_len(3L)) {
+  if (isTRUE(fit$validation$fit$passes)) break
+  fit <- opal_fit(fit)
+}
+stopifnot(isTRUE(fit$validation$fit$passes))
+summary(fit)
+#> <opal_obj> fitted
+#> Active parameters: 127 
+#> Objective: 1832.412 
+#> Fit check: passed  | MCMC check: not run
 ```
 
 ## Save a portable fitted model
@@ -216,8 +237,8 @@ converts an existing fit, and
 [`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_io.md)
 upgrades legacy saved fits after verifying the rebuilt objective,
 without refitting. The companion [saved-fit
-review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.qmd)
+review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.md)
 demonstrates this migration. The [projection
-guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.qmd)
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.md)
 gives a complete runnable example with future catch, recruitment,
 selectivity, and saved projection provenance.
