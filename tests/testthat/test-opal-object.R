@@ -309,3 +309,19 @@ test_that("maps and random effects can be specified before parameters resolve", 
   expect_error(opal_update(bad, parameters = ready$parameters), "random")
   expect_error(opal_obj(ready$data, map = list(rdev_y = 1)), "factors")
 })
+
+test_that("bundled defaults retain valid fixed zero-variance parameters", {
+  # The baseline encodes an exactly zero CPUE variance using a fixed -Inf.
+  data <- get_data("baseline")
+  parameters <- get_parameters("baseline")
+  expect_identical(parameters$log_cpue_tau, -Inf)
+  x <- opal_build(opal_obj(data, model = "baseline"))
+  expect_identical(x$parameters, parameters)
+  expect_identical(x$configuration$origins$parameters, "default")
+  expect_true(is.finite(opal_rtmb(x)$fn()))
+  expect_error(opal_obj(data, parameters, list()), "must be fixed")
+  path <- tempfile(fileext = ".rds")
+  on.exit(unlink(path), add = TRUE)
+  opal_save(x, path)
+  expect_equal(opal_read(path, rebuild = TRUE)$identity, x$identity)
+})

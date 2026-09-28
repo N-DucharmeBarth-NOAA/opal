@@ -61,8 +61,8 @@
   }
   .opal_validate_named_list(parameters, "parameters")
   if (!length(parameters) || any(vapply(parameters, function(p) {
-    !is.numeric(p) || !length(p) || any(!is.finite(p))
-  }, logical(1L)))) stop("Parameters must be finite numeric arrays.", call. = FALSE)
+    !is.numeric(p) || anyNA(p)
+  }, logical(1L)))) stop("Parameters must be numeric arrays without NA values.", call. = FALSE)
   if (!is.null(map)) {
     .opal_validate_named_list(map, "map")
     if (length(setdiff(names(map), names(parameters)))) {
@@ -74,6 +74,12 @@
           (!is.null(dim(map[[name]])) &&
            !identical(dim(map[[name]]), dim(parameters[[name]])))) {
         stop("Invalid map for `", name, "`.", call. = FALSE)
+      }
+    }
+    for (name in names(parameters)) {
+      nonfinite <- !is.finite(parameters[[name]])
+      if (any(nonfinite) && (is.null(map[[name]]) || any(!is.na(map[[name]][nonfinite])))) {
+        stop("Non-finite parameter values must be fixed in the map.", call. = FALSE)
       }
     }
   }
