@@ -1,0 +1,513 @@
+# opal
+
+## Overview
+
+**opal**, the **o**pen **p**opulation **a**ssessment **l**ibrary, is an
+open-source, modular R package for fisheries stock assessment. It is
+built on [RTMB](https://github.com/kaskr/RTMB), which provides automatic
+differentiation of the objective function, gradient-based optimisation,
+and the Laplace approximation for random effects. The full model is
+written in R, so it can be read, modified, and extended without working
+in C++.
+
+opal builds on the `sbt` package developed by
+[Quantifish](https://www.quantifish.co.nz/) for the CCSBT southern
+bluefin tuna assessment, and draws on design elements from SS3,
+MULTIFAN-CL, WHAM, SPoRC, and CASAL2. It is being developed in support
+of **WCPFC Project 123: Scoping the next generation of tuna stock
+assessment software**.
+
+> **Development status:** opal is under active development. Case studies
+> are illustrative and are not intended to inform management advice.
+> Interfaces may change between versions.
+
+## Resources
+
+| Resource | Contents |
+|----|----|
+| [Project website](https://connect.fisheries.noaa.gov/opal/) | Project background, development plan and governance, the WCPFC SC22 working paper and presentation, and the ’opakapaka case study |
+| [Development documentation](https://n-ducharmebarth-noaa.github.io/opal/dev/) | The `dev` object workflow, function reference, vignettes, and changelog |
+| [Release documentation](https://n-ducharmebarth-noaa.github.io/opal/) | Documentation published from `main` |
+| [opal-documentation](https://github.com/N-DucharmeBarth-NOAA/opal-documentation) | Quarto source for the project website and WCPFC documents |
+| [Issues](https://github.com/N-DucharmeBarth-NOAA/opal/issues) | Bug reports, feature requests, and development discussion |
+
+## Features
+
+- **Population dynamics**: Age- and season-structured dynamics
+  conditioned on observed catch (in weight or numbers). Seasonal harvest
+  rates are solved from catch and vulnerable abundance, with a
+  [`posfun()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/posfun.md)
+  penalty that keeps total harvest below one. Beverton–Holt recruitment
+  with log-normal deviates and SS3-style bias-adjustment ramps, fished
+  or unfished initial equilibrium, and static and dynamic depletion.
+- **Growth and biology**: von Bertalanffy growth (L1/L2/k) with
+  variability in length at age, represented as a
+  probability-of-length-at-age matrix. Maturity, weight, and fecundity
+  can be supplied at age or at length; length-based inputs are converted
+  on the AD tape so gradients propagate when growth is estimated.
+- **Selectivity**: Logistic, double-normal, double-Richards, and
+  length-based forms, with helpers to convert between SS3 and opal
+  selectivity parameterisations.
+- **Data and likelihoods**: Log-normal CPUE with multiple indices;
+  length and weight compositions with multinomial, Dirichlet, or
+  Dirichlet-multinomial likelihoods (weight compositions are predicted
+  by rebinning from length); and user-specified priors.
+- **Estimation and diagnostics**: Fit an `opal_obj` with
+  [`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit.md)
+  and check it with
+  [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_check.md);
+  estimability checks, correlated-parameter detection, and parameter
+  tables
+  ([`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/check_estimability.md),
+  [`get_cor_pairs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_cor_pairs.md),
+  [`get_par_table()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_par_table.md)).
+  Observations are marked with RTMB’s `OBS()`, which supports simulation
+  with `obj$simulate()` and one-step-ahead residuals.
+- **Bayesian inference**: No-U-turn sampling with
+  [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS) through
+  `opal_mcmc(assessment)`, which manages the runtime, worker
+  dependencies, bounds, and sample storage.
+- **Projections**: Forward projections of dynamics, recruitment
+  deviations, and selectivity
+  ([`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/project_dynamics.md),
+  [`project_rec_devs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/project_rec_devs.md),
+  [`project_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/project_selectivity.md)).
+- **Portable assessment objects**: One `opal_obj` stores configuration,
+  fitted parameters, optimiser output, MCMC draws, diagnostics, derived
+  results, and provenance throughout the assessment lifecycle. RTMB
+  objectives are rebuilt on demand.
+
+### Case studies
+
+- **’Opakapaka** (*Pristipomoides filamentosus*): a fixed-effects
+  assessment benchmarked against its SS3 reference model. It is the
+  basis for the Quickstart vignette, the bundled example fit, and the
+  package’s numerical regression and simulation self-tests.
+- **WCPO bigeye tuna** (*Thunnus obesus*): a high-dimensional quarterly
+  assessment (15 fisheries, 40 age classes, length and weight
+  compositions) compared against SS3 and MULTIFAN-CL. Development
+  workflows are in `dev/vignettes/`.
+
+Both case studies are described in the SC22 working paper on the
+[project website](https://connect.fisheries.noaa.gov/opal/).
+
+## Installation
+
+Install the development version of opal from GitHub:
+
+``` r
+
+# install.packages("remotes")
+remotes::install_github("N-DucharmeBarth-NOAA/opal@dev")
+```
+
+opal depends on [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS),
+which is not on CRAN. If installation fails because `SparseNUTS` is
+unavailable, install `StanEstimators` first (preferably in a fresh R
+session):
+
+``` r
+
+install.packages(
+  "StanEstimators",
+  repos = c("https://andrjohns.r-universe.dev", "https://cloud.r-project.org")
+)
+```
+
+Then install `SparseNUTS` and retry the opal installation:
+
+``` r
+
+remotes::install_github("noaa-afsc/SparseNUTS")
+```
+
+For development, the package environment is pinned with `renv`; run
+[`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
+from the repository root.
+
+## Quick start
+
+Fit the bundled ’opakapaka example using one portable `opal_obj`. The
+full walkthrough is in the [Quickstart
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.html)
+(or
+[`vignette("quickstart")`](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.md)
+when installed with vignettes).
+
+``` r
+
+library(opal)
+inputs <- opaka_quickstart_inputs()
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map,
+                       metadata = list(stock = "Opakapaka"))
+assessment <- opal_fit(assessment)
+summary(assessment)
+plot_cpue(assessment)
+```
+
+The fitted stage records a completed optimisation; check
+`assessment$validation$fit` for convergence, gradients, Hessian, bounds,
+and population checks. Diagnostics warn and retain the results when
+checks fail.
+
+## Sampling, saving, and updating
+
+``` r
+
+assessment <- opal_mcmc(assessment, seed = 42)
+summary(assessment)
+opal_save(assessment, "assessment.rds")
+assessment <- opal_read("assessment.rds")
+report <- opal_report(assessment)
+```
+
+Sampling can also start without fitting. It uses an isolated runtime,
+records settings and diagnostics, and preserves previous attempts in
+`mcmc_history`. A failed or unchecked attempt does not replace a
+checked, passing posterior. Short sampler runs are useful software
+checks, not evidence of convergence. `opal_as_tmbfit(assessment)`
+supports existing SparseNUTS diagnostics.
+
+Save and read work at every lifecycle stage. Files contain portable R
+data, a checksum, and scientific model metadata. Reading never optimises
+or samples. `opal_rtmb(assessment, fresh = TRUE)` provides an isolated
+runtime for advanced work.
+
+Use
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_update.md)
+to change configuration. Data, priors, parameters, maps, random effects,
+and bounds invalidate dependent results. Metadata and optimiser controls
+do not. An unchanged-model refit preserves the posterior and its
+original fit provenance. Projections accept assessment objects;
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_project.md)
+stores results with their source identity. Choose `mcmc` or `mvn`
+uncertainty explicitly when posterior draws exist. Random-effect
+projections require complete joint posterior draws.
+
+## Existing fits
+
+The legacy `opal_fit(data, obj, opt, ...)` constructor and two-input
+plotting calls remain supported. Use `opal_from_fit(old_fit)` to adopt
+the staged workflow.
+[`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_io.md)
+also upgrades saved legacy files, verifying the rebuilt objective across
+R versions without refitting:
+
+``` r
+
+assessment <- opal_read(
+  system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
+)
+```
+
+See the [saved-fit
+review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.html)
+and [projection
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.html)
+for complete object-based examples.
+
+## Contributing
+
+Contributions are welcome. Please read
+[CONTRIBUTING.md](https://n-ducharmebarth-noaa.github.io/opal/dev/CONTRIBUTING.md)
+before opening a pull request. In brief:
+
+- Open an [issue](https://github.com/N-DucharmeBarth-NOAA/opal/issues)
+  to discuss substantial changes before starting work.
+- Submit pull requests against the `dev` branch; `main` is the stable
+  release branch.
+- Any change that alters model numerics must follow the regeneration
+  protocol described in
+  [CONTRIBUTING.md](https://n-ducharmebarth-noaa.github.io/opal/dev/CONTRIBUTING.html#numerical-changes):
+  show the golden test failing, document the change in `NEWS.md`, bump
+  `.opal_model_scientific_version`, and regenerate the test reference
+  and bundled example fit.
+
+## License
+
+opal is released under the GNU General Public License, version 3 or
+later. See [the GPL licence](https://www.gnu.org/licenses/gpl-3.0.html).
+
+## Citation
+
+A formal package citation is not yet available. In the meantime, please
+cite the WCPFC SC22 working paper describing opal, available from the
+[project website](https://connect.fisheries.noaa.gov/opal/).
+
+## Disclaimer
+
+“The United States Department of Commerce (DOC) GitHub project code is
+provided on an ‘as is’ basis and the user assumes responsibility for its
+use. DOC has relinquished control of the information and no longer has
+responsibility to protect the integrity, confidentiality, or
+availability of the information. Any claims against the Department of
+Commerce stemming from the use of its GitHub project will be governed by
+all applicable Federal law. Any reference to specific commercial
+products, processes, or services by service mark, trademark,
+manufacturer, or otherwise, does not constitute or imply their
+endorsement, recommendation or favoring by the Department of Commerce.
+The Department of Commerce seal and logo, or the seal and logo of a DOC
+bureau, shall not be used in any manner to imply endorsement of any
+commercial product or activity by DOC or the United States Government.”
+
+------------------------------------------------------------------------
+
+[![NOAA
+Fisheries](reference/figures/noaa-fisheries-rgb-2line-horizontal-small.png)](https://www.fisheries.noaa.gov/)
+
+[U.S. Department of Commerce](https://www.commerce.gov/) \| [National
+Oceanographic and Atmospheric Administration](https://www.noaa.gov) \|
+[NOAA Fisheries](https://www.fisheries.noaa.gov/)
+
+# Package index
+
+## Assessment objects
+
+Create, fit, sample, inspect, and save one portable assessment.
+
+- [`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_obj.md)
+  : Create a portable Opal assessment object
+- [`opal_build()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_build.md)
+  [`opal_rtmb()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_build.md)
+  : Build or access an Opal runtime objective
+- [`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit.md)
+  : Fit an Opal assessment
+- [`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_update.md)
+  : Update an Opal model configuration
+- [`opal_attach_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_attach_fit.md)
+  : Attach an externally optimised Opal fit
+- [`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_mcmc.md)
+  : Run MCMC for an Opal object
+- [`opal_attach_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_attach_mcmc.md)
+  : Attach posterior draws to an Opal object
+- [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_check.md)
+  : Check fitted or sampled Opal results
+- [`opal_report()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_report.md)
+  : Report a configured or fitted Opal model
+- [`opal_save()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_io.md)
+  [`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_io.md)
+  : Save and read staged Opal objects
+- [`summary(`*`<opal_obj>`*`)`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/summary.opal_obj.md)
+  [`print(`*`<summary.opal_obj>`*`)`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/summary.opal_obj.md)
+  [`print(`*`<opal_obj>`*`)`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/summary.opal_obj.md)
+  : Summarise a staged Opal assessment
+- [`validate_opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/validate_opal_obj.md)
+  : Validate a staged Opal object
+- [`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_from_fit.md)
+  : Convert a legacy Opal fit to the staged object workflow
+- [`opal_as_tmbfit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_as_tmbfit.md)
+  : Convert normalized opal posterior draws to a tmbfit
+
+## Projections
+
+Specify future assumptions and retain projections with their source
+assessment.
+
+- [`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_project.md)
+  : Project an Opal object and retain the result
+- [`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/project_dynamics.md)
+  : Project dynamics
+- [`project_rec_devs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/project_rec_devs.md)
+  : Project recruitment deviates
+- [`project_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/project_selectivity.md)
+  : Project selectivity
+
+## Plots
+
+Pass an assessment object directly to the model plots.
+
+- [`plot_biomass_spawning()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_biomass_spawning.md)
+  : Plot spawning biomass
+- [`plot_catch()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_catch.md)
+  : Plot catch
+- [`plot_cpue()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_cpue.md)
+  : Plot CPUE
+- [`plot_hrate()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_hrate.md)
+  : Plot harvest rate
+- [`plot_initial_numbers()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_initial_numbers.md)
+  : Plot initial numbers
+- [`plot_natural_mortality()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_natural_mortality.md)
+  : Plot natural mortality
+- [`plot_recruitment()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_recruitment.md)
+  : Plot recruitment
+
+## Model inputs and diagnostics
+
+Prepare data, configure parameters, and inspect the underlying RTMB
+model.
+
+- [`opaka_quickstart_inputs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_quickstart_inputs.md)
+  : Opakapaka quickstart model inputs
+- [`get_data()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_data.md)
+  : Get bundled model data
+- [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_parameters.md)
+  : Get bundled initial parameter values
+- [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_map.md)
+  : Get default parameter mapping
+- [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_bounds.md)
+  : Get default parameter bounds
+- [`get_priors()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_priors.md)
+  : Get priors
+- [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/prep_lf_data.md)
+  : Prepare length composition data for model input
+- [`prep_wf_data()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/prep_wf_data.md)
+  : Prepare weight composition data for model input
+- [`check_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/check_bounds.md)
+  : Check if parameters are up against the bounds
+- [`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/check_estimability.md)
+  : Check for identifiability of fixed effects
+- [`get_cor_pairs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_cor_pairs.md)
+  : Return strongly-correlated parameter pairs
+- [`get_par_table()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_par_table.md)
+  : Summarise model parameters in a table
+- [`extract_fixed()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/extract_fixed.md)
+  : Extract fixed effects
+
+## Model components
+
+Lower-level functions used by the assessment model and advanced
+workflows.
+
+- [`cmb()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/cmb.md)
+  : Helper to make closure
+- [`convert_rtmb_selex_to_ss3()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/convert_rtmb_selex_to_ss3.md)
+  : Convert RTMB real-line selectivity parameters back to SS3 natural
+  scale
+- [`convert_ss3_selex_to_rtmb()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/convert_ss3_selex_to_rtmb.md)
+  : Convert SS3 selectivity parameters to RTMB real-line
+  parameterization
+- [`do_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/do_dynamics.md)
+  : Population dynamics
+- [`double_richards_natural()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/double_richards_natural.md)
+  : Convert double Richards parameters to natural scale
+- [`evaluate_priors()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/evaluate_priors.md)
+  : Evaluate priors
+- [`get_bias_adj_vector()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_bias_adj_vector.md)
+  : Calculate Recruitment Bias Adjustment Ramp
+- [`get_cpue_like()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_cpue_like.md)
+  : CPUE index likelihood (multi-index)
+- [`get_growth()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_growth.md)
+  : Compute mean length-at-age using the Schnute parameterization of VB
+  growth
+- [`get_harvest_rate()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_harvest_rate.md)
+  : Harvest rate calculation
+- [`get_initial_numbers()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_initial_numbers.md)
+  : Initial numbers and Beverton-Holt parameters
+- [`get_length_like()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_length_like.md)
+  : Length Composition Likelihood
+- [`get_maturity_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_maturity_at_age.md)
+  : Convert maturity-at-length to maturity-at-age
+- [`get_pla()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_pla.md)
+  : Probability of length at age matrix (age-length key)
+- [`get_recruitment()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_recruitment.md)
+  : Calculate recruitment
+- [`get_recruitment_prior()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_recruitment_prior.md)
+  : Recruitment prior
+- [`get_sd_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_sd_at_age.md)
+  : Compute SD of length-at-age from CV1 and CV2
+- [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_selectivity.md)
+  : Compute selectivity-at-age from length-based selectivity curves
+- [`get_unfished_init()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_unfished_init.md)
+  : Compute unfished equilibrium quantities from natural mortality only
+- [`get_weight_at_length()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_weight_at_length.md)
+  : Compute weight at each length bin midpoint
+- [`get_weight_like()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_weight_like.md)
+  : Weight Composition Likelihood
+- [`opal_globals()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_globals.md)
+  : The opal globals
+- [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_model.md)
+  : The opal model
+- [`posfun()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/posfun.md)
+  : Positive Constraint Penalty Function
+- [`rebin_counts()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/rebin_counts.md)
+  : Linear area rebinning of frequency data
+- [`rebin_matrix()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/rebin_matrix.md)
+  : Compute rebinning weight matrix
+- [`resolve_bio_vector()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/resolve_bio_vector.md)
+  : Resolve a biology vector to age-basis
+- [`sel_double_normal()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/sel_double_normal.md)
+  : Double-normal selectivity as a function of length (SS3 pattern 24,
+  full form)
+- [`sel_double_richards()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/sel_double_richards.md)
+  : Double Richards selectivity as a function of length
+- [`sel_length()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/sel_length.md)
+  : Selectivity-at-length for a single fishery, dispatched on type code
+- [`sel_logistic()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/sel_logistic.md)
+  : Logistic selectivity as a function of length
+
+## Bundled data
+
+Example inputs and numerical baseline datasets.
+
+- [`opaka_data`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_data.md)
+  : 'Opakapaka Stock Assessment Data
+
+- [`opaka_lf`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_lf.md)
+  : 'Opakapaka Length Frequency Data
+
+- [`opaka_parameters`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_parameters.md)
+  : 'Opakapaka Stock Assessment Parameters
+
+- [`opaka_truth`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_truth.md)
+  : Opakapaka SS3 OM/EM truth and EM output (extracted)
+
+- [`opal_baseline`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_baseline.md)
+  :
+
+  `opal` model regression baseline
+
+- [`opal_baseline_data`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_baseline_data.md)
+  : Opal Baseline Data
+
+- [`opal_baseline_map`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_baseline_map.md)
+  : Opal Baseline Map
+
+- [`opal_baseline_parameters`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_baseline_parameters.md)
+  : Opal Baseline Parameters
+
+- [`wcpo_bet_data`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/wcpo_bet_data.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Assessment Data
+
+- [`wcpo_bet_lf`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/wcpo_bet_lf.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Length Frequency
+  Data
+
+- [`wcpo_bet_parameters`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/wcpo_bet_parameters.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Assessment
+  Parameters
+
+- [`wcpo_bet_wf`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/wcpo_bet_wf.md)
+  : West Central Pacific Ocean Bigeye Tuna (WCPO BET) Weight Frequency
+  Data
+
+## Legacy fit compatibility
+
+Compatibility helpers for older opal_fit files; use opal_obj for new
+assessments.
+
+- [`opal_fit_compatibility()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit_compatibility.md)
+  : Check compatibility of a saved opal fit
+- [`save_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit_io.md)
+  [`read_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit_io.md)
+  : Save and read portable opal fits
+- [`opal_fit_object()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit_object.md)
+  : Access the runtime objective for an opal fit
+- [`opal_fit_report()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_fit_report.md)
+  : Recreate the fitted model report
+- [`rebuild_opal_object()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/rebuild_opal_object.md)
+  : Rebuild the RTMB objective for a portable opal fit
+- [`update_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/update_opal_fit.md)
+  : Update portable results attached to an opal fit
+- [`validate_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/validate_opal_fit.md)
+  : Validate a portable opal fit
+
+# Articles
+
+### Assessment workflow
+
+- [Quickstart
+  Guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.md):
+- [Review an Opakapaka
+  Fit](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.md):
+- [Project a saved
+  assessment](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.md):
