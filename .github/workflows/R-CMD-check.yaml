@@ -175,6 +175,30 @@ jobs:
           renv::install("rcmdcheck")
         shell: Rscript {0}
 
+      # Matrix 1.7-1 in the R 4.5 lockfile predates the R 4.6 C-API changes.
+      # Its sparse Cholesky path can segfault on R 4.6. Keep the locked R 4.5
+      # job, but use an explicit compatible Matrix on newer R, and rebuild
+      # its native consumers against the installed headers.
+      - name: Align native matrix dependencies with R 4.6
+        run: |
+          if (getRversion() >= "4.6.0") {
+            renv::install("Matrix@1.7-6", prompt = FALSE)
+            renv::rebuild(c("TMB", "RTMB"), recursive = FALSE,
+                          type = "source", prompt = FALSE)
+          }
+        shell: Rscript {0}
+
+      - name: Check sparse Cholesky before package tests
+        run: |
+          message("R ", getRversion(), "; Matrix ", packageVersion("Matrix"),
+                  "; TMB ", packageVersion("TMB"), "; RTMB ", packageVersion("RTMB"))
+          a <- Matrix::sparseMatrix(i = c(1L, 2L), j = c(1L, 2L),
+                                    x = c(2, 3), symmetric = TRUE)
+          factor <- Matrix::Cholesky(a, LDL = FALSE, super = FALSE)
+          stopifnot(isTRUE(all.equal(as.numeric(Matrix::solve(factor, c(2, 3))),
+                                    c(1, 1))))
+        shell: Rscript {0}
+
       # Cheap insurance: if anything above reinstalled TMB, distr.hpp is gone
       # and downstream compiles fail with confusing errors much later.
       - name: Verify TMB contrib headers survived
