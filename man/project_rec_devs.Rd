@@ -6,7 +6,7 @@
 \usage{
 project_rec_devs(
   data,
-  obj,
+  obj = NULL,
   mcmc = NULL,
   first_yr = NULL,
   last_yr = NULL,
@@ -15,11 +15,12 @@ project_rec_devs(
   max.p = 5,
   max.d = 5,
   max.q = 5,
-  arima = TRUE
+  arima = TRUE,
+  uncertainty = NULL
 )
 }
 \arguments{
-\item{data}{a \code{list} of parameter values.}
+\item{data}{An Opal object or model data list.}
 
 \item{obj}{a \code{list} of parameter values.}
 
@@ -40,10 +41,15 @@ project_rec_devs(
 \item{max.q}{Maximum value of q}
 
 \item{arima}{default = TRUE, FALSE = "lognormal"}
+
+\item{uncertainty}{For Opal objects, choose \code{fit} or \code{mcmc}.}
 }
 \value{
 a \code{list} of projected recruitment deviates and ARIMA specifications.
 }
 \description{
-Project recruitment deviates
+Opal-object inputs reconstruct the full historical recruitment vector,
+including fixed and mapped years, for each draw. Set first_yr and last_yr
+to choose the period used to estimate future variability. Constant histories
+produce constant projections. Legacy list inputs retain their original path.
 }

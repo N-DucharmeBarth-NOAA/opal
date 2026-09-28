@@ -1,8 +1,8 @@
 on:
   push:
     paths: 
-      - '**.Rmd'
-      - '**.qmd' # Added to capture your Quarto vignettes
+      - 'README.Rmd'
+      - 'vignettes/**.qmd'
       - '.github/workflows/render-rmarkdown.yaml'
 
 name: render-documents
@@ -78,12 +78,14 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: |
+          # Render package documentation only. Development assessments can
+          # run substantial fits and must be invoked deliberately.
           # Identify changed Rmd and qmd files
           # New branches have no previous commit; compare their changes to dev.
           if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
             BEFORE_SHA=$(git merge-base origin/dev "$GITHUB_SHA")
           fi
-          git diff --name-only -z "$BEFORE_SHA" "$GITHUB_SHA" -- '*.Rmd' '*.qmd' > "$RUNNER_TEMP/opal-changed-documents"
+          git diff --name-only -z "$BEFORE_SHA" "$GITHUB_SHA" -- 'README.Rmd' 'vignettes/*.qmd' > "$RUNNER_TEMP/opal-changed-documents"
           FILES=()
           while IFS= read -r -d '' file; do
             FILES+=("$file")

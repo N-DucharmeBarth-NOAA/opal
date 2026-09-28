@@ -7,10 +7,11 @@
 opal_as_tmbfit(x)
 }
 \arguments{
-\item{x}{An \code{opal_fit} with MCMC output or an \code{opal_mcmc} object.}
+\item{x}{An \code{opal_obj} or \code{opal_fit} with MCMC output, or an \code{opal_mcmc} object.}
 }
 \value{
-A list inheriting from \code{tmbfit}.
+A list inheriting from \code{tmbfit}. Parameter-only imported draws have
+an unknown (\code{NA}) lp__ column so SparseNUTS retains every parameter.
 }
 \description{
 Convert normalized opal posterior draws to a tmbfit

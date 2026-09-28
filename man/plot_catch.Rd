@@ -4,12 +4,12 @@
 \alias{plot_catch}
 \title{Plot catch}
 \usage{
-plot_catch(data, obj, plot_resid = FALSE)
+plot_catch(data, obj = NULL, plot_resid = FALSE)
 }
 \arguments{
-\item{data}{A model data list passed to \code{MakeADFun}.}
+\item{data}{An \code{opal_obj}, legacy \code{opal_fit}, or model data list.}
 
-\item{obj}{The AD object created using \code{MakeADFun}.}
+\item{obj}{Optional for Opal objects. The AD object created using \code{MakeADFun}.}
 
 \item{plot_resid}{Logical; plot catch residuals instead of observed and
 predicted catch.}

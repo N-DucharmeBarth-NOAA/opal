@@ -1,5 +1,12 @@
 # opal 0.0.4
 
+- 2026/09/29: Introduce the staged `opal_obj` workflow: configuration, two-pass
+  fitting, MCMC, diagnostics, direct plots, projections with source identities,
+  and portable `opal_save()`/`opal_read()` persistence. Preserve legacy fit
+  construction and migrate saved fits with objective verification. Configuration
+  changes invalidate dependent results; metadata updates and same-target refits
+  preserve compatible samples. Model numerics and scientific contract v4 are unchanged.
+
 - 2026/09/22 ([2ae7722](https://github.com/N-DucharmeBarth-NOAA/opal/commit/2ae772291b8d3deae5b3f25f172a99124d149091)): Use portable integrity in the bundled-fit examples so they run across R
   versions while retaining strict model compatibility and objective checks.
   Build the package website on pull requests to `dev` as well as `main`.

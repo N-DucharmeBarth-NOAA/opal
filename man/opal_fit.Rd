@@ -17,11 +17,15 @@ opal_fit(
   mcmc_settings = list(),
   derived = list(),
   makeadfun_args = list(),
-  optimizer = "nlminb"
+  optimizer = "nlminb",
+  n_passes = 2L,
+  check = TRUE,
+  check_args = list()
 )
 }
 \arguments{
-\item{data}{Named model data list used to construct \code{obj}.}
+\item{data}{An \code{opal_obj} to optimise, or the legacy named model data list
+used to construct \code{obj}. With an \code{opal_obj}, returns an updated object.}
 
 \item{obj}{Fitted RTMB objective created with \code{opal_model}.}
 
@@ -52,9 +56,16 @@ projections or retrospective summaries.}
 rebuild \code{RTMB::MakeADFun()}. Core arguments are reserved.}
 
 \item{optimizer}{Non-empty character name of the optimizer used.}
+
+\item{n_passes}{Number of sequential optimisation passes for an \code{opal_obj}.}
+
+\item{check}{Run fitting diagnostics for an \code{opal_obj}.}
+
+\item{check_args}{Named arguments passed to \code{\link[=opal_check]{opal_check()}}.}
 }
 \value{
-An object inheriting from \code{opal_fit}.
+With an \code{opal_obj}, an updated \code{opal_obj}. Legacy constructor calls
+return \code{opal_fit}; use \code{\link[=opal_from_fit]{opal_from_fit()}} to migrate them.
 }
 \description{
 Captures the plain R state needed to reproduce a fitted opal model without

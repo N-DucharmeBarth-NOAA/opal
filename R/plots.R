@@ -1,9 +1,20 @@
+.opal_model_input <- function(data, object = NULL) {
+  if (inherits(data, "opal_fit")) data <- opal_from_fit(data)
+  if (inherits(data, "opal_obj")) {
+    if (!is.null(object)) stop("Do not supply a separate objective with an opal_obj.", call. = FALSE)
+    data <- opal_build(data)
+    return(list(data = data$data, object = opal_rtmb(data, fresh = TRUE)))
+  }
+  if (is.null(object)) stop("Supply an Opal object or both model data and an RTMB objective.", call. = FALSE)
+  list(data = data, object = object)
+}
+
 #' Plot catch
 #'
 #' Plot catch by year and fishery.
 #'
-#' @param data A model data list passed to \code{MakeADFun}.
-#' @param obj The AD object created using \code{MakeADFun}.
+#' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
+#' @param obj Optional for Opal objects. The AD object created using \code{MakeADFun}.
 #' @param plot_resid Logical; plot catch residuals instead of observed and
 #'   predicted catch.
 #' @return A \code{ggplot2} object.
@@ -13,7 +24,11 @@
 #' @importFrom rlang .data
 #' @export
 #'
-plot_catch <- function(data, obj, plot_resid = FALSE) {
+plot_catch <- function(data, obj = NULL, plot_resid = FALSE) {
+  input <- .opal_model_input(data, obj)
+  data <- input$data
+  obj <- input$object
+
   yrs <- data$years
   if (is.null(yrs)) {
     yrs <- seq.int(data$first_yr, length.out = data$n_year)
@@ -81,18 +96,25 @@ plot_catch <- function(data, obj, plot_resid = FALSE) {
 #'
 #' Plot observed and predicted CPUE by season and fishery.
 #'
-#' @param data A model data list passed to \code{MakeADFun}.
-#' @param object The AD object created using \code{MakeADFun}.
+#' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
+#' @param object Optional for Opal objects. The AD object created using \code{MakeADFun}.
 #' @return A \code{ggplot2} object.
 #' @import ggplot2
 #' @import dplyr
 #' @importFrom scales pretty_breaks
 #' @export
 #'
-plot_cpue <- function(data, object) {
+plot_cpue <- function(data, object = NULL) {
+  input <- .opal_model_input(data, object)
+  data <- input$data
+  object <- input$object
+
   report <- object$report(object$env$last.par.best)
 
-  df <- data$cpue_data %>%
+  cpue <- data$cpue_data
+  if (is.null(cpue$year)) cpue$year <- data$first_yr + (cpue$ts - 1L) %/% data$n_season
+  if (is.null(cpue$season)) cpue$season <- (cpue$ts - 1L) %% data$n_season + 1L
+  df <- cpue %>%
     mutate(pred = report$cpue_pred, sigma = report$cpue_sigma)
 
   ggplot(df, aes(x = .data$year, y = .data$value)) +
@@ -117,7 +139,7 @@ plot_cpue <- function(data, object) {
 #' Plot spawning biomass or relative spawning biomass by year for one or more
 #' model runs.
 #'
-#' @param data_list A list of model data lists passed to \code{MakeADFun}.
+#' @param data_list An Opal object, list of Opal objects, or list of model data lists.
 #' @param object_list A list of AD objects created using \code{MakeADFun}.
 #' @param relative Logical; plot spawning biomass relative to unfished biomass.
 #' @param labels Optional labels for the model runs.
@@ -127,8 +149,16 @@ plot_cpue <- function(data, object) {
 #' @importFrom scales pretty_breaks
 #' @export
 #'
-plot_biomass_spawning <- function(data_list, object_list, relative = TRUE,
+plot_biomass_spawning <- function(data_list, object_list = NULL, relative = TRUE,
                                   labels = NULL) {
+  if (inherits(data_list, c("opal_obj", "opal_fit"))) data_list <- list(data_list)
+  if (is.null(object_list)) {
+    inputs <- lapply(data_list, .opal_model_input)
+    data_list <- lapply(inputs, `[[`, "data")
+    object_list <- lapply(inputs, `[[`, "object")
+  }
+  if (length(data_list) != length(object_list)) stop("Data and objective lists must have equal lengths.")
+
   n_model <- length(data_list)
   if (is.null(labels)) labels <- seq_len(n_model)
 
@@ -175,13 +205,17 @@ plot_biomass_spawning <- function(data_list, object_list, relative = TRUE,
 #'
 #' Plot initial population numbers by age.
 #'
-#' @param data A model data list passed to \code{MakeADFun}.
-#' @param object The AD object created using \code{MakeADFun}.
+#' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
+#' @param object Optional for Opal objects. The AD object created using \code{MakeADFun}.
 #' @return A \code{ggplot2} object.
 #' @import ggplot2
 #' @export
 #'
-plot_initial_numbers <- function(data, object) {
+plot_initial_numbers <- function(data, object = NULL) {
+  input <- .opal_model_input(data, object)
+  data <- input$data
+  object <- input$object
+
   ages <- data$min_age:data$max_age
   number_ysa <- object$report()$number_ysa
   initial_numbers <- data.frame(age = ages, value = number_ysa[1, 1, ])
@@ -203,8 +237,8 @@ plot_initial_numbers <- function(data, object) {
 #'
 #' Plot harvest rate by year, season, and age.
 #'
-#' @param data A model data list passed to \code{MakeADFun}.
-#' @param object The AD object created using \code{MakeADFun}.
+#' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
+#' @param object Optional for Opal objects. The AD object created using \code{MakeADFun}.
 #' @param years Optional years to show. The default plots every model year from
 #'   the first catch year onwards.
 #' @param ... Options passed to \code{geom_density_ridges}.
@@ -216,7 +250,11 @@ plot_initial_numbers <- function(data, object) {
 #' @importFrom scales pretty_breaks
 #' @export
 #'
-plot_hrate <- function(data, object, years = NULL, ...) {
+plot_hrate <- function(data, object = NULL, years = NULL, ...) {
+  input <- .opal_model_input(data, object)
+  data <- input$data
+  object <- input$object
+
   model_years <- data$first_yr:data$last_yr
   ages <- data$min_age:data$max_age
   if (is.null(years)) years <- model_years
@@ -256,13 +294,17 @@ plot_hrate <- function(data, object, years = NULL, ...) {
 #'
 #' Plot recruitment by year.
 #'
-#' @param data A model data list passed to \code{MakeADFun}.
-#' @param object The AD object created using \code{MakeADFun}.
+#' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
+#' @param object Optional for Opal objects. The AD object created using \code{MakeADFun}.
 #' @return A \code{ggplot2} object.
 #' @import ggplot2
 #' @export
 #'
-plot_recruitment <- function(data, object) {
+plot_recruitment <- function(data, object = NULL) {
+  input <- .opal_model_input(data, object)
+  data <- input$data
+  object <- input$object
+
   report <- object$report(object$env$last.par.best)
   years <- data$first_yr:(data$last_yr + 1)
   recruitment <- data.frame(year = years, value = report$number_ysa[, 1, 1])

@@ -4,10 +4,15 @@
 \alias{plot_biomass_spawning}
 \title{Plot spawning biomass}
 \usage{
-plot_biomass_spawning(data_list, object_list, relative = TRUE, labels = NULL)
+plot_biomass_spawning(
+  data_list,
+  object_list = NULL,
+  relative = TRUE,
+  labels = NULL
+)
 }
 \arguments{
-\item{data_list}{A list of model data lists passed to \code{MakeADFun}.}
+\item{data_list}{An Opal object, list of Opal objects, or list of model data lists.}
 
 \item{object_list}{A list of AD objects created using \code{MakeADFun}.}
 

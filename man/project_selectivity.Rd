@@ -6,7 +6,7 @@
 \usage{
 project_selectivity(
   data,
-  obj,
+  obj = NULL,
   first_yr = NULL,
   last_yr = NULL,
   n_proj = 5,
@@ -14,7 +14,7 @@ project_selectivity(
 )
 }
 \arguments{
-\item{data}{a \code{list} of parameter values.}
+\item{data}{An Opal object or model data list.}
 
 \item{obj}{a \code{list} of parameter values.}
 

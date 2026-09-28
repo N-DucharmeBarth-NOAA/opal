@@ -6,18 +6,19 @@
 \usage{
 project_dynamics(
   data,
-  object,
+  object = NULL,
   mcmc = NULL,
   n_proj = 5,
   n_iter = 1,
   rdev_y,
   sel_fya,
   catch_ysf,
-  return_hist = FALSE
+  return_hist = FALSE,
+  uncertainty = NULL
 )
 }
 \arguments{
-\item{data}{A \code{list} of model data (as passed to \code{opal_model}).}
+\item{data}{An \code{opal_obj}, legacy \code{opal_fit}, or model data list.}
 
 \item{object}{The RTMB AD object returned by \code{RTMB::MakeADFun}, after
 optimisation.}
@@ -48,6 +49,8 @@ trajectory from each parameter draw over the historical period.  The
 last column of \code{hist_sbio} corresponds to the same terminal state
 as the \code{proj_year = 0} bridge point in the projection, so the two
 can be plotted seamlessly without any join discontinuity.}
+
+\item{uncertainty}{For Opal objects, choose \code{mcmc} or \code{mvn} explicitly when a posterior exists. Random effects require complete joint posterior draws.}
 }
 \value{
 When \code{return_hist = FALSE} (default): a \code{list} of length

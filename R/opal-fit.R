@@ -431,7 +431,8 @@
 #' a session cache and can be rebuilt with [rebuild_opal_object()]. Optional
 #' SparseNUTS output is normalized to a package-owned `opal_mcmc` payload.
 #'
-#' @param data Named model data list used to construct `obj`.
+#' @param data An `opal_obj` to optimise, or the legacy named model data list
+#'   used to construct `obj`. With an `opal_obj`, returns an updated object.
 #' @param obj Fitted RTMB objective created with `opal_model`.
 #' @param opt Optimizer result, normally returned by [stats::nlminb()].
 #' @param bounds Optional bounds data frame from [get_bounds()] or a list with
@@ -450,15 +451,31 @@
 #' @param makeadfun_args Optional named list of additional arguments needed to
 #'   rebuild `RTMB::MakeADFun()`. Core arguments are reserved.
 #' @param optimizer Non-empty character name of the optimizer used.
+#' @param n_passes Number of sequential optimisation passes for an `opal_obj`.
+#' @param check Run fitting diagnostics for an `opal_obj`.
+#' @param check_args Named arguments passed to [opal_check()].
 #'
-#' @return An object inheriting from `opal_fit`.
+#' @return With an `opal_obj`, an updated `opal_obj`. Legacy constructor calls
+#'   return `opal_fit`; use [opal_from_fit()] to migrate them.
 #' @export
 #'
 opal_fit <- function(data, obj, opt, bounds = NULL, control = NULL,
                      estimability = NULL, diagnostics = list(),
                      metadata = list(), mcmc = NULL, mcmc_settings = list(),
                      derived = list(), makeadfun_args = list(),
-                     optimizer = "nlminb") {
+                     optimizer = "nlminb", n_passes = 2L,
+                     check = TRUE, check_args = list()) {
+  if (inherits(data, "opal_obj")) {
+    if (!missing(obj) || !missing(opt)) {
+      stop("Do not supply legacy obj or opt with an opal_obj.", call. = FALSE)
+    }
+    legacy_args <- c("bounds", "estimability", "diagnostics", "metadata", "mcmc",
+                     "mcmc_settings", "derived", "makeadfun_args", "optimizer")
+    if (length(intersect(names(as.list(match.call())[-1L]), legacy_args))) {
+      stop("Use opal_update() to configure an opal_obj, or an explicit attachment helper.", call. = FALSE)
+    }
+    return(.opal_optimise(data, n_passes, control, check, check_args))
+  }
   if (!is.list(data)) stop("`data` must be a list.", call. = FALSE)
   data <- .opal_sanitize_tables(data)
   .opal_validate_named_list(data, "data")
@@ -1024,11 +1041,17 @@ update_opal_fit <- function(x, mcmc, mcmc_settings = list(),
 
 #' Convert normalized opal posterior draws to a tmbfit
 #'
-#' @param x An `opal_fit` with MCMC output or an `opal_mcmc` object.
-#' @return A list inheriting from `tmbfit`.
+#' @param x An `opal_obj` or `opal_fit` with MCMC output, or an `opal_mcmc` object.
+#' @return A list inheriting from `tmbfit`. Parameter-only imported draws have
+#'   an unknown (`NA`) lp__ column so SparseNUTS retains every parameter.
 #' @export
 #'
 opal_as_tmbfit <- function(x) {
+  if (inherits(x, "opal_obj")) {
+    validate_opal_obj(x, results = TRUE)
+    if (is.null(x$mcmc)) stop("This opal_obj has no posterior.", call. = FALSE)
+    x <- x$mcmc
+  }
   if (inherits(x, "opal_fit")) {
     validate_opal_fit(x)
     if (is.null(x$mcmc)) {
@@ -1041,6 +1064,16 @@ opal_as_tmbfit <- function(x) {
   }
 
   samples <- x$samples
+  # SparseNUTS always removes the last column when extracting parameters.
+  # Put lp__ last, or mark it as unknown for imported parameter-only draws.
+  if (!"lp__" %in% dimnames(samples)[[3L]]) {
+    original <- samples
+    samples <- array(NA_real_, dim = c(dim(original)[1:2], dim(original)[3L] + 1L),
+      dimnames = c(dimnames(original)[1:2], list(c(x$par_names, "lp__"))))
+    samples[, , seq_along(x$par_names)] <- original
+  } else {
+    samples <- samples[, , c(x$par_names, "lp__"), drop = FALSE]
+  }
   sampler_params <- x$sampler_params
   samples_unbounded <- x$samples_unbounded
   warmup <- x$warmup

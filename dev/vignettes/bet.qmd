@@ -565,17 +565,18 @@ if (fit_grad < 1e-2) {
 
 ## Portable fit object
 
-Store the optimized model in an `opal_fit`. The fit retains the model inputs,
+Store the optimised model in an `opal_obj`. This example keeps its customised
+optimisation and diagnostics, then converts the legacy constructor result. The fit retains the model inputs,
 parameter map, optimizer output, bounds, diagnostics, and enough information to
 rebuild the transient RTMB objective in a later R session. MCMC output and
 derived products such as projections can be attached later with
-`update_opal_fit()`.
+`opal_attach_mcmc()` and `opal_project()`.
 
 ```{r}
 #| label: make-opal-fit
 #| echo: true
 #| message: false
-fit <- opal_fit(
+legacy_fit <- opal_fit(
   data = data,
   obj = obj,
   opt = opt,
@@ -600,13 +601,16 @@ fit <- opal_fit(
   )
 )
 
-# Downstream code works from the fit rather than a loose optimizer/object pair.
-obj <- opal_fit_object(fit)
-fit_rep <- opal_fit_report(fit)
+# Upgrade without refitting; retain the custom diagnostics above.
+fit <- opal_from_fit(legacy_fit)
+
+# Downstream code works from the portable assessment.
+obj <- opal_rtmb(fit)
+fit_rep <- opal_report(fit)
 fit
 
 # Persist the portable fit when running an assessment:
-# save_opal_fit(fit, "bet-opal-fit.rds")
+# opal_save(fit, "bet-opal-fit.rds")
 ```
 
 ```{r}
