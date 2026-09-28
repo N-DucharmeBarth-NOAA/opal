@@ -92,7 +92,6 @@ reference:
       - plot_cpue
       - plot_hrate
       - plot_initial_numbers
-      - plot_natural_mortality
       - plot_recruitment
   - title: Model inputs and diagnostics
     desc: Prepare data, configure parameters, and inspect the underlying RTMB model.
@@ -111,8 +110,9 @@ reference:
       - get_par_table
       - extract_fixed
   - title: Model components
-    desc: Lower-level functions used by the assessment model and advanced workflows.
+    desc: Lower-level functions used by the assessment model and advanced workflows. The natural-mortality plot takes a data list and an RTMB runtime.
     contents:
+      - plot_natural_mortality
       - cmb
       - convert_rtmb_selex_to_ss3
       - convert_ss3_selex_to_rtmb
