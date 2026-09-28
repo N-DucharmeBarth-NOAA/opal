@@ -325,3 +325,16 @@ test_that("bundled defaults retain valid fixed zero-variance parameters", {
   opal_save(x, path)
   expect_equal(opal_read(path, rebuild = TRUE)$identity, x$identity)
 })
+
+test_that("posterior recruitment projections keep dynamics draw order", {
+  x <- small_opal_object()
+  map <- x$map
+  map$rdev_y <- NULL
+  x <- opal_update(x, map = map, bounds = NULL)
+  draws <- rbind(c(15, 0.1, 0.1), c(15.1, 0.5, 0.5))
+  colnames(draws) <- c("log_B0", "rdev_y[1]", "rdev_y[2]")
+  x <- opal_attach_mcmc(x, draws, check = FALSE)
+  set.seed(4) # A random permutation would reverse these two posterior rows.
+  result <- project_rec_devs(x, uncertainty = "mcmc", n_proj = 2, n_iter = 2)
+  expect_equal(unname(result$rdev_y), rbind(c(0.1, 0.1), c(0.5, 0.5)))
+})

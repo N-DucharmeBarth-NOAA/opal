@@ -307,7 +307,9 @@ project_rec_devs <- function(data, obj = NULL, mcmc = NULL, first_yr = NULL, las
       post <- extract_samples(fit = mcmc)
       if (is.null(n_iter)) n_iter <- nrow(post)
       if (n_iter > nrow(post)) stop("n_iter exceeds the available posterior draws.")
-      rows <- sample.int(nrow(post), n_iter)
+      # project_dynamics() consumes the first n_iter draws in this order.
+      # Keep recruitment histories paired with those same parameter draws.
+      rows <- seq_len(n_iter)
       rdevs1 <- t(vapply(rows, function(i) {
         obj$env$parList(par = as.numeric(post[i, ]))$rdev_y
       }, numeric(data$n_year)))
