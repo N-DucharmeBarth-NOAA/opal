@@ -48,10 +48,15 @@
 }
 
 .opal_obj_parameters <- function(parameters, map, random) {
+  if (!is.character(random) || anyNA(random) || any(!nzchar(random)) || anyDuplicated(random)) {
+    stop("Invalid random-effect names.", call. = FALSE)
+  }
   if (is.null(parameters)) {
-    if (!is.null(map) || length(random)) {
-      stop("Supply parameters with a map or random-effect specification.", call. = FALSE)
+    if (!is.null(map)) {
+      .opal_validate_named_list(map, "map")
+      if (any(!vapply(map, is.factor, logical(1L)))) stop("Map entries must be factors.", call. = FALSE)
     }
+    # Parameter names and dimensions can only be checked after defaults resolve.
     return(invisible(NULL))
   }
   .opal_validate_named_list(parameters, "parameters")

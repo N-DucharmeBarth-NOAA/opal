@@ -98,7 +98,7 @@ Install the development version of opal from GitHub:
 
 ``` r
 # install.packages("remotes")
-remotes::install_github("N-DucharmeBarth-NOAA/opal")
+remotes::install_github("N-DucharmeBarth-NOAA/opal@dev")
 ```
 
 opal depends on [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS),

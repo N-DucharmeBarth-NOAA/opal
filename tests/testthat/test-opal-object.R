@@ -298,3 +298,14 @@ test_that("the R 4.6 object fixture remains readable across R versions", {
                x$fit$opt$objective, tolerance = 1e-6)
   expect_identical(x$mcmc$par_names, "log_B0")
 })
+
+test_that("maps and random effects can be specified before parameters resolve", {
+  ready <- small_opal_object(TRUE)
+  pending <- opal_obj(ready$data, map = ready$map, random = "rdev_y", bounds = ready$bounds)
+  expect_identical(summary(pending)$stage, "data")
+  configured <- opal_update(pending, parameters = ready$parameters)
+  expect_equal(opal_report(opal_build(configured)), opal_report(opal_build(ready)))
+  bad <- opal_obj(ready$data, random = "unknown")
+  expect_error(opal_update(bad, parameters = ready$parameters), "random")
+  expect_error(opal_obj(ready$data, map = list(rdev_y = 1)), "factors")
+})
