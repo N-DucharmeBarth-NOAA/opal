@@ -120,17 +120,17 @@
 <span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
 <span><span class="co">#&gt; Active parameters: 127 </span></span>
 <span><span class="co">#&gt; Objective: 1832.412 </span></span>
-<span><span class="co">#&gt; Fit check: passed  | MCMC check: not run</span></span>
+<span><span class="co">#&gt; Fit check: failed  | MCMC check: not run</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span></span>
 <span><span class="co">#&gt; $passes</span></span>
-<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics</span></span>
 <span><span class="co">#&gt; $metrics$convergence</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics$max_gradient</span></span>
-<span><span class="co">#&gt; [1] 0.0009666844</span></span>
+<span><span class="co">#&gt; [1] 0.001041864</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics$positive_hessian</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
@@ -150,7 +150,7 @@
 <span><span class="co">#&gt; [1] "082a2a20f7e2f341704e5452b7b2312f"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $identity$fit</span></span>
-<span><span class="co">#&gt; [1] "cc9b031fee185b8057263994268e118b"</span></span>
+<span><span class="co">#&gt; [1] "7459c22d1102869eeae932f6f18cec4b"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $settings</span></span>
@@ -165,7 +165,7 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $checked_at</span></span>
-<span><span class="co">#&gt; [1] "2026-09-28 23:22:08 UTC"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "2026-09-28 23:26:08 UTC"</span></span></code></pre></div>
 </div>
 <p>The optimiser can return convergence code zero while the maximum gradient still exceeds the default tolerance of <code>0.001</code>. Inspect the recorded metrics. If needed, continue from the stored optimum, keeping the same configuration and tolerance. This example allows up to three further calls and stops if the checks still fail; it does not treat the <code>fitted</code> stage as acceptance.</p>
 <div class="cell">

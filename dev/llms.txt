@@ -326,8 +326,6 @@ Pass an assessment object directly to the model plots.
   : Plot harvest rate
 - [`plot_initial_numbers()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_initial_numbers.md)
   : Plot initial numbers
-- [`plot_natural_mortality()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_natural_mortality.md)
-  : Plot natural mortality
 - [`plot_recruitment()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_recruitment.md)
   : Plot recruitment
 
@@ -366,8 +364,11 @@ model.
 ## Model components
 
 Lower-level functions used by the assessment model and advanced
-workflows.
+workflows. The natural-mortality plot takes a data list and an RTMB
+runtime.
 
+- [`plot_natural_mortality()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_natural_mortality.md)
+  : Plot natural mortality
 - [`cmb()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/cmb.md)
   : Helper to make closure
 - [`convert_rtmb_selex_to_ss3()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/convert_rtmb_selex_to_ss3.md)

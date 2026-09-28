@@ -69,17 +69,17 @@ fit
 #> <opal_obj> fitted
 #> Active parameters: 127 
 #> Objective: 1832.412 
-#> Fit check: passed  | MCMC check: not run
+#> Fit check: failed  | MCMC check: not run
 fit$validation$fit
 #> $passes
-#> [1] TRUE
+#> [1] FALSE
 #> 
 #> $metrics
 #> $metrics$convergence
 #> [1] 0
 #> 
 #> $metrics$max_gradient
-#> [1] 0.0009666844
+#> [1] 0.001041864
 #> 
 #> $metrics$positive_hessian
 #> [1] TRUE
@@ -99,7 +99,7 @@ fit$validation$fit
 #> [1] "082a2a20f7e2f341704e5452b7b2312f"
 #> 
 #> $identity$fit
-#> [1] "cc9b031fee185b8057263994268e118b"
+#> [1] "7459c22d1102869eeae932f6f18cec4b"
 #> 
 #> 
 #> $settings
@@ -114,7 +114,7 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-09-28 23:22:08 UTC"
+#> [1] "2026-09-28 23:26:08 UTC"
 ```
 
 The optimiser can return convergence code zero while the maximum
