@@ -5,10 +5,18 @@
 
 <!-- badges: start -->
 
-[![R-CMD-check](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml)
-[![codecov-main](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
-[![codecov-dev](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal/branch/dev/graph/badge.svg?token=6JY6W5MDDN)](https://codecov.io/gh/N-DucharmeBarth-NOAA/opal)
+[![R-CMD-check
+(dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg?branch=dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml?query=branch%3Adev)
+[![pkgdown
+(dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/pkgdown.yaml/badge.svg?branch=dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/pkgdown.yaml?query=branch%3Adev)
+[![codecov
+main](https://img.shields.io/codecov/c/github/N-DucharmeBarth-NOAA/opal/main?label=codecov%20main&logo=codecov)](https://app.codecov.io/gh/N-DucharmeBarth-NOAA/opal/tree/main)
+[![codecov
+dev](https://img.shields.io/codecov/c/github/N-DucharmeBarth-NOAA/opal/dev?label=codecov%20dev&logo=codecov)](https://app.codecov.io/gh/N-DucharmeBarth-NOAA/opal/tree/dev)
 <!-- badges: end -->
+
+Build badges show `dev`; coverage is reported separately for `main` and
+`dev`.
 
 ## Overview
 

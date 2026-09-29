@@ -9,7 +9,7 @@ on:
   schedule:
     - cron: '0 11 * * 0'
 
-name: R-CMD-check.yaml
+name: R-CMD-check
 
 permissions: read-all
 
