@@ -114,7 +114,7 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-09-28 23:26:08 UTC"
+#> [1] "2026-09-29 00:22:57 UTC"
 ```
 
 The optimiser can return convergence code zero while the maximum

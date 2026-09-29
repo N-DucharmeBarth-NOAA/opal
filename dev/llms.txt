@@ -1,5 +1,8 @@
 # opal
 
+Build badges show `dev`; coverage is reported separately for `main` and
+`dev`.
+
 ## Overview
 
 **opal**, the **o**pen **p**opulation **a**ssessment **l**ibrary, is an

@@ -210,7 +210,7 @@ assessment$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-09-28 23:25:22 UTC"
+#> [1] "2026-09-29 00:22:00 UTC"
 #> 
 # }
 ```
