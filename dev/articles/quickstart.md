@@ -114,21 +114,25 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-09-29 00:22:57 UTC"
+#> [1] "2026-09-29 00:40:03 UTC"
 ```
 
 The optimiser can return convergence code zero while the maximum
 gradient still exceeds the default tolerance of `0.001`. Inspect the
-recorded metrics. If needed, continue from the stored optimum, keeping
-the same configuration and tolerance. This example allows up to three
-further calls and stops if the checks still fail; it does not treat the
-`fitted` stage as acceptance.
+recorded metrics. If needed, continue from the stored optimum with a
+tighter relative objective tolerance for the optimiser, keeping the same
+model and diagnostic threshold. This example checks after each pass,
+allows up to three further passes, and stops if the checks still fail;
+the `fitted` stage alone is not acceptance.
 
 ``` r
 
 for (attempt in seq_len(3L)) {
   if (isTRUE(fit$validation$fit$passes)) break
-  fit <- opal_fit(fit)
+  fit <- opal_fit(
+    fit, n_passes = 1L,
+    control = list(eval.max = 10000L, iter.max = 10000L, rel.tol = 1e-10)
+  )
 }
 stopifnot(isTRUE(fit$validation$fit$passes))
 summary(fit)

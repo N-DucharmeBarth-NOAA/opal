@@ -93,12 +93,15 @@ Objective: 1832.412
 Fit check: failed  | MCMC check: not run </code></pre>
 </div>
 </div>
-<p>The saved fit may pass the optimiser’s stopping rule while missing Opal’s stricter gradient check. Continue optimisation from the saved point when needed, with the same model and tolerance. The following bounded continuation must pass before this example proceeds. Reading alone never refits a model.</p>
+<p>The saved fit may pass the optimiser’s stopping rule while missing Opal’s stricter gradient check. Continue optimisation from the saved point when needed, with the same model and diagnostic threshold. Tighten the optimiser’s relative objective tolerance so that it does not stop before the gradient check passes. Check after each pass, allowing at most three; this example stops if the checks still fail. Reading alone never refits a model.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">for</span> <span class="op">(</span><span class="va">attempt</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fl">3L</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">passes</span><span class="op">)</span><span class="op">)</span> <span class="kw">break</span></span>
-<span>  <span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit.html">opal_fit</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">)</span></span>
+<span>  <span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit.html">opal_fit</a></span><span class="op">(</span></span>
+<span>    <span class="va">assessment</span>, n_passes <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>    control <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>eval.max <span class="op">=</span> <span class="fl">10000L</span>, iter.max <span class="op">=</span> <span class="fl">10000L</span>, rel.tol <span class="op">=</span> <span class="fl">1e-10</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">passes</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">)</span></span></code></pre></div>

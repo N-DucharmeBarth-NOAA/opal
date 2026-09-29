@@ -8,6 +8,12 @@
   with internal-link checks. Model numerics and function interfaces are
   unchanged.
 
+- 2026/09/29: Expand tests for projection uncertainty, recruitment
+  forecasts, selectivity, parameter diagnostics, and bundled data
+  access. Tighten optimiser stopping tolerances in the Quickstart and
+  projection examples while retaining the existing fit-check thresholds.
+  Package model calculations are unchanged.
+
 - 2026/09/29: Introduce the staged `opal_obj` workflow: configuration,
   two-pass fitting, MCMC, diagnostics, direct plots, projections with
   source identities, and portable

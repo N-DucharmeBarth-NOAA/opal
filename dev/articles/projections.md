@@ -28,15 +28,20 @@ summary(assessment)
 
 The saved fit may pass the optimiser’s stopping rule while missing
 Opal’s stricter gradient check. Continue optimisation from the saved
-point when needed, with the same model and tolerance. The following
-bounded continuation must pass before this example proceeds. Reading
-alone never refits a model.
+point when needed, with the same model and diagnostic threshold. Tighten
+the optimiser’s relative objective tolerance so that it does not stop
+before the gradient check passes. Check after each pass, allowing at
+most three; this example stops if the checks still fail. Reading alone
+never refits a model.
 
 ``` r
 
 for (attempt in seq_len(3L)) {
   if (isTRUE(assessment$validation$fit$passes)) break
-  assessment <- opal_fit(assessment)
+  assessment <- opal_fit(
+    assessment, n_passes = 1L,
+    control = list(eval.max = 10000L, iter.max = 10000L, rel.tol = 1e-10)
+  )
 }
 stopifnot(isTRUE(assessment$validation$fit$passes))
 summary(assessment)
