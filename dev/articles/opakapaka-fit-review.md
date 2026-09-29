@@ -98,6 +98,35 @@ fit$validation$fit$metrics
 #> 
 #> $valid_population
 #> [1] TRUE
+#> 
+#> $biology
+#> $biology$passes
+#> [1] TRUE
+#> 
+#> $biology$checks
+#>  initial_equilibrium      harvest_penalty           population 
+#>                 TRUE                 TRUE                 TRUE 
+#>            mortality             maturity   spawning_potential 
+#>                 TRUE                 TRUE                 TRUE 
+#>               weight          selectivity            steepness 
+#>                 TRUE                 TRUE                 TRUE 
+#>          recruitment      spawning_output              harvest 
+#>                 TRUE                 TRUE                 TRUE 
+#>            depletion catch_reconstruction 
+#>                 TRUE                 TRUE 
+#> 
+#> $biology$metrics
+#> $biology$metrics$initial_penalty
+#> [1] 0
+#> 
+#> $biology$metrics$total_penalty
+#> [1] 0
+#> 
+#> $biology$metrics$max_harvest
+#> [1] 0.09746102
+#> 
+#> $biology$metrics$max_relative_catch_error
+#> [1] 6.704798e-10
 summary(fit)
 #> <opal_obj> fitted
 #> Active parameters: 127 
@@ -138,3 +167,11 @@ guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.md)
 to carry this object into a future-catch scenario, or
 [`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_mcmc.md)
 to add posterior sampling.
+
+### OSA residuals and further analyses
+
+Use `fit <- opal_osa(fit)` followed by `plot_osa_sdnr(fit)` to compare
+observation residual dispersion across datasets. The [assessment-tools
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/assessment-tools.md)
+shows this figure, composition fits, posterior analysis, and sensitivity
+workflows.

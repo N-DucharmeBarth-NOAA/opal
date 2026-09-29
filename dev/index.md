@@ -261,3 +261,21 @@ Fisheries](reference/figures/noaa-fisheries-rgb-2line-horizontal-small.png)](htt
 [U.S. Department of Commerce](https://www.commerce.gov/) \| [National
 Oceanographic and Atmospheric Administration](https://www.noaa.gov) \|
 [NOAA Fisheries](https://www.fisheries.noaa.gov/)
+
+### Assessment diagnostics and sensitivities
+
+The [assessment-tools
+tutorial](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/assessment-tools.html)
+shows biological validation, OSA residuals for every supported
+observation likelihood, a dataset-level SDNR plot, posterior summaries,
+prior and composition plots, objective profiles, model grids, and
+equilibrium MSY reference points. It includes a small, validated
+simulated posterior, and keeps all results and settings with their
+source `opal_obj`.
+
+``` r
+
+assessment <- opal_osa(assessment, seed = 123)
+plot_osa_sdnr(assessment)
+opal_derived(assessment, "osa")$summary
+```

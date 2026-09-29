@@ -37,6 +37,42 @@ Create, fit, sample, inspect, and save one portable assessment.
 - [`opal_as_tmbfit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_as_tmbfit.md)
   : Convert normalized opal posterior draws to a tmbfit
 
+## Assessment diagnostics and summaries
+
+- [`opal_diagnose()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_diagnose.md)
+  : Diagnose biological feasibility of an Opal model
+- [`opal_osa()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_osa.md)
+  : Calculate one-step-ahead observation residuals
+- [`plot_osa_sdnr()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_osa_sdnr.md)
+  : Compare OSA residual dispersion across datasets
+- [`plot_osa_residuals()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_osa_residuals.md)
+  : Plot stored OSA residuals
+- [`plot_composition()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_composition.md)
+  : Plot observed and fitted compositions
+- [`plot_prior_posterior()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_prior_posterior.md)
+  : Compare parameter priors and posterior distributions
+- [`opal_posterior()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_posterior.md)
+  : Summarise posterior parameters and derived model quantities
+- [`opal_derived()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_derived.md)
+  : Retrieve a stored assessment analysis
+- [`opal_example_inputs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_example_inputs.md)
+  : Simulated inputs for the assessment-tools tutorial
+
+## Sensitivities and reference points
+
+- [`opal_profile()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_profile.md)
+  : Profile an assessment parameter
+- [`plot_opal_profile()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_opal_profile.md)
+  : Plot an objective profile
+- [`opal_grid()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_grid.md)
+  : Fit a reproducible grid of assessment scenarios
+- [`opal_grid_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_grid_mcmc.md)
+  : Sample accepted members of an assessment grid
+- [`opal_grid_draws()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_grid_draws.md)
+  : Select balanced posterior draws from a model grid
+- [`opal_msy()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_msy.md)
+  : Calculate deterministic equilibrium reference points
+
 ## Projections
 
 Specify future assumptions and retain projections with their source

@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -45,7 +46,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_catch</span><span class="op">(</span><span class="va">data</span>, obj <span class="op">=</span> <span class="cn">NULL</span>, plot_resid <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">plot_catch</span><span class="op">(</span><span class="va">data</span>, obj <span class="op">=</span> <span class="cn">NULL</span>, plot_resid <span class="op">=</span> <span class="cn">FALSE</span>, weight_units <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -63,6 +64,11 @@
 <dt id="arg-plot-resid">plot_resid<a class="anchor" aria-label="anchor" href="#arg-plot-resid"></a></dt>
 <dd><p>Logical; plot catch residuals instead of observed and
 predicted catch.</p></dd>
+
+
+<dt id="arg-weight-units">weight_units<a class="anchor" aria-label="anchor" href="#arg-weight-units"></a></dt>
+<dd><p>Label for weight catches, in the input data's units.
+Defaults to <code>data$catch_weight_units</code>, or <code>"weight units"</code> when unspecified.</p></dd>
 
 </dl></div>
     <div class="section level2">

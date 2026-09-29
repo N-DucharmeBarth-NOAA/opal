@@ -42,6 +42,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul>
 </li>
@@ -159,6 +160,35 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $valid_population</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $biology</span></span>
+<span><span class="co">#&gt; $biology$passes</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $biology$checks</span></span>
+<span><span class="co">#&gt;  initial_equilibrium      harvest_penalty           population </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;            mortality             maturity   spawning_potential </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;               weight          selectivity            steepness </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;          recruitment      spawning_output              harvest </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;            depletion catch_reconstruction </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $biology$metrics</span></span>
+<span><span class="co">#&gt; $biology$metrics$initial_penalty</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $biology$metrics$total_penalty</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $biology$metrics$max_harvest</span></span>
+<span><span class="co">#&gt; [1] 0.09746102</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $biology$metrics$max_relative_catch_error</span></span>
+<span><span class="co">#&gt; [1] 6.704798e-10</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
 <span><span class="co">#&gt; Active parameters: 127 </span></span>
@@ -179,6 +209,9 @@
 <span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">path</span><span class="op">)</span></span></code></pre></div>
 </div>
 <p>See the <a href="projections.html">projection guide</a> to carry this object into a future-catch scenario, or <code><a href="../reference/opal_mcmc.html">opal_mcmc()</a></code> to add posterior sampling.</p>
+</section><section class="level2"><h3 id="osa-residuals-and-further-analyses">OSA residuals and further analyses<a class="anchor" aria-label="anchor" href="#osa-residuals-and-further-analyses"></a>
+</h3>
+<p>Use <code>fit &lt;- opal_osa(fit)</code> followed by <code>plot_osa_sdnr(fit)</code> to compare observation residual dispersion across datasets. The <a href="assessment-tools.html">assessment-tools guide</a> shows this figure, composition fits, posterior analysis, and sensitivity workflows.</p>
 </section></section><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);

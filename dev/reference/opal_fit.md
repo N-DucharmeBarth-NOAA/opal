@@ -143,10 +143,13 @@ Other assessment workflow:
 [`opal_attach_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_attach_mcmc.md),
 [`opal_build()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_build.md),
 [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_check.md),
+[`opal_derived()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_derived.md),
+[`opal_example_inputs()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_example_inputs.md),
 [`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_from_fit.md),
 [`opal_io`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_io.md),
 [`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_mcmc.md),
 [`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_obj.md),
+[`opal_posterior()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_posterior.md),
 [`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_project.md),
 [`opal_report()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_report.md),
 [`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_update.md)
@@ -186,17 +189,51 @@ assessment$validation$fit
 #> $metrics$valid_population
 #> [1] TRUE
 #> 
+#> $metrics$biology
+#> $metrics$biology$passes
+#> [1] TRUE
+#> 
+#> $metrics$biology$checks
+#>  initial_equilibrium      harvest_penalty           population 
+#>                 TRUE                 TRUE                 TRUE 
+#>            mortality             maturity   spawning_potential 
+#>                 TRUE                 TRUE                 TRUE 
+#>               weight          selectivity            steepness 
+#>                 TRUE                 TRUE                 TRUE 
+#>          recruitment      spawning_output              harvest 
+#>                 TRUE                 TRUE                 TRUE 
+#>            depletion catch_reconstruction 
+#>                 TRUE                 TRUE 
+#> 
+#> $metrics$biology$metrics
+#> $metrics$biology$metrics$initial_penalty
+#> [1] 0
+#> 
+#> $metrics$biology$metrics$total_penalty
+#> [1] 0
+#> 
+#> $metrics$biology$metrics$max_harvest
+#> [1] 0.09746108
+#> 
+#> $metrics$biology$metrics$max_relative_catch_error
+#> [1] 6.704801e-10
+#> 
+#> 
+#> 
 #> 
 #> $error
 #> NULL
 #> 
 #> $identity
 #> $identity$target
-#> [1] "082a2a20f7e2f341704e5452b7b2312f"
+#> [1] "ced004c827f173c7b89c6399529db21c"
 #> 
 #> $identity$fit
 #> [1] "7459c22d1102869eeae932f6f18cec4b"
 #> 
+#> 
+#> $version
+#> [1] "opal_validation_v2"
 #> 
 #> $settings
 #> $settings$gradient_tolerance
@@ -208,9 +245,18 @@ assessment$validation$fit
 #> $settings$min_ess
 #> [1] 100
 #> 
+#> $settings$penalty_tolerance
+#> [1] 1e-10
+#> 
+#> $settings$catch_tolerance
+#> [1] 1e-06
+#> 
 #> 
 #> $checked_at
-#> [1] "2026-09-29 00:39:06 UTC"
+#> [1] "2026-09-29 03:43:21 UTC"
+#> 
+#> $payload_id
+#> [1] "6db32fb2dc63c56ac9bb06f4c952c3ac"
 #> 
 # }
 ```

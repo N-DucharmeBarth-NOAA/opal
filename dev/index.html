@@ -42,6 +42,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="articles/projections.html">Project a saved assessment</a></li>
   </ul>
 </li>
@@ -229,6 +230,15 @@
 <hr>
 <p><a href="https://www.fisheries.noaa.gov/" class="external-link"><img src="reference/figures/noaa-fisheries-rgb-2line-horizontal-small.png" alt="NOAA Fisheries" height="75"></a></p>
 <p><a href="https://www.commerce.gov/" class="external-link">U.S. Department of Commerce</a> | <a href="https://www.noaa.gov" class="external-link">National Oceanographic and Atmospheric Administration</a> | <a href="https://www.fisheries.noaa.gov/" class="external-link">NOAA Fisheries</a></p>
+<div class="section level3">
+<h3 id="assessment-diagnostics-and-sensitivities">Assessment diagnostics and sensitivities<a class="anchor" aria-label="anchor" href="#assessment-diagnostics-and-sensitivities"></a>
+</h3>
+<p>The <a href="https://n-ducharmebarth-noaa.github.io/opal/dev/articles/assessment-tools.html">assessment-tools tutorial</a> shows biological validation, OSA residuals for every supported observation likelihood, a dataset-level SDNR plot, posterior summaries, prior and composition plots, objective profiles, model grids, and equilibrium MSY reference points. It includes a small, validated simulated posterior, and keeps all results and settings with their source <code>opal_obj</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/opal_osa.html">opal_osa</a></span><span class="op">(</span><span class="va">assessment</span>, seed <span class="op">=</span> <span class="fl">123</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/plot_osa_sdnr.html">plot_osa_sdnr</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/opal_derived.html">opal_derived</a></span><span class="op">(</span><span class="va">assessment</span>, <span class="st">"osa"</span><span class="op">)</span><span class="op">$</span><span class="va">summary</span></span></code></pre></div>
+</div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="license">

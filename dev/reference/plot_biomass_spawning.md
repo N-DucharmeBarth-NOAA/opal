@@ -10,7 +10,9 @@ plot_biomass_spawning(
   data_list,
   object_list = NULL,
   relative = TRUE,
-  labels = NULL
+  labels = NULL,
+  units = "model units",
+  scale = 1
 )
 ```
 
@@ -31,6 +33,15 @@ plot_biomass_spawning(
 - labels:
 
   Optional labels for the model runs.
+
+- units:
+
+  Label for absolute spawning output. Fecundity-based spawning output is
+  not necessarily biomass; defaults to `"model units"`.
+
+- scale:
+
+  Positive divisor for absolute spawning output, default one.
 
 ## Value
 

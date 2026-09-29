@@ -26,6 +26,7 @@ summary(assessment) and assessment$validation$fit before using results."><meta p
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -173,10 +174,13 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <code><a href="opal_attach_mcmc.html">opal_attach_mcmc()</a></code>,
 <code><a href="opal_build.html">opal_build()</a></code>,
 <code><a href="opal_check.html">opal_check()</a></code>,
+<code><a href="opal_derived.html">opal_derived()</a></code>,
+<code><a href="opal_example_inputs.html">opal_example_inputs()</a></code>,
 <code><a href="opal_from_fit.html">opal_from_fit()</a></code>,
 <code><a href="opal_io.html">opal_io</a></code>,
 <code><a href="opal_mcmc.html">opal_mcmc()</a></code>,
 <code><a href="opal_obj.html">opal_obj()</a></code>,
+<code><a href="opal_posterior.html">opal_posterior()</a></code>,
 <code><a href="opal_project.html">opal_project()</a></code>,
 <code><a href="opal_report.html">opal_report()</a></code>,
 <code><a href="opal_update.html">opal_update()</a></code></p></div>
@@ -216,17 +220,51 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$valid_population</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$passes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$checks</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  initial_equilibrium      harvest_penalty           population </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 TRUE                 TRUE                 TRUE </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            mortality             maturity   spawning_potential </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 TRUE                 TRUE                 TRUE </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>               weight          selectivity            steepness </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 TRUE                 TRUE                 TRUE </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          recruitment      spawning_output              harvest </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 TRUE                 TRUE                 TRUE </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>            depletion catch_reconstruction </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 TRUE                 TRUE </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics$initial_penalty</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics$total_penalty</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics$max_harvest</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.09746108</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics$max_relative_catch_error</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6.704801e-10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $error</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> NULL</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $identity</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $identity$target</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "082a2a20f7e2f341704e5452b7b2312f"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "ced004c827f173c7b89c6399529db21c"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $identity$fit</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "7459c22d1102869eeae932f6f18cec4b"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $version</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "opal_validation_v2"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $settings</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $settings$gradient_tolerance</span>
@@ -238,9 +276,18 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <span class="r-out co"><span class="r-pr">#&gt;</span> $settings$min_ess</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 100</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $settings$penalty_tolerance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-10</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $settings$catch_tolerance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1e-06</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $checked_at</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026-09-29 00:39:06 UTC"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026-09-29 03:43:21 UTC"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $payload_id</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "6db32fb2dc63c56ac9bb06f4c952c3ac"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>

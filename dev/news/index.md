@@ -2,6 +2,24 @@
 
 ## opal 0.0.4
 
+- 2026/09/29: Add biological fit and posterior checks with versioned
+  validation records, posterior report summaries, OSA residuals and
+  dataset-level SDNR plots, composition and prior–posterior plots,
+  objective profiles, resumable model grids, balanced posterior
+  selection, and deterministic equilibrium MSY summaries. Include a
+  simulated posterior and an assessment-tools tutorial. OSA covers
+  lognormal indices and multinomial, Dirichlet, and
+  Dirichlet–multinomial length and weight compositions, including
+  latent-state integration. Dirichlet–multinomial OSA uses sequential
+  beta-binomial densities; ordinary fitting and simulation retain the
+  existing density implementation. Fix seasonal CPUE indexing, boundary
+  diagnostics, invalid prior handling, and figure units. Scientific
+  contract v5 changes CPUE predictions when `n_season > 1`; the
+  single-season Opakapaka reference is numerically unchanged. Earlier
+  saved model contracts require rebuilding under the new contract.
+  Projection behaviour, selectivity time blocks, and close-kin
+  components are outside this change.
+
 - 2026/09/29: Make assessment objects the primary documentation
   workflow, add a runnable projection vignette, organise the function
   reference, and publish a separately labelled development pkgdown site
