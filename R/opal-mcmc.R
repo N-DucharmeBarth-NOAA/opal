@@ -36,7 +36,7 @@ opal_attach_mcmc <- function(x, mcmc, settings = list(), check = TRUE,
   if (check) x <- .opal_run_check(x, "mcmc", check_args)
   # Never replace a checked, passing posterior with a failed or unchecked run.
   old_passed <- !is.null(old$mcmc) && isTRUE(old$validation$mcmc$passes) &&
-    identical(old$validation$mcmc$identity, .opal_check_identity(old, "mcmc"))
+    .opal_validation_current(old, "mcmc")
   rejected <- old_passed && !isTRUE(x$validation$mcmc$passes)
   archived <- if (rejected) x else old
   selected <- if (rejected) old else x

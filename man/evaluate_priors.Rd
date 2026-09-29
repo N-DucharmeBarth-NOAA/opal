@@ -17,6 +17,13 @@ A \code{numeric} value.
 \description{
 Evaluate priors
 }
+\details{
+Supported distributions are \code{normal}, \code{student} (three degrees of
+freedom), \code{lognormal}, and \code{beta} (mean and precision). Priors act on the
+stored parameter scale; for example, a normal prior on \code{log_B0} is a normal
+density on log spawning output. Locations and scales must be scalars or
+match the parameter block length. Indices identify blocks in \code{parameters}.
+}
 \examples{
 {
   parameters <- list(log_B0 = log(1e6))

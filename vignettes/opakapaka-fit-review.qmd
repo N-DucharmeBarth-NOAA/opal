@@ -98,3 +98,9 @@ unlink(path)
 
 See the [projection guide](projections.html) to carry this object into a
 future-catch scenario, or `opal_mcmc()` to add posterior sampling.
+
+## OSA residuals and further analyses
+
+Use `fit <- opal_osa(fit)` followed by `plot_osa_sdnr(fit)` to compare observation
+residual dispersion across datasets. The [assessment-tools guide](assessment-tools.html)
+shows this figure, composition fits, posterior analysis, and sensitivity workflows.

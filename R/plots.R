@@ -17,6 +17,8 @@
 #' @param obj Optional for Opal objects. The AD object created using \code{MakeADFun}.
 #' @param plot_resid Logical; plot catch residuals instead of observed and
 #'   predicted catch.
+#' @param weight_units Label for weight catches, in the input data's units.
+#'   Defaults to `data$catch_weight_units`, or `"weight units"` when unspecified.
 #' @return A \code{ggplot2} object.
 #' @import ggplot2
 #' @import dplyr
@@ -24,7 +26,7 @@
 #' @importFrom rlang .data
 #' @export
 #'
-plot_catch <- function(data, obj = NULL, plot_resid = FALSE) {
+plot_catch <- function(data, obj = NULL, plot_resid = FALSE, weight_units = NULL) {
   input <- .opal_model_input(data, obj)
   data <- input$data
   obj <- input$object
@@ -33,7 +35,12 @@ plot_catch <- function(data, obj = NULL, plot_resid = FALSE) {
   if (is.null(yrs)) {
     yrs <- seq.int(data$first_yr, length.out = data$n_year)
   }
-  fisheries <- paste0("Fishery: ", seq_len(data$n_fishery))
+  if (is.null(weight_units)) weight_units <- data$catch_weight_units
+  if (is.null(weight_units)) weight_units <- "weight units"
+  units <- data$catch_units_f
+  if (is.null(units)) units <- rep(1L, data$n_fishery)
+  unit_labels <- ifelse(units == 2L, "numbers", weight_units)
+  fisheries <- paste0("Fishery: ", seq_len(data$n_fishery), " (", unit_labels, ")")
 
   catch_obs <- data$catch_obs_ysf
   dimnames(catch_obs) <- NULL
@@ -77,19 +84,19 @@ plot_catch <- function(data, obj = NULL, plot_resid = FALSE) {
   if (plot_resid) {
     p <- ggplot(df_pred, aes(x = .data$year, y = .data$resid)) +
       geom_point(color = "red") +
-      labs(x = "Year", y = "Catch residual (tonnes)")
+      labs(x = "Year", y = "Catch difference (panel units)")
   } else {
     p <- ggplot(df_pred, aes(x = .data$year, y = .data$obs)) +
       geom_point(aes(color = .data$Type)) +
       geom_line(aes(y = .data$pred), group = 1) +
-      labs(x = "Year", y = "Catch (tonnes)", color = NULL) +
+      labs(x = "Year", y = "Catch (panel units)", color = NULL) +
       scale_y_continuous(
         limits = c(0, NA),
         expand = expansion(mult = c(0, 0.05))
       )
   }
 
-  p + facet_wrap(fishery ~ .)
+  p + facet_wrap(season ~ fishery, scales = "free_y")
 }
 
 #' Plot CPUE
@@ -116,6 +123,7 @@ plot_cpue <- function(data, object = NULL) {
   report <- object$report(object$env$last.par.best)
 
   cpue <- data$cpue_data
+  if (is.null(cpue$index)) cpue$index <- 1L
   if (is.null(cpue$year)) cpue$year <- data$first_yr + (cpue$ts - 1L) %/% data$n_season
   if (is.null(cpue$season)) cpue$season <- (cpue$ts - 1L) %% data$n_season + 1L
   df <- cpue %>%
@@ -135,7 +143,7 @@ plot_cpue <- function(data, object = NULL) {
       limits = c(0, NA),
       expand = expansion(mult = c(0, 0.05))
     ) +
-    facet_wrap(season ~ fishery)
+    facet_wrap(season ~ fishery + index)
 }
 
 #' Plot spawning biomass
@@ -147,6 +155,9 @@ plot_cpue <- function(data, object = NULL) {
 #' @param object_list Omit for Opal objects. For legacy calls, a list of RTMB objectives.
 #' @param relative Logical; plot spawning biomass relative to unfished biomass.
 #' @param labels Optional labels for the model runs.
+#' @param units Label for absolute spawning output. Fecundity-based spawning
+#'   output is not necessarily biomass; defaults to `"model units"`.
+#' @param scale Positive divisor for absolute spawning output, default one.
 #' @return A \code{ggplot2} object.
 #' @import ggplot2
 #' @import dplyr
@@ -158,7 +169,10 @@ plot_cpue <- function(data, object = NULL) {
 #' @export
 #'
 plot_biomass_spawning <- function(data_list, object_list = NULL, relative = TRUE,
-                                  labels = NULL) {
+                                  labels = NULL, units = "model units", scale = 1) {
+  if (length(scale) != 1L || !is.finite(scale) || scale <= 0) {
+    stop("`scale` must be a positive finite scalar.", call. = FALSE)
+  }
   if (inherits(data_list, c("opal_obj", "opal_fit"))) data_list <- list(data_list)
   if (is.null(object_list)) {
     inputs <- lapply(data_list, .opal_model_input)
@@ -186,10 +200,11 @@ plot_biomass_spawning <- function(data_list, object_list = NULL, relative = TRUE
 
   if (relative) {
     df <- df %>% mutate(value = .data$value / .data$B0)
-    ylab <- "Relative spawning biomass"
+    ylab <- "Relative spawning output"
   } else {
-    df <- df %>% mutate(value = .data$value / 1e6)
-    ylab <- "Spawning biomass (millions of tonnes)"
+    df <- df %>% mutate(value = .data$value / scale)
+    ylab <- paste0("Spawning output (", units,
+                   if (scale != 1) paste0(" / ", format(scale, scientific = FALSE)), ")")
   }
 
   p <- ggplot(df, aes(

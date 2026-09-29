@@ -1,5 +1,8 @@
 small_opal_object <- function(random = FALSE) {
   data <- make_opal_fit_data()
+  # A biologically feasible fixture with observable depletion and no harvest wall.
+  data$sel_fa_external <- matrix(1, data$n_fishery, data$n_age)
+  data$cpue_data$value <- c(1.005, 0.995)
   parameters <- make_opal_fit_parameters(data)
   parameters$log_h <- log(0.75)
   parameters$log_B0 <- 15

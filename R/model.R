@@ -50,7 +50,9 @@ opal_globals <- function() {
     rebin_matrix = rebin_matrix,
     get_cpue_like = get_cpue_like, 
     get_recruitment_prior = get_recruitment_prior, 
-    evaluate_priors = evaluate_priors)
+    evaluate_priors = evaluate_priors,
+    .opal_validate_priors = .opal_validate_priors,
+    .opal_ddirmult = .opal_ddirmult)
 }
 
 #' The opal model

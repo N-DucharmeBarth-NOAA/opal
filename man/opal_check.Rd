@@ -10,7 +10,9 @@ opal_check(
   gradient_tolerance = 0.001,
   max_rhat = 1.01,
   min_ess = 100,
-  stop_on_failure = FALSE
+  stop_on_failure = FALSE,
+  penalty_tolerance = 1e-10,
+  catch_tolerance = 1e-06
 )
 }
 \arguments{
@@ -25,6 +27,8 @@ opal_check(
 \item{min_ess}{Minimum bulk and tail effective sample sizes.}
 
 \item{stop_on_failure}{Stop rather than warn when a check fails.}
+
+\item{penalty_tolerance, catch_tolerance}{Biological thresholds as in \code{\link[=opal_diagnose]{opal_diagnose()}}.}
 }
 \value{
 The object with an attached validation record.
@@ -37,7 +41,9 @@ stage. Short MCMC smoke tests are not evidence of convergence.
 \details{
 Fit checks cover optimiser convergence, maximum absolute gradient, a
 positive-definite Hessian, parameter bounds, and finite non-negative numbers
-at age. MCMC checks require at least two chains, finite R-hat and effective
+at age, plus the biological checks in \code{\link[=opal_diagnose]{opal_diagnose()}}. Every retained
+joint posterior draw is checked for bounds and biology. MCMC checks also
+require at least two chains, finite R-hat and effective
 sample sizes within the thresholds, known sampler diagnostics, no
 divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
 prevent a passing MCMC check, even if imported parameter draws are usable.
@@ -56,11 +62,14 @@ Other assessment workflow:
 \code{\link[=opal_attach_fit]{opal_attach_fit()}},
 \code{\link[=opal_attach_mcmc]{opal_attach_mcmc()}},
 \code{\link[=opal_build]{opal_build()}},
+\code{\link[=opal_derived]{opal_derived()}},
+\code{\link[=opal_example_inputs]{opal_example_inputs()}},
 \code{\link[=opal_fit]{opal_fit()}},
 \code{\link[=opal_from_fit]{opal_from_fit()}},
 \code{\link{opal_io}},
 \code{\link[=opal_mcmc]{opal_mcmc()}},
 \code{\link[=opal_obj]{opal_obj()}},
+\code{\link[=opal_posterior]{opal_posterior()}},
 \code{\link[=opal_project]{opal_project()}},
 \code{\link[=opal_report]{opal_report()}},
 \code{\link[=opal_update]{opal_update()}}

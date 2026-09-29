@@ -163,11 +163,14 @@ opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
 #' @param max_rhat Maximum rank-normalised R-hat.
 #' @param min_ess Minimum bulk and tail effective sample sizes.
 #' @param stop_on_failure Stop rather than warn when a check fails.
+#' @param penalty_tolerance,catch_tolerance Biological thresholds as in [opal_diagnose()].
 #' @return The object with an attached validation record.
 #' @details
 #' Fit checks cover optimiser convergence, maximum absolute gradient, a
 #' positive-definite Hessian, parameter bounds, and finite non-negative numbers
-#' at age. MCMC checks require at least two chains, finite R-hat and effective
+#' at age, plus the biological checks in [opal_diagnose()]. Every retained
+#' joint posterior draw is checked for bounds and biology. MCMC checks also
+#' require at least two chains, finite R-hat and effective
 #' sample sizes within the thresholds, known sampler diagnostics, no
 #' divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
 #' prevent a passing MCMC check, even if imported parameter draws are usable.
@@ -182,7 +185,8 @@ opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
 #' assessment$validation$fit$metrics
 #' @export
 opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
-                       max_rhat = 1.01, min_ess = 100, stop_on_failure = FALSE) {
+                       max_rhat = 1.01, min_ess = 100, stop_on_failure = FALSE,
+                       penalty_tolerance = 1e-10, catch_tolerance = 1e-6) {
   scope <- match.arg(scope)
   validate_opal_obj(x, results = scope == "mcmc")
   .opal_obj_flag(stop_on_failure, "stop_on_failure")
@@ -208,9 +212,11 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
         max_gradient = max(abs(gradient)), positive_hessian = positive,
         inside_bounds = all(par >= x$bounds$lower & par <= x$bounds$upper),
         valid_population = all(is.finite(report$number_ysa)) && all(report$number_ysa >= 0))
+      metrics$biology <- .opal_diagnose_report(x$data, x$fit$parameters, report,
+        penalty_tolerance, catch_tolerance)
       passes <- identical(as.integer(metrics$convergence), 0L) &&
         is.finite(metrics$max_gradient) && metrics$max_gradient <= gradient_tolerance &&
-        positive && metrics$inside_bounds && metrics$valid_population
+        positive && metrics$inside_bounds && metrics$valid_population && metrics$biology$passes
     } else {
       if (!requireNamespace("posterior", quietly = TRUE)) {
         stop("Install the suggested posterior package to check MCMC.")
@@ -237,16 +243,21 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
       }
       metrics <- list(parameters = as.data.frame(diagnostics), divergences = divergent,
                       treedepth_hits = depth_hits, sampler_diagnostics_known = sampler_known)
+      metrics$biology <- .opal_check_draws(x, penalty_tolerance, catch_tolerance)
       passes <- m$chains >= 2L && all(is.finite(diagnostics$rhat)) &&
         all(diagnostics$rhat <= max_rhat) && all(is.finite(diagnostics$ess_bulk)) &&
         all(is.finite(diagnostics$ess_tail)) && all(diagnostics$ess_bulk >= min_ess) &&
-        all(diagnostics$ess_tail >= min_ess) && sampler_known && divergent == 0 && depth_hits == 0
+        all(diagnostics$ess_tail >= min_ess) && sampler_known && divergent == 0 && depth_hits == 0 &&
+        metrics$biology$passes
     }
     list(passes = isTRUE(passes), metrics = metrics, error = NULL)
   }, error = function(e) list(passes = FALSE, metrics = list(), error = conditionMessage(e)))
   record <- c(result, list(identity = .opal_check_identity(x, scope),
-    settings = list(gradient_tolerance = gradient_tolerance, max_rhat = max_rhat, min_ess = min_ess),
+    version = .opal_validation_version,
+    settings = list(gradient_tolerance = gradient_tolerance, max_rhat = max_rhat, min_ess = min_ess,
+                    penalty_tolerance = penalty_tolerance, catch_tolerance = catch_tolerance),
     checked_at = format(Sys.time(), tz = "UTC", usetz = TRUE)))
+  record$payload_id <- .opal_obj_hash(record)
   x$validation[[scope]] <- record
   x <- .opal_obj_seal(x)
   if (!record$passes) {

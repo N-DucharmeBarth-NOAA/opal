@@ -52,7 +52,7 @@ ref <- list(
     platform = R.version$platform,
     scientific_version = .opal_model_scientific_version,
     opal_model_signature = .opal_model_metadata()$signature,
-    reason = "Constrain and penalise invalid initial survival and recruitment; feasible quickstart numerics are unchanged"
+    reason = "Decode flattened CPUE year-season indices; single-season Opakapaka objective, gradient, and reports are unchanged"
   ),
   par_names = names(obj$par),
   start = snap_point(obj$par),

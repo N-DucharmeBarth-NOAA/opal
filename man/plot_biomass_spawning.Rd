@@ -8,7 +8,9 @@ plot_biomass_spawning(
   data_list,
   object_list = NULL,
   relative = TRUE,
-  labels = NULL
+  labels = NULL,
+  units = "model units",
+  scale = 1
 )
 }
 \arguments{
@@ -19,6 +21,11 @@ plot_biomass_spawning(
 \item{relative}{Logical; plot spawning biomass relative to unfished biomass.}
 
 \item{labels}{Optional labels for the model runs.}
+
+\item{units}{Label for absolute spawning output. Fecundity-based spawning
+output is not necessarily biomass; defaults to \code{"model units"}.}
+
+\item{scale}{Positive divisor for absolute spawning output, default one.}
 }
 \value{
 A \code{ggplot2} object.

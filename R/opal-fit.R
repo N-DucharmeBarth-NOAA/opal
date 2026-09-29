@@ -2,7 +2,7 @@
 
 .opal_fit_schema_version <- 1L
 .opal_model_schema_version <- 1L
-.opal_model_scientific_version <- "opal_model_contract_v4"
+.opal_model_scientific_version <- "opal_model_contract_v5"
 .opal_fit_runtime_cache <- new.env(parent = emptyenv())
 
 .opal_fit_or <- function(x, y) {
@@ -10,7 +10,7 @@
 }
 
 .opal_expand_parameter_names <- function(x) {
-  if (is.null(x)) return(character())
+  if (!length(x)) return(character())
   index <- ave(seq_along(x), x, FUN = seq_along)
   count <- ave(seq_along(x), x, FUN = length)
   ifelse(count == 1L, x, paste0(x, "[", index, "]"))

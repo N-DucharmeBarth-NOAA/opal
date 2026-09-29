@@ -239,6 +239,7 @@ opal_obj <- function(data, parameters = NULL, map = NULL, random = character(),
     stop("Build the configuration with opal_build() first.", call. = FALSE)
   }
   parameters <- .opal_fit_or(x$fit$parameters, x$parameters)
+  if (length(x$data$priors)) .opal_validate_priors(parameters, x$data$priors)
   object <- do.call(RTMB::MakeADFun, c(list(
     func = cmb(opal_model, x$data), parameters = parameters, map = x$map,
     random = x$random, silent = silent), x$makeadfun_args))
@@ -379,7 +380,7 @@ summary.opal_obj <- function(object, ...) {
   checks <- lapply(c("fit", "mcmc"), function(scope) {
     record <- object$validation[[scope]]
     if (is.null(record)) return("not run")
-    if (!identical(record$identity, .opal_check_identity(object, scope))) return("stale")
+    if (!.opal_validation_current(object, scope)) return("stale")
     if (isTRUE(record$passes)) "passed" else "failed"
   })
   structure(list(stage = .opal_obj_stage(object),

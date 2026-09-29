@@ -69,6 +69,11 @@ get_priors <- function(parameters, data = NULL) {
 #' @param parameters A \code{list} specifying the parameters to be passed to \code{MakeADFun}. Can be generated using the `get_parameters()` function.
 #' @param priors A \code{list} of named \code{list}s specifying priors for the parameters. Can be generated using the `get_priors()` function.
 #' @return A \code{numeric} value.
+#' @details Supported distributions are `normal`, `student` (three degrees of
+#'   freedom), `lognormal`, and `beta` (mean and precision). Priors act on the
+#'   stored parameter scale; for example, a normal prior on `log_B0` is a normal
+#'   density on log spawning output. Locations and scales must be scalars or
+#'   match the parameter block length. Indices identify blocks in `parameters`.
 #' @importFrom RTMB dnorm dlnorm
 #' @importFrom RTMBdist dbeta2 dt2
 #' @export
@@ -87,6 +92,7 @@ get_priors <- function(parameters, data = NULL) {
 evaluate_priors <- function(parameters, priors) {
   n <- length(priors)
   if (n == 0L) return(0)
+  .opal_validate_priors(parameters, priors)
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   lp <- numeric(n)
@@ -103,4 +109,35 @@ evaluate_priors <- function(parameters, priors) {
     if (type == "beta") lp[i] <- sum(dbeta2(x = x, mu = par1, phi = par2, log = TRUE))
   }
   return(-sum(lp))
+}
+
+.opal_validate_priors <- function(parameters, priors) {
+  for (i in seq_along(priors)) {
+    p <- priors[[i]]
+    if (!is.list(p) || length(p$type) != 1L || is.na(p$type) ||
+        !p$type %in% c("normal", "student", "lognormal", "beta")) {
+      stop("Unsupported prior distribution in prior ", i, ".", call. = FALSE)
+    }
+    idx <- p$index
+    if (!is.numeric(idx) || length(idx) != 1L || !is.finite(idx) ||
+        idx != floor(idx) || idx < 1L || idx > length(parameters)) {
+      stop("Invalid parameter index in prior ", i, ".", call. = FALSE)
+    }
+    label <- names(priors)[i]
+    if (length(label) && label %in% names(parameters) && label != names(parameters)[idx]) {
+      stop("Prior name and parameter index disagree in prior ", i, ".", call. = FALSE)
+    }
+    for (field in c("par1", "par2")) {
+      value <- p[[field]]
+      if (!is.numeric(value) || !length(value) || any(!is.finite(value)) ||
+          !length(value) %in% c(1L, length(parameters[[idx]]))) {
+        stop("Prior ", field, " must be finite with length one or the parameter length.", call. = FALSE)
+      }
+    }
+    if (any(p$par2 <= 0)) stop("Prior scale or precision must be positive.", call. = FALSE)
+    if (p$type == "beta" && any(p$par1 <= 0 | p$par1 >= 1)) {
+      stop("Beta prior mean must be between zero and one.", call. = FALSE)
+    }
+  }
+  invisible(priors)
 }

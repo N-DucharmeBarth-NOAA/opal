@@ -4,6 +4,7 @@
 #' using a log-linear model. Each index has its own catchability (q),
 #' extra variance (tau), power parameter (omega), and effort creep.
 #' Mean-centering of predicted CPUE is performed within each index.
+#' Time steps are one-based: `(year_index - 1) * n_season + season_index`.
 #'
 #' @param cpue_data a \code{list} of data inputs. Must contain:
 #'   \describe{
@@ -41,6 +42,12 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
   log_cpue_omega <- parameters$log_cpue_omega
   cpue_creep <- parameters$cpue_creep
   n_cpue <- nrow(cpue_data)
+  n_season <- dim(number_ysa)[2L]
+  n_year <- dim(sel_fya)[2L]
+  if (any(!is.finite(cpue_data$ts)) || any(cpue_data$ts != floor(cpue_data$ts)) ||
+      any(cpue_data$ts < 1L | cpue_data$ts > n_year * n_season)) {
+    stop("CPUE time step must be an integer between 1 and n_year * n_season.", call. = FALSE)
+  }
   if (!("index" %in% names(cpue_data))) cpue_data$index <- rep(1L, n_cpue)
   n_index <- max(
     cpue_data$index,
@@ -67,10 +74,11 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
     }
   }
   for (i in seq_len(n_cpue)) {
-    y <- cpue_data$ts[i]
+    y <- (cpue_data$ts[i] - 1L) %/% n_season + 1L
+    s <- (cpue_data$ts[i] - 1L) %% n_season + 1L
     f <- cpue_data$fishery[i]
     idx <- cpue_data$index[i]
-    cpue_n <- number_ysa[y, 1, ] * sel_fya[f, y, ]
+    cpue_n <- number_ysa[y, s, ] * sel_fya[f, y, ]
     if (cpue_data$units[i] == 1) cpue_n <- cpue_n * weight_fya[f, y,] # 1=weight, 2=numbers
     sum_n <- sum(cpue_n) + 1e-6
     cpue_log_pred[i] <- log(cpue_adjust[i]) + exp(log_cpue_omega[idx]) * log(sum_n)
@@ -153,6 +161,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
   lp <- numeric(n_lf)
   
   # OBS-mark only the vector used by the active likelihood
+  lf_input_ints <- lf_obs_ints
   if (lf_switch == 1) lf_obs_flat <- OBS(lf_obs_flat) # unrounded counts
   if (lf_switch == 2) lf_obs_prop <- OBS(lf_obs_prop) # proportions
   if (lf_switch == 3) lf_obs_ints <- OBS(lf_obs_ints) # integer counts
@@ -196,11 +205,11 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
         }
         if (lf_switch == 3) { # Dirichlet-multinomial
           obs_i <- lf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
-          if (sum(obs_i) != n_int_i) {
+          if (sum(lf_input_ints[(obs_offset + 1):(obs_offset + nbins)]) != n_int_i) {
             stop("Dirichlet-multinomial length counts must sum to the integer sample size. Re-prepare data with prep_lf_data().", call. = FALSE)
           }
           alpha_i <- pred * exp(log_lf_tau[f])
-          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
+          lp[idx] <- -.opal_ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
         }
       }
       obs_offset <- obs_offset + nbins
@@ -259,6 +268,7 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             wf_n_int_fi = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
+  wf_input_ints <- wf_obs_ints
   n_f <- length(wf_n_f)
   wf_pred <- vector("list", n_f)
   lp <- numeric(n_wf)
@@ -307,11 +317,11 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
         }
         if (wf_switch == 3) { # Dirichlet-multinomial
           obs_i <- wf_obs_ints[(obs_offset + 1):(obs_offset + nbins)]
-          if (sum(obs_i) != n_int_i) {
+          if (sum(wf_input_ints[(obs_offset + 1):(obs_offset + nbins)]) != n_int_i) {
             stop("Dirichlet-multinomial weight counts must sum to the integer sample size. Re-prepare data with prep_wf_data().", call. = FALSE)
           }
           alpha_i <- pred * exp(log_wf_tau[f])
-          lp[idx] <- -RTMBdist::ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
+          lp[idx] <- -.opal_ddirmult(x = obs_i, size = n_int_i, alpha = alpha_i, log = TRUE)
         }
       }
       obs_offset <- obs_offset + nbins

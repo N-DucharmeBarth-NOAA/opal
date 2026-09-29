@@ -125,7 +125,5 @@ check_bounds <- function(opt, lower, upper) {
   df <- data.frame(par = names(opt$par), lb = lower, value = opt$par, ub = upper) %>%
     mutate(index = 1:n())
   rownames(df) <- NULL
-  ilb <- which(df$value <= df$lower)
-  iub <- which(df$value >= df$upper)
-  return(df[c(ilb, iub), ])
+  return(df[which(df$value <= df$lb | df$value >= df$ub), , drop = FALSE])
 }

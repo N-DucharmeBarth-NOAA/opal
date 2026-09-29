@@ -174,3 +174,10 @@ saved fits after verifying the rebuilt objective, without refitting. The
 companion [saved-fit review](opakapaka-fit-review.html) demonstrates this migration.
 The [projection guide](projections.html) gives a complete runnable example
 with future catch, recruitment, selectivity, and saved projection provenance.
+
+## Assessment diagnostics and sensitivities
+
+The [assessment-tools guide](assessment-tools.html) demonstrates biological
+validation, OSA residuals for every observation likelihood, the dataset-level
+SDNR plot, posterior summaries, profiles, model grids, and equilibrium reference
+points. All results retain their source assessment and calculation settings.

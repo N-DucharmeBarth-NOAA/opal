@@ -57,6 +57,7 @@ articles:
     contents:
       - quickstart
       - opakapaka-fit-review
+      - assessment-tools
       - projections
 
 reference:
@@ -77,6 +78,25 @@ reference:
       - validate_opal_obj
       - opal_from_fit
       - opal_as_tmbfit
+  - title: Assessment diagnostics and summaries
+    contents:
+      - opal_diagnose
+      - opal_osa
+      - plot_osa_sdnr
+      - plot_osa_residuals
+      - plot_composition
+      - plot_prior_posterior
+      - opal_posterior
+      - opal_derived
+      - opal_example_inputs
+  - title: Sensitivities and reference points
+    contents:
+      - opal_profile
+      - plot_opal_profile
+      - opal_grid
+      - opal_grid_mcmc
+      - opal_grid_draws
+      - opal_msy
   - title: Projections
     desc: Specify future assumptions and retain projections with their source assessment.
     contents:

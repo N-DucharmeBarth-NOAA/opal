@@ -4,7 +4,7 @@
 \alias{plot_catch}
 \title{Plot catch}
 \usage{
-plot_catch(data, obj = NULL, plot_resid = FALSE)
+plot_catch(data, obj = NULL, plot_resid = FALSE, weight_units = NULL)
 }
 \arguments{
 \item{data}{An \code{opal_obj}, legacy \code{opal_fit}, or model data list.}
@@ -13,6 +13,9 @@ plot_catch(data, obj = NULL, plot_resid = FALSE)
 
 \item{plot_resid}{Logical; plot catch residuals instead of observed and
 predicted catch.}
+
+\item{weight_units}{Label for weight catches, in the input data's units.
+Defaults to \code{data$catch_weight_units}, or \code{"weight units"} when unspecified.}
 }
 \value{
 A \code{ggplot2} object.
