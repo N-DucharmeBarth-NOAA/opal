@@ -6,9 +6,9 @@
 <!-- badges: start -->
 
 [![R-CMD-check
-(dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml/badge.svg?branch=dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml?query=branch%3Adev)
+(dev)](https://img.shields.io/github/actions/workflow/status/N-DucharmeBarth-NOAA/opal/R-CMD-check.yaml?branch=dev&label=R-CMD-check&logo=github)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/R-CMD-check.yaml?query=branch%3Adev)
 [![pkgdown
-(dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/pkgdown.yaml/badge.svg?branch=dev)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/pkgdown.yaml?query=branch%3Adev)
+(dev)](https://img.shields.io/github/actions/workflow/status/N-DucharmeBarth-NOAA/opal/pkgdown.yaml?branch=dev&label=pkgdown&logo=github)](https://github.com/N-DucharmeBarth-NOAA/opal/actions/workflows/pkgdown.yaml?query=branch%3Adev)
 [![codecov
 main](https://img.shields.io/codecov/c/github/N-DucharmeBarth-NOAA/opal/main?label=codecov%20main&logo=codecov)](https://app.codecov.io/gh/N-DucharmeBarth-NOAA/opal/tree/main)
 [![codecov
