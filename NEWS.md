@@ -1,6 +1,12 @@
-# opal 0.0.4
+# opal 0.1.0
 
-- 2026/09/29: Add biological fit and posterior checks with versioned validation
+This release makes the staged `opal_obj` workflow the primary way to run an
+assessment, from configuration and fitting through MCMC, diagnostics, projections
+and saved results. It also adds posterior and fit-checking tools. Scientific
+contract v5 changes CPUE predictions when `n_season > 1`, so saved models from
+earlier contracts must be rebuilt.
+
+- 2026/09/29 ([0ea5022](https://github.com/N-DucharmeBarth-NOAA/opal/commit/0ea50229de2a576f7a139c39f9c46f73022c3a9f)): Add biological fit and posterior checks with versioned validation
   records, posterior report summaries, OSA residuals and dataset-level SDNR
   plots, composition and prior–posterior plots, objective profiles, resumable
   model grids, balanced posterior selection, and deterministic equilibrium
@@ -16,22 +22,24 @@
   Projection behaviour, selectivity time blocks, and close-kin components are
   outside this change.
 
-- 2026/09/29: Make assessment objects the primary documentation workflow, add
+- 2026/09/29 ([fba96ea](https://github.com/N-DucharmeBarth-NOAA/opal/commit/fba96ea2968f6d3016d78bb44b55c862e3a2ee57)): Make assessment objects the primary documentation workflow, add
   a runnable projection vignette, organise the function reference, and publish
   a separately labelled development pkgdown site with internal-link checks.
   Model numerics and function interfaces are unchanged.
 
-- 2026/09/29: Expand tests for projection uncertainty, recruitment forecasts,
+- 2026/09/29 ([3475a2e](https://github.com/N-DucharmeBarth-NOAA/opal/commit/3475a2ea09640ee10d8a9477b44d6227bf61a2db)): Expand tests for projection uncertainty, recruitment forecasts,
   selectivity, parameter diagnostics, and bundled data access. Tighten optimiser
   stopping tolerances in the Quickstart and projection examples while retaining
   the existing fit-check thresholds. Package model calculations are unchanged.
 
-- 2026/09/29: Introduce the staged `opal_obj` workflow: configuration, two-pass
+- 2026/09/29 ([17ae7a6](https://github.com/N-DucharmeBarth-NOAA/opal/commit/17ae7a69e5c8450c1dd5691560dd01048708e9f4)): Introduce the staged `opal_obj` workflow: configuration, two-pass
   fitting, MCMC, diagnostics, direct plots, projections with source identities,
   and portable `opal_save()`/`opal_read()` persistence. Preserve legacy fit
   construction and migrate saved fits with objective verification. Configuration
   changes invalidate dependent results; metadata updates and same-target refits
   preserve compatible samples. Model numerics and scientific contract v4 are unchanged.
+
+# opal 0.0.4
 
 - 2026/09/22 ([2ae7722](https://github.com/N-DucharmeBarth-NOAA/opal/commit/2ae772291b8d3deae5b3f25f172a99124d149091)): Use portable integrity in the bundled-fit examples so they run across R
   versions while retaining strict model compatibility and objective checks.
