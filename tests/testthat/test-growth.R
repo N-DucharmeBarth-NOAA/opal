@@ -38,8 +38,6 @@ test_that("get_growth output values are between L1 and L2", {
   expect_true(all(mu_a <= L2 + 1e-10))
 })
 
-# Test get_sd_at_age ----
-
 test_that("default and empty multipliers preserve the original growth exactly", {
   ages <- seq_len(n_age)
   original <- L1 + (L2 - L1) * (1 - exp(-exp(k) * (ages - A1))) /
@@ -176,6 +174,7 @@ test_that("growth parameters have defaults, fixed maps, priors and unbounded log
 test_that("opal_model forwards optional growth inputs and preserves the default", {
   inputs <- opaka_inputs()
   data <- inputs$data
+  data$A1 <- 1L
   parameters <- inputs$parameters
   data$k_mult_ages <- c(2L, 4L)
   data$growth_plus_group_adjust <- 1L
@@ -208,6 +207,8 @@ test_that("opal_model forwards optional growth inputs and preserves the default"
   data$k_mult_ages <- c(2L, data$n_age + 1L)
   expect_error(opal_obj(data, parameters, map), "integer ages.*range")
 })
+
+# Test get_sd_at_age ----
 
 test_that("get_sd_at_age returns correct SD at reference ages", {
   mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
