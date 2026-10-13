@@ -40,6 +40,175 @@ test_that("get_growth output values are between L1 and L2", {
 
 # Test get_sd_at_age ----
 
+test_that("default and empty multipliers preserve the original growth exactly", {
+  ages <- seq_len(n_age)
+  original <- L1 + (L2 - L1) * (1 - exp(-exp(k) * (ages - A1))) /
+    (1 - exp(-exp(k) * (A2 - A1)))
+  expect_identical(get_growth(n_age, A1, A2, L1, L2, k), original)
+  expect_identical(get_growth(n_age, A1, A2, L1, L2, k,
+                              log_k_mult = NULL), original)
+  expect_identical(get_growth(n_age, A1, A2, L1, L2, k,
+                              log_k_mult = numeric(0)), original)
+  for (mult_ages in list(1L, c(2L, 10L), c(1L, 20L, 40L))) {
+    expect_equal(get_growth(n_age, A1, A2, L1, L2, k,
+                            log_k_mult = rep(0, length(mult_ages)),
+                            k_mult_ages = mult_ages),
+                 original, tolerance = 1e-10)
+  }
+})
+
+# Golden lengths: Spatial Stock Assessment Simulation Experiment, IO YFT,
+# Table A1 (Barcelo, Berger, Goethel, Hoyle et al.), GPL-3:
+# https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop/blob/2174509/vignettes/OM_description_YFT.Rmd
+# https://aaronmberger-nwfsc.github.io/Spatial-Assessment-Modeling-Workshop/articles/OM_description_YFT.html
+# Identical to SS3 v3.24AB endgrowth Len_Beg, replicate 4:
+# N-DucharmeBarth/wcpfc-bet-single-region, commit e7d8c8e,
+# model-files/ss3/xx-io-yft-sim-iattc-sample-tree-4/Report.sso.
+# Growth: Fu et al. (2018), after Fonteneau and Gascuel (2008).
+test_that("age-specific K reproduces SS3 GrowthModel 3 for IO yellowfin", {
+  golden <- c(22, 35.2865, 41.384, 45.7348, 49.904, 53.8991, 57.7273,
+              64.2198, 74.721, 85.5489, 96.3811, 105.259, 112.534,
+              118.496, 123.383, 127.387, 130.669, 133.359, 135.563,
+              137.369, 138.85, 140.063, 141.058, 141.872, 142.54,
+              143.088, 143.536, 144.168)
+  args <- list(n_age = 28L, A1 = 1L, A2 = 28L, L1 = 22, L2 = 145,
+               log_k = log(0.455 / 4),
+               log_k_mult = log(c(0.5, 0.75, 1, 1, 1, 1.8, 1.8, 1.2, 1.2)),
+               k_mult_ages = 2:10)
+  adjusted <- do.call(get_growth, c(args, list(plus_group_adjust = TRUE)))
+  unadjusted <- do.call(get_growth, args)
+  # The source values are printed to six significant figures.
+  expect_equal(adjusted, golden, tolerance = 1e-3, scale = 1)
+  expect_equal(unadjusted[1:27], golden[1:27], tolerance = 1e-3, scale = 1)
+  expect_equal(unadjusted[28], 143.904, tolerance = 1e-3, scale = 1)
+  expect_identical(adjusted[1:27], unadjusted[1:27])
+})
+
+test_that("K multipliers are cumulative and the preceding age governs growth", {
+  # K = (0.2, 0.1, 0.3, 0.3); cumulative elapsed K = (0, 0.2, 0.3, 0.6).
+  Linf <- 10 + 40 / (1 - exp(-0.3 * 3))
+  expected <- Linf + (10 - Linf) * exp(-c(0, 0.2, 0.3, 0.6))
+  mu <- get_growth(4L, 1L, 4L, 10, 50, log(0.2),
+                   log_k_mult = log(c(0.5, 3)), k_mult_ages = 2:3)
+  expect_equal(mu, expected, tolerance = 1e-12)
+  expect_gt(abs(mu[4] - 50), 1)
+})
+
+test_that("ages below A1 retain base-K exponential growth", {
+  Linf <- 20 + 40 / (1 - exp(-0.1 * 3))
+  mu <- get_growth(6L, 2L, 5L, 20, 60, log(0.2), min_age = 0L,
+                   log_k_mult = log(0.5), k_mult_ages = 3L)
+  expect_equal(mu[1:3], Linf + (20 - Linf) * exp(-0.2 * (0:2 - 2)),
+               tolerance = 1e-12)
+  expect_length(get_growth(1L, 1L, 2L, 20, 60, log(0.2),
+                           log_k_mult = 0, k_mult_ages = 1L), 1L)
+})
+
+test_that("plus-group adjustment also works without multipliers", {
+  plain <- get_growth(n_age, A1, A2, L1, L2, k)
+  Linf <- L1 + (L2 - L1) / (1 - exp(-exp(k) * (A2 - A1)))
+  j <- 0:n_age
+  w <- exp(-0.2)^j
+  adjusted <- get_growth(n_age, A1, A2, L1, L2, k, plus_group_adjust = TRUE)
+  expect_identical(adjusted[-n_age], plain[-n_age])
+  expect_equal(adjusted[n_age],
+               sum(w * (plain[n_age] + j / n_age * (Linf - plain[n_age]))) / sum(w))
+})
+
+test_that("age-specific growth derivatives match central finite differences", {
+  par <- c(22, 145, log(0.455 / 4), log(c(0.5, 0.75, 1.8)))
+  for (adjust in c(FALSE, TRUE)) {
+    f <- function(p) sum(get_growth(
+      28L, 1L, 28L, p[1], p[2], p[3],
+      log_k_mult = p[4:6], k_mult_ages = c(2L, 3L, 7L),
+      plus_group_adjust = adjust
+    )^2)
+    tape <- MakeTape(f, par)
+    expect_equal(as.numeric(tape(par)), f(par), tolerance = 1e-12)
+    fd <- vapply(seq_along(par), function(i) {
+      step <- rep(0, length(par))
+      step[i] <- 1e-5
+      (f(par + step) - f(par - step)) / (2e-5)
+    }, numeric(1))
+    expect_lt(max(abs(as.numeric(tape$jacobian(par)) - fd) / pmax(1, abs(fd))), 1e-6)
+  }
+})
+
+test_that("invalid multiplier inputs fail clearly", {
+  growth <- function(...) get_growth(5L, 1L, 5L, 10, 50, log(0.2), ...)
+  expect_error(growth(log_k_mult = c(0, 0), k_mult_ages = 2L), "same length")
+  expect_error(growth(k_mult_ages = 2L), "same length")
+  for (ages in list(0L, 6L, 2.5, NA_real_, Inf, "two")) {
+    expect_error(growth(log_k_mult = 0, k_mult_ages = ages), "integer ages.*range")
+  }
+  for (ages in list(c(3L, 2L), c(2L, 2L))) {
+    expect_error(growth(log_k_mult = c(0, 0), k_mult_ages = ages), "strictly increasing")
+  }
+  expect_error(get_growth(5L, 0L, 5L, 10, 50, log(0.2),
+                          log_k_mult = 0, k_mult_ages = 2L), "A1.*modeled age")
+  expect_error(growth(plus_group_adjust = NA), "logical flag")
+  expect_error(growth(plus_group_adjust = 2), "logical flag")
+  expect_error(get_growth(1L, 0L, 1L, 10, 50, log(0.2), min_age = 0L,
+                          plus_group_adjust = TRUE), "positive integer")
+})
+
+test_that("growth parameters have defaults, fixed maps, priors and unbounded log rates", {
+  inputs <- opaka_inputs()
+  data <- inputs$data
+  data$k_mult_ages <- c(2L, 4L)
+  parameters <- get_parameters(data, model = "opakapaka")
+  expect_identical(parameters$log_k_mult, c(0, 0))
+  expect_false("log_k_mult" %in% names(get_parameters(model = "opakapaka")))
+  expect_true(all(is.na(get_map(parameters)$log_k_mult)))
+  parameters$log_k_mult <- log(c(0.5, 1.8))
+  prior <- get_priors(parameters, data)$log_k_mult
+  expect_identical(prior$par1, parameters$log_k_mult)
+  expect_identical(prior$par2, 0.3)
+  data$prior_log_k_mult_mean <- c(-0.2, 0.2)
+  expect_identical(get_priors(parameters, data)$log_k_mult$par1,
+                   data$prior_log_k_mult_mean)
+  obj <- list(par = c(log_k = -1, log_k_mult = -0.5))
+  bounds <- get_bounds(obj, parameters)
+  expect_identical(bounds$lower, c(-Inf, -Inf))
+  expect_identical(bounds$upper, c(Inf, Inf))
+})
+
+test_that("opal_model forwards optional growth inputs and preserves the default", {
+  inputs <- opaka_inputs()
+  data <- inputs$data
+  parameters <- inputs$parameters
+  data$k_mult_ages <- c(2L, 4L)
+  data$growth_plus_group_adjust <- 1L
+  parameters$log_k_mult <- log(c(0.5, 1.8))
+  map <- c(inputs$map, get_map(parameters)["log_k_mult"])
+  obj <- opaka_obj(data = data, parameters = parameters, map = map)
+  direct_model <- opal_model
+  environment(direct_model) <- list2env(list(
+    get_growth = function(n_age, A1, A2, L1, L2, log_k, ...) {
+      get_growth(n_age, A1, A2, L1, L2, log_k,
+                  log_k_mult = log(c(0.5, 1.8)), k_mult_ages = c(2L, 4L),
+                  plus_group_adjust = TRUE)
+    }
+  ), parent = environment(opal_model))
+  direct <- MakeADFun(function(p) direct_model(p, data), parameters,
+                       map = map, silent = TRUE)
+  expect_equal(obj$fn(obj$par), direct$fn(direct$par), tolerance = 1e-12)
+  expect_true(all(is.finite(obj$gr(obj$par))))
+  baseline <- opaka_obj()
+  plain_data <- inputs$data
+  plain_data$growth_plus_group_adjust <- 0L
+  plain <- opaka_obj(data = plain_data)
+  expect_identical(plain$fn(plain$par), baseline$fn(baseline$par))
+  expect_identical(plain$gr(plain$par), baseline$gr(baseline$par))
+  data$k_mult_ages <- 2L
+  expect_error(opal_obj(data, parameters, map), "same length")
+  expect_error(opaka_obj(data = data, parameters = parameters, map = map), "same length")
+  data$k_mult_ages <- c(4L, 2L)
+  expect_error(opal_obj(data, parameters, map), "strictly increasing")
+  data$k_mult_ages <- c(2L, data$n_age + 1L)
+  expect_error(opal_obj(data, parameters, map), "integer ages.*range")
+})
+
 test_that("get_sd_at_age returns correct SD at reference ages", {
   mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
   sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)

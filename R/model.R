@@ -4,7 +4,8 @@ utils::globalVariables(c(
   "cpue_creep",
   "rdev_y", 
   "par_sel",
-  "log_L1", "log_L2", "log_k", "log_CV1", "log_CV2",
+  "log_L1", "log_L2", "log_k", "log_k_mult", "k_mult_ages",
+  "growth_plus_group_adjust", "log_CV1", "log_CV2",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "M",
@@ -31,6 +32,7 @@ opal_globals <- function() {
   list(
     posfun = posfun, 
     get_growth = get_growth,
+    .validate_growth_options = .validate_growth_options,
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
     get_maturity_at_age = get_maturity_at_age,
@@ -92,7 +94,12 @@ opal_model <- function(parameters, data) {
   L2 <- exp(log_L2)
 
   # Module 1: Mean length-at-age (Schnute VB)
-  mu_a <- get_growth(n_age, A1, A2, L1, L2, log_k)
+  mu_a <- get_growth(
+    n_age, A1, A2, L1, L2, log_k,
+    log_k_mult = if (exists("log_k_mult", inherits = FALSE)) log_k_mult else NULL,
+    k_mult_ages = if (exists("k_mult_ages", inherits = FALSE)) k_mult_ages else NULL,
+    plus_group_adjust = if (exists("growth_plus_group_adjust", inherits = FALSE)) growth_plus_group_adjust else FALSE
+  )
 
   # Module 2: SD of length-at-age (linear CV interpolation)
   sd_a <- get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
