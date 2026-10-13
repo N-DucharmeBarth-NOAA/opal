@@ -113,6 +113,13 @@ validate_opal_obj <- function(x, results = FALSE) {
     .opal_validate_named_list(x[[name]], name)
   }
   .opal_obj_parameters(x$parameters, x$map, x$random)
+  .validate_growth_options(
+    x$data$n_age, x$data$A1,
+    log_k_mult = x$parameters$log_k_mult,
+    k_mult_ages = x$data$k_mult_ages,
+    plus_group_adjust = if (is.null(x$data$growth_plus_group_adjust)) FALSE else x$data$growth_plus_group_adjust,
+    check_length = !is.null(x$parameters)
+  )
   if (!is.null(x$control)) .opal_validate_named_list(x$control, "control")
   if (length(intersect(names(x$makeadfun_args),
                        c("func", "parameters", "map", "random", "silent")))) {
@@ -312,7 +319,7 @@ opal_build <- function(x, silent = TRUE) {
     if (is.null(x$configuration$model)) {
       stop("Supply parameters or an explicit bundled `model` configuration.", call. = FALSE)
     }
-    x$parameters <- get_parameters(model = x$configuration$model)
+    x$parameters <- get_parameters(data = x$data, model = x$configuration$model)
     x$configuration$origins$parameters <- "default"
   }
   if (is.null(x$map)) {

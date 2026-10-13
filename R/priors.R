@@ -47,6 +47,11 @@ get_priors <- function(parameters, data = NULL) {
     priors[["log_k"]] <- list(type = "normal", par1 = log_k_mean, par2 = 0.3,
                                index = which("log_k" == names(parameters)))
   }
+  if ("log_k_mult" %in% names(parameters) && length(parameters$log_k_mult)) {
+    log_k_mult_mean <- if (!is.null(data) && !is.null(data$prior_log_k_mult_mean)) data$prior_log_k_mult_mean else parameters$log_k_mult
+    priors[["log_k_mult"]] <- list(type = "normal", par1 = log_k_mult_mean, par2 = 0.3,
+                                 index = which("log_k_mult" == names(parameters)))
+  }
 
   # Variability priors
   if ("log_CV1" %in% names(parameters)) {

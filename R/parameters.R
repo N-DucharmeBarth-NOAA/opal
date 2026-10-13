@@ -9,6 +9,8 @@
 #'   Aliases \code{"baseline"}, \code{"opaka"}, and \code{"bet"} are also
 #'   accepted. Supplying \code{model} is preferred when \code{data} has been
 #'   modified after loading.
+#' @details If \code{data$k_mult_ages} is supplied, adds \code{log_k_mult}
+#'   initialized to zero (unit K multipliers).
 #'
 #' @return A \code{list} of initial parameter values.
 #' @export
@@ -20,7 +22,11 @@ get_parameters <- function(data = NULL, model = NULL) {
   }
 
   model <- .resolve_bundled_model(model = model, data = data)
-  .load_bundled_parameters(model)
+  parameters <- .load_bundled_parameters(model)
+  if (length(data$k_mult_ages)) {
+    parameters$log_k_mult <- rep(0, length(data$k_mult_ages))
+  }
+  parameters
 }
 
 .match_selectivity_age_indices <- function(target_ages, source_ages) {
@@ -58,7 +64,7 @@ get_map <- function(parameters) {
     c(
       "log_h", "log_sigma_r", "cpue_creep", "log_cpue_tau",
       "log_cpue_omega", "log_lf_tau", "log_wf_tau", "log_L1", "log_L2",
-      "log_k", "log_CV1", "log_CV2", "par_sel", "log_init_F_f",
+      "log_k", "log_k_mult", "log_CV1", "log_CV2", "par_sel", "log_init_F_f",
       "init_rdev_a"
     ),
     names(parameters)

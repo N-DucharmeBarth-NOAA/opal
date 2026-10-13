@@ -126,6 +126,7 @@ report <- opal_report(fit)
 plot_biomass_spawning(fit, relative = FALSE, labels = "Fixed effects")
 ```
 
+
 ## Sample and update
 
 Sampling can start before or after fitting. The default sampler uses the
