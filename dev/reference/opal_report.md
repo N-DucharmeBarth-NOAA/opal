@@ -45,6 +45,7 @@ assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
                                    package = "opal"))
 #> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
 #> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
+#> Warning: The saved fit used opal 0.0.4; the current version is 0.1.0.
 head(opal_report(assessment)$spawning_biomass_y)
 #> [1] 4029.267 3939.677 3803.894 3690.690 3623.467 3581.016
 ```

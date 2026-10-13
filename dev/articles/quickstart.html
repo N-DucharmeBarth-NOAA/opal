@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.0.4</small>
+    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -206,10 +206,10 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $checked_at</span></span>
-<span><span class="co">#&gt; [1] "2026-09-29 03:45:17 UTC"</span></span>
+<span><span class="co">#&gt; [1] "2026-10-13 19:44:44 UTC"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $payload_id</span></span>
-<span><span class="co">#&gt; [1] "9de87019b09406046fcddb2e4e2858b5"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "92351e213f89bd35b79eb80e833d07d6"</span></span></code></pre></div>
 </div>
 <p>The optimiser can return convergence code zero while the maximum gradient still exceeds the default tolerance of <code>0.001</code>. Inspect the recorded metrics. If needed, continue from the stored optimum with a tighter relative objective tolerance for the optimiser, keeping the same model and diagnostic threshold. This example checks after each pass, allows up to three further passes, and stops if the checks still fail; the <code>fitted</code> stage alone is not acceptance.</p>
 <div class="cell">
