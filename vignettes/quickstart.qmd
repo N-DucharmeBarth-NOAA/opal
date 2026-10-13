@@ -126,25 +126,6 @@ report <- opal_report(fit)
 plot_biomass_spawning(fit, relative = FALSE, labels = "Fixed effects")
 ```
 
-## Optional age-specific growth
-
-`get_growth()` supports Stock Synthesis GrowthModel 3 (Methot and Wetzel
-2013): `log_k_mult` contains log multipliers applied cumulatively from
-`k_mult_ages`. In model inputs, supply `data$k_mult_ages` and
-`parameters$log_k_mult`; `get_parameters(data, model = "opakapaka")`
-initializes these optional parameters to zero. `get_map()` fixes them by
-default. `get_priors()` gives them normal priors with SD 0.3, centered on
-their starting values or `data$prior_log_k_mult_mean`.
-
-The model retains its existing growth age scale, `1:n_age`. Linf uses K at
-the oldest age, so with multipliers L2 is an anchor parameter, not necessarily
-the predicted length at A2. For quarterly age steps, use
-`log_k = log(K_SS3 * 3/12)`; multipliers are dimensionless.
-`data$growth_plus_group_adjust = 1L` independently enables SS3's
-plus-group length approximation, weighted by its fixed constant 0.2, not M.
-These options default to off. The implementation reproduces SS3 v3.24AB
-beginning-of-season lengths; it does not implement SS3's linear segment
-below A1. See `?get_growth` for the definition and SS3 source reference.
 
 ## Sample and update
 
