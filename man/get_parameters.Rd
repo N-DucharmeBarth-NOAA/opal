@@ -24,5 +24,5 @@ opal model data sets.
 }
 \details{
 If \code{data$k_mult_ages} is supplied, adds \code{log_k_mult}
-  initialized to zero (unit K multipliers).
+initialized to zero (unit K multipliers).
 }

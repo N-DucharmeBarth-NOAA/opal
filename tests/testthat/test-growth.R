@@ -76,9 +76,12 @@ test_that("age-specific K reproduces SS3 GrowthModel 3 for IO yellowfin", {
   adjusted <- do.call(get_growth, c(args, list(plus_group_adjust = TRUE)))
   unadjusted <- do.call(get_growth, args)
   # The source values are printed to six significant figures.
-  expect_equal(adjusted, golden, tolerance = 1e-3, scale = 1)
-  expect_equal(unadjusted[1:27], golden[1:27], tolerance = 1e-3, scale = 1)
-  expect_equal(unadjusted[28], 143.904, tolerance = 1e-3, scale = 1)
+  expect_equal(adjusted, golden, tolerance = 1e-3)
+  expect_lt(max(abs(adjusted - golden)), 1e-3)
+  expect_equal(unadjusted[1:27], golden[1:27], tolerance = 1e-3)
+  expect_lt(max(abs(unadjusted[1:27] - golden[1:27])), 1e-3)
+  expect_equal(unadjusted[28], 143.904, tolerance = 1e-3)
+  expect_lt(abs(unadjusted[28] - 143.904), 1e-3)
   expect_identical(adjusted[1:27], unadjusted[1:27])
 })
 
