@@ -25,3 +25,8 @@ get_parameters(data = NULL, model = NULL)
 ## Value
 
 A `list` of initial parameter values.
+
+## Details
+
+If `data$k_mult_ages` is supplied, adds `log_k_mult` initialized to zero
+(unit K multipliers).

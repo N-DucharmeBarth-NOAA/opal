@@ -27,7 +27,7 @@
 
     <a class="navbar-brand me-2" href="index.html">opal</a>
 
-    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.0</small>
+    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -122,7 +122,7 @@
 <li>
 <strong>Population dynamics</strong>: Age- and season-structured dynamics conditioned on observed catch (in weight or numbers). Seasonal harvest rates are solved from catch and vulnerable abundance, with a <code><a href="reference/posfun.html">posfun()</a></code> penalty that keeps total harvest below one. Beverton–Holt recruitment with log-normal deviates and SS3-style bias-adjustment ramps, fished or unfished initial equilibrium, and static and dynamic depletion.</li>
 <li>
-<strong>Growth and biology</strong>: von Bertalanffy growth (L1/L2/k) with variability in length at age, represented as a probability-of-length-at-age matrix. Maturity, weight, and fecundity can be supplied at age or at length; length-based inputs are converted on the AD tape so gradients propagate when growth is estimated.</li>
+<strong>Growth and biology</strong>: von Bertalanffy growth (L1/L2/k), optionally with SS3 GrowthModel 3 cumulative age-specific K multipliers and its plus-group length approximation (Methot and Wetzel 2013), with variability in length at age represented as a probability-of-length-at-age matrix. Maturity, weight, and fecundity can be supplied at age or at length; length-based inputs are converted on the AD tape so gradients propagate when growth is estimated.</li>
 <li>
 <strong>Selectivity</strong>: Logistic, double-normal, double-Richards, and length-based forms, with helpers to convert between SS3 and opal selectivity parameterisations.</li>
 <li>

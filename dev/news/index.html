@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.0</small>
+    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,6 +39,10 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.1" id="opal-011">opal 0.1.1<a class="anchor" aria-label="anchor" href="#opal-011"></a></h2>
+<ul><li>2026/10/13: Add optional SS3 GrowthModel 3 cumulative age-specific K multipliers and plus-group length adjustment, credited to Stock Synthesis (Methot and Wetzel 2013). Existing model configurations retain their exact growth calculation and numerical contract.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="opal-010">opal 0.1.0<a class="anchor" aria-label="anchor" href="#opal-010"></a></h2>
 <p>This release makes the staged <code>opal_obj</code> workflow the primary way to run an assessment, from configuration and fitting through MCMC, diagnostics, projections and saved results. It also adds posterior and fit-checking tools. Scientific contract v5 changes CPUE predictions when <code>n_season &gt; 1</code>, so saved models from earlier contracts must be rebuilt.</p>

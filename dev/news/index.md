@@ -1,5 +1,12 @@
 # Changelog
 
+## opal 0.1.1
+
+- 2026/10/13: Add optional SS3 GrowthModel 3 cumulative age-specific K
+  multipliers and plus-group length adjustment, credited to Stock
+  Synthesis (Methot and Wetzel 2013). Existing model configurations
+  retain their exact growth calculation and numerical contract.
+
 ## opal 0.1.0
 
 This release makes the staged `opal_obj` workflow the primary way to run

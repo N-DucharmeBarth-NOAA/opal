@@ -43,8 +43,10 @@ assessment software**.
   penalty that keeps total harvest below one. Beverton–Holt recruitment
   with log-normal deviates and SS3-style bias-adjustment ramps, fished
   or unfished initial equilibrium, and static and dynamic depletion.
-- **Growth and biology**: von Bertalanffy growth (L1/L2/k) with
-  variability in length at age, represented as a
+- **Growth and biology**: von Bertalanffy growth (L1/L2/k), optionally
+  with SS3 GrowthModel 3 cumulative age-specific K multipliers and its
+  plus-group length approximation (Methot and Wetzel 2013), with
+  variability in length at age represented as a
   probability-of-length-at-age matrix. Maturity, weight, and fecundity
   can be supplied at age or at length; length-based inputs are converted
   on the AD tape so gradients propagate when growth is estimated.
