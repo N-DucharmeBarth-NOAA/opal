@@ -21,6 +21,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -41,7 +42,9 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.1" id="opal-011">opal 0.1.1<a class="anchor" aria-label="anchor" href="#opal-011"></a></h2>
-<ul><li>2026/10/13 (<a href="https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc" class="external-link">e1fbdbd</a>): Add optional SS3 GrowthModel 3 cumulative age-specific K multipliers and plus-group length adjustment, credited to Stock Synthesis (Methot and Wetzel 2013). Existing model configurations retain their exact growth calculation and numerical contract.</li>
+<ul><li><p>2026/10/15 (<a href="https://github.com/N-DucharmeBarth-NOAA/opal/pull/143" class="external-link">PR #143</a>): Fix fit validation for random-effect models by calculating the marginal Hessian with <code><a href="https://rdrr.io/r/stats/optim.html" class="external-link">optimHess()</a></code> instead of calling RTMB’s unsupported exact Hessian. Converged, biologically valid random-effect fits can now pass validation and proceed to grid sampling. Diagnostic version v3 invalidates old checks and grid checkpoints; rerun <code><a href="../reference/opal_check.html">opal_check()</a></code> on existing v5 objects. This diagnostic fix does not change model objectives or fitted estimates.</p></li>
+<li><p>Quantify the existing seasonal CPUE correction in reproducible paired simulations: maximum prediction changes at fixed parameters are 8.24% and 12.28%, and refitted B0 changes are +4.99% and +11.71%, for the specified two- and four-season examples. These are illustrative, not real-stock impact estimates or general correction factors. Full-coverage examples fail under the legacy indexing but evaluate under v5. The single-season control is unchanged, and all bundled stock inputs use one season. See the seasonal CPUE impact article for observation coverage, diagnostics, and instructions for rebuilding and refitting saved contract-v4-or-earlier assessments.</p></li>
+<li><p>2026/10/13 (<a href="https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc" class="external-link">e1fbdbd</a>): Add optional SS3 GrowthModel 3 cumulative age-specific K multipliers and plus-group length adjustment, credited to Stock Synthesis (Methot and Wetzel 2013). Existing model configurations retain their exact growth calculation and numerical contract.</p></li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="opal-010">opal 0.1.0<a class="anchor" aria-label="anchor" href="#opal-010"></a></h2>

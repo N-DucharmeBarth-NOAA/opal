@@ -27,6 +27,7 @@ summary(assessment) and assessment$validation$fit before using results."><meta p
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -194,22 +195,21 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <span class="r-in"><span><span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu">opal_fit</span><span class="op">(</span><span class="va">assessment</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>NA/NaN function evaluation</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> All parameters are estimable</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>The fit check failed; results are retained.</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;opal_obj&gt; fitted</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Active parameters: 127 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Objective: 1832.412 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Fit check: failed  | MCMC check: not run </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Fit check: passed  | MCMC check: not run </span>
 <span class="r-in"><span><span class="va">assessment</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $passes</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$convergence</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$max_gradient</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.001041864</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.0009558889</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$positive_hessian</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
@@ -244,7 +244,7 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics$max_harvest</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.09746108</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.09746105</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $metrics$biology$metrics$max_relative_catch_error</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6.704801e-10</span>
@@ -260,11 +260,11 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "926611f6049fd88dbd16e4aa4bb5a24b"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $identity$fit</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "7459c22d1102869eeae932f6f18cec4b"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "8efe536e503a96af2d24ae545fc58c85"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $version</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "opal_validation_v2"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "opal_validation_v3"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $settings</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $settings$gradient_tolerance</span>
@@ -284,10 +284,10 @@ Convert an existing legacy fit with <code><a href="opal_from_fit.html">opal_from
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $checked_at</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026-10-13 21:45:50 UTC"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "2026-10-15 08:51:13 UTC"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $payload_id</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "a4541ff6a47ee0d7edd182670727822a"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "4a3efd375e53ee2a2c6185d311f644a8"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>

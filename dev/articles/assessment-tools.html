@@ -43,6 +43,7 @@
 <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul>
 </li>
@@ -447,6 +448,9 @@ Figure 3: Observed length-composition proportions and fitted probabilities for 
 <div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_io.html">opal_read</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"assessment_example.rds"</span>, package <span class="op">=</span> <span class="st">"opal"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># Refresh diagnostics under the current validation version without resampling.</span></span>
+<span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_check.html">opal_check</a></span><span class="op">(</span><span class="va">sampled</span>, <span class="st">"fit"</span><span class="op">)</span></span>
+<span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_check.html">opal_check</a></span><span class="op">(</span><span class="va">sampled</span>, <span class="st">"mcmc"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">sampled</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>&lt;opal_obj&gt; sampled

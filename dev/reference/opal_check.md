@@ -60,14 +60,17 @@ Fit checks cover optimiser convergence, maximum absolute gradient, a
 positive-definite Hessian, parameter bounds, and finite non-negative
 numbers at age, plus the biological checks in
 [`opal_diagnose()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_diagnose.md).
-Every retained joint posterior draw is checked for bounds and biology.
-MCMC checks also require at least two chains, finite R-hat and effective
-sample sizes within the thresholds, known sampler diagnostics, no
-divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
-prevent a passing MCMC check, even if imported parameter draws are
-usable. The record is stored in `x$validation[[scope]]`, including
-metrics, settings, and the identity of the checked result. These checks
-do not establish scientific adequacy of a model or projection scenario.
+Random-effect fits use a numerical Hessian of the marginal objective via
+[`stats::optimHess()`](https://rdrr.io/r/stats/optim.html); RTMB's exact
+Hessian is used for fixed-effect fits when available. Every retained
+joint posterior draw is checked for bounds and biology. MCMC checks also
+require at least two chains, finite R-hat and effective sample sizes
+within the thresholds, known sampler diagnostics, no divergences, and no
+maximum-tree-depth hits. Missing sampler diagnostics prevent a passing
+MCMC check, even if imported parameter draws are usable. The record is
+stored in `x$validation[[scope]]`, including metrics, settings, and the
+identity of the checked result. These checks do not establish scientific
+adequacy of a model or projection scenario.
 
 ## See also
 

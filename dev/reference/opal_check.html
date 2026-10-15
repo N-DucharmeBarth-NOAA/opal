@@ -25,6 +25,7 @@ stage. Short MCMC smoke tests are not evidence of convergence."><meta property="
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
     <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -104,7 +105,9 @@ stage. Short MCMC smoke tests are not evidence of convergence.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Fit checks cover optimiser convergence, maximum absolute gradient, a
 positive-definite Hessian, parameter bounds, and finite non-negative numbers
-at age, plus the biological checks in <code><a href="opal_diagnose.html">opal_diagnose()</a></code>. Every retained
+at age, plus the biological checks in <code><a href="opal_diagnose.html">opal_diagnose()</a></code>. Random-effect fits
+use a numerical Hessian of the marginal objective via <code><a href="https://rdrr.io/r/stats/optim.html" class="external-link">stats::optimHess()</a></code>;
+RTMB's exact Hessian is used for fixed-effect fits when available. Every retained
 joint posterior draw is checked for bounds and biology. MCMC checks also
 require at least two chains, finite R-hat and effective
 sample sizes within the thresholds, known sampler diagnostics, no

@@ -267,6 +267,9 @@ opal_save(assessment, "simulated-assessment.rds")
 ``` r
 
 sampled <- opal_read(system.file("extdata", "assessment_example.rds", package = "opal"))
+# Refresh diagnostics under the current validation version without resampling.
+sampled <- opal_check(sampled, "fit")
+sampled <- opal_check(sampled, "mcmc")
 summary(sampled)
 ```
 

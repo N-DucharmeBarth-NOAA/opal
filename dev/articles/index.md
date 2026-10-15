@@ -8,5 +8,7 @@
   Fit](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.md):
 - [Assessment diagnostics and sensitivity
   analyses](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/assessment-tools.md):
+- [Seasonal CPUE correction: impact and rebuilding saved
+  fits](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/seasonal-cpue-impact.md):
 - [Project a saved
   assessment](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.md):
