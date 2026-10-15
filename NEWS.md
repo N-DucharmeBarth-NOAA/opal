@@ -1,5 +1,22 @@
 # opal 0.1.1
 
+- 2026/10/15 ([PR #143](https://github.com/N-DucharmeBarth-NOAA/opal/pull/143)):
+  Fix fit validation for random-effect models by calculating the marginal
+  Hessian with `optimHess()` instead of calling RTMB's unsupported exact
+  Hessian. Converged, biologically valid random-effect fits can now pass
+  validation and proceed to grid sampling. Diagnostic version v3 invalidates
+  old checks and grid checkpoints; rerun `opal_check()` on existing v5 objects.
+  This diagnostic fix does not change model objectives or fitted estimates.
+- Quantify the existing seasonal CPUE correction in reproducible paired
+  simulations: maximum prediction changes at fixed parameters are 8.24% and
+  12.28%, and refitted B0 changes are +4.99% and +11.71%, for the specified
+  two- and four-season examples. These are illustrative, not real-stock impact
+  estimates or general correction factors. Full-coverage examples fail under
+  the legacy indexing but evaluate under v5. The single-season control is
+  unchanged, and all bundled stock inputs use one season. See the seasonal
+  CPUE impact article for observation coverage, diagnostics, and instructions
+  for rebuilding and refitting saved contract-v4-or-earlier assessments.
+
 - 2026/10/13 ([e1fbdbd](https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc)): Add optional SS3 GrowthModel 3 cumulative age-specific K
   multipliers and plus-group length adjustment, credited to Stock Synthesis
   (Methot and Wetzel 2013). Existing model configurations retain their exact

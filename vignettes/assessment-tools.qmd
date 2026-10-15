@@ -195,6 +195,9 @@ opal_save(assessment, "simulated-assessment.rds")
 ```{r}
 #| label: read-posterior
 sampled <- opal_read(system.file("extdata", "assessment_example.rds", package = "opal"))
+# Refresh diagnostics under the current validation version without resampling.
+sampled <- opal_check(sampled, "fit")
+sampled <- opal_check(sampled, "mcmc")
 summary(sampled)
 knitr::kable(sampled$validation$mcmc$metrics$parameters, digits = 3)
 sampled$validation$mcmc$metrics$biology[c("passes", "checked", "scope")]

@@ -1,5 +1,5 @@
 # Diagnostic contract is independent of the numerical model contract.
-.opal_validation_version <- "opal_validation_v2"
+.opal_validation_version <- "opal_validation_v3"
 
 .opal_validation_current <- function(x, scope) {
   record <- x$validation[[scope]]

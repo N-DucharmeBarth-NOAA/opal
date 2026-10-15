@@ -168,7 +168,9 @@ opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
 #' @details
 #' Fit checks cover optimiser convergence, maximum absolute gradient, a
 #' positive-definite Hessian, parameter bounds, and finite non-negative numbers
-#' at age, plus the biological checks in [opal_diagnose()]. Every retained
+#' at age, plus the biological checks in [opal_diagnose()]. Random-effect fits
+#' use a numerical Hessian of the marginal objective via `stats::optimHess()`;
+#' RTMB's exact Hessian is used for fixed-effect fits when available. Every retained
 #' joint posterior draw is checked for bounds and biology. MCMC checks also
 #' require at least two chains, finite R-hat and effective
 #' sample sizes within the thresholds, known sampler diagnostics, no
@@ -201,7 +203,11 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
       object <- opal_rtmb(x, fresh = TRUE)
       par <- x$fit$opt$par
       gradient <- object$gr(par)
-      hessian <- if (is.function(object$he)) object$he(par) else stats::optimHess(par, object$fn, object$gr)
+      # RTMB exposes he() for Laplace models, but calling it is unsupported.
+      # Differentiate the marginal gradient instead of the joint objective.
+      hessian <- if (!length(object$env$random) && is.function(object$he)) {
+        object$he(par)
+      } else stats::optimHess(par, object$fn, object$gr)
       positive <- !inherits(try(chol(hessian), silent = TRUE), "try-error")
       report <- object$report(x$fit$last_par_best)
       object$env$last.par.best <- x$fit$last_par_best
