@@ -12,6 +12,49 @@ set_locked_provenance <- function(package_path, record) {
   saveRDS(metadata, metadata_path)
 }
 
+download_with_renv <- function(url, destfile, quiet, mode, headers) {
+  override <- getOption("renv.download.override")
+  options(renv.download.override = NULL)
+  on.exit(options(renv.download.override = override), add = TRUE)
+  # Re-enter the normal downloader so renv adds authentication/custom headers.
+  # The override hook runs before renv adds those headers.
+  getFromNamespace("download", "renv")(url = url, destfile = destfile,
+                                      quiet = quiet, headers = headers)
+  0L
+}
+
+locked_github_downloader <- function(records, download = utils::download.file,
+                                     fallback = download_with_renv) {
+  archives <- list()
+  for (record in records) {
+    if (!identical(record$Source, "GitHub") || is.null(record$RemoteSha) ||
+        (!is.null(record$RemoteHost) && record$RemoteHost != "api.github.com"))
+      next
+    repository <- paste(record$RemoteUsername, record$RemoteRepo, sep = "/")
+    api <- sprintf("https://api.github.com/repos/%s/tarball/%s",
+                   repository, record$RemoteSha)
+    archives[[api]] <- sprintf("https://codeload.github.com/%s/tar.gz/%s",
+                               repository, record$RemoteSha)
+  }
+
+  function(url, destfile, quiet = FALSE, mode = "wb", headers = NULL) {
+    archive <- archives[[url]]
+    if (!is.null(archive)) {
+      # Codespaces tokens can be repo-scoped, and anonymous API requests are
+      # rate-limited. Public commit archives need neither API access nor a PAT.
+      # Never forward authentication headers to the alternate endpoint.
+      status <- tryCatch(
+        suppressWarnings(download(archive, destfile, quiet = quiet, mode = mode)),
+        error = function(e) 1L
+      )
+      if (identical(status, 0L))
+        return(status)
+    }
+    # Keep the original URL/headers for private archives and other downloads.
+    fallback(url, destfile, quiet = quiet, mode = mode, headers = headers)
+  }
+}
+
 setup_r_env <- function() {
   timed <- function(label, code) {
     message("\n== ", label, " ==")
@@ -140,6 +183,14 @@ setup_r_env <- function() {
     on.exit(unlink(trimmed), add = TRUE)
     lock$Packages$compResidual <- NULL
     renv::lockfile_write(lock, file = trimmed)
+    if (identical(Sys.getenv("CODESPACES"), "true")) {
+      previous <- getOption("renv.download.override")
+      options(renv.download.override = locked_github_downloader(
+        lock$Packages,
+        fallback = if (is.function(previous)) previous else download_with_renv
+      ))
+      on.exit(options(renv.download.override = previous), add = TRUE)
+    }
     renv::restore(lockfile = trimmed, prompt = FALSE)
   })
 

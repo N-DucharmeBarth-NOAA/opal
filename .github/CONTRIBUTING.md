@@ -49,6 +49,8 @@ All environments run `.github/scripts/setup-r-env.R`, which restores the package
 Rscript .github/scripts/setup-r-env.R
 ```
 
+In Codespaces, locked GitHub packages are downloaded from public commit archives first, avoiding API rate limits and repository-scoped token restrictions. If that fails, setup tries the original API URL. Package versions and commit SHAs still come from `renv.lock`; do not install newer GitHub versions to work around a download failure.
+
 The Ubuntu policy and Quarto CLI version default are documented in `.github/actions/setup-opal-env/action.yml`; Codespaces must match them. Workflow-specific tools not recorded in the lockfile remain explicit installs after the shared setup.
 
 After intentional dependency updates, run `renv::snapshot()` and commit `renv.lock`. Commit R-version updates in that lockfile too; CI, Codespaces, and Copilot follow it without separate version edits.
