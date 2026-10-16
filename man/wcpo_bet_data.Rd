@@ -91,7 +91,9 @@ mortality rates.}
 \describe{
 \item{sel_type_f}{Selectivity function type by fishery (15 elements). Integer codes
 representing selectivity curve shapes: 1 = logistic, 2 = double-normal,
-3 = double Richards.}
+3 = double Richards. Curves are evaluated on length; the optional
+\code{sel_basis_f} data element (1 = length, 2 = age) evaluates them on age
+instead (see \code{\link[=get_selectivity]{get_selectivity()}}).}
 }
 
 \strong{Priors:}

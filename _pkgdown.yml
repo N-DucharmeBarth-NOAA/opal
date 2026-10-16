@@ -60,6 +60,11 @@ articles:
       - assessment-tools
       - seasonal-cpue-impact
       - projections
+  - title: Case studies
+    navbar: ~
+    contents:
+      - io-yft-ss3-comparison
+      - io-yft-age-selectivity
 
 reference:
   - title: Assessment objects
@@ -172,6 +177,10 @@ reference:
       - opaka_lf
       - opaka_parameters
       - opaka_truth
+      - io_yft_data
+      - io_yft_map
+      - io_yft_parameters
+      - io_yft_reference
       - opal_baseline
       - opal_baseline_data
       - opal_baseline_map

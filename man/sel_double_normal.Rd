@@ -7,7 +7,10 @@
 sel_double_normal(x, par)
 }
 \arguments{
-\item{x}{Numeric vector of length-bin midpoints.}
+\item{x}{Numeric vector of length-bin midpoints, or of ages for an
+age-based fishery (\code{sel_basis_f = 2}); see \code{\link[=get_selectivity]{get_selectivity()}}. The
+values must be equally spaced, because \code{x[2] - x[1]} is used as the bin
+width.}
 
 \item{par}{Numeric vector of length 6 containing selectivity parameters.
 \describe{
