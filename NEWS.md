@@ -10,6 +10,14 @@
   and 20. Without `sel_basis_f`, every fishery stays length-based and
   existing models give identical results. `sel_fa_external` still takes
   precedence.
+- New Indian Ocean yellowfin case study (simulated data, converted from the
+  IATTC team's Stock Synthesis model): bundled data `io_yft_data`,
+  `io_yft_parameters`, `io_yft_map` and `io_yft_reference`, stored fits in
+  `inst/extdata/`, and two articles: "Comparing opal with Stock Synthesis"
+  and "Length- or age-based selectivity", which fits the example with
+  age-based selectivity started from SS3's `age_selex` parameters. Both
+  articles read outputs precomputed by
+  `data-raw/generate-io-yft-vignette-cache.R`, so they render in seconds.
 - 2026/10/15 ([PR #143](https://github.com/N-DucharmeBarth-NOAA/opal/pull/143)):
   Fix fit validation for random-effect models by calculating the marginal
   Hessian with `optimHess()` instead of calling RTMB's unsupported exact
