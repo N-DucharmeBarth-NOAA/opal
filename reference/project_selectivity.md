@@ -1,13 +1,17 @@
 # Project selectivity
 
-Project selectivity
+Generate future selectivity from a selected historical period in the
+object's point report. For each age and fishery, variable positive
+selectivities are sampled independently on the log scale; constant
+values are repeated. This does not propagate posterior uncertainty in
+selectivity parameters.
 
 ## Usage
 
 ``` r
 project_selectivity(
   data,
-  obj,
+  obj = NULL,
   first_yr = NULL,
   last_yr = NULL,
   n_proj = 5,
@@ -19,11 +23,12 @@ project_selectivity(
 
 - data:
 
-  a `list` of parameter values.
+  An Opal object or model data list.
 
 - obj:
 
-  a `list` of parameter values.
+  For legacy data-list calls, the RTMB objective. Omit for an Opal
+  object.
 
 - first_yr:
 
@@ -44,3 +49,8 @@ project_selectivity(
 ## Value
 
 An array of projected selectivity by iteration, fishery, year, and age.
+
+## See also
+
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md),
+[`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md)

@@ -1,15 +1,15 @@
 # Quickstart Guide
 
 This guide fits a fixed-effects assessment for ’opakapaka
-(*Pristipomoides filamentosus*) using the bundled data. The example uses
-the same age convention and selectivity parameterization as its Stock
-Synthesis 3 (SS3) reference model, then stores the fitted result as an
-`opal_fit` S3 object.
+(*Pristipomoides filamentosus*) using the bundled data. It uses the same
+age convention and selectivity parameterisation as its Stock Synthesis 3
+(SS3) reference model.
 
-`opal_fit` is the portable boundary for an assessment: it retains the
-model inputs, fitted parameters, optimization results, and diagnostics
-without serializing RTMB’s session-specific objective. An objective is
-rebuilt only when it is needed for reporting or plotting.
+One portable S3 class, `opal_obj`, holds the assessment from
+configuration through fitting, sampling, and reporting. Its lifecycle
+stage and diagnostic status are separate: a fitted object can still fail
+its convergence checks. RTMB objectives live outside the saved object
+and are rebuilt when needed.
 
 ## Load the model inputs
 
@@ -20,7 +20,6 @@ configuration.
 ``` r
 
 library(opal)
-library(RTMB)
 
 inputs <- opaka_quickstart_inputs()
 ```
@@ -53,103 +52,249 @@ data.frame(
 
 ## Fit the model
 
-Build the RTMB objective, derive bounds for its active parameters, and
-optimize twice. The second pass starts at the first optimum and is a
-useful convergence check for this small fixed-effects model.
+Create the assessment, then optimise twice using the existing Opal
+defaults. The wrapper resolves bounds, stores both optimiser passes, and
+checks the final fit. It retains results and warns if the checks fail.
 
 ``` r
 
-control <- list(eval.max = 10000, iter.max = 10000)
-obj <- RTMB::MakeADFun(
-  func = cmb(opal_model, inputs$data),
+fit <- opal_obj(
+  data = inputs$data,
   parameters = inputs$parameters,
   map = inputs$map,
-  silent = TRUE
-)
-bounds <- get_bounds(obj, inputs$parameters)
-
-opt <- nlminb(
-  obj$par, obj$fn, obj$gr,
-  lower = bounds$lower, upper = bounds$upper, control = control
-)
-opt <- nlminb(
-  opt$par, obj$fn, obj$gr,
-  lower = bounds$lower, upper = bounds$upper, control = control
-)
-invisible(obj$fn(opt$par))
-
-fit <- opal_fit(
-  data = inputs$data,
-  obj = obj,
-  opt = opt,
-  bounds = list(lower = bounds$lower, upper = bounds$upper),
-  control = control,
-  estimability = tryCatch(check_estimability(obj), error = identity),
-  diagnostics = list(max_gradient = max(abs(obj$gr(opt$par)))),
   metadata = list(stock = "Opakapaka", model = "Fixed-effects quickstart")
 )
+fit <- opal_fit(fit)
 fit
-#> <opal_fit>
-#>   Model:        opal_model (schema 1)
-#>   opal version: 0.0.4
-#>   Parameters:   127 active
-#>   Objective:    1832.412
-#>   Convergence:  0
-#>   Estimability: All 127 active fixed-effect parameters are estimable.
-#>   MCMC:         not stored
-#>   Derived sets: 0
-#>   Created:      2026-09-21 22:01:11 UTC
+#> <opal_obj> fitted
+#> Active parameters: 127 
+#> Objective: 1832.412 
+#> Fit check: failed  | MCMC check: not run
+fit$validation$fit
+#> $passes
+#> [1] FALSE
+#> 
+#> $metrics
+#> $metrics$convergence
+#> [1] 0
+#> 
+#> $metrics$max_gradient
+#> [1] 0.001041864
+#> 
+#> $metrics$positive_hessian
+#> [1] TRUE
+#> 
+#> $metrics$inside_bounds
+#> [1] TRUE
+#> 
+#> $metrics$valid_population
+#> [1] TRUE
+#> 
+#> $metrics$biology
+#> $metrics$biology$passes
+#> [1] TRUE
+#> 
+#> $metrics$biology$checks
+#>  initial_equilibrium      harvest_penalty           population 
+#>                 TRUE                 TRUE                 TRUE 
+#>            mortality             maturity   spawning_potential 
+#>                 TRUE                 TRUE                 TRUE 
+#>               weight          selectivity            steepness 
+#>                 TRUE                 TRUE                 TRUE 
+#>          recruitment      spawning_output              harvest 
+#>                 TRUE                 TRUE                 TRUE 
+#>            depletion catch_reconstruction 
+#>                 TRUE                 TRUE 
+#> 
+#> $metrics$biology$metrics
+#> $metrics$biology$metrics$initial_penalty
+#> [1] 0
+#> 
+#> $metrics$biology$metrics$total_penalty
+#> [1] 0
+#> 
+#> $metrics$biology$metrics$max_harvest
+#> [1] 0.09746108
+#> 
+#> $metrics$biology$metrics$max_relative_catch_error
+#> [1] 6.704801e-10
+#> 
+#> 
+#> 
+#> 
+#> $error
+#> NULL
+#> 
+#> $identity
+#> $identity$target
+#> [1] "926611f6049fd88dbd16e4aa4bb5a24b"
+#> 
+#> $identity$fit
+#> [1] "7459c22d1102869eeae932f6f18cec4b"
+#> 
+#> 
+#> $version
+#> [1] "opal_validation_v3"
+#> 
+#> $settings
+#> $settings$gradient_tolerance
+#> [1] 0.001
+#> 
+#> $settings$max_rhat
+#> [1] 1.01
+#> 
+#> $settings$min_ess
+#> [1] 100
+#> 
+#> $settings$penalty_tolerance
+#> [1] 1e-10
+#> 
+#> $settings$catch_tolerance
+#> [1] 1e-06
+#> 
+#> 
+#> $checked_at
+#> [1] "2026-10-16 00:20:15 UTC"
+#> 
+#> $payload_id
+#> [1] "1fd2e805a24dc87850cd1efc5768a811"
+```
+
+The optimiser can return convergence code zero while the maximum
+gradient still exceeds the default tolerance of `0.001`. Inspect the
+recorded metrics. If needed, continue from the stored optimum with a
+tighter relative objective tolerance for the optimiser, keeping the same
+model and diagnostic threshold. This example checks after each pass,
+allows up to three further passes, and stops if the checks still fail;
+the `fitted` stage alone is not acceptance.
+
+``` r
+
+for (attempt in seq_len(3L)) {
+  if (isTRUE(fit$validation$fit$passes)) break
+  fit <- opal_fit(
+    fit, n_passes = 1L,
+    control = list(eval.max = 10000L, iter.max = 10000L, rel.tol = 1e-10)
+  )
+}
+stopifnot(isTRUE(fit$validation$fit$passes))
+summary(fit)
+#> <opal_obj> fitted
+#> Active parameters: 127 
+#> Objective: 1832.412 
+#> Fit check: passed  | MCMC check: not run
 ```
 
 ## Save a portable fitted model
 
-[`save_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md)
-writes only portable R data. Reading it back verifies the stored
-scientific contract and rebuilds the transient RTMB objective when it is
-required.
+[`opal_save()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md)
+stores ordinary R data with a payload checksum.
+[`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md)
+verifies the payload and scientific contract. Neither reading nor
+rebuilding runs optimisation or MCMC. The same functions also save
+unfitted objects.
 
 ``` r
 
 fit_path <- tempfile("opaka-quickstart-", fileext = ".rds")
-save_opal_fit(fit, fit_path)
-fit <- read_opal_fit(fit_path, strict = TRUE)
+opal_save(fit, fit_path)
+fit <- opal_read(fit_path, rebuild = TRUE)
 summary(fit)
-#> opal fitted-model summary
-#> 
-#>       model model_schema     scientific_version opal_version
-#>  opal_model            1 opal_model_contract_v4        0.0.4
-#> 
-#> Optimization
-#>  method n_parameters objective convergence                  message
-#>  nlminb          127  1832.412           0 relative convergence (4)
-#> 
-#> Estimability: All 127 active fixed-effect parameters are estimable.
+#> <opal_obj> fitted
+#> Active parameters: 127 
+#> Objective: 1832.412 
+#> Fit check: passed  | MCMC check: not run
+unlink(fit_path)
 ```
 
 ## Inspect spawning biomass
 
-Use
-[`opal_fit_object()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_object.md)
-only at the runtime boundary required by the existing plotting API. For
-direct derived values, use `opal_fit_report(fit)`.
+Existing plots accept the assessment object directly. Advanced callers
+can obtain a transient RTMB objective with
+`opal_rtmb(fit, fresh = TRUE)`.
 
 ``` r
 
-report <- opal_fit_report(fit)
-object <- opal_fit_object(fit)
-
-plot_biomass_spawning(
-  data_list = list(fit$data),
-  object_list = list(object),
-  relative = FALSE,
-  labels = "Fixed effects"
-)
+report <- opal_report(fit)
+plot_biomass_spawning(fit, relative = FALSE, labels = "Fixed effects")
 ```
 
 ![](quickstart_files/figure-html/spawning-biomass-1.png)
 
-The companion
-[`vignette("opakapaka-fit-review")`](https://n-ducharmebarth-noaa.github.io/opal/articles/opakapaka-fit-review.md)
-reopens the bundled `opal_fit` from this workflow for a fast review of
-the optimization summary, CPUE fit, estimability, and gradients without
-refitting the model.
+## Sample and update
+
+Sampling can start before or after fitting. The default sampler uses the
+stored point, skips internal optimisation, and honours parameter bounds.
+The following example is intentionally not run while building the
+vignette. Sampling effort and convergence thresholds need
+assessment-specific review.
+
+``` r
+
+fit <- opal_mcmc(fit, seed = 42, chains = 4, cores = 4,
+                 num_warmup = 1000, num_samples = 500)
+fit <- opal_check(fit, scope = "mcmc")
+summary(fit)
+```
+
+Failed checks retain the samples. A failed or unchecked new run does not
+replace a previously checked, passing posterior; inspect
+`fit$mcmc_history` for earlier and unselected attempts. Refitting the
+same target preserves its posterior and records which optimisation
+originally supplied it.
+
+Use
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_update.md)
+for changes. Updating data, priors, parameters, maps, random effects, or
+bounds clears dependent fits, samples, and projections. Metadata and
+optimiser controls preserve them. Direct changes to scientific fields
+are rejected by validation. An omitted map resolves defaults, whereas
+`map = list()` explicitly leaves all parameters free. Custom stocks
+should supply their own parameters; a bundled default requires an
+explicit `model`.
+
+``` r
+
+labelled <- opal_update(fit, metadata = list(label = "Baseline"))
+summary(labelled)
+#> <opal_obj> fitted
+#> Active parameters: 127 
+#> Objective: 1832.412 
+#> Fit check: passed  | MCMC check: not run
+```
+
+## Projections and older workflows
+
+[`project_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_selectivity.md),
+[`project_rec_devs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_rec_devs.md),
+and
+[`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md)
+accept objects directly. Choose `uncertainty = "mcmc"` or `"mvn"` for
+dynamics when posterior draws exist.
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md)
+stores a projection with its source identity and settings; future
+catches, selectivity, and recruitment remain explicit inputs.
+Random-effect dynamics projections require complete joint posterior
+draws; marginal-only draws and random-effect MVN projections are
+rejected.
+
+`opal_fit(data, obj, opt, ...)` still supports the legacy constructor.
+[`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_from_fit.md)
+converts an existing fit, and
+[`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md)
+upgrades legacy saved fits after verifying the rebuilt objective,
+without refitting. The companion [saved-fit
+review](https://n-ducharmebarth-noaa.github.io/opal/articles/opakapaka-fit-review.md)
+demonstrates this migration. The [projection
+guide](https://n-ducharmebarth-noaa.github.io/opal/articles/projections.md)
+gives a complete runnable example with future catch, recruitment,
+selectivity, and saved projection provenance.
+
+## Assessment diagnostics and sensitivities
+
+The [assessment-tools
+guide](https://n-ducharmebarth-noaa.github.io/opal/articles/assessment-tools.md)
+demonstrates biological validation, OSA residuals for every observation
+likelihood, the dataset-level SDNR plot, posterior summaries, profiles,
+model grids, and equilibrium reference points. All results retain their
+source assessment and calculation settings.

@@ -1,11 +1,14 @@
-# Create a portable fitted opal model object
+# Fit an Opal assessment
 
-Captures the plain R state needed to reproduce a fitted opal model
-without serializing the transient RTMB objective. The objective is
-retained only in a session cache and can be rebuilt with
-[`rebuild_opal_object()`](https://n-ducharmebarth-noaa.github.io/opal/reference/rebuild_opal_object.md).
-Optional SparseNUTS output is normalized to a package-owned `opal_mcmc`
-payload.
+Pass an
+[`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_obj.md)
+to optimise its model with
+[`nlminb()`](https://rdrr.io/r/stats/nlminb.html), retain the optimiser
+passes, and run
+[`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_check.md).
+The default is two sequential passes. A completed optimisation does not
+guarantee convergence: inspect `summary(assessment)` and
+`assessment$validation$fit` before using results.
 
 ## Usage
 
@@ -23,7 +26,10 @@ opal_fit(
   mcmc_settings = list(),
   derived = list(),
   makeadfun_args = list(),
-  optimizer = "nlminb"
+  optimizer = "nlminb",
+  n_passes = 2L,
+  check = TRUE,
+  check_args = list()
 )
 ```
 
@@ -31,64 +37,226 @@ opal_fit(
 
 - data:
 
-  Named model data list used to construct `obj`.
+  An `opal_obj` to optimise, or the legacy named model data list used to
+  construct `obj`. With an `opal_obj`, returns an updated object.
 
 - obj:
 
-  Fitted RTMB objective created with `opal_model`.
+  Legacy only: fitted RTMB objective. Omit for an `opal_obj`.
 
 - opt:
 
-  Optimizer result, normally returned by
-  [`stats::nlminb()`](https://rdrr.io/r/stats/nlminb.html).
+  Legacy only: optimiser result. Omit for an `opal_obj`.
 
 - bounds:
 
-  Optional bounds data frame from
+  Legacy only: bounds data frame from
   [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md)
   or a list with `lower` and `upper`.
 
 - control:
 
-  Optional optimizer control list.
+  Optional control list passed to
+  [`stats::nlminb()`](https://rdrr.io/r/stats/nlminb.html).
 
 - estimability:
 
-  Optional output from
+  Legacy only: output from
   [`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.md).
   A compact summary is retained.
 
 - diagnostics:
 
-  Optional named list of fit diagnostics.
+  Legacy only: named list of fit diagnostics.
 
 - metadata:
 
-  Optional named list of user metadata.
+  Legacy only: named list of user metadata.
 
 - mcmc:
 
-  Optional SparseNUTS-style fit, posterior matrix, or
+  Legacy only: SparseNUTS-style fit, posterior matrix, or
   iteration-chain-variable array.
 
 - mcmc_settings:
 
-  Optional named list of sampler settings not already present in `mcmc`.
+  Legacy only: named list of sampler settings not already present in
+  `mcmc`.
 
 - derived:
 
-  Optional named list of portable derived results, such as projections
-  or retrospective summaries.
+  Legacy only: named list of portable derived results, such as
+  projections or retrospective summaries.
 
 - makeadfun_args:
 
-  Optional named list of additional arguments needed to rebuild
+  Legacy only: named list of additional arguments needed to rebuild
   `RTMB::MakeADFun()`. Core arguments are reserved.
 
 - optimizer:
 
-  Non-empty character name of the optimizer used.
+  Legacy only: non-empty character name of the optimiser used.
+
+- n_passes:
+
+  Number of sequential optimisation passes for an `opal_obj`.
+
+- check:
+
+  Run fitting diagnostics for an `opal_obj`.
+
+- check_args:
+
+  Named arguments passed to
+  [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_check.md).
 
 ## Value
 
-An object inheriting from `opal_fit`.
+With an `opal_obj`, an updated `opal_obj`. Legacy constructor calls
+return `opal_fit`; use
+[`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_from_fit.md)
+to migrate them.
+
+## Details
+
+For the object workflow, use
+`opal_fit(assessment, n_passes = 2L, control = NULL, check = TRUE, check_args = list())`.
+Configuration comes from the object; change bounds, maps, or metadata
+with
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_update.md).
+Omitting `control` uses the stored controls, or the Opal defaults.
+Refitting an unchanged target preserves its posterior with the
+provenance of the fit that originally supplied it. Failed checks warn
+and retain results.
+
+The legacy call `opal_fit(data, obj, opt, ...)` remains available to
+capture an already fitted RTMB model. Arguments marked legacy below
+apply only to that interface. New custom-optimiser workflows should use
+[`opal_attach_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_attach_fit.md).
+Convert an existing legacy fit with
+[`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_from_fit.md).
+
+## See also
+
+Other assessment workflow:
+[`opal_attach_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_attach_fit.md),
+[`opal_attach_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_attach_mcmc.md),
+[`opal_build()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_build.md),
+[`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_check.md),
+[`opal_derived()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_derived.md),
+[`opal_example_inputs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_example_inputs.md),
+[`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_from_fit.md),
+[`opal_io`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md),
+[`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_mcmc.md),
+[`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_obj.md),
+[`opal_posterior()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_posterior.md),
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md),
+[`opal_report()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_report.md),
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_update.md)
+
+## Examples
+
+``` r
+inputs <- opaka_quickstart_inputs()
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+# \donttest{
+assessment <- opal_fit(assessment)
+#> Warning: NA/NaN function evaluation
+#> All parameters are estimable
+#> Warning: The fit check failed; results are retained.
+summary(assessment)
+#> <opal_obj> fitted
+#> Active parameters: 127 
+#> Objective: 1832.412 
+#> Fit check: failed  | MCMC check: not run 
+assessment$validation$fit
+#> $passes
+#> [1] FALSE
+#> 
+#> $metrics
+#> $metrics$convergence
+#> [1] 0
+#> 
+#> $metrics$max_gradient
+#> [1] 0.001041864
+#> 
+#> $metrics$positive_hessian
+#> [1] TRUE
+#> 
+#> $metrics$inside_bounds
+#> [1] TRUE
+#> 
+#> $metrics$valid_population
+#> [1] TRUE
+#> 
+#> $metrics$biology
+#> $metrics$biology$passes
+#> [1] TRUE
+#> 
+#> $metrics$biology$checks
+#>  initial_equilibrium      harvest_penalty           population 
+#>                 TRUE                 TRUE                 TRUE 
+#>            mortality             maturity   spawning_potential 
+#>                 TRUE                 TRUE                 TRUE 
+#>               weight          selectivity            steepness 
+#>                 TRUE                 TRUE                 TRUE 
+#>          recruitment      spawning_output              harvest 
+#>                 TRUE                 TRUE                 TRUE 
+#>            depletion catch_reconstruction 
+#>                 TRUE                 TRUE 
+#> 
+#> $metrics$biology$metrics
+#> $metrics$biology$metrics$initial_penalty
+#> [1] 0
+#> 
+#> $metrics$biology$metrics$total_penalty
+#> [1] 0
+#> 
+#> $metrics$biology$metrics$max_harvest
+#> [1] 0.09746108
+#> 
+#> $metrics$biology$metrics$max_relative_catch_error
+#> [1] 6.704801e-10
+#> 
+#> 
+#> 
+#> 
+#> $error
+#> NULL
+#> 
+#> $identity
+#> $identity$target
+#> [1] "926611f6049fd88dbd16e4aa4bb5a24b"
+#> 
+#> $identity$fit
+#> [1] "7459c22d1102869eeae932f6f18cec4b"
+#> 
+#> 
+#> $version
+#> [1] "opal_validation_v3"
+#> 
+#> $settings
+#> $settings$gradient_tolerance
+#> [1] 0.001
+#> 
+#> $settings$max_rhat
+#> [1] 1.01
+#> 
+#> $settings$min_ess
+#> [1] 100
+#> 
+#> $settings$penalty_tolerance
+#> [1] 1e-10
+#> 
+#> $settings$catch_tolerance
+#> [1] 1e-06
+#> 
+#> 
+#> $checked_at
+#> [1] "2026-10-16 00:18:27 UTC"
+#> 
+#> $payload_id
+#> [1] "58f3a16e1654861acf3fa4a806045535"
+#> 
+# }
+```

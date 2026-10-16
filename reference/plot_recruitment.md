@@ -5,18 +5,18 @@ Plot recruitment by year.
 ## Usage
 
 ``` r
-plot_recruitment(data, object)
+plot_recruitment(data, object = NULL)
 ```
 
 ## Arguments
 
 - data:
 
-  A model data list passed to `MakeADFun`.
+  An `opal_obj`, legacy `opal_fit`, or model data list.
 
 - object:
 
-  The AD object created using `MakeADFun`.
+  Optional for Opal objects. The AD object created using `MakeADFun`.
 
 ## Value
 

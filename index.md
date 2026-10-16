@@ -1,11 +1,14 @@
 # opal
 
+Build badges show `dev`; coverage is reported separately for `main` and
+`dev`.
+
 ## Overview
 
 **opal**, the **o**pen **p**opulation **a**ssessment **l**ibrary, is an
 open-source, modular R package for fisheries stock assessment. It is
 built on [RTMB](https://github.com/kaskr/RTMB), which provides automatic
-differentiation of the objective function, gradient-based optimization,
+differentiation of the objective function, gradient-based optimisation,
 and the Laplace approximation for random effects. The full model is
 written in R, so it can be read, modified, and extended without working
 in C++.
@@ -26,7 +29,8 @@ assessment software**.
 | Resource | Contents |
 |----|----|
 | [Project website](https://connect.fisheries.noaa.gov/opal/) | Project background, development plan and governance, the WCPFC SC22 working paper and presentation, and the ’opakapaka case study |
-| [Package documentation](https://n-ducharmebarth-noaa.github.io/opal/) | Function reference, vignettes, and changelog (pkgdown) |
+| [Development documentation](https://n-ducharmebarth-noaa.github.io/opal/dev/) | The `dev` object workflow, function reference, vignettes, and changelog |
+| [Release documentation](https://n-ducharmebarth-noaa.github.io/opal/) | Documentation published from `main` |
 | [opal-documentation](https://github.com/N-DucharmeBarth-NOAA/opal-documentation) | Quarto source for the project website and WCPFC documents |
 | [Issues](https://github.com/N-DucharmeBarth-NOAA/opal/issues) | Bug reports, feature requests, and development discussion |
 
@@ -39,41 +43,44 @@ assessment software**.
   penalty that keeps total harvest below one. Beverton–Holt recruitment
   with log-normal deviates and SS3-style bias-adjustment ramps, fished
   or unfished initial equilibrium, and static and dynamic depletion.
-- **Growth and biology**: von Bertalanffy growth (L1/L2/k) with
-  variability in length at age, represented as a
+- **Growth and biology**: von Bertalanffy growth (L1/L2/k), optionally
+  with SS3 GrowthModel 3 cumulative age-specific K multipliers and its
+  plus-group length approximation (Methot and Wetzel 2013), with
+  variability in length at age represented as a
   probability-of-length-at-age matrix. Maturity, weight, and fecundity
   can be supplied at age or at length; length-based inputs are converted
   on the AD tape so gradients propagate when growth is estimated.
 - **Selectivity**: Logistic, double-normal, double-Richards, and
   length-based forms, with helpers to convert between SS3 and opal
-  selectivity parameterizations.
+  selectivity parameterisations.
 - **Data and likelihoods**: Log-normal CPUE with multiple indices;
   length and weight compositions with multinomial, Dirichlet, or
   Dirichlet-multinomial likelihoods (weight compositions are predicted
   by rebinning from length); and user-specified priors.
-- **Estimation and diagnostics**: Optimization with
-  [`nlminb()`](https://rdrr.io/r/stats/nlminb.html) and
-  [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md);
+- **Estimation and diagnostics**: Fit an `opal_obj` with
+  [`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit.md)
+  and check it with
+  [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_check.md);
   estimability checks, correlated-parameter detection, and parameter
   tables
   ([`check_estimability()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_estimability.md),
   [`get_cor_pairs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_cor_pairs.md),
   [`get_par_table()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_par_table.md)).
-  Observations are marked with RTMB’s
-  [`OBS()`](https://rdrr.io/pkg/RTMB/man/TMB-interface.html), which
-  supports simulation with `obj$simulate()` and one-step-ahead
-  residuals.
-- **Bayesian inference**: No-U-turn sampling through
-  [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS), using
-  [`opal_globals()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_globals.md).
+  Observations are marked with RTMB’s `OBS()`, which supports simulation
+  with `obj$simulate()` and one-step-ahead residuals.
+- **Bayesian inference**: No-U-turn sampling with
+  [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS) through
+  `opal_mcmc(assessment)`, which manages the runtime, worker
+  dependencies, bounds, and sample storage.
 - **Projections**: Forward projections of dynamics, recruitment
   deviations, and selectivity
   ([`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md),
   [`project_rec_devs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_rec_devs.md),
   [`project_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_selectivity.md)).
-- **Portable fitted models**: An `opal_fit` object stores data, fitted
-  parameters, optimizer output, MCMC draws, diagnostics, derived
-  results, and provenance, and rebuilds the RTMB objective on demand.
+- **Portable assessment objects**: One `opal_obj` stores configuration,
+  fitted parameters, optimiser output, MCMC draws, diagnostics, derived
+  results, and provenance throughout the assessment lifecycle. RTMB
+  objectives are rebuilt on demand.
 
 ### Case studies
 
@@ -96,7 +103,7 @@ Install the development version of opal from GitHub:
 ``` r
 
 # install.packages("remotes")
-remotes::install_github("N-DucharmeBarth-NOAA/opal")
+remotes::install_github("N-DucharmeBarth-NOAA/opal@dev")
 ```
 
 opal depends on [`SparseNUTS`](https://github.com/noaa-afsc/SparseNUTS),
@@ -125,92 +132,84 @@ from the repository root.
 
 ## Quick start
 
-Fit the bundled ’opakapaka example and store the result as a portable
-`opal_fit`. The full walkthrough is in
-[`vignette("quickstart")`](https://n-ducharmebarth-noaa.github.io/opal/articles/quickstart.md).
+Fit the bundled ’opakapaka example using one portable `opal_obj`. The
+full walkthrough is in the [Quickstart
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.html)
+(or
+[`vignette("quickstart")`](https://n-ducharmebarth-noaa.github.io/opal/articles/quickstart.md)
+when installed with vignettes).
 
 ``` r
 
 library(opal)
-library(RTMB)
-
 inputs <- opaka_quickstart_inputs()
-
-obj <- MakeADFun(
-  func = cmb(opal_model, inputs$data),
-  parameters = inputs$parameters,
-  map = inputs$map,
-  silent = TRUE
-)
-bounds <- get_bounds(obj, inputs$parameters)
-control <- list(eval.max = 10000, iter.max = 10000)
-
-opt <- nlminb(obj$par, obj$fn, obj$gr,
-              lower = bounds$lower, upper = bounds$upper, control = control)
-opt <- nlminb(opt$par, obj$fn, obj$gr,
-              lower = bounds$lower, upper = bounds$upper, control = control)
-
-fit <- opal_fit(
-  data = inputs$data,
-  obj = obj,
-  opt = opt,
-  bounds = list(lower = bounds$lower, upper = bounds$upper),
-  control = control,
-  estimability = check_estimability(obj),
-  metadata = list(stock = "Opakapaka")
-)
-summary(fit)
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map,
+                       metadata = list(stock = "Opakapaka"))
+assessment <- opal_fit(assessment)
+summary(assessment)
+plot_cpue(assessment)
 ```
 
-To review a fit without refitting, open the bundled example
-([`vignette("opakapaka-fit-review")`](https://n-ducharmebarth-noaa.github.io/opal/articles/opakapaka-fit-review.md)):
+The fitted stage records a completed optimisation; check
+`assessment$validation$fit` for convergence, gradients, Hessian, bounds,
+and population checks. Diagnostics warn and retain the results when
+checks fail.
+
+## Sampling, saving, and updating
 
 ``` r
 
-fit <- read_opal_fit(
-  system.file("extdata", "opaka_quickstart_fit.rds", package = "opal"),
-  strict = TRUE,
-  integrity = "portable"
-)
+assessment <- opal_mcmc(assessment, seed = 42)
+summary(assessment)
+opal_save(assessment, "assessment.rds")
+assessment <- opal_read("assessment.rds")
+report <- opal_report(assessment)
 ```
 
-The bundled fit may have been saved under a different R version.
-Portable integrity permits that difference while still checking model
-compatibility and requiring the rebuilt objective to match the saved
-value.
+Sampling can also start without fitting. It uses an isolated runtime,
+records settings and diagnostics, and preserves previous attempts in
+`mcmc_history`. A failed or unchecked attempt does not replace a
+checked, passing posterior. Short sampler runs are useful software
+checks, not evidence of convergence. `opal_as_tmbfit(assessment)`
+supports existing SparseNUTS diagnostics.
 
-## Saving fitted models
+Save and read work at every lifecycle stage. Files contain portable R
+data, a checksum, and scientific model metadata. Reading never optimises
+or samples. `opal_rtmb(assessment, fresh = TRUE)` provides an isolated
+runtime for advanced work.
 
-`opal_fit` does not serialize the transient RTMB objective.
-[`read_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md)
-validates the saved object against the current scientific model version,
-and
-[`opal_fit_object()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_object.md)
-rebuilds the objective from the stored data, parameters, map, and
-random-effect specification, then checks that it reproduces the saved
-objective value.
+Use
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_update.md)
+to change configuration. Data, priors, parameters, maps, random effects,
+and bounds invalidate dependent results. Metadata and optimiser controls
+do not. An unchanged-model refit preserves the posterior and its
+original fit provenance. Projections accept assessment objects;
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md)
+stores results with their source identity. Choose `mcmc` or `mvn`
+uncertainty explicitly when posterior draws exist. Random-effect
+projections require complete joint posterior draws.
+
+## Existing fits
+
+The legacy `opal_fit(data, obj, opt, ...)` constructor and two-input
+plotting calls remain supported. Use `opal_from_fit(old_fit)` to adopt
+the staged workflow.
+[`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md)
+also upgrades saved legacy files, verifying the rebuilt objective across
+R versions without refitting:
 
 ``` r
 
-save_opal_fit(fit, "fit.rds")
-fit <- read_opal_fit("fit.rds", strict = TRUE)
-
-obj <- opal_fit_object(fit)    # rebuilt objective, cached for the session
-report <- opal_fit_report(fit) # REPORT() output at the fitted parameters
-
-# Attach later results without changing the fitted state
-fit <- update_opal_fit(
-  fit,
-  mcmc = mcmc_fit,
-  derived = list(retrospective = retrospective_results)
+assessment <- opal_read(
+  system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
 )
 ```
 
-Fits saved under a different R version can be read with
-`integrity = "portable"`, which accepts the change provided the rebuilt
-objective matches. `opal_as_tmbfit(fit)` converts stored MCMC output to
-the `SparseNUTS` `tmbfit` structure for existing plotting and diagnostic
-functions.
+See the [saved-fit
+review](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.html)
+and [projection
+guide](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.html)
+for complete object-based examples.
 
 ## Contributing
 
@@ -232,8 +231,7 @@ before opening a pull request. In brief:
 ## License
 
 opal is released under the GNU General Public License, version 3 or
-later. See
-[LICENSE](https://n-ducharmebarth-noaa.github.io/opal/LICENSE).
+later. See [the GPL licence](https://www.gnu.org/licenses/gpl-3.0.html).
 
 ## Citation
 

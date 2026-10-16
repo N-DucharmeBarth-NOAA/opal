@@ -1,13 +1,17 @@
 # Project recruitment deviates
 
-Project recruitment deviates
+Opal-object inputs reconstruct the full historical recruitment vector,
+including fixed and mapped years, for each draw. Set first_yr and
+last_yr to choose the period used to estimate future variability.
+Constant histories produce constant projections. Legacy list inputs
+retain their original path.
 
 ## Usage
 
 ``` r
 project_rec_devs(
   data,
-  obj,
+  obj = NULL,
   mcmc = NULL,
   first_yr = NULL,
   last_yr = NULL,
@@ -16,7 +20,8 @@ project_rec_devs(
   max.p = 5,
   max.d = 5,
   max.q = 5,
-  arima = TRUE
+  arima = TRUE,
+  uncertainty = NULL
 )
 ```
 
@@ -24,15 +29,17 @@ project_rec_devs(
 
 - data:
 
-  a `list` of parameter values.
+  An Opal object or model data list.
 
 - obj:
 
-  a `list` of parameter values.
+  For legacy data-list calls, the RTMB objective. Omit for an Opal
+  object.
 
 - mcmc:
 
-  a `list` of parameter values.
+  Legacy data-list calls only: a SparseNUTS fit. Opal objects use their
+  stored posterior when `uncertainty = "mcmc"`.
 
 - first_yr:
 
@@ -40,15 +47,19 @@ project_rec_devs(
 
 - last_yr:
 
-  a `list` of inputs.
+  Last historical year used to estimate future variability. Defaults to
+  the final model year.
 
 - n_proj:
 
-  a `list` of inputs.
+  Number of future model years.
 
 - n_iter:
 
-  a `list` of inputs.
+  Number of trajectories. Defaults to one for fitted values, or all
+  retained draws for MCMC. MCMC uses the first `n_iter` draws in the
+  same order as
+  [`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md).
 
 - max.p:
 
@@ -57,17 +68,30 @@ project_rec_devs(
 
 - max.d:
 
-  Maximum value of d, or the maximum value of q (the MA order) to
-  consider.
+  Maximum differencing order considered by
+  [`forecast::auto.arima()`](https://pkg.robjhyndman.com/forecast/reference/auto.arima.html).
 
 - max.q:
 
-  Maximum value of q
+  Maximum moving-average order considered by
+  [`forecast::auto.arima()`](https://pkg.robjhyndman.com/forecast/reference/auto.arima.html).
 
 - arima:
 
-  default = TRUE, FALSE = "lognormal"
+  If `TRUE`, select an ARIMA model and bootstrap future innovations. If
+  `FALSE`, fit an autoregressive model with
+  [`stats::ar()`](https://rdrr.io/r/stats/ar.html) and simulate with
+  [`stats::arima.sim()`](https://rdrr.io/r/stats/arima.sim.html).
+
+- uncertainty:
+
+  For Opal objects, choose `fit` or `mcmc`.
 
 ## Value
 
 a `list` of projected recruitment deviates and ARIMA specifications.
+
+## See also
+
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md),
+[`project_dynamics()`](https://n-ducharmebarth-noaa.github.io/opal/reference/project_dynamics.md)

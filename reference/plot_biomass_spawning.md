@@ -6,18 +6,25 @@ more model runs.
 ## Usage
 
 ``` r
-plot_biomass_spawning(data_list, object_list, relative = TRUE, labels = NULL)
+plot_biomass_spawning(
+  data_list,
+  object_list = NULL,
+  relative = TRUE,
+  labels = NULL,
+  units = "model units",
+  scale = 1
+)
 ```
 
 ## Arguments
 
 - data_list:
 
-  A list of model data lists passed to `MakeADFun`.
+  An Opal object, list of Opal objects, or list of model data lists.
 
 - object_list:
 
-  A list of AD objects created using `MakeADFun`.
+  Omit for Opal objects. For legacy calls, a list of RTMB objectives.
 
 - relative:
 
@@ -27,6 +34,29 @@ plot_biomass_spawning(data_list, object_list, relative = TRUE, labels = NULL)
 
   Optional labels for the model runs.
 
+- units:
+
+  Label for absolute spawning output. Fecundity-based spawning output is
+  not necessarily biomass; defaults to `"model units"`.
+
+- scale:
+
+  Positive divisor for absolute spawning output, default one.
+
 ## Value
 
 A `ggplot2` object.
+
+## Examples
+
+``` r
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+#> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
+#> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
+#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.1.
+plot_biomass_spawning(assessment, relative = FALSE, labels = "Baseline")
+#> Warning: The model implementation checksum differs from the saved object.
+#> Warning: The model implementation checksum differs from the saved object.
+#> Warning: The model implementation checksum differs from the saved object.
+```

@@ -5,18 +5,18 @@ Plot harvest rate by year, season, and age.
 ## Usage
 
 ``` r
-plot_hrate(data, object, years = NULL, ...)
+plot_hrate(data, object = NULL, years = NULL, ...)
 ```
 
 ## Arguments
 
 - data:
 
-  A model data list passed to `MakeADFun`.
+  An `opal_obj`, legacy `opal_fit`, or model data list.
 
 - object:
 
-  The AD object created using `MakeADFun`.
+  Optional for Opal objects. The AD object created using `MakeADFun`.
 
 - years:
 

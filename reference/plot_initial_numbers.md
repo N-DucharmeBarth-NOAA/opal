@@ -5,18 +5,18 @@ Plot initial population numbers by age.
 ## Usage
 
 ``` r
-plot_initial_numbers(data, object)
+plot_initial_numbers(data, object = NULL)
 ```
 
 ## Arguments
 
 - data:
 
-  A model data list passed to `MakeADFun`.
+  An `opal_obj`, legacy `opal_fit`, or model data list.
 
 - object:
 
-  The AD object created using `MakeADFun`.
+  Optional for Opal objects. The AD object created using `MakeADFun`.
 
 ## Value
 

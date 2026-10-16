@@ -1,23 +1,27 @@
 # Project dynamics
 
 Forward-projects population dynamics for `n_proj` years using either
-MCMC posterior draws (when `mcmc` is supplied) or multivariate-normal
-(MVN) draws derived from the Hessian-based variance-covariance matrix at
-the MLE (when `mcmc = NULL`).
+stored MCMC posterior draws (`uncertainty = "mcmc"`) or
+multivariate-normal draws from a fitted fixed-effects model
+(`uncertainty = "mvn"`). Pass the assessment as `data`; its runtime and
+posterior are used internally. Use
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md)
+to retain the result and its provenance in the object.
 
 ## Usage
 
 ``` r
 project_dynamics(
   data,
-  object,
+  object = NULL,
   mcmc = NULL,
   n_proj = 5,
   n_iter = 1,
   rdev_y,
   sel_fya,
   catch_ysf,
-  return_hist = FALSE
+  return_hist = FALSE,
+  uncertainty = NULL
 )
 ```
 
@@ -25,18 +29,20 @@ project_dynamics(
 
 - data:
 
-  A `list` of model data (as passed to `opal_model`).
+  An `opal_obj`, legacy `opal_fit`, or model data list.
 
 - object:
 
-  The RTMB AD object returned by `RTMB::MakeADFun`, after optimisation.
+  For legacy data-list calls, the fitted RTMB objective. Omit when
+  `data` is an Opal object.
 
 - mcmc:
 
-  Optional. MCMC fit object returned by `SparseNUTS`. When supplied,
-  posterior draws are used for the projection. When `NULL` (default),
-  MVN draws are generated from the Hessian-derived variance-covariance
-  matrix.
+  Legacy data-list calls only: a SparseNUTS fit. Omit for Opal objects,
+  which use their stored posterior. In the legacy interface, when
+  supplied, posterior draws are used for the projection. When `NULL`
+  (default), MVN draws are generated from the Hessian-derived
+  variance-covariance matrix.
 
 - n_proj:
 
@@ -73,6 +79,11 @@ project_dynamics(
   same terminal state as the `proj_year = 0` bridge point in the
   projection, so the two can be plotted seamlessly without any join
   discontinuity.
+
+- uncertainty:
+
+  For Opal objects, choose `mcmc` or `mvn` explicitly when a posterior
+  exists. Random effects require complete joint posterior draws.
 
 ## Value
 

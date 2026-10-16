@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,8 +18,11 @@
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
-    <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
+    <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -37,7 +40,114 @@
     </div>
 
     <div class="section level2">
-      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
+      <h2 id="assessment-objects">Assessment objects<a class="anchor" aria-label="anchor" href="#assessment-objects"></a></h2>
+
+      <div class="section-desc"><p>Create, fit, sample, inspect, and save one portable assessment.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="opal_obj.html">opal_obj()</a></code>
+
+        </dt>
+        <dd>Create a portable Opal assessment object</dd>
+
+        <dt>
+
+          <code><a href="opal_build.html">opal_build()</a></code> <code><a href="opal_build.html">opal_rtmb()</a></code>
+
+        </dt>
+        <dd>Build or access an Opal runtime objective</dd>
+
+        <dt>
+
+          <code><a href="opal_fit.html">opal_fit()</a></code>
+
+        </dt>
+        <dd>Fit an Opal assessment</dd>
+
+        <dt>
+
+          <code><a href="opal_update.html">opal_update()</a></code>
+
+        </dt>
+        <dd>Update an Opal model configuration</dd>
+
+        <dt>
+
+          <code><a href="opal_attach_fit.html">opal_attach_fit()</a></code>
+
+        </dt>
+        <dd>Attach an externally optimised Opal fit</dd>
+
+        <dt>
+
+          <code><a href="opal_mcmc.html">opal_mcmc()</a></code>
+
+        </dt>
+        <dd>Run MCMC for an Opal object</dd>
+
+        <dt>
+
+          <code><a href="opal_attach_mcmc.html">opal_attach_mcmc()</a></code>
+
+        </dt>
+        <dd>Attach posterior draws to an Opal object</dd>
+
+        <dt>
+
+          <code><a href="opal_check.html">opal_check()</a></code>
+
+        </dt>
+        <dd>Check fitted or sampled Opal results</dd>
+
+        <dt>
+
+          <code><a href="opal_report.html">opal_report()</a></code>
+
+        </dt>
+        <dd>Report a configured or fitted Opal model</dd>
+
+        <dt>
+
+          <code><a href="opal_io.html">opal_save()</a></code> <code><a href="opal_io.html">opal_read()</a></code>
+
+        </dt>
+        <dd>Save and read staged Opal objects</dd>
+
+        <dt>
+
+          <code><a href="summary.opal_obj.html">summary(<i>&lt;opal_obj&gt;</i>)</a></code> <code><a href="summary.opal_obj.html">print(<i>&lt;summary.opal_obj&gt;</i>)</a></code> <code><a href="summary.opal_obj.html">print(<i>&lt;opal_obj&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summarise a staged Opal assessment</dd>
+
+        <dt>
+
+          <code><a href="validate_opal_obj.html">validate_opal_obj()</a></code>
+
+        </dt>
+        <dd>Validate a staged Opal object</dd>
+
+        <dt>
+
+          <code><a href="opal_from_fit.html">opal_from_fit()</a></code>
+
+        </dt>
+        <dd>Convert a legacy Opal fit to the staged object workflow</dd>
+
+        <dt>
+
+          <code><a href="opal_as_tmbfit.html">opal_as_tmbfit()</a></code>
+
+        </dt>
+        <dd>Convert normalized opal posterior draws to a tmbfit</dd>
+      </dl></div><div class="section level2">
+      <h2 id="assessment-diagnostics-and-summaries">Assessment diagnostics and summaries<a class="anchor" aria-label="anchor" href="#assessment-diagnostics-and-summaries"></a></h2>
 
 
 
@@ -47,6 +157,273 @@
 
 
       <dl><dt>
+
+          <code><a href="opal_diagnose.html">opal_diagnose()</a></code>
+
+        </dt>
+        <dd>Diagnose biological feasibility of an Opal model</dd>
+
+        <dt>
+
+          <code><a href="opal_osa.html">opal_osa()</a></code>
+
+        </dt>
+        <dd>Calculate one-step-ahead observation residuals</dd>
+
+        <dt>
+
+          <code><a href="plot_osa_sdnr.html">plot_osa_sdnr()</a></code>
+
+        </dt>
+        <dd>Compare OSA residual dispersion across datasets</dd>
+
+        <dt>
+
+          <code><a href="plot_osa_residuals.html">plot_osa_residuals()</a></code>
+
+        </dt>
+        <dd>Plot stored OSA residuals</dd>
+
+        <dt>
+
+          <code><a href="plot_composition.html">plot_composition()</a></code>
+
+        </dt>
+        <dd>Plot observed and fitted compositions</dd>
+
+        <dt>
+
+          <code><a href="plot_prior_posterior.html">plot_prior_posterior()</a></code>
+
+        </dt>
+        <dd>Compare parameter priors and posterior distributions</dd>
+
+        <dt>
+
+          <code><a href="opal_posterior.html">opal_posterior()</a></code>
+
+        </dt>
+        <dd>Summarise posterior parameters and derived model quantities</dd>
+
+        <dt>
+
+          <code><a href="opal_derived.html">opal_derived()</a></code>
+
+        </dt>
+        <dd>Retrieve a stored assessment analysis</dd>
+
+        <dt>
+
+          <code><a href="opal_example_inputs.html">opal_example_inputs()</a></code>
+
+        </dt>
+        <dd>Simulated inputs for the assessment-tools tutorial</dd>
+      </dl></div><div class="section level2">
+      <h2 id="sensitivities-and-reference-points">Sensitivities and reference points<a class="anchor" aria-label="anchor" href="#sensitivities-and-reference-points"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="opal_profile.html">opal_profile()</a></code>
+
+        </dt>
+        <dd>Profile an assessment parameter</dd>
+
+        <dt>
+
+          <code><a href="plot_opal_profile.html">plot_opal_profile()</a></code>
+
+        </dt>
+        <dd>Plot an objective profile</dd>
+
+        <dt>
+
+          <code><a href="opal_grid.html">opal_grid()</a></code>
+
+        </dt>
+        <dd>Fit a reproducible grid of assessment scenarios</dd>
+
+        <dt>
+
+          <code><a href="opal_grid_mcmc.html">opal_grid_mcmc()</a></code>
+
+        </dt>
+        <dd>Sample accepted members of an assessment grid</dd>
+
+        <dt>
+
+          <code><a href="opal_grid_draws.html">opal_grid_draws()</a></code>
+
+        </dt>
+        <dd>Select balanced posterior draws from a model grid</dd>
+
+        <dt>
+
+          <code><a href="opal_msy.html">opal_msy()</a></code>
+
+        </dt>
+        <dd>Calculate deterministic equilibrium reference points</dd>
+      </dl></div><div class="section level2">
+      <h2 id="projections">Projections<a class="anchor" aria-label="anchor" href="#projections"></a></h2>
+
+      <div class="section-desc"><p>Specify future assumptions and retain projections with their source assessment.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="opal_project.html">opal_project()</a></code>
+
+        </dt>
+        <dd>Project an Opal object and retain the result</dd>
+
+        <dt>
+
+          <code><a href="project_dynamics.html">project_dynamics()</a></code>
+
+        </dt>
+        <dd>Project dynamics</dd>
+
+        <dt>
+
+          <code><a href="project_rec_devs.html">project_rec_devs()</a></code>
+
+        </dt>
+        <dd>Project recruitment deviates</dd>
+
+        <dt>
+
+          <code><a href="project_selectivity.html">project_selectivity()</a></code>
+
+        </dt>
+        <dd>Project selectivity</dd>
+      </dl></div><div class="section level2">
+      <h2 id="plots">Plots<a class="anchor" aria-label="anchor" href="#plots"></a></h2>
+
+      <div class="section-desc"><p>Pass an assessment object directly to the model plots.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="plot_biomass_spawning.html">plot_biomass_spawning()</a></code>
+
+        </dt>
+        <dd>Plot spawning biomass</dd>
+
+        <dt>
+
+          <code><a href="plot_catch.html">plot_catch()</a></code>
+
+        </dt>
+        <dd>Plot catch</dd>
+
+        <dt>
+
+          <code><a href="plot_cpue.html">plot_cpue()</a></code>
+
+        </dt>
+        <dd>Plot CPUE</dd>
+
+        <dt>
+
+          <code><a href="plot_hrate.html">plot_hrate()</a></code>
+
+        </dt>
+        <dd>Plot harvest rate</dd>
+
+        <dt>
+
+          <code><a href="plot_initial_numbers.html">plot_initial_numbers()</a></code>
+
+        </dt>
+        <dd>Plot initial numbers</dd>
+
+        <dt>
+
+          <code><a href="plot_recruitment.html">plot_recruitment()</a></code>
+
+        </dt>
+        <dd>Plot recruitment</dd>
+      </dl></div><div class="section level2">
+      <h2 id="model-inputs-and-diagnostics">Model inputs and diagnostics<a class="anchor" aria-label="anchor" href="#model-inputs-and-diagnostics"></a></h2>
+
+      <div class="section-desc"><p>Prepare data, configure parameters, and inspect the underlying RTMB model.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="opaka_quickstart_inputs.html">opaka_quickstart_inputs()</a></code>
+
+        </dt>
+        <dd>Opakapaka quickstart model inputs</dd>
+
+        <dt>
+
+          <code><a href="get_data.html">get_data()</a></code>
+
+        </dt>
+        <dd>Get bundled model data</dd>
+
+        <dt>
+
+          <code><a href="get_parameters.html">get_parameters()</a></code>
+
+        </dt>
+        <dd>Get bundled initial parameter values</dd>
+
+        <dt>
+
+          <code><a href="get_map.html">get_map()</a></code>
+
+        </dt>
+        <dd>Get default parameter mapping</dd>
+
+        <dt>
+
+          <code><a href="get_bounds.html">get_bounds()</a></code>
+
+        </dt>
+        <dd>Get default parameter bounds</dd>
+
+        <dt>
+
+          <code><a href="get_priors.html">get_priors()</a></code>
+
+        </dt>
+        <dd>Get priors</dd>
+
+        <dt>
+
+          <code><a href="prep_lf_data.html">prep_lf_data()</a></code>
+
+        </dt>
+        <dd>Prepare length composition data for model input</dd>
+
+        <dt>
+
+          <code><a href="prep_wf_data.html">prep_wf_data()</a></code>
+
+        </dt>
+        <dd>Prepare weight composition data for model input</dd>
+
+        <dt>
 
           <code><a href="check_bounds.html">check_bounds()</a></code>
 
@@ -59,6 +436,43 @@
 
         </dt>
         <dd>Check for identifiability of fixed effects</dd>
+
+        <dt>
+
+          <code><a href="get_cor_pairs.html">get_cor_pairs()</a></code>
+
+        </dt>
+        <dd>Return strongly-correlated parameter pairs</dd>
+
+        <dt>
+
+          <code><a href="get_par_table.html">get_par_table()</a></code>
+
+        </dt>
+        <dd>Summarise model parameters in a table</dd>
+
+        <dt>
+
+          <code><a href="extract_fixed.html">extract_fixed()</a></code>
+
+        </dt>
+        <dd>Extract fixed effects</dd>
+      </dl></div><div class="section level2">
+      <h2 id="model-components">Model components<a class="anchor" aria-label="anchor" href="#model-components"></a></h2>
+
+      <div class="section-desc"><p>Lower-level functions used by the assessment model and advanced workflows. The natural-mortality plot takes a data list and an RTMB runtime.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="plot_natural_mortality.html">plot_natural_mortality()</a></code>
+
+        </dt>
+        <dd>Plot natural mortality</dd>
 
         <dt>
 
@@ -104,13 +518,6 @@
 
         <dt>
 
-          <code><a href="extract_fixed.html">extract_fixed()</a></code>
-
-        </dt>
-        <dd>Extract fixed effects</dd>
-
-        <dt>
-
           <code><a href="get_bias_adj_vector.html">get_bias_adj_vector()</a></code>
 
         </dt>
@@ -118,31 +525,10 @@
 
         <dt>
 
-          <code><a href="get_bounds.html">get_bounds()</a></code>
-
-        </dt>
-        <dd>Get default parameter bounds</dd>
-
-        <dt>
-
-          <code><a href="get_cor_pairs.html">get_cor_pairs()</a></code>
-
-        </dt>
-        <dd>Return strongly-correlated parameter pairs</dd>
-
-        <dt>
-
           <code><a href="get_cpue_like.html">get_cpue_like()</a></code>
 
         </dt>
         <dd>CPUE index likelihood (multi-index)</dd>
-
-        <dt>
-
-          <code><a href="get_data.html">get_data()</a></code>
-
-        </dt>
-        <dd>Get bundled model data</dd>
 
         <dt>
 
@@ -174,13 +560,6 @@
 
         <dt>
 
-          <code><a href="get_map.html">get_map()</a></code>
-
-        </dt>
-        <dd>Get default parameter mapping</dd>
-
-        <dt>
-
           <code><a href="get_maturity_at_age.html">get_maturity_at_age()</a></code>
 
         </dt>
@@ -188,31 +567,10 @@
 
         <dt>
 
-          <code><a href="get_par_table.html">get_par_table()</a></code>
-
-        </dt>
-        <dd>Summarise model parameters in a table</dd>
-
-        <dt>
-
-          <code><a href="get_parameters.html">get_parameters()</a></code>
-
-        </dt>
-        <dd>Get bundled initial parameter values</dd>
-
-        <dt>
-
           <code><a href="get_pla.html">get_pla()</a></code>
 
         </dt>
         <dd>Probability of length at age matrix (age-length key)</dd>
-
-        <dt>
-
-          <code><a href="get_priors.html">get_priors()</a></code>
-
-        </dt>
-        <dd>Get priors</dd>
 
         <dt>
 
@@ -244,6 +602,13 @@
 
         <dt>
 
+          <code><a href="get_unfished_init.html">get_unfished_init()</a></code>
+
+        </dt>
+        <dd>Compute unfished equilibrium quantities from natural mortality only</dd>
+
+        <dt>
+
           <code><a href="get_weight_at_length.html">get_weight_at_length()</a></code>
 
         </dt>
@@ -255,111 +620,6 @@
 
         </dt>
         <dd>Weight Composition Likelihood</dd>
-
-        <dt>
-
-          <code><a href="opaka_data.html">opaka_data</a></code>
-
-        </dt>
-        <dd>'Opakapaka Stock Assessment Data</dd>
-
-        <dt>
-
-          <code><a href="opaka_lf.html">opaka_lf</a></code>
-
-        </dt>
-        <dd>'Opakapaka Length Frequency Data</dd>
-
-        <dt>
-
-          <code><a href="opaka_parameters.html">opaka_parameters</a></code>
-
-        </dt>
-        <dd>'Opakapaka Stock Assessment Parameters</dd>
-
-        <dt>
-
-          <code><a href="opaka_quickstart_inputs.html">opaka_quickstart_inputs()</a></code>
-
-        </dt>
-        <dd>Opakapaka quickstart model inputs</dd>
-
-        <dt>
-
-          <code><a href="opaka_truth.html">opaka_truth</a></code>
-
-        </dt>
-        <dd>Opakapaka SS3 OM/EM truth and EM output (extracted)</dd>
-
-        <dt>
-
-          <code><a href="opal_as_tmbfit.html">opal_as_tmbfit()</a></code>
-
-        </dt>
-        <dd>Convert normalized opal posterior draws to a tmbfit</dd>
-
-        <dt>
-
-          <code><a href="opal_baseline.html">opal_baseline</a></code>
-
-        </dt>
-        <dd><code>opal</code> model regression baseline</dd>
-
-        <dt>
-
-          <code><a href="opal_baseline_data.html">opal_baseline_data</a></code>
-
-        </dt>
-        <dd>Opal Baseline Data</dd>
-
-        <dt>
-
-          <code><a href="opal_baseline_map.html">opal_baseline_map</a></code>
-
-        </dt>
-        <dd>Opal Baseline Map</dd>
-
-        <dt>
-
-          <code><a href="opal_baseline_parameters.html">opal_baseline_parameters</a></code>
-
-        </dt>
-        <dd>Opal Baseline Parameters</dd>
-
-        <dt>
-
-          <code><a href="opal_fit.html">opal_fit()</a></code>
-
-        </dt>
-        <dd>Create a portable fitted opal model object</dd>
-
-        <dt>
-
-          <code><a href="opal_fit_compatibility.html">opal_fit_compatibility()</a></code>
-
-        </dt>
-        <dd>Check compatibility of a saved opal fit</dd>
-
-        <dt>
-
-          <code><a href="opal_fit_io.html">save_opal_fit()</a></code> <code><a href="opal_fit_io.html">read_opal_fit()</a></code>
-
-        </dt>
-        <dd>Save and read portable opal fits</dd>
-
-        <dt>
-
-          <code><a href="opal_fit_object.html">opal_fit_object()</a></code>
-
-        </dt>
-        <dd>Access the runtime objective for an opal fit</dd>
-
-        <dt>
-
-          <code><a href="opal_fit_report.html">opal_fit_report()</a></code>
-
-        </dt>
-        <dd>Recreate the fitted model report</dd>
 
         <dt>
 
@@ -377,94 +637,10 @@
 
         <dt>
 
-          <code><a href="plot_biomass_spawning.html">plot_biomass_spawning()</a></code>
-
-        </dt>
-        <dd>Plot spawning biomass</dd>
-
-        <dt>
-
-          <code><a href="plot_catch.html">plot_catch()</a></code>
-
-        </dt>
-        <dd>Plot catch</dd>
-
-        <dt>
-
-          <code><a href="plot_cpue.html">plot_cpue()</a></code>
-
-        </dt>
-        <dd>Plot CPUE</dd>
-
-        <dt>
-
-          <code><a href="plot_hrate.html">plot_hrate()</a></code>
-
-        </dt>
-        <dd>Plot harvest rate</dd>
-
-        <dt>
-
-          <code><a href="plot_initial_numbers.html">plot_initial_numbers()</a></code>
-
-        </dt>
-        <dd>Plot initial numbers</dd>
-
-        <dt>
-
-          <code><a href="plot_natural_mortality.html">plot_natural_mortality()</a></code>
-
-        </dt>
-        <dd>Plot natural mortality</dd>
-
-        <dt>
-
-          <code><a href="plot_recruitment.html">plot_recruitment()</a></code>
-
-        </dt>
-        <dd>Plot recruitment</dd>
-
-        <dt>
-
           <code><a href="posfun.html">posfun()</a></code>
 
         </dt>
         <dd>Positive Constraint Penalty Function</dd>
-
-        <dt>
-
-          <code><a href="prep_lf_data.html">prep_lf_data()</a></code>
-
-        </dt>
-        <dd>Prepare length composition data for model input</dd>
-
-        <dt>
-
-          <code><a href="prep_wf_data.html">prep_wf_data()</a></code>
-
-        </dt>
-        <dd>Prepare weight composition data for model input</dd>
-
-        <dt>
-
-          <code><a href="project_dynamics.html">project_dynamics()</a></code>
-
-        </dt>
-        <dd>Project dynamics</dd>
-
-        <dt>
-
-          <code><a href="project_rec_devs.html">project_rec_devs()</a></code>
-
-        </dt>
-        <dd>Project recruitment deviates</dd>
-
-        <dt>
-
-          <code><a href="project_selectivity.html">project_selectivity()</a></code>
-
-        </dt>
-        <dd>Project selectivity</dd>
 
         <dt>
 
@@ -479,13 +655,6 @@
 
         </dt>
         <dd>Compute rebinning weight matrix</dd>
-
-        <dt>
-
-          <code><a href="rebuild_opal_object.html">rebuild_opal_object()</a></code>
-
-        </dt>
-        <dd>Rebuild the RTMB objective for a portable opal fit</dd>
 
         <dt>
 
@@ -521,20 +690,71 @@
 
         </dt>
         <dd>Logistic selectivity as a function of length</dd>
+      </dl></div><div class="section level2">
+      <h2 id="bundled-data">Bundled data<a class="anchor" aria-label="anchor" href="#bundled-data"></a></h2>
+
+      <div class="section-desc"><p>Example inputs and numerical baseline datasets.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="opaka_data.html">opaka_data</a></code>
+
+        </dt>
+        <dd>'Opakapaka Stock Assessment Data</dd>
 
         <dt>
 
-          <code><a href="update_opal_fit.html">update_opal_fit()</a></code>
+          <code><a href="opaka_lf.html">opaka_lf</a></code>
 
         </dt>
-        <dd>Update portable results attached to an opal fit</dd>
+        <dd>'Opakapaka Length Frequency Data</dd>
 
         <dt>
 
-          <code><a href="validate_opal_fit.html">validate_opal_fit()</a></code>
+          <code><a href="opaka_parameters.html">opaka_parameters</a></code>
 
         </dt>
-        <dd>Validate a portable opal fit</dd>
+        <dd>'Opakapaka Stock Assessment Parameters</dd>
+
+        <dt>
+
+          <code><a href="opaka_truth.html">opaka_truth</a></code>
+
+        </dt>
+        <dd>Opakapaka SS3 OM/EM truth and EM output (extracted)</dd>
+
+        <dt>
+
+          <code><a href="opal_baseline.html">opal_baseline</a></code>
+
+        </dt>
+        <dd><code>opal</code> model regression baseline</dd>
+
+        <dt>
+
+          <code><a href="opal_baseline_data.html">opal_baseline_data</a></code>
+
+        </dt>
+        <dd>Opal Baseline Data</dd>
+
+        <dt>
+
+          <code><a href="opal_baseline_map.html">opal_baseline_map</a></code>
+
+        </dt>
+        <dd>Opal Baseline Map</dd>
+
+        <dt>
+
+          <code><a href="opal_baseline_parameters.html">opal_baseline_parameters</a></code>
+
+        </dt>
+        <dd>Opal Baseline Parameters</dd>
 
         <dt>
 
@@ -563,8 +783,67 @@
 
         </dt>
         <dd>West Central Pacific Ocean Bigeye Tuna (WCPO BET) Weight Frequency Data</dd>
+      </dl></div><div class="section level2">
+      <h2 id="legacy-fit-compatibility">Legacy fit compatibility<a class="anchor" aria-label="anchor" href="#legacy-fit-compatibility"></a></h2>
+
+      <div class="section-desc"><p>Compatibility helpers for older opal_fit files; use opal_obj for new assessments.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="opal_fit_compatibility.html">opal_fit_compatibility()</a></code>
+
+        </dt>
+        <dd>Check compatibility of a saved opal fit</dd>
+
+        <dt>
+
+          <code><a href="opal_fit_io.html">save_opal_fit()</a></code> <code><a href="opal_fit_io.html">read_opal_fit()</a></code>
+
+        </dt>
+        <dd>Save and read portable opal fits</dd>
+
+        <dt>
+
+          <code><a href="opal_fit_object.html">opal_fit_object()</a></code>
+
+        </dt>
+        <dd>Access the runtime objective for an opal fit</dd>
+
+        <dt>
+
+          <code><a href="opal_fit_report.html">opal_fit_report()</a></code>
+
+        </dt>
+        <dd>Recreate the fitted model report</dd>
+
+        <dt>
+
+          <code><a href="rebuild_opal_object.html">rebuild_opal_object()</a></code>
+
+        </dt>
+        <dd>Rebuild the RTMB objective for a portable opal fit</dd>
+
+        <dt>
+
+          <code><a href="update_opal_fit.html">update_opal_fit()</a></code>
+
+        </dt>
+        <dd>Update portable results attached to an opal fit</dd>
+
+        <dt>
+
+          <code><a href="validate_opal_fit.html">validate_opal_fit()</a></code>
+
+        </dt>
+        <dd>Validate a portable opal fit</dd>
       </dl></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

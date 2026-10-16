@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,8 +18,11 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
-    <li><a class="dropdown-item" href="articles/quickstart.html">Quickstart Guide</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/quickstart.html">Quickstart Guide</a></li>
+    <li><a class="dropdown-item" href="articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
+    <li><a class="dropdown-item" href="articles/projections.html">Project a saved assessment</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -87,7 +90,7 @@
 <code class="sourceCode R"><span><span class="fu">TMB</span><span class="fu">:::</span><span class="fu">install.contrib</span><span class="op">(</span></span>
 <span>  <span class="st">"https://github.com/vtrijoulet/OSA_multivariate_dists/archive/main.zip"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code>SparseNUTS</code> is not on CRAN. If it fails to restore, see the installation notes in the <a href="../README.html#installation">README</a>.</p>
+<p><code>SparseNUTS</code> is not on CRAN. If it fails to restore, see the <a href="https://n-ducharmebarth-noaa.github.io/opal/dev/index.html#installation">installation notes</a>.</p>
 </div>
 <div class="section level2">
 <h2 id="development-workflow">Development workflow<a class="anchor" aria-label="anchor" href="#development-workflow"></a></h2>
@@ -165,7 +168,7 @@
 </ul></div>
 <div class="section level2">
 <h2 id="continuous-integration">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration"></a></h2>
-<p>GitHub Actions run <code>R CMD check</code> on Ubuntu (vignettes are not built during the check), regenerate documentation, run simulation self-tests, and build the pkgdown site. The pkgdown site is deployed from <code>main</code>.</p>
+<p>GitHub Actions run <code>R CMD check</code> on Ubuntu (vignettes are not built during the check), regenerate documentation, run simulation self-tests, and build the pkgdown site. The release pkgdown site is deployed from <code>main</code>; pushes to <code>dev</code> build and deploy development documentation under <code>/opal/dev/</code>. Both builds check local links and retain the rendered site as a workflow artifact. Development vignettes under <code>dev/vignettes/</code> are run deliberately, separately from the three package vignettes.</p>
 </div>
 <div class="section level2">
 <h2 id="coding-agents">Coding agents<a class="anchor" aria-label="anchor" href="#coding-agents"></a></h2>

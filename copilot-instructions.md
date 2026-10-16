@@ -97,7 +97,7 @@ where `cmb(f, d)` creates `function(p) f(p, d)`.
 | [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_parameters.md) | `parameters.R` | Default parameter list |
 | [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_map.md) | `parameters.R` | Default map (which params to fix) |
 | [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_bounds.md), [`check_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/reference/check_bounds.md) | `parameters.R` | Optimization bounds for `nlminb` |
-| [`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit.md), [`save_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md), [`read_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md) | `opal-fit.R` | Portable fitted-model, MCMC, and derived-result storage |
+| [`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_obj.md), [`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit.md), [`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_mcmc.md), [`opal_save()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md), [`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md) | `opal-*.R` | Staged assessment, fitting, sampling, and portable persistence |
 | [`get_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/get_data.md) | `get-data.R` | Legacy data builder (BET-specific) |
 | [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_lf_data.md) | `prep-lf.R` | Prepare length-frequency data for model |
 | [`prep_wf_data()`](https://n-ducharmebarth-noaa.github.io/opal/reference/prep_wf_data.md) | `prep-wf.R` | Prepare weight-frequency data for model |
@@ -113,52 +113,46 @@ assuming a function exists.
 
 library(opal)
 inputs <- opaka_quickstart_inputs()
-data <- inputs$data
-params <- inputs$parameters
-map <- inputs$map
-
-# Build AD object
-obj <- MakeADFun(func = cmb(opal_model, data), parameters = params, map = map)
-bounds <- get_bounds(obj, params)
-
-# Optimize (double run for convergence)
-opt <- nlminb(obj$par, obj$fn, obj$gr, lower = bounds$lower, upper = bounds$upper)
-opt <- nlminb(opt$par, obj$fn, obj$gr, lower = bounds$lower, upper = bounds$upper)
-
-# Diagnostics
-check_estimability(obj)
-get_cor_pairs(obj)
-sdreport(obj)
-
-# Visualize
-plot_cpue(data, obj)
-plot_biomass_spawning(list(data), list(obj))
-
-# Store fitted state and posterior output without serializing the RTMB object
-fit <- opal_fit(data, obj, opt, bounds = bounds, mcmc = mcmc_fit)
-save_opal_fit(fit, "fit.rds")
-fit <- read_opal_fit("fit.rds", strict = TRUE)
+assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
+assessment <- opal_fit(assessment)
+summary(assessment)
+plot_cpue(assessment)
+plot_biomass_spawning(assessment)
+opal_save(assessment, "assessment.rds")
+assessment <- opal_read("assessment.rds")
 ```
 
-### Portable fitted-model objects
+### Portable assessment objects
 
-`opal_fit` is the durable boundary for model results. It stores plain-R
-data, fitted parameters, the parameter map, optimizer output, normalized
-MCMC draws, diagnostics, arbitrary derived results (for example
-projections), and provenance. RTMB objectives contain session-specific
-environments and external pointers, so they are cached in memory but
-never serialized. Use
-[`opal_fit_object()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_object.md)
-or
-[`opal_fit_report()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_report.md)
-to rebuild/access runtime state and
-[`update_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/update_opal_fit.md)
-to attach later MCMC or derived results.
+`opal_obj` is the durable boundary from configuration through fitting,
+sampling, and reporting. It stores ordinary R data, while transient RTMB
+objectives stay in a session cache. Use
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_update.md)
+for configuration changes; changing the scientific target invalidates
+dependent results.
+[`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_mcmc.md)
+records samples, diagnostics, and attempt history. A lifecycle stage is
+separate from diagnostic status, and same-target refits preserve
+compatible posterior samples with their original provenance.
 
-Saved fits record `.opal_model_scientific_version`.
-[`read_opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit_io.md)
-uses it to identify fits created under an earlier model contract, which
-is why a numerical change requires a version bump (see below).
+Use `opal_rtmb(assessment, fresh = TRUE)` for custom optimisation,
+simulation, or profiling, and
+[`opal_attach_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_attach_fit.md)
+to retain an external optimiser result. Use
+[`opal_report()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_report.md)
+for point predictions and
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md)
+for projections with explicit future inputs and uncertainty sources.
+Save and read every stage with
+[`opal_save()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md)
+and
+[`opal_read()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md);
+reading never optimises or samples. Legacy
+`opal_fit(data, obj, opt, ...)` calls remain supported, and saved legacy
+fits migrate with objective verification.
+
+Object schema versions and the scientific model contract are separate.
+Changing model numerics still requires the protocol below.
 
 ## AD-safe coding patterns
 

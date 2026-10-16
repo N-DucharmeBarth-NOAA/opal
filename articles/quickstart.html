@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,8 +39,11 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
-    <li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
+<li><a class="dropdown-item" href="../articles/quickstart.html">Quickstart Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/opakapaka-fit-review.html">Review an Opakapaka Fit</a></li>
+    <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
+    <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
+    <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -73,15 +76,14 @@
 
 
 
-    <p>This guide fits a fixed-effects assessment for ’opakapaka (<em>Pristipomoides filamentosus</em>) using the bundled data. The example uses the same age convention and selectivity parameterization as its Stock Synthesis 3 (SS3) reference model, then stores the fitted result as an <code>opal_fit</code> S3 object.</p>
-<p><code>opal_fit</code> is the portable boundary for an assessment: it retains the model inputs, fitted parameters, optimization results, and diagnostics without serializing RTMB’s session-specific objective. An objective is rebuilt only when it is needed for reporting or plotting.</p>
+    <p>This guide fits a fixed-effects assessment for ’opakapaka (<em>Pristipomoides filamentosus</em>) using the bundled data. It uses the same age convention and selectivity parameterisation as its Stock Synthesis 3 (SS3) reference model.</p>
+<p>One portable S3 class, <code>opal_obj</code>, holds the assessment from configuration through fitting, sampling, and reporting. Its lifecycle stage and diagnostic status are separate: a fitted object can still fail its convergence checks. RTMB objectives live outside the saved object and are rebuilt when needed.</p>
 <section class="level2"><h2 id="load-the-model-inputs">Load the model inputs<a class="anchor" aria-label="anchor" href="#load-the-model-inputs"></a>
 </h2>
 <p>The package includes a model-input builder so this vignette and the stored example fit use the same data preparation and fixed-effects configuration.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://n-ducharmebarth-noaa.github.io/opal/">opal</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/kaskr/RTMB" class="external-link">RTMB</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">inputs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opaka_quickstart_inputs.html">opaka_quickstart_inputs</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -105,84 +107,149 @@
 </div>
 </section><section class="level2"><h2 id="fit-the-model">Fit the model<a class="anchor" aria-label="anchor" href="#fit-the-model"></a>
 </h2>
-<p>Build the RTMB objective, derive bounds for its active parameters, and optimize twice. The second pass starts at the first optimum and is a useful convergence check for this small fixed-effects model.</p>
+<p>Create the assessment, then optimise twice using the existing Opal defaults. The wrapper resolves bounds, stores both optimiser passes, and checks the final fit. It retains results and warns if the checks fail.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">control</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>eval.max <span class="op">=</span> <span class="fl">10000</span>, iter.max <span class="op">=</span> <span class="fl">10000</span><span class="op">)</span></span>
-<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu">RTMB</span><span class="fu">::</span><span class="fu">MakeADFun</span><span class="op">(</span></span>
-<span>  func <span class="op">=</span> <span class="fu"><a href="../reference/cmb.html">cmb</a></span><span class="op">(</span><span class="va">opal_model</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>,</span>
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_obj.html">opal_obj</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">data</span>,</span>
 <span>  parameters <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">parameters</span>,</span>
 <span>  map <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">map</span>,</span>
-<span>  silent <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">bounds</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_bounds.html">get_bounds</a></span><span class="op">(</span><span class="va">obj</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">parameters</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">opt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb</a></span><span class="op">(</span></span>
-<span>  <span class="va">obj</span><span class="op">$</span><span class="va">par</span>, <span class="va">obj</span><span class="op">$</span><span class="va">fn</span>, <span class="va">obj</span><span class="op">$</span><span class="va">gr</span>,</span>
-<span>  lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span>, control <span class="op">=</span> <span class="va">control</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">opt</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/nlminb.html" class="external-link">nlminb</a></span><span class="op">(</span></span>
-<span>  <span class="va">opt</span><span class="op">$</span><span class="va">par</span>, <span class="va">obj</span><span class="op">$</span><span class="va">fn</span>, <span class="va">obj</span><span class="op">$</span><span class="va">gr</span>,</span>
-<span>  lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span>, control <span class="op">=</span> <span class="va">control</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="fu">fn</span><span class="op">(</span><span class="va">opt</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit.html">opal_fit</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">inputs</span><span class="op">$</span><span class="va">data</span>,</span>
-<span>  obj <span class="op">=</span> <span class="va">obj</span>,</span>
-<span>  opt <span class="op">=</span> <span class="va">opt</span>,</span>
-<span>  bounds <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lower <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">lower</span>, upper <span class="op">=</span> <span class="va">bounds</span><span class="op">$</span><span class="va">upper</span><span class="op">)</span>,</span>
-<span>  control <span class="op">=</span> <span class="va">control</span>,</span>
-<span>  estimability <span class="op">=</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/check_estimability.html">check_estimability</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span>, error <span class="op">=</span> <span class="va">identity</span><span class="op">)</span>,</span>
-<span>  diagnostics <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>max_gradient <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">obj</span><span class="op">$</span><span class="fu">gr</span><span class="op">(</span><span class="va">opt</span><span class="op">$</span><span class="va">par</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>stock <span class="op">=</span> <span class="st">"Opakapaka"</span>, model <span class="op">=</span> <span class="st">"Fixed-effects quickstart"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit.html">opal_fit</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">fit</span></span>
-<span><span class="co">#&gt; &lt;opal_fit&gt;</span></span>
-<span><span class="co">#&gt;   Model:        opal_model (schema 1)</span></span>
-<span><span class="co">#&gt;   opal version: 0.0.4</span></span>
-<span><span class="co">#&gt;   Parameters:   127 active</span></span>
-<span><span class="co">#&gt;   Objective:    1832.412</span></span>
-<span><span class="co">#&gt;   Convergence:  0</span></span>
-<span><span class="co">#&gt;   Estimability: All 127 active fixed-effect parameters are estimable.</span></span>
-<span><span class="co">#&gt;   MCMC:         not stored</span></span>
-<span><span class="co">#&gt;   Derived sets: 0</span></span>
-<span><span class="co">#&gt;   Created:      2026-09-21 22:01:11 UTC</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
+<span><span class="co">#&gt; Active parameters: 127 </span></span>
+<span><span class="co">#&gt; Objective: 1832.412 </span></span>
+<span><span class="co">#&gt; Fit check: failed  | MCMC check: not run</span></span>
+<span><span class="va">fit</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span></span>
+<span><span class="co">#&gt; $passes</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics</span></span>
+<span><span class="co">#&gt; $metrics$convergence</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$max_gradient</span></span>
+<span><span class="co">#&gt; [1] 0.001041864</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$positive_hessian</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$inside_bounds</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$valid_population</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$biology</span></span>
+<span><span class="co">#&gt; $metrics$biology$passes</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$biology$checks</span></span>
+<span><span class="co">#&gt;  initial_equilibrium      harvest_penalty           population </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;            mortality             maturity   spawning_potential </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;               weight          selectivity            steepness </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;          recruitment      spawning_output              harvest </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt;            depletion catch_reconstruction </span></span>
+<span><span class="co">#&gt;                 TRUE                 TRUE </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$biology$metrics</span></span>
+<span><span class="co">#&gt; $metrics$biology$metrics$initial_penalty</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$biology$metrics$total_penalty</span></span>
+<span><span class="co">#&gt; [1] 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$biology$metrics$max_harvest</span></span>
+<span><span class="co">#&gt; [1] 0.09746108</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $metrics$biology$metrics$max_relative_catch_error</span></span>
+<span><span class="co">#&gt; [1] 6.704801e-10</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $error</span></span>
+<span><span class="co">#&gt; NULL</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $identity</span></span>
+<span><span class="co">#&gt; $identity$target</span></span>
+<span><span class="co">#&gt; [1] "926611f6049fd88dbd16e4aa4bb5a24b"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $identity$fit</span></span>
+<span><span class="co">#&gt; [1] "7459c22d1102869eeae932f6f18cec4b"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $version</span></span>
+<span><span class="co">#&gt; [1] "opal_validation_v3"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $settings</span></span>
+<span><span class="co">#&gt; $settings$gradient_tolerance</span></span>
+<span><span class="co">#&gt; [1] 0.001</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $settings$max_rhat</span></span>
+<span><span class="co">#&gt; [1] 1.01</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $settings$min_ess</span></span>
+<span><span class="co">#&gt; [1] 100</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $settings$penalty_tolerance</span></span>
+<span><span class="co">#&gt; [1] 1e-10</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $settings$catch_tolerance</span></span>
+<span><span class="co">#&gt; [1] 1e-06</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $checked_at</span></span>
+<span><span class="co">#&gt; [1] "2026-10-16 00:20:15 UTC"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $payload_id</span></span>
+<span><span class="co">#&gt; [1] "1fd2e805a24dc87850cd1efc5768a811"</span></span></code></pre></div>
+</div>
+<p>The optimiser can return convergence code zero while the maximum gradient still exceeds the default tolerance of <code>0.001</code>. Inspect the recorded metrics. If needed, continue from the stored optimum with a tighter relative objective tolerance for the optimiser, keeping the same model and diagnostic threshold. This example checks after each pass, allows up to three further passes, and stops if the checks still fail; the <code>fitted</code> stage alone is not acceptance.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw">for</span> <span class="op">(</span><span class="va">attempt</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fl">3L</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">passes</span><span class="op">)</span><span class="op">)</span> <span class="kw">break</span></span>
+<span>  <span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit.html">opal_fit</a></span><span class="op">(</span></span>
+<span>    <span class="va">fit</span>, n_passes <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>    control <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>eval.max <span class="op">=</span> <span class="fl">10000L</span>, iter.max <span class="op">=</span> <span class="fl">10000L</span>, rel.tol <span class="op">=</span> <span class="fl">1e-10</span><span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">passes</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
+<span><span class="co">#&gt; Active parameters: 127 </span></span>
+<span><span class="co">#&gt; Objective: 1832.412 </span></span>
+<span><span class="co">#&gt; Fit check: passed  | MCMC check: not run</span></span></code></pre></div>
 </div>
 </section><section class="level2"><h2 id="save-a-portable-fitted-model">Save a portable fitted model<a class="anchor" aria-label="anchor" href="#save-a-portable-fitted-model"></a>
 </h2>
-<p><code><a href="../reference/opal_fit_io.html">save_opal_fit()</a></code> writes only portable R data. Reading it back verifies the stored scientific contract and rebuilds the transient RTMB objective when it is required.</p>
+<p><code><a href="../reference/opal_io.html">opal_save()</a></code> stores ordinary R data with a payload checksum. <code><a href="../reference/opal_io.html">opal_read()</a></code> verifies the payload and scientific contract. Neither reading nor rebuilding runs optimisation or MCMC. The same functions also save unfitted objects.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"opaka-quickstart-"</span>, fileext <span class="op">=</span> <span class="st">".rds"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/opal_fit_io.html">save_opal_fit</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">fit_path</span><span class="op">)</span></span>
-<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_io.html">read_opal_fit</a></span><span class="op">(</span><span class="va">fit_path</span>, strict <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/opal_io.html">opal_save</a></span><span class="op">(</span><span class="va">fit</span>, <span class="va">fit_path</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_io.html">opal_read</a></span><span class="op">(</span><span class="va">fit_path</span>, rebuild <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="co">#&gt; opal fitted-model summary</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;       model model_schema     scientific_version opal_version</span></span>
-<span><span class="co">#&gt;  opal_model            1 opal_model_contract_v4        0.0.4</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Optimization</span></span>
-<span><span class="co">#&gt;  method n_parameters objective convergence                  message</span></span>
-<span><span class="co">#&gt;  nlminb          127  1832.412           0 relative convergence (4)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Estimability: All 127 active fixed-effect parameters are estimable.</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
+<span><span class="co">#&gt; Active parameters: 127 </span></span>
+<span><span class="co">#&gt; Objective: 1832.412 </span></span>
+<span><span class="co">#&gt; Fit check: passed  | MCMC check: not run</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/unlink.html" class="external-link">unlink</a></span><span class="op">(</span><span class="va">fit_path</span><span class="op">)</span></span></code></pre></div>
 </div>
 </section><section class="level2"><h2 id="inspect-spawning-biomass">Inspect spawning biomass<a class="anchor" aria-label="anchor" href="#inspect-spawning-biomass"></a>
 </h2>
-<p>Use <code><a href="../reference/opal_fit_object.html">opal_fit_object()</a></code> only at the runtime boundary required by the existing plotting API. For direct derived values, use <code>opal_fit_report(fit)</code>.</p>
+<p>Existing plots accept the assessment object directly. Advanced callers can obtain a transient RTMB objective with <code>opal_rtmb(fit, fresh = TRUE)</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_report.html">opal_fit_report</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="va">object</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_fit_object.html">opal_fit_object</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="../reference/plot_biomass_spawning.html">plot_biomass_spawning</a></span><span class="op">(</span></span>
-<span>  data_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>,</span>
-<span>  object_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">object</span><span class="op">)</span>,</span>
-<span>  relative <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  labels <span class="op">=</span> <span class="st">"Fixed effects"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_report.html">opal_report</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/plot_biomass_spawning.html">plot_biomass_spawning</a></span><span class="op">(</span><span class="va">fit</span>, relative <span class="op">=</span> <span class="cn">FALSE</span>, labels <span class="op">=</span> <span class="st">"Fixed effects"</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
 <figure><p><img src="quickstart_files/figure-html/spawning-biomass-1.png" width="768"></p>
@@ -190,7 +257,34 @@
 </div>
 </div>
 </div>
-<p>The companion <code><a href="../articles/opakapaka-fit-review.html">vignette("opakapaka-fit-review")</a></code> reopens the bundled <code>opal_fit</code> from this workflow for a fast review of the optimization summary, CPUE fit, estimability, and gradients without refitting the model.</p>
+</section><section class="level2"><h2 id="sample-and-update">Sample and update<a class="anchor" aria-label="anchor" href="#sample-and-update"></a>
+</h2>
+<p>Sampling can start before or after fitting. The default sampler uses the stored point, skips internal optimisation, and honours parameter bounds. The following example is intentionally not run while building the vignette. Sampling effort and convergence thresholds need assessment-specific review.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_mcmc.html">opal_mcmc</a></span><span class="op">(</span><span class="va">fit</span>, seed <span class="op">=</span> <span class="fl">42</span>, chains <span class="op">=</span> <span class="fl">4</span>, cores <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>                 num_warmup <span class="op">=</span> <span class="fl">1000</span>, num_samples <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span>
+<span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_check.html">opal_check</a></span><span class="op">(</span><span class="va">fit</span>, scope <span class="op">=</span> <span class="st">"mcmc"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+</div>
+<p>Failed checks retain the samples. A failed or unchecked new run does not replace a previously checked, passing posterior; inspect <code>fit$mcmc_history</code> for earlier and unselected attempts. Refitting the same target preserves its posterior and records which optimisation originally supplied it.</p>
+<p>Use <code><a href="../reference/opal_update.html">opal_update()</a></code> for changes. Updating data, priors, parameters, maps, random effects, or bounds clears dependent fits, samples, and projections. Metadata and optimiser controls preserve them. Direct changes to scientific fields are rejected by validation. An omitted map resolves defaults, whereas <code>map = list()</code> explicitly leaves all parameters free. Custom stocks should supply their own parameters; a bundled default requires an explicit <code>model</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">labelled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_update.html">opal_update</a></span><span class="op">(</span><span class="va">fit</span>, metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Baseline"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">labelled</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
+<span><span class="co">#&gt; Active parameters: 127 </span></span>
+<span><span class="co">#&gt; Objective: 1832.412 </span></span>
+<span><span class="co">#&gt; Fit check: passed  | MCMC check: not run</span></span></code></pre></div>
+</div>
+</section><section class="level2"><h2 id="projections-and-older-workflows">Projections and older workflows<a class="anchor" aria-label="anchor" href="#projections-and-older-workflows"></a>
+</h2>
+<p><code><a href="../reference/project_selectivity.html">project_selectivity()</a></code>, <code><a href="../reference/project_rec_devs.html">project_rec_devs()</a></code>, and <code><a href="../reference/project_dynamics.html">project_dynamics()</a></code> accept objects directly. Choose <code>uncertainty = "mcmc"</code> or <code>"mvn"</code> for dynamics when posterior draws exist. <code><a href="../reference/opal_project.html">opal_project()</a></code> stores a projection with its source identity and settings; future catches, selectivity, and recruitment remain explicit inputs. Random-effect dynamics projections require complete joint posterior draws; marginal-only draws and random-effect MVN projections are rejected.</p>
+<p><code>opal_fit(data, obj, opt, ...)</code> still supports the legacy constructor. <code><a href="../reference/opal_from_fit.html">opal_from_fit()</a></code> converts an existing fit, and <code><a href="../reference/opal_io.html">opal_read()</a></code> upgrades legacy saved fits after verifying the rebuilt objective, without refitting. The companion <a href="opakapaka-fit-review.html">saved-fit review</a> demonstrates this migration. The <a href="projections.html">projection guide</a> gives a complete runnable example with future catch, recruitment, selectivity, and saved projection provenance.</p>
+</section><section class="level2"><h2 id="assessment-diagnostics-and-sensitivities">Assessment diagnostics and sensitivities<a class="anchor" aria-label="anchor" href="#assessment-diagnostics-and-sensitivities"></a>
+</h2>
+<p>The <a href="assessment-tools.html">assessment-tools guide</a> demonstrates biological validation, OSA residuals for every observation likelihood, the dataset-level SDNR plot, posterior summaries, profiles, model grids, and equilibrium reference points. All results retain their source assessment and calculation settings.</p>
 </section><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);

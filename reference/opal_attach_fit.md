@@ -1,0 +1,68 @@
+# Attach an externally optimised Opal fit
+
+Attach a result from an external optimiser to the configuration that
+produced it. The objective, parameter layout, and bounds are verified
+before retaining the point. For ordinary optimisation, use
+[`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit.md).
+
+## Usage
+
+``` r
+opal_attach_fit(x, opt, check = TRUE, check_args = list())
+```
+
+## Arguments
+
+- x:
+
+  A configured `opal_obj`.
+
+- opt:
+
+  Optimiser result with named `par`, `objective`, and `convergence`.
+
+- check:
+
+  Run fitting diagnostics after attachment.
+
+- check_args:
+
+  Named arguments passed to
+  [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_check.md).
+
+## Value
+
+A fitted `opal_obj`.
+
+## See also
+
+Other assessment workflow:
+[`opal_attach_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_attach_mcmc.md),
+[`opal_build()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_build.md),
+[`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_check.md),
+[`opal_derived()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_derived.md),
+[`opal_example_inputs()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_example_inputs.md),
+[`opal_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_fit.md),
+[`opal_from_fit()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_from_fit.md),
+[`opal_io`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_io.md),
+[`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_mcmc.md),
+[`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_obj.md),
+[`opal_posterior()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_posterior.md),
+[`opal_project()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_project.md),
+[`opal_report()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_report.md),
+[`opal_update()`](https://n-ducharmebarth-noaa.github.io/opal/reference/opal_update.md)
+
+## Examples
+
+``` r
+assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
+                                   package = "opal"))
+#> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
+#> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
+#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.1.
+# Reattach the already verified optimum; no optimisation is performed.
+assessment <- opal_attach_fit(assessment, assessment$fit$opt, check = FALSE)
+#> Warning: The model implementation checksum differs from the saved object.
+#> Warning: The model implementation checksum differs from the saved object.
+#> Warning: The model implementation checksum differs from the saved object.
+```

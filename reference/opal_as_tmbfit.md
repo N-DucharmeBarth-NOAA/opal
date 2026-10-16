@@ -12,8 +12,10 @@ opal_as_tmbfit(x)
 
 - x:
 
-  An `opal_fit` with MCMC output or an `opal_mcmc` object.
+  An `opal_obj` or `opal_fit` with MCMC output, or an `opal_mcmc`
+  object.
 
 ## Value
 
-A list inheriting from `tmbfit`.
+A list inheriting from `tmbfit`. Parameter-only imported draws have an
+unknown (`NA`) lp\_\_ column so SparseNUTS retains every parameter.
