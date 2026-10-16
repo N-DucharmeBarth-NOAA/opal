@@ -1,0 +1,58 @@
+name: Copilot Setup Steps
+
+on:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - .github/actions/setup-opal-env/**
+      - .github/scripts/**
+      - renv.lock
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - .github/actions/setup-opal-env/**
+      - .github/scripts/**
+      - renv.lock
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch whose lockfile should warm the default-branch cache
+        default: dev
+        type: string
+  # Less than seven days between uses keeps the default-branch cache available.
+  schedule:
+    - cron: '0 11 * * 0'
+    - cron: '0 11 * * 3'
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    timeout-minutes: 59
+    steps:
+      # Copilot reads this wrapper from main, but setup uses the working branch.
+      # Scheduled/manual runs on main check out dev to warm its lockfile's cache
+      # in the default-branch scope, which Copilot branches can restore.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event_name == 'schedule' && 'dev' || github.ref }}
+
+      - uses: ./.github/actions/setup-opal-env
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify development tools
+        shell: Rscript {0}
+        run: |
+          tools <- c("devtools", "roxygen2", "testthat", "rcmdcheck", "pkgdown")
+          missing <- tools[!vapply(tools, requireNamespace, logical(1), quietly = TRUE)]
+          if (length(missing))
+            renv::restore(packages = missing, prompt = FALSE)
+          stopifnot(all(vapply(tools, requireNamespace, logical(1), quietly = TRUE)))
+
+      - name: Smoke test
+        shell: Rscript {0}
+        run: |
+          devtools::load_all()
+          devtools::test(filter = "selectivity", stop_on_failure = TRUE)

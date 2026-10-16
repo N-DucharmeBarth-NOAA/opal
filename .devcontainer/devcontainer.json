@@ -1,0 +1,41 @@
+{
+  "name": "opal",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  "features": {
+    "ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {
+      "version": "1.8.27"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "containerEnv": {
+    "RENV_PATHS_ROOT": "/home/vscode/.local/share/renv",
+    "RENV_PATHS_CACHE": "/home/vscode/.local/share/renv/cache",
+    "RENV_CONFIG_CACHE_SYMLINKS": "FALSE",
+    "RENV_CONFIG_PAK_ENABLED": "FALSE",
+    "R_KEEP_PKG_SOURCE": "yes",
+    "R_LIBS_USER": "/home/vscode/.local/share/opal-editor",
+    "RENV_CONFIG_EXTERNAL_LIBRARIES": "/home/vscode/.local/share/opal-editor"
+  },
+  "mounts": [
+    "source=opal-renv-cache,target=/home/vscode/.local/share/renv/cache,type=volume"
+  ],
+  "updateContentCommand": "Rscript .github/scripts/setup-r-env.R",
+  "postCreateCommand": "Rscript --vanilla -e 'lib <- Sys.getenv(\"R_LIBS_USER\"); dir.create(lib, recursive = TRUE, showWarnings = FALSE); .libPaths(c(lib, .libPaths())); packages <- c(\"languageserver\", \"httpgd\"); missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]; if (length(missing)) install.packages(missing, lib = lib)'",
+  "customizations": {
+    "vscode": {
+      "extensions": ["REditorSupport.r", "quarto.quarto"],
+      "settings": {
+        "r.lsp.enabled": true,
+        "r.plot.useHttpgd": true
+      }
+    }
+  }
+}
