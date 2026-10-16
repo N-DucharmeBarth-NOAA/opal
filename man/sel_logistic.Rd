@@ -7,7 +7,8 @@
 sel_logistic(len, par)
 }
 \arguments{
-\item{len}{Numeric vector of length-bin midpoints.}
+\item{len}{Numeric vector of length-bin midpoints, or of ages for an
+age-based fishery (\code{sel_basis_f = 2}); see \code{\link[=get_selectivity]{get_selectivity()}}.}
 
 \item{par}{Numeric vector of length 6 containing selectivity parameters.
 Only the first two entries are used: \code{par[1]} (a) and \code{par[2]} (b).

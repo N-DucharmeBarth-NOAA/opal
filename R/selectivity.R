@@ -1,6 +1,7 @@
 #' Logistic selectivity as a function of length
 #'
-#' @param len Numeric vector of length-bin midpoints.
+#' @param len Numeric vector of length-bin midpoints, or of ages for an
+#'   age-based fishery (`sel_basis_f = 2`); see [get_selectivity()].
 #' @param par Numeric vector of length 6 containing selectivity parameters.
 #'   Only the first two entries are used: `par[1]` (a) and `par[2]` (b).
 #'   `a` is the inflection point on the real line, transformed via
@@ -72,7 +73,8 @@ log_2pow_m1 <- function(g) {
 #' bounds for columns 3 and 6 are `c(-5, 5)`; use the existing `par_sel` bounds
 #' for the remaining columns.
 #'
-#' @param len Numeric vector of length-bin midpoints.
+#' @param len Numeric vector of length-bin midpoints, or of ages for an
+#'   age-based fishery (`sel_basis_f = 2`); see [get_selectivity()].
 #' @param par Numeric vector of length 6 containing selectivity parameters.
 #' @return Numeric vector of selectivity values in [0, 1).
 #' @references Maunder, M. (2025). Double Richards selectivity. Unpublished
@@ -128,7 +130,8 @@ double_richards_natural <- function(len, par) {
 
 #' Selectivity-at-length for a single fishery, dispatched on type code
 #'
-#' @param len Numeric vector of length-bin midpoints.
+#' @param len Numeric vector of length-bin midpoints, or of ages for an
+#'   age-based fishery (`sel_basis_f = 2`); see [get_selectivity()].
 #' @param par Numeric vector of length 6 containing selectivity parameters.
 #' @param sel_type Selectivity type: 1 = logistic, 2 = double-normal, 3 =
 #'   double Richards.
@@ -153,7 +156,10 @@ sel_length <- function(len, par, sel_type) {
 #' Only the full form is implemented (e and f both active). The simplified
 #' forms where e <= -999 or f <= -999 are not supported.
 #'
-#' @param x Numeric vector of length-bin midpoints.
+#' @param x Numeric vector of length-bin midpoints, or of ages for an
+#'   age-based fishery (`sel_basis_f = 2`); see [get_selectivity()]. The
+#'   values must be equally spaced, because `x[2] - x[1]` is used as the bin
+#'   width.
 #' @param par Numeric vector of length 6 containing selectivity parameters.
 #'   \describe{
 #'     \item{`par[1]` (a)}{Peak location (real line). Transformed via
@@ -255,42 +261,90 @@ get_pla <- function(len_lower, len_upper, mu_a, sd_a) {
   return(pla)
 }
 
-#' Compute selectivity-at-age from length-based selectivity curves
+#' Validate the selectivity basis codes
 #'
-#' Defines selectivity as a parametric function of length (logistic,
-#' double-normal, or double Richards), then converts to selectivity-at-age by matrix-multiplying
-#' with the probability-of-length-at-age (PLA/ALK).
+#' @param sel_basis_f Integer vector of selectivity basis codes, or `NULL`.
+#' @param n_fishery Number of fisheries.
+#' @return Integer vector of length `n_fishery` (all `1L` when `sel_basis_f`
+#'   is `NULL`).
+#' @noRd
+.validate_sel_basis <- function(sel_basis_f, n_fishery) {
+  if (is.null(sel_basis_f)) return(rep(1L, n_fishery))
+  if (length(sel_basis_f) != n_fishery) {
+    stop("'sel_basis_f' must have length n_fishery (", n_fishery,
+         "), not ", length(sel_basis_f), ".", call. = FALSE)
+  }
+  if (!is.numeric(sel_basis_f) || anyNA(sel_basis_f) ||
+      !all(sel_basis_f %in% c(1, 2))) {
+    bad <- unique(sel_basis_f[is.na(sel_basis_f) | !sel_basis_f %in% c(1, 2)])
+    stop("'sel_basis_f' must contain only 1 (length) or 2 (age); found: ",
+         paste(bad, collapse = ", "), ".", call. = FALSE)
+  }
+  as.integer(sel_basis_f)
+}
+
+#' Compute selectivity-at-age from parametric selectivity curves
+#'
+#' Defines selectivity for each fishery as a parametric curve (logistic,
+#' double-normal, or double Richards) evaluated either on length or directly
+#' on age, chosen per fishery by `data$sel_basis_f`:
+#' \describe{
+#'   \item{1 = length (default)}{The curve is evaluated at `len_mid` and
+#'     converted to selectivity-at-age by matrix-multiplying with the
+#'     probability-of-length-at-age (`t(pla) %*% sel_at_length`).}
+#'   \item{2 = age}{The curve is evaluated directly at the ages `age_a`, and
+#'     `pla` is not used, so the selectivity does not depend on growth.
+#'     Parameters are scaled by `mean(age_a)` and `sd(age_a)` rather than by
+#'     the length bins.}
+#' }
+#' If `data$sel_basis_f` is absent or `NULL`, every fishery is length-based.
 #'
 #' Selectivity is currently time-invariant within each fishery (constant
 #' across years).
 #'
 #' @param data A list containing model data. Required elements:
-#'   n_fishery, n_year, n_age, sel_type_f.
+#'   n_fishery, n_year, n_age, sel_type_f. Optional: `sel_basis_f`, an integer
+#'   vector of length n_fishery (1 = length, 2 = age), and `min_age` (default
+#'   1), used to build `age_a` when it is not supplied.
 #' @param par_sel Numeric matrix of dimensions `[n_fishery, 6]`. Each row is
 #'   a real-line parameter vector. For logistic (sel_type_f == 1), only
 #'   columns 1:2 are used. For double-normal (sel_type_f == 2) and double
 #'   Richards (sel_type_f == 3), all 6 are used.
 #' @param pla Numeric matrix of dimensions `[n_len, n_age]` containing
-#'   probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.
+#'   probability-of-length-at-age (age-length key). Computed via
+#'   \code{get_pla()}. Used only for length-based fisheries.
 #' @param len_mid Numeric vector (length n_len) of length-bin midpoints.
+#' @param age_a Numeric vector (length n_age) of ages at which age-based
+#'   curves are evaluated. Defaults to
+#'   `seq(min_age, by = 1, length.out = n_age)`, as in \code{get_growth()}.
 #' @return 3D array `sel_fya` of dimensions `[n_fishery, n_year, n_age]`.
 #' @importFrom RTMB ADoverload
 #' @export
 #'
-get_selectivity <- function(data, par_sel, pla, len_mid) {
+get_selectivity <- function(data, par_sel, pla, len_mid, age_a = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   n_fishery <- data$n_fishery
   n_year <- data$n_year
   n_age <- data$n_age
-  # Compute PLA inside the function (AD-safe)
-  # pla <- get_pla(len_lower, len_upper, mu_a, sd_a)
+  sel_basis_f <- .validate_sel_basis(data$sel_basis_f, n_fishery)
+  if (is.null(age_a)) {
+    min_age <- if (is.null(data$min_age)) 1L else data$min_age
+    age_a <- seq(min_age, by = 1, length.out = n_age)
+  } else if (length(age_a) != n_age) {
+    stop("'age_a' must have length n_age (", n_age, ").", call. = FALSE)
+  }
   sel_fya <- array(0, dim = c(n_fishery, n_year, n_age))
   for (f in seq_len(n_fishery)) {
     par_f <- par_sel[f, ]
-    sel_at_length <- sel_length(len_mid, par_f, data$sel_type_f[f])
-    # Convert to selectivity-at-age via PLA
-    sel_at_age <- c(t(pla) %*% sel_at_length)
+    if (sel_basis_f[f] == 2L) {
+      # Age-based: evaluate the curve directly on age
+      sel_at_age <- sel_length(age_a, par_f, data$sel_type_f[f])
+    } else {
+      sel_at_length <- sel_length(len_mid, par_f, data$sel_type_f[f])
+      # Convert to selectivity-at-age via PLA
+      sel_at_age <- c(t(pla) %*% sel_at_length)
+    }
     # Time-invariant: replicate across years
     for (y in seq_len(n_year)) {
       sel_fya[f, y, ] <- sel_at_age
@@ -299,39 +353,89 @@ get_selectivity <- function(data, par_sel, pla, len_mid) {
   return(sel_fya)
 }
 
+#' Selectivity scaling vector for each fishery
+#'
+#' @param basis Character vector of length 1 or `n_fishery`, each `"length"`
+#'   or `"age"`.
+#' @param n_fishery Number of fisheries.
+#' @param sel_lengths Length-bin midpoints.
+#' @param sel_ages Ages, required when any fishery is age-based.
+#' @return List of length `n_fishery` holding the x vector for each fishery.
+#' @noRd
+.selex_scale_vectors <- function(basis, n_fishery, sel_lengths, sel_ages) {
+  if (!length(basis) %in% c(1L, n_fishery)) {
+    stop("'basis' must have length 1 or n_fishery (", n_fishery, ").",
+         call. = FALSE)
+  }
+  bad <- setdiff(basis, c("length", "age"))
+  if (length(bad) > 0L) {
+    stop("'basis' must be \"length\" or \"age\"; found: ",
+         paste(bad, collapse = ", "), ".", call. = FALSE)
+  }
+  basis <- rep_len(basis, n_fishery)
+  if (any(basis == "age") && is.null(sel_ages)) {
+    stop("'sel_ages' must be supplied for age-based fisheries.", call. = FALSE)
+  }
+  if (any(basis == "length") && is.null(sel_lengths)) {
+    stop("'sel_lengths' must be supplied for length-based fisheries.",
+         call. = FALSE)
+  }
+  lapply(basis, function(b) if (b == "age") sel_ages else sel_lengths)
+}
+
 #' Convert SS3 selectivity parameters to RTMB real-line parameterization
 #'
 #' Takes SS3 natural-scale selectivity parameters and converts them to the
 #' centered real-line parameterization used by the RTMB \code{sel_logistic}
 #' and \code{sel_double_normal} functions.
 #'
+#' Length-based fisheries (`basis = "length"`) take SS3 `size_selex`
+#' patterns 1 (logistic) and 24 (double normal), scaled by `sel_lengths`.
+#' Age-based fisheries (`basis = "age"`, used with `sel_basis_f = 2`) take
+#' SS3 `age_selex` patterns 12 (logistic) and 20 (double normal), which share
+#' the parameter definitions of patterns 1 and 24, scaled by `sel_ages`.
+#'
+#' SS3's `-999` codes for the initial and final double-normal selectivity
+#' ("no adjustment") have no exact equivalent in opal. They are converted to
+#' `-9`, which sets the initial or final selectivity close to zero. With a
+#' final value of `-999`, SS3 leaves the descending limb unadjusted at the
+#' oldest age or length bin, so the two curves can differ there.
+#'
 #' @param ss3_pars A data.frame or matrix with one row per fishery. For
-#'   double-normal (pattern 24): columns are peak, top_logit, ascend_se,
-#'   descend_se, start_logit, end_logit. For logistic (pattern 1): columns
-#'   are inflection, width.
+#'   double-normal (pattern 24 or 20): columns are peak, top_logit,
+#'   ascend_se, descend_se, start_logit, end_logit. For logistic (pattern 1
+#'   or 12): columns are inflection, width.
 #' @param sel_type_f Integer vector (length n_fishery). 1 = logistic, 2 =
 #'   double-normal, 3 = double Richards.
 #' @param sel_lengths Numeric vector of selectivity length-bin midpoints
 #'   (same vector that will be passed to sel_logistic/sel_double_normal).
+#'   Used for length-based fisheries.
+#' @param basis Character vector of length 1 or n_fishery: `"length"`
+#'   (default) or `"age"`, giving the selectivity basis of each fishery.
+#' @param sel_ages Numeric vector of ages at which age-based curves are
+#'   evaluated, i.e. `seq(min_age, by = 1, length.out = n_age)`. Required
+#'   when any fishery has `basis = "age"`.
 #' @return Numeric matrix `[n_fishery, 6]` of RTMB real-line parameters.
 #' @export
 #'
-convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
-  mu_len <- mean(sel_lengths)
-  sd_len <- sd(sel_lengths)
+convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths,
+                                      basis = "length", sel_ages = NULL) {
   n_fishery <- length(sel_type_f)
+  x_f <- .selex_scale_vectors(basis, n_fishery, sel_lengths, sel_ages)
   par_sel <- matrix(0, nrow = n_fishery, ncol = 6)
 
   for (f in seq_len(n_fishery)) {
+    mu_len <- mean(x_f[[f]])
+    sd_len <- sd(x_f[[f]])
     if (sel_type_f[f] == 1L) {
-      # Logistic (SS3 pattern 1): inflection (cm), width (cm)
+      # Logistic (SS3 pattern 1 or 12): inflection, width
       ss3_inflection <- ss3_pars[f, 1]
       ss3_width <- ss3_pars[f, 2]
       par_sel[f, 1] <- (ss3_inflection - mu_len) / sd_len
       par_sel[f, 2] <- log(ss3_width / sd_len)
       # par_sel[f, 3:6] remain 0 (unused)
     } else if (sel_type_f[f] == 2L) {
-      # Double-normal (SS3 pattern 24): peak, top_logit, ascend_se, descend_se, start_logit, end_logit
+      # Double-normal (SS3 pattern 24 or 20): peak, top_logit, ascend_se, descend_se, start_logit, end_logit
       ss3_peak        <- ss3_pars[f, 1]
       ss3_top_logit   <- ss3_pars[f, 2]
       ss3_ascend_se   <- ss3_pars[f, 3]
@@ -375,15 +479,18 @@ convert_ss3_selex_to_rtmb <- function(ss3_pars, sel_type_f, sel_lengths) {
 #' @param sel_type_f Integer vector (1 = logistic, 2 = double-normal, 3 =
 #'   double Richards).
 #' @param sel_lengths Numeric vector of selectivity length-bin midpoints.
+#'   Used for length-based fisheries.
+#' @inheritParams convert_ss3_selex_to_rtmb
 #' @return Data.frame with SS3-scale parameter values per fishery. Double
 #'   Richards rows retain `NA` parameter values because there is no SS3
-#'   equivalent.
+#'   equivalent. Age-based rows correspond to SS3 `age_selex` patterns 12
+#'   and 20.
 #' @export
 #'
-convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
-  mu_len <- mean(sel_lengths)
-  sd_len <- sd(sel_lengths)
+convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths,
+                                      basis = "length", sel_ages = NULL) {
   n_fishery <- nrow(par_sel)
+  x_f <- .selex_scale_vectors(basis, n_fishery, sel_lengths, sel_ages)
   result <- data.frame(
     fleet = 1:n_fishery,
     type = sel_type_f,
@@ -395,6 +502,8 @@ convert_rtmb_selex_to_ss3 <- function(par_sel, sel_type_f, sel_lengths) {
     end_logit = NA_real_
   )
   for (f in seq_len(n_fishery)) {
+    mu_len <- mean(x_f[[f]])
+    sd_len <- sd(x_f[[f]])
     if (sel_type_f[f] == 1L) {
       result$peak_or_inflection[f] <- mu_len + par_sel[f, 1] * sd_len
       result$top_logit_or_width[f] <- exp(par_sel[f, 2]) * sd_len

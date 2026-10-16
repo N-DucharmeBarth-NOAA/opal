@@ -75,7 +75,9 @@
 #' \describe{
 #'   \item{sel_type_f}{Selectivity function type by fishery (15 elements). Integer codes
 #'     representing selectivity curve shapes: 1 = logistic, 2 = double-normal,
-#'     3 = double Richards.}
+#'     3 = double Richards. Curves are evaluated on length; the optional
+#'     `sel_basis_f` data element (1 = length, 2 = age) evaluates them on age
+#'     instead (see [get_selectivity()]).}
 #' }
 #'
 #' **Priors:**
@@ -446,7 +448,10 @@
 #' **Selectivity:**
 #' \describe{
 #'   \item{sel_type_f}{Selectivity function type by fishery (3 elements). Integer
-#'     codes: 1 = logistic, 2 = double-normal, 3 = double Richards.}
+#'     codes: 1 = logistic, 2 = double-normal, 3 = double Richards. Curves
+#'     are evaluated on length; the optional `sel_basis_f` data element
+#'     (1 = length, 2 = age) evaluates them on age instead (see
+#'     [get_selectivity()]).}
 #' }
 #'
 #' **Priors:**

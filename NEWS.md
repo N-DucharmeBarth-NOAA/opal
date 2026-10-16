@@ -1,5 +1,15 @@
 # opal 0.1.1
 
+- Add optional age-based selectivity. The new data element `sel_basis_f`
+  (1 = length, 2 = age, one per fishery) evaluates the logistic,
+  double-normal or double Richards curve directly on age, using the same
+  `par_sel` parameters and map, so age-based selectivity can be estimated
+  and mirrored. `get_selectivity()` gains an `age_a` argument.
+  `convert_ss3_selex_to_rtmb()` and `convert_rtmb_selex_to_ss3()` gain
+  `basis` and `sel_ages` arguments to convert SS3 `age_selex` patterns 12
+  and 20. Without `sel_basis_f`, every fishery stays length-based and
+  existing models give identical results. `sel_fa_external` still takes
+  precedence.
 - 2026/10/15 ([PR #143](https://github.com/N-DucharmeBarth-NOAA/opal/pull/143)):
   Fix fit validation for random-effect models by calculating the marginal
   Hessian with `optimHess()` instead of calling RTMB's unsupported exact

@@ -2,13 +2,15 @@
 % Please edit documentation in R/selectivity.R
 \name{get_selectivity}
 \alias{get_selectivity}
-\title{Compute selectivity-at-age from length-based selectivity curves}
+\title{Compute selectivity-at-age from parametric selectivity curves}
 \usage{
-get_selectivity(data, par_sel, pla, len_mid)
+get_selectivity(data, par_sel, pla, len_mid, age_a = NULL)
 }
 \arguments{
 \item{data}{A list containing model data. Required elements:
-n_fishery, n_year, n_age, sel_type_f.}
+n_fishery, n_year, n_age, sel_type_f. Optional: \code{sel_basis_f}, an integer
+vector of length n_fishery (1 = length, 2 = age), and \code{min_age} (default
+1), used to build \code{age_a} when it is not supplied.}
 
 \item{par_sel}{Numeric matrix of dimensions \verb{[n_fishery, 6]}. Each row is
 a real-line parameter vector. For logistic (sel_type_f == 1), only
@@ -16,17 +18,32 @@ columns 1:2 are used. For double-normal (sel_type_f == 2) and double
 Richards (sel_type_f == 3), all 6 are used.}
 
 \item{pla}{Numeric matrix of dimensions \verb{[n_len, n_age]} containing
-probability-of-length-at-age (age-length key). Computed via \code{get_pla()}.}
+probability-of-length-at-age (age-length key). Computed via
+\code{get_pla()}. Used only for length-based fisheries.}
 
 \item{len_mid}{Numeric vector (length n_len) of length-bin midpoints.}
+
+\item{age_a}{Numeric vector (length n_age) of ages at which age-based
+curves are evaluated. Defaults to
+\code{seq(min_age, by = 1, length.out = n_age)}, as in \code{get_growth()}.}
 }
 \value{
 3D array \code{sel_fya} of dimensions \verb{[n_fishery, n_year, n_age]}.
 }
 \description{
-Defines selectivity as a parametric function of length (logistic,
-double-normal, or double Richards), then converts to selectivity-at-age by matrix-multiplying
-with the probability-of-length-at-age (PLA/ALK).
+Defines selectivity for each fishery as a parametric curve (logistic,
+double-normal, or double Richards) evaluated either on length or directly
+on age, chosen per fishery by \code{data$sel_basis_f}:
+\describe{
+\item{1 = length (default)}{The curve is evaluated at \code{len_mid} and
+converted to selectivity-at-age by matrix-multiplying with the
+probability-of-length-at-age (\code{t(pla) \%*\% sel_at_length}).}
+\item{2 = age}{The curve is evaluated directly at the ages \code{age_a}, and
+\code{pla} is not used, so the selectivity does not depend on growth.
+Parameters are scaled by \code{mean(age_a)} and \code{sd(age_a)} rather than by
+the length bins.}
+}
+If \code{data$sel_basis_f} is absent or \code{NULL}, every fishery is length-based.
 }
 \details{
 Selectivity is currently time-invariant within each fishery (constant
