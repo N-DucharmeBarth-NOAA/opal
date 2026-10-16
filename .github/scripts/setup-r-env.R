@@ -1,5 +1,18 @@
 # Run from the repository root; .Rprofile bootstraps renv on a fresh checkout.
-local({
+set_locked_provenance <- function(package_path, record) {
+  path <- file.path(package_path, "DESCRIPTION")
+  desc <- as.list(read.dcf(path)[1L, ])
+  desc[grep("^Remote", names(desc))] <- NULL
+  fields <- grep("^Remote", names(record), value = TRUE)
+  desc[fields] <- record[fields]
+  write.dcf(as.data.frame(desc, stringsAsFactors = FALSE), path)
+  metadata_path <- file.path(package_path, "Meta", "package.rds")
+  metadata <- readRDS(metadata_path)
+  metadata$DESCRIPTION <- unlist(desc, use.names = TRUE)
+  saveRDS(metadata, metadata_path)
+}
+
+setup_r_env <- function() {
   timed <- function(label, code) {
     message("\n== ", label, " ==")
     start <- proc.time()[["elapsed"]]
@@ -19,7 +32,8 @@ local({
       # A loaded namespace cannot be replaced safely. Restart with the newly
       # installed renv, without re-running the older activate.R bootstrap.
       status <- system2(file.path(R.home("bin"), "Rscript"),
-                        c("--vanilla", ".github/scripts/setup-r-env.R"),
+                        c("--vanilla", ".github/scripts/setup-r-env.R",
+                          commandArgs(trailingOnly = TRUE)),
                         env = paste0("R_LIBS=", shQuote(paste(.libPaths(),
                                                            collapse = .Platform$path.sep))))
       quit(status = status)
@@ -114,12 +128,8 @@ local({
 
       # Local installs lose their GitHub identity. Retain the locked provenance
       # so status()/snapshot() and subsequent setup runs recognise the package.
-      path <- file.path(find.package(rec$Package), "DESCRIPTION")
-      desc <- as.list(read.dcf(path)[1L, ])
-      desc[c("RemoteType", "RemoteUrl")] <- NULL
-      fields <- grep("^Remote", names(rec), value = TRUE)
-      desc[fields] <- rec[fields]
-      write.dcf(as.data.frame(desc, stringsAsFactors = FALSE), path)
+      set_locked_provenance(find.package(rec$Package), rec)
+      stopifnot(identical(utils::packageDescription(rec$Package)$RemoteSha, ref))
     }
   })
 
@@ -161,4 +171,7 @@ local({
             "; RTMB ", utils::packageVersion("RTMB"),
             "; Matrix ", utils::packageVersion("Matrix"))
   })
-})
+}
+
+if (sys.nframe() == 0L)
+  setup_r_env()

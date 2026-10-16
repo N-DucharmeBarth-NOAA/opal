@@ -29,7 +29,10 @@ jobs:
       - uses: ./.github/actions/setup-opal-env
 
       - name: Install rcmdcheck
-        run: renv::install("rcmdcheck")
+        run: |
+          if (!requireNamespace("rcmdcheck", quietly = TRUE)) {
+            renv::restore(packages = "rcmdcheck", prompt = FALSE)
+          }
         shell: Rscript {0}
 
       - name: Install Quarto R package
@@ -44,7 +47,10 @@ jobs:
         shell: Rscript {0}
 
       - name: Install testthat
-        run: renv::install(c("testthat"))
+        run: |
+          if (!requireNamespace("testthat", quietly = TRUE)) {
+            renv::restore(packages = "testthat", prompt = FALSE)
+          }
         shell: Rscript {0}
 
       - name: Install opal package

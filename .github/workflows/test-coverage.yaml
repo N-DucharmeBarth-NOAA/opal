@@ -25,7 +25,19 @@ jobs:
       - uses: ./.github/actions/setup-opal-env
 
       - name: Install coverage tools
-        run: renv::install(c("covr", "xml2"))
+        run: |
+          if (!requireNamespace("xml2", quietly = TRUE)) {
+            renv::restore(packages = "xml2", prompt = FALSE)
+          }
+          if (!requireNamespace("covr", quietly = TRUE)) {
+            lock <- renv::lockfile_read("renv.lock")
+            if (!is.null(lock$Packages$covr)) {
+              renv::restore(packages = "covr", prompt = FALSE)
+            } else {
+              # covr is not recorded in renv.lock; retain the existing extra install.
+              renv::install("covr")
+            }
+          }
         shell: Rscript {0}
 
       - name: Test coverage

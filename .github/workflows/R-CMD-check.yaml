@@ -39,7 +39,10 @@ jobs:
           r-version: ${{ matrix.config.r }}
 
       - name: Install rcmdcheck
-        run: renv::install("rcmdcheck")
+        run: |
+          if (!requireNamespace("rcmdcheck", quietly = TRUE)) {
+            renv::restore(packages = "rcmdcheck", prompt = FALSE)
+          }
         shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
