@@ -162,9 +162,10 @@ Composition data is prepared via `prep_lf_data()` and `prep_wf_data()`, which co
 
 ## Environment & development
 
-- **R packages** are managed with `renv/`. Run `renv::activate()` then `renv::restore()` to set up.
+- **Environment**: R, the restored `renv` library, and TMB with the OSA headers are already set up by the shared environment bootstrap. The project `.Rprofile` activates `renv` when R starts. `renv.lock` controls R and package versions; see [Development environments](CONTRIBUTING.md#development-environments) for local setup and updates.
 - **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`, `dplyr`, `forecast`
 - **Documentation**: roxygen2-based. After editing `R/*.R` files, regenerate with `devtools::document()`. The `document.yaml` workflow also regenerates and commits `man/` and `NAMESPACE` on pushes touching `R/`, so pull before continuing on a branch.
+- **Before a PR**: run `devtools::document()` when documentation changes, `devtools::test()` for affected behavior, and `devtools::check()` where relevant (exports, dependencies, or documentation). Follow [CONTRIBUTING.md's numerical-change protocol](CONTRIBUTING.md#numerical-changes) for changes to model numerics.
 - **Tests**: `testthat` edition 3, run with `devtools::test()`. Shared fixtures live in `helper-*.R` (`opaka_inputs()`, `opaka_obj()`, `synth_*()`); do not build models at the top level of test files. `tests/testthat/_reference/` holds numerical reference outputs — **never create or overwrite them from a test**; regenerate them only through the protocol below. Simulation self-tests are gated by `OPAL_SELFTEST=true` (see also `OPAL_SELFTEST_NSIM`, `OPAL_SELFTEST_START`, `OPAL_SELFTEST_OUT`) and run in `.github/workflows/selftest.yaml`. Calibration limits documented at the top of a self-test file must not be changed without rerunning the calibration and recording it there.
 - **CI**: GitHub Actions run `R CMD check` on Ubuntu only and ignore vignettes; they also build pkgdown and regenerate documentation.
 - **Branch workflow**: PRs go against `dev`; `main` is the stable release branch.
