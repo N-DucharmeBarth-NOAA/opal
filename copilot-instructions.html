@@ -292,12 +292,14 @@
 <div class="section level2">
 <h2 id="environment--development">Environment &amp; development<a class="anchor" aria-label="anchor" href="#environment--development"></a></h2>
 <ul><li>
-<strong>R packages</strong> are managed with <code>renv/</code>. Run <code><a href="https://rstudio.github.io/renv/reference/activate.html" class="external-link">renv::activate()</a></code> then <code><a href="https://rstudio.github.io/renv/reference/restore.html" class="external-link">renv::restore()</a></code> to set up.</li>
+<strong>Environment</strong>: R, the restored <code>renv</code> library, and TMB with the OSA headers are already set up by the shared environment bootstrap. The project <code>.Rprofile</code> activates <code>renv</code> when R starts. <code>renv.lock</code> controls R and package versions; see <a href="CONTRIBUTING.html#development-environments">Development environments</a> for local setup and updates.</li>
 <li>
 <strong>Key dependencies</strong>: <code>RTMB</code>, <code>RTMBdist</code>, <code>SparseNUTS</code>, <code>ggplot2</code>, <code>dplyr</code>, <code>forecast</code>
 </li>
 <li>
 <strong>Documentation</strong>: roxygen2-based. After editing <code>R/*.R</code> files, regenerate with <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code>. The <code>document.yaml</code> workflow also regenerates and commits <code>man/</code> and <code>NAMESPACE</code> on pushes touching <code>R/</code>, so pull before continuing on a branch.</li>
+<li>
+<strong>Before a PR</strong>: run <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code> when documentation changes, <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code> for affected behavior, and <code><a href="https://devtools.r-lib.org/reference/check.html" class="external-link">devtools::check()</a></code> where relevant (exports, dependencies, or documentation). Follow <a href="CONTRIBUTING.html#numerical-changes">CONTRIBUTING.md’s numerical-change protocol</a> for changes to model numerics.</li>
 <li>
 <strong>Tests</strong>: <code>testthat</code> edition 3, run with <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code>. Shared fixtures live in <code>helper-*.R</code> (<code>opaka_inputs()</code>, <code>opaka_obj()</code>, <code>synth_*()</code>); do not build models at the top level of test files. <code>tests/testthat/_reference/</code> holds numerical reference outputs — <strong>never create or overwrite them from a test</strong>; regenerate them only through the protocol below. Simulation self-tests are gated by <code>OPAL_SELFTEST=true</code> (see also <code>OPAL_SELFTEST_NSIM</code>, <code>OPAL_SELFTEST_START</code>, <code>OPAL_SELFTEST_OUT</code>) and run in <code>.github/workflows/selftest.yaml</code>. Calibration limits documented at the top of a self-test file must not be changed without rerunning the calibration and recording it there.</li>
 <li>

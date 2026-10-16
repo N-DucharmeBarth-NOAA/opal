@@ -81,16 +81,14 @@
 <li>add a <code>NEWS.md</code> entry for user-visible or numerical changes.</li>
 </ol></div>
 <div class="section level2">
-<h2 id="development-setup">Development setup<a class="anchor" aria-label="anchor" href="#development-setup"></a></h2>
-<p>The package environment is pinned with <code>renv</code>. From the repository root:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/restore.html" class="external-link">restore</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p><code>compResidual</code>, used for one-step-ahead residuals on composition data, requires the multivariate OSA headers to be installed into <code>TMB</code>. If you need it, install <code>TMB</code> first, then:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">TMB</span><span class="fu">:::</span><span class="fu">install.contrib</span><span class="op">(</span></span>
-<span>  <span class="st">"https://github.com/vtrijoulet/OSA_multivariate_dists/archive/main.zip"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p><code>SparseNUTS</code> is not on CRAN. If it fails to restore, see the <a href="https://n-ducharmebarth-noaa.github.io/opal/dev/index.html#installation">installation notes</a>.</p>
+<h2 id="development-environments">Development environments<a class="anchor" aria-label="anchor" href="#development-environments"></a></h2>
+<p>Open a GitHub Codespace from <strong>Code → Codespaces</strong> to build the development environment automatically. CI, Codespaces, and the Copilot coding agent use <code>renv.lock</code> as the single source of truth for the R version and package records.</p>
+<p>All environments run <code>.github/scripts/setup-r-env.R</code>, which restores the packages and applies the TMB OSA-header and <code>compResidual</code> installation workarounds. To restore locally, first install the R version recorded in <code>renv.lock</code> and the required system libraries, then run from the repository root:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> .github/scripts/setup-r-env.R</span></code></pre></div>
+<p>In Codespaces, locked GitHub packages are downloaded from public commit archives first, avoiding API rate limits and repository-scoped token restrictions. If that fails, setup tries the original API URL. Package versions and commit SHAs still come from <code>renv.lock</code>; do not install newer GitHub versions to work around a download failure.</p>
+<p>The Ubuntu policy and Quarto CLI version default are documented in <code>.github/actions/setup-opal-env/action.yml</code>; Codespaces must match them. Workflow-specific tools not recorded in the lockfile remain explicit installs after the shared setup.</p>
+<p>After intentional dependency updates, run <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> and commit <code>renv.lock</code>. Commit R-version updates in that lockfile too; CI, Codespaces, and Copilot follow it without separate version edits.</p>
+<p>Copilot reads its thin setup-workflow wrapper from the default branch, <code>main</code>, but uses the working checkout’s environment definition. Scheduled runs and manual runs on <code>main</code> with <code>ref: dev</code> warm caches for dev-based tasks. After merging environment setup changes to <code>main</code>, maintainers should run that manual setup, merge <code>main</code> into <code>dev</code>, and check that a dev-based Copilot task restores the cache.</p>
 </div>
 <div class="section level2">
 <h2 id="development-workflow">Development workflow<a class="anchor" aria-label="anchor" href="#development-workflow"></a></h2>
@@ -134,7 +132,7 @@
 <li><p>Numerical reference outputs are in <code>tests/testthat/_reference/</code>. <strong>Never create or overwrite reference files from within a test.</strong></p></li>
 <li>
 <p>Simulation self-tests are skipped by default. Run them locally with:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>OPAL_SELFTEST <span class="op">=</span> <span class="st">"true"</span>, OPAL_SELFTEST_NSIM <span class="op">=</span> <span class="st">"30"</span><span class="op">)</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">test</a></span><span class="op">(</span>filter <span class="op">=</span> <span class="st">"selftest"</span><span class="op">)</span></span></code></pre></div>
 <p><code>OPAL_SELFTEST_START</code> may be <code>"truth"</code> (default) or <code>"default"</code>, and <code>OPAL_SELFTEST_OUT</code> saves results to a directory. Self-tests also run in <code>.github/workflows/selftest.yaml</code>. Calibration limits are documented at the top of each self-test file; do not change them without rerunning the calibration and recording it there.</p>

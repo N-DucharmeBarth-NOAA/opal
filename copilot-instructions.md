@@ -235,11 +235,12 @@ model expects.
 
 ## Environment & development
 
-- **R packages** are managed with `renv/`. Run
-  [`renv::activate()`](https://rstudio.github.io/renv/reference/activate.html)
-  then
-  [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
-  to set up.
+- **Environment**: R, the restored `renv` library, and TMB with the OSA
+  headers are already set up by the shared environment bootstrap. The
+  project `.Rprofile` activates `renv` when R starts. `renv.lock`
+  controls R and package versions; see [Development
+  environments](https://n-ducharmebarth-noaa.github.io/opal/CONTRIBUTING.html#development-environments)
+  for local setup and updates.
 - **Key dependencies**: `RTMB`, `RTMBdist`, `SparseNUTS`, `ggplot2`,
   `dplyr`, `forecast`
 - **Documentation**: roxygen2-based. After editing `R/*.R` files,
@@ -248,6 +249,16 @@ model expects.
   The `document.yaml` workflow also regenerates and commits `man/` and
   `NAMESPACE` on pushes touching `R/`, so pull before continuing on a
   branch.
+- **Before a PR**: run
+  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html)
+  when documentation changes,
+  [`devtools::test()`](https://devtools.r-lib.org/reference/test.html)
+  for affected behavior, and
+  [`devtools::check()`](https://devtools.r-lib.org/reference/check.html)
+  where relevant (exports, dependencies, or documentation). Follow
+  [CONTRIBUTING.md’s numerical-change
+  protocol](https://n-ducharmebarth-noaa.github.io/opal/CONTRIBUTING.html#numerical-changes)
+  for changes to model numerics.
 - **Tests**: `testthat` edition 3, run with
   [`devtools::test()`](https://devtools.r-lib.org/reference/test.html).
   Shared fixtures live in `helper-*.R` (`opaka_inputs()`, `opaka_obj()`,
