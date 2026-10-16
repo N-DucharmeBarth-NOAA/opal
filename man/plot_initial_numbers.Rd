@@ -4,12 +4,12 @@
 \alias{plot_initial_numbers}
 \title{Plot initial numbers}
 \usage{
-plot_initial_numbers(data, object)
+plot_initial_numbers(data, object = NULL)
 }
 \arguments{
-\item{data}{A model data list passed to \code{MakeADFun}.}
+\item{data}{An \code{opal_obj}, legacy \code{opal_fit}, or model data list.}
 
-\item{object}{The AD object created using \code{MakeADFun}.}
+\item{object}{Optional for Opal objects. The AD object created using \code{MakeADFun}.}
 }
 \value{
 A \code{ggplot2} object.

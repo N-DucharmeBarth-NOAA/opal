@@ -6,23 +6,25 @@
 \usage{
 project_dynamics(
   data,
-  object,
+  object = NULL,
   mcmc = NULL,
   n_proj = 5,
   n_iter = 1,
   rdev_y,
   sel_fya,
   catch_ysf,
-  return_hist = FALSE
+  return_hist = FALSE,
+  uncertainty = NULL
 )
 }
 \arguments{
-\item{data}{A \code{list} of model data (as passed to \code{opal_model}).}
+\item{data}{An \code{opal_obj}, legacy \code{opal_fit}, or model data list.}
 
-\item{object}{The RTMB AD object returned by \code{RTMB::MakeADFun}, after
-optimisation.}
+\item{object}{For legacy data-list calls, the fitted RTMB objective.
+Omit when \code{data} is an Opal object.}
 
-\item{mcmc}{Optional. MCMC fit object returned by \code{SparseNUTS}.  When
+\item{mcmc}{Legacy data-list calls only: a SparseNUTS fit. Omit for Opal
+objects, which use their stored posterior. In the legacy interface, when
 supplied, posterior draws are used for the projection.  When \code{NULL}
 (default), MVN draws are generated from the Hessian-derived
 variance-covariance matrix.}
@@ -48,6 +50,8 @@ trajectory from each parameter draw over the historical period.  The
 last column of \code{hist_sbio} corresponds to the same terminal state
 as the \code{proj_year = 0} bridge point in the projection, so the two
 can be plotted seamlessly without any join discontinuity.}
+
+\item{uncertainty}{For Opal objects, choose \code{mcmc} or \code{mvn} explicitly when a posterior exists. Random effects require complete joint posterior draws.}
 }
 \value{
 When \code{return_hist = FALSE} (default): a \code{list} of length
@@ -58,7 +62,8 @@ When \code{return_hist = FALSE} (default): a \code{list} of length
 }
 \description{
 Forward-projects population dynamics for \code{n_proj} years using either
-MCMC posterior draws (when \code{mcmc} is supplied) or multivariate-normal
-(MVN) draws derived from the Hessian-based variance-covariance matrix at the
-MLE (when \code{mcmc = NULL}).
+stored MCMC posterior draws (\code{uncertainty = "mcmc"}) or multivariate-normal
+draws from a fitted fixed-effects model (\code{uncertainty = "mvn"}).
+Pass the assessment as \code{data}; its runtime and posterior are used internally.
+Use \code{\link[=opal_project]{opal_project()}} to retain the result and its provenance in the object.
 }

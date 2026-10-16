@@ -4,12 +4,12 @@
 \alias{plot_hrate}
 \title{Plot harvest rate}
 \usage{
-plot_hrate(data, object, years = NULL, ...)
+plot_hrate(data, object = NULL, years = NULL, ...)
 }
 \arguments{
-\item{data}{A model data list passed to \code{MakeADFun}.}
+\item{data}{An \code{opal_obj}, legacy \code{opal_fit}, or model data list.}
 
-\item{object}{The AD object created using \code{MakeADFun}.}
+\item{object}{Optional for Opal objects. The AD object created using \code{MakeADFun}.}
 
 \item{years}{Optional years to show. The default plots every model year from
 the first catch year onwards.}

@@ -47,7 +47,7 @@ make_opal_fit_data <- function() {
 make_opal_fit_parameters <- function(data) {
   list(
     log_B0 = 20,
-    log_h = 0.7,
+    log_h = log(0.7),
     log_sigma_r = log(0.6),
     log_cpue_q = 0,
     cpue_creep = 0,

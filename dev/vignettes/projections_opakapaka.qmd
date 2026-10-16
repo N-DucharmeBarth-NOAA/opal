@@ -18,9 +18,15 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Overview
 
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
+
 This vignette carries the 'opakapaka (*Pristipomoides filamentosus*) case study
 forward from estimation into projection. It reuses the *opal with length
-compositions* model (`obj_lf`) developed in `vignette("opakapaka")` — the
+compositions* model (`obj_lf`) developed in [the opakapaka development workflow](opakapaka.qmd) — the
 assessment that fits both CPUE indices and length compositions and estimates
 selectivity — and projects the stock forward under a constant-catch scenario,
 propagating parameter uncertainty two ways:
@@ -38,7 +44,7 @@ single axis. The Stock Synthesis 3 operating-model (OM) and estimation-model
 (EM) spawning-biomass trajectories are overlaid over the historical period for
 reference.
 
-See `vignette("opakapaka")` for the full model configuration, biological
+See [the opakapaka development workflow](opakapaka.qmd) for the full model configuration, biological
 inputs, and cross-platform benchmarking; only the elements needed to build
 `obj_lf` are reproduced here.
 
@@ -66,7 +72,7 @@ n_chains_mcmc <- 8L
 ## Data, parameters, and map
 
 The data preparation, parameter list, priors, and parameter map are identical
-to the *opal with LF* model in `vignette("opakapaka")`. They are reproduced
+to the *opal with LF* model in [the opakapaka development workflow](opakapaka.qmd). They are reproduced
 compactly below.
 
 ```{r}
@@ -184,9 +190,14 @@ map <- list(
 #| output: false
 #| message: false
 data$lf_switch <- 1L   # multinomial length-composition likelihood
+data$first_yr <- 1949L
+data$last_yr <- 2023L
+data$removal_switch_f <- rep(0L, data$n_fishery)
 
-obj_lf <- MakeADFun(func = cmb(opal_model, data), parameters = parameters,
+assessment_lf <- opal_obj(data = data, parameters = parameters,
                     map = map)
+
+obj_lf <- opal_rtmb(assessment_lf, fresh = TRUE)
 
 Lwr <- rep(-Inf, length(obj_lf$par)); Upr <- rep(Inf, length(obj_lf$par))
 Lwr[grep("log_B0",      names(obj_lf$par))] <- log(1)
@@ -201,12 +212,11 @@ Lwr[grep("par_sel",     names(obj_lf$par))] <- -7
 Upr[grep("par_sel",     names(obj_lf$par))] <-  7
 
 control <- list(eval.max = 10000, iter.max = 10000)
-opt <- nlminb(obj_lf$par, obj_lf$fn, obj_lf$gr, lower = Lwr, upper = Upr,
-              control = control)
-opt <- nlminb(opt$par,    obj_lf$fn, obj_lf$gr, lower = Lwr, upper = Upr,
-              control = control)
-opt <- nlminb(opt$par,    obj_lf$fn, obj_lf$gr, lower = Lwr, upper = Upr,
-              control = control)
+assessment_lf <- opal_update(assessment_lf,
+  bounds = list(lower = Lwr, upper = Upr), control = control)
+assessment_lf <- opal_fit(assessment_lf, n_passes = 3L)
+opt <- assessment_lf$fit$opt
+obj_lf <- opal_rtmb(assessment_lf, fresh = TRUE)
 
 cat("Convergence:", opt$convergence, "\n")
 cat("Max gradient:", max(abs(obj_lf$gr())), "\n")
@@ -262,22 +272,19 @@ the mean selectivity over the last ten estimated years.
 #| label: proj-setup
 #| output: false
 #| message: false
-# Fields required by the projection helpers
-data$first_yr         <- 1949L
-data$last_yr          <- 2023L
-data$removal_switch_f <- rep(0L, data$n_fishery)
+# Model-year fields and removal switches are stored in assessment_lf.
 
 n_proj <- 10    # projection years
 n_iter <- 200   # uncertainty iterations
 
 # Projected recruitment deviates (ARIMA on the fitted MLE series)
 rdev_proj <- project_rec_devs(
-  data = data, obj = obj_lf, first_yr = data$first_yr,
+  data = assessment_lf, uncertainty = "fit", first_yr = data$first_yr,
   n_proj = n_proj, n_iter = n_iter)
 
 # Projected selectivity (mean of the last 10 estimated years, per iteration)
 sel_proj <- project_selectivity(
-  data = data, obj = obj_lf, first_yr = data$last_yr - 9,
+  data = assessment_lf, first_yr = data$last_yr - 9,
   n_proj = n_proj, n_iter = n_iter)
 
 # Constant-catch scenario: hold catch at the last observed year's level
@@ -289,7 +296,7 @@ for (y in seq_len(n_proj)) {
 
 ## Approach 1: MVN simulation
 
-With `mcmc = NULL`, `project_dynamics()` draws parameter sets from a
+With `uncertainty = "mvn"`, `project_dynamics()` draws parameter sets from a
 multivariate-normal centred on the MLE, using the inverse Hessian as the
 covariance. Positive parameters already on the log scale (`log_B0`,
 `log_cpue_q`) are drawn in log-space; the recruitment and initial-age
@@ -305,9 +312,8 @@ point with the delta-method historical ribbon.
 #| output: false
 #| message: false
 proj_mvn <- project_dynamics(
-  data      = data,
-  object    = obj_lf,
-  mcmc      = NULL,             # triggers the MVN path
+  data = assessment_lf, uncertainty = "mvn",
+
   n_proj    = n_proj,
   n_iter    = n_iter,
   rdev_y    = rdev_proj$rdev_y,
@@ -330,27 +336,31 @@ those already in the model.
 #| eval: false
 #| output: false
 n_chains_mcmc <- 8
-mcmc_fit <- SparseNUTS::sample_snuts(
-  obj         = obj_lf,
-  globals     = opal_globals(),
+assessment_lf <- opal_mcmc(
+  assessment_lf,
   num_samples = 750,
   num_warmup  = 1500,
   chains      = n_chains_mcmc,
   cores       = min(n_chains_mcmc, parallel::detectCores()),
-  metric      = "dense",
+  metric      = "stan",
   seed        = 42,
   # A high adapt_delta and deeper trees are needed for this posterior: with the
   # default settings the survey length-composition geometry produces divergences
   # and elevated Rhat.
   control     = list(adapt_delta = 0.99, max_treedepth = 12)
 )
-saveRDS(mcmc_fit, "inst/extdata/opaka_mcmc_fit.rds")
+opal_save(assessment_lf, "opaka-assessment-sampled.rds")
 ```
 
 ```{r}
 #| label: mcmc-load
 #| message: false
-mcmc_fit <- readRDS(system.file("extdata", "opaka_mcmc_fit.rds", package = "opal"))
+# Import the bundled legacy draws into the matching assessment configuration.
+legacy_draws <- readRDS(system.file("extdata", "opaka_mcmc_fit.rds", package = "opal"))
+assessment_lf <- opal_attach_mcmc(assessment_lf, legacy_draws)
+summary(assessment_lf)
+mcmc_fit <- opal_as_tmbfit(assessment_lf)
+# For a new saved workflow instead: assessment_lf <- opal_read("opaka-assessment-sampled.rds")
 ```
 
 For the MCMC path, projected recruitment deviates are generated by fitting an
@@ -363,7 +373,7 @@ that draw.
 #| output: false
 #| message: false
 rdev_proj_mcmc <- project_rec_devs(
-  data = data, obj = obj_lf, mcmc = mcmc_fit,
+  data = assessment_lf, uncertainty = "mcmc",
   first_yr = data$first_yr, n_proj = n_proj, n_iter = n_iter)
 ```
 
@@ -372,9 +382,8 @@ rdev_proj_mcmc <- project_rec_devs(
 #| output: false
 #| message: false
 proj_mcmc <- project_dynamics(
-  data        = data,
-  object      = obj_lf,
-  mcmc        = mcmc_fit,       # triggers the MCMC path
+  data = assessment_lf, uncertainty = "mcmc",
+
   n_proj      = n_proj,
   n_iter      = n_iter,
   rdev_y      = rdev_proj_mcmc$rdev_y,

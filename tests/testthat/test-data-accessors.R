@@ -28,3 +28,22 @@ test_that("get_parameters loads by model and bundled data", {
 test_that("get_data rejects legacy list input clearly", {
   expect_error(get_data(list(last_yr = 2022)), "loads bundled model data by name")
 })
+
+test_that("bundled aliases, defaults, and invalid requests are resolved clearly", {
+  expect_identical(get_data(), get_data("opal_baseline"))
+  expect_identical(get_data("WCPO-BET"), get_data("bet"))
+  expect_identical(get_data("opal"), get_data("baseline"))
+  expect_error(get_data("unknown"), "model.*must be one of")
+  expect_error(get_data(include_parameters = 1), "single logical")
+  expect_error(get_data(include_parameters = c(TRUE, FALSE)), "single logical")
+  expect_identical(get_parameters(), get_parameters(model = "baseline"))
+  expect_identical(get_parameters(data = get_data("opaka")),
+                   get_parameters(model = "opaka"))
+  expect_error(get_parameters(data = 2), "model data list")
+  expect_error(get_parameters(data = list()), "Could not infer")
+  for (model in c("opaka", "bet")) {
+    changed <- get_data(model)
+    changed$label <- "annotated model"
+    expect_identical(get_parameters(data = changed), get_parameters(model = model))
+  }
+})

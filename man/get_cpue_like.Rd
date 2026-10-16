@@ -46,4 +46,5 @@ Computes the likelihood for one or more standardised CPUE/survey indices
 using a log-linear model. Each index has its own catchability (q),
 extra variance (tau), power parameter (omega), and effort creep.
 Mean-centering of predicted CPUE is performed within each index.
+Time steps are one-based: \code{(year_index - 1) * n_season + season_index}.
 }

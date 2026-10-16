@@ -2,11 +2,20 @@
 # Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
 on:
   push:
+    # Branches only: path filters are not evaluated for tag pushes, so without
+    # this a tag push would also run (and try to push to a tag ref).
+    branches: ["**"]
     paths: ["R/**"]
 
 name: document.yaml
 
 permissions: read-all
+
+# Queue (rather than cancel) runs for the same branch so that two
+# documentation runs never race each other to push.
+concurrency:
+  group: document-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   document:
@@ -21,6 +30,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
 
       - uses: r-lib/actions/setup-pandoc@v2
@@ -72,9 +82,46 @@ jobs:
 
       - name: Commit and push changes
         run: |
+          set -euo pipefail
+          branch="${GITHUB_REF_NAME}"
+
           git config --local user.name "$GITHUB_ACTOR"
           git config --local user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          git add man/\* NAMESPACE DESCRIPTION
-          git commit -m "Update documentation" || echo "No changes to commit"
-          git pull --ff-only
-          git push origin
+
+          git add --all -- man NAMESPACE DESCRIPTION
+          if git diff --cached --quiet; then
+            echo "No documentation changes to commit."
+            exit 0
+          fi
+          git commit -m "Update documentation"
+
+          # The branch may have advanced while documentation was generated
+          # (user pushes are not covered by the concurrency group). Rebase the
+          # documentation commit onto the latest remote tip and retry a few
+          # times if the push loses a race. Never force-push.
+          max_attempts=3
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "::group::Sync and push (attempt ${attempt}/${max_attempts})"
+            git fetch origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"
+            if ! git rebase --autostash "origin/${branch}"; then
+              echo "::endgroup::"
+              echo "::error::Documentation commit conflicts with commits on origin/${branch}. Run roxygen2::roxygenise() locally and push the result."
+              echo "Conflicting files:"
+              git diff --name-only --diff-filter=U || true
+              git status --short || true
+              git rebase --abort || true
+              exit 1
+            fi
+            if git push origin "HEAD:refs/heads/${branch}"; then
+              echo "::endgroup::"
+              echo "Pushed documentation update to ${branch}."
+              exit 0
+            fi
+            echo "::endgroup::"
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "::warning::Push to ${branch} failed (attempt ${attempt}); retrying."
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::Failed to push documentation update to ${branch} after ${max_attempts} attempts."
+          exit 1

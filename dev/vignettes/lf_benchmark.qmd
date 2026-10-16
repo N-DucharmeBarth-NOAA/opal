@@ -19,6 +19,12 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 # Introduction
 
+This is a development workflow, run deliberately from the repository. Model
+state is held in `opal_obj`; isolated runtimes from `opal_rtmb()` support
+the detailed simulations, diagnostics, or timing experiments below. For the
+short, automatically checked workflow, see [the package Quickstart](../../vignettes/quickstart.qmd).
+
+
 This vignette benchmarks two implementations of the length-composition
 likelihood on the RTMB AD tape:
 
@@ -134,9 +140,10 @@ base_map$cpue_creep     <- factor(rep(NA, bld$n_index))
 base_map$log_cpue_tau   <- factor(rep(NA, bld$n_index))
 base_map$log_cpue_omega <- factor(rep(NA, bld$n_index))
 
-obj_base <- MakeADFun(func       = cmb(opal_model, bld),
-                      parameters = base_pars,
+assessment_base <- opal_obj(data = bld, parameters = base_pars,
                       map        = base_map)
+
+obj_base <- opal_rtmb(assessment_base, fresh = TRUE)
 invisible(obj_base$fn(obj_base$par))
 rep_base     <- obj_base$report()
 par_mle      <- obj_base$env$parList(obj_base$env$last.par.best)

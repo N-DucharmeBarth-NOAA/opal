@@ -16,11 +16,12 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
-# Review an `opal_fit`
+# Review a saved assessment
 
-This vignette examines the portable fixed-effects opakapaka fit created for
-the Quickstart. It rebuilds the transient RTMB objective only to obtain model
-predictions, so no optimisation is performed here.
+This vignette upgrades the bundled legacy `opal_fit` to `opal_obj`. It
+examines the portable fixed-effects opakapaka fit created for the
+[Quickstart](quickstart.html). It rebuilds the transient RTMB objective to
+verify the stored objective and obtain predictions, without optimisation.
 
 The bundled fit may have been saved under a different R version. Portable
 integrity permits that difference while still checking model compatibility and
@@ -34,7 +35,7 @@ fit_path <- system.file("extdata", "opaka_quickstart_fit.rds", package = "opal")
 if (!nzchar(fit_path)) {
   stop("The bundled opakapaka quickstart fit is unavailable.", call. = FALSE)
 }
-fit <- read_opal_fit(fit_path, strict = TRUE, integrity = "portable")
+fit <- opal_read(fit_path)
 fit
 summary(fit)
 ```
@@ -45,10 +46,7 @@ summary(fit)
 #| label: cpue-fit
 #| fig-width: 8
 #| fig-height: 5
-object <- opal_fit_object(fit, integrity = "portable")
-plot_data <- fit$data
-plot_data$cpue_data$season <- 1L
-plot_cpue(plot_data, object)
+plot_cpue(fit)
 ```
 
 ## Diagnostics
@@ -63,3 +61,46 @@ list(
   maximum_gradient = fit$fit$diagnostics$max_gradient
 )
 ```
+
+Refresh the reusable fit checks with `opal_check()`. The stage remains
+`fitted` whether checks pass or fail; inspect the validation record before
+interpreting the assessment.
+
+```{r}
+#| label: refresh-checks
+fit <- opal_check(fit, scope = "fit")
+fit$validation$fit$metrics
+summary(fit)
+```
+
+The bundled legacy fit's maximum gradient can exceed the default `0.001`
+tolerance even with optimiser convergence code zero. That is a failed
+diagnostic check, not a read or migration failure. This review preserves the
+saved point; the [Quickstart](quickstart.html) and
+[projection guide](projections.html) demonstrate bounded continuation from
+that point before using a fit that passes the checks.
+
+## Continue and save the assessment
+
+Metadata changes preserve the fitted result. Configuration changes through
+`opal_update()` clear dependent results so that another fit or sampler run
+cannot accidentally use stale outputs.
+
+```{r}
+#| label: save-reviewed
+fit <- opal_update(fit, metadata = list(label = "Reviewed baseline"))
+path <- tempfile(fileext = ".rds")
+opal_save(fit, path)
+restored <- opal_read(path, rebuild = TRUE)
+stopifnot(isTRUE(all.equal(opal_report(fit), opal_report(restored))))
+unlink(path)
+```
+
+See the [projection guide](projections.html) to carry this object into a
+future-catch scenario, or `opal_mcmc()` to add posterior sampling.
+
+## OSA residuals and further analyses
+
+Use `fit <- opal_osa(fit)` followed by `plot_osa_sdnr(fit)` to compare observation
+residual dispersion across datasets. The [assessment-tools guide](assessment-tools.html)
+shows this figure, composition fits, posterior analysis, and sensitivity workflows.

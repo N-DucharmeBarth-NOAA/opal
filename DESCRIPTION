@@ -1,6 +1,6 @@
 Package: opal
 Title: The open population assessment library
-Version: 0.0.4
+Version: 0.1.1
 Authors@R: c(
     person("Darcy", "Webber", role = "aut", email = "darcy@quantifish.co.nz"),
     person("Philipp", "Neubauer", role = "aut", email = "philipp@dragonfly.co.nz"),
@@ -45,4 +45,4 @@ URL: https://n-ducharmebarth-noaa.github.io/opal/
 Depends: 
     R (>= 3.5)
 LazyData: true
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1

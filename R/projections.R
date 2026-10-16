@@ -1,14 +1,17 @@
 #' Project dynamics
 #'
 #' Forward-projects population dynamics for \code{n_proj} years using either
-#' MCMC posterior draws (when \code{mcmc} is supplied) or multivariate-normal
-#' (MVN) draws derived from the Hessian-based variance-covariance matrix at the
-#' MLE (when \code{mcmc = NULL}).
+#' stored MCMC posterior draws (`uncertainty = "mcmc"`) or multivariate-normal
+#' draws from a fitted fixed-effects model (`uncertainty = "mvn"`).
+#' Pass the assessment as `data`; its runtime and posterior are used internally.
+#' Use [opal_project()] to retain the result and its provenance in the object.
 #'
-#' @param data A \code{list} of model data (as passed to \code{opal_model}).
-#' @param object The RTMB AD object returned by \code{RTMB::MakeADFun}, after
-#'   optimisation.
-#' @param mcmc Optional. MCMC fit object returned by \code{SparseNUTS}.  When
+#' @param data An `opal_obj`, legacy `opal_fit`, or model data list.
+#' @param object For legacy data-list calls, the fitted RTMB objective.
+#'   Omit when `data` is an Opal object.
+#' @param uncertainty For Opal objects, choose `mcmc` or `mvn` explicitly when a posterior exists. Random effects require complete joint posterior draws.
+#' @param mcmc Legacy data-list calls only: a SparseNUTS fit. Omit for Opal
+#'   objects, which use their stored posterior. In the legacy interface, when
 #'   supplied, posterior draws are used for the projection.  When \code{NULL}
 #'   (default), MVN draws are generated from the Hessian-derived
 #'   variance-covariance matrix.
@@ -39,8 +42,13 @@
 #' @importFrom utils txtProgressBar setTxtProgressBar
 #' @export
 #'
-project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
-                              rdev_y, sel_fya, catch_ysf, return_hist = FALSE) {
+project_dynamics <- function(data, object = NULL, mcmc = NULL, n_proj = 5, n_iter = 1,
+                              rdev_y, sel_fya, catch_ysf, return_hist = FALSE, uncertainty = NULL) {
+  input <- .opal_projection_input(data, object, mcmc, uncertainty)
+  data <- input$data
+  object <- input$object
+  mcmc <- input$mcmc
+
 
   # Input validation ----
   dr <- dim(rdev_y)
@@ -214,8 +222,8 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
 
 #' Project selectivity
 #' 
-#' @param data a \code{list} of parameter values.
-#' @param obj a \code{list} of parameter values.
+#' @param data An Opal object or model data list.
+#' @param obj For legacy data-list calls, the RTMB objective. Omit for an Opal object.
 #' @param first_yr the first year sampled. Defaults to the first model year.
 #' @param last_yr the last year.
 #' @param n_proj the number of projection years.
@@ -223,10 +231,19 @@ project_dynamics <- function(data, object, mcmc = NULL, n_proj = 5, n_iter = 1,
 #' @return An array of projected selectivity by iteration, fishery, year, and
 #'   age.
 #' @importFrom stats rnorm sd
+#' @description
+#' Generate future selectivity from a selected historical period in the object's
+#' point report. For each age and fishery, variable positive selectivities are
+#' sampled independently on the log scale; constant values are repeated.
+#' This does not propagate posterior uncertainty in selectivity parameters.
+#' @seealso [opal_project()], [project_dynamics()]
 #' @export
 #' 
-project_selectivity <- function(data, obj, first_yr = NULL, last_yr = NULL,
+project_selectivity <- function(data, obj = NULL, first_yr = NULL, last_yr = NULL,
                                 n_proj = 5, n_iter = 1) {
+  input <- .opal_model_input(data, obj)
+  data <- input$data
+  obj <- input$object
   if (is.null(first_yr)) first_yr <- data$first_yr
   if (is.null(last_yr)) last_yr <- data$last_yr
   proj_years <- (data$last_yr + 1):(data$last_yr + n_proj)
@@ -260,29 +277,63 @@ project_selectivity <- function(data, obj, first_yr = NULL, last_yr = NULL,
 }
 
 #' Project recruitment deviates
+#'
+#' Opal-object inputs reconstruct the full historical recruitment vector,
+#' including fixed and mapped years, for each draw. Set first_yr and last_yr
+#' to choose the period used to estimate future variability. Constant histories
+#' produce constant projections. Legacy list inputs retain their original path.
 #' 
-#' @param data a \code{list} of parameter values.
-#' @param obj a \code{list} of parameter values.
-#' @param mcmc a \code{list} of parameter values.
+#' @param data An Opal object or model data list.
+#' @param obj For legacy data-list calls, the RTMB objective. Omit for an Opal object.
+#' @param uncertainty For Opal objects, choose `fit` or `mcmc`.
+#' @param mcmc Legacy data-list calls only: a SparseNUTS fit. Opal objects use
+#'   their stored posterior when `uncertainty = "mcmc"`.
 #' @param first_yr the first year sampled. Defaults to the first model year.
-#' @param last_yr a \code{list} of inputs.
-#' @param n_proj a \code{list} of inputs.
-#' @param n_iter a \code{list} of inputs.
+#' @param last_yr Last historical year used to estimate future variability.
+#'   Defaults to the final model year.
+#' @param n_proj Number of future model years.
+#' @param n_iter Number of trajectories. Defaults to one for fitted values,
+#'   or all retained draws for MCMC. MCMC uses the first `n_iter` draws in
+#'   the same order as [project_dynamics()].
 #' @param max.p Maximum value of p, or the maximum value of p (the AR order) to consider.
-#' @param max.d Maximum value of d, or the maximum value of q (the MA order) to consider.
-#' @param max.q Maximum value of q
-#' @param arima default = TRUE, FALSE = "lognormal"
+#' @param max.d Maximum differencing order considered by `forecast::auto.arima()`.
+#' @param max.q Maximum moving-average order considered by `forecast::auto.arima()`.
+#' @param arima If `TRUE`, select an ARIMA model and bootstrap future
+#'   innovations. If `FALSE`, fit an autoregressive model with [stats::ar()]
+#'   and simulate with [stats::arima.sim()].
 #' @return a \code{list} of projected recruitment deviates and ARIMA specifications.
 #' @importFrom SparseNUTS extract_samples
 #' @importFrom forecast auto.arima
 #' @importFrom stats simulate ar arima.sim
 #' @importFrom utils txtProgressBar setTxtProgressBar
+#' @seealso [opal_project()], [project_dynamics()]
 #' @export
 #' 
-project_rec_devs <- function(data, obj, mcmc = NULL, first_yr = NULL, last_yr = NULL, n_proj = 5, n_iter = NULL,
-                             max.p = 5, max.d = 5, max.q = 5, arima = TRUE) {
+project_rec_devs <- function(data, obj = NULL, mcmc = NULL, first_yr = NULL, last_yr = NULL, n_proj = 5, n_iter = NULL,
+                             max.p = 5, max.d = 5, max.q = 5, arima = TRUE, uncertainty = NULL) {
+  portable <- inherits(data, c("opal_obj", "opal_fit"))
+  input <- .opal_projection_input(data, obj, mcmc, uncertainty, dynamics = FALSE)
+  data <- input$data
+  obj <- input$object
+  mcmc <- input$mcmc
   if (is.null(first_yr)) first_yr <- data$first_yr
-  if (!is.null(mcmc)) {
+  if (portable) {
+    if (!is.null(mcmc)) {
+      post <- extract_samples(fit = mcmc)
+      if (is.null(n_iter)) n_iter <- nrow(post)
+      if (n_iter > nrow(post)) stop("n_iter exceeds the available posterior draws.")
+      # project_dynamics() consumes the first n_iter draws in this order.
+      # Keep recruitment histories paired with those same parameter draws.
+      rows <- seq_len(n_iter)
+      rdevs1 <- t(vapply(rows, function(i) {
+        obj$env$parList(par = as.numeric(post[i, ]))$rdev_y
+      }, numeric(data$n_year)))
+    } else {
+      if (is.null(n_iter)) n_iter <- 1L
+      values <- obj$env$parList(par = obj$env$last.par.best)$rdev_y
+      rdevs1 <- matrix(values, nrow = n_iter, ncol = length(values), byrow = TRUE)
+    }
+  } else   if (!is.null(mcmc)) {
     post <- extract_samples(fit = mcmc)
     rdevs1 <- as.matrix(post[grepl("rdev_y", names(post))])
     if (!is.null(n_iter)) {
@@ -315,6 +366,11 @@ project_rec_devs <- function(data, obj, mcmc = NULL, first_yr = NULL, last_yr = 
   if (arima) {
     if (n_iter > 1) pb <- txtProgressBar(min = 1, max = n_iter, style = 3)
     for (i in seq_len(n_iter)) {
+      if (portable && length(unique(rdevs[i, ])) == 1L) {
+        sim[i, ] <- rdevs[i, 1L]
+        arima_pars[i, ] <- 0
+        next
+      }
       fit <- auto.arima(y = rdevs[i,], max.p = max.p, max.d = max.d, max.q = max.q, approximation = FALSE, stepwise = FALSE, ic = "bic", trace = FALSE)
       sim[i,] <- simulate(object = fit, nsim = n_proj, future = TRUE, bootstrap = TRUE)
       arima_pars[i,] <- fit$arma[1:3]
@@ -322,6 +378,11 @@ project_rec_devs <- function(data, obj, mcmc = NULL, first_yr = NULL, last_yr = 
     }
   } else {
     for (i in seq_len(n_iter)) {
+      if (portable && length(unique(rdevs[i, ])) == 1L) {
+        sim[i, ] <- rdevs[i, 1L]
+        arima_pars[i, ] <- 0
+        next
+      }
       fit <- ar(x = rdevs[i,], order.max = max.p)
       sim[i,] <- arima.sim(n = n_proj, list(ar = fit$ar), sd = sqrt(fit$var.pred))
       arima_pars[i, 1] <- fit$order
