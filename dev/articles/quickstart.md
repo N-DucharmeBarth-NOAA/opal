@@ -69,17 +69,17 @@ fit
 #> <opal_obj> fitted
 #> Active parameters: 127 
 #> Objective: 1832.412 
-#> Fit check: passed  | MCMC check: not run
+#> Fit check: failed  | MCMC check: not run
 fit$validation$fit
 #> $passes
-#> [1] TRUE
+#> [1] FALSE
 #> 
 #> $metrics
 #> $metrics$convergence
 #> [1] 0
 #> 
 #> $metrics$max_gradient
-#> [1] 0.0009558889
+#> [1] 0.001041864
 #> 
 #> $metrics$positive_hessian
 #> [1] TRUE
@@ -114,7 +114,7 @@ fit$validation$fit
 #> [1] 0
 #> 
 #> $metrics$biology$metrics$max_harvest
-#> [1] 0.09746105
+#> [1] 0.09746108
 #> 
 #> $metrics$biology$metrics$max_relative_catch_error
 #> [1] 6.704801e-10
@@ -130,7 +130,7 @@ fit$validation$fit
 #> [1] "926611f6049fd88dbd16e4aa4bb5a24b"
 #> 
 #> $identity$fit
-#> [1] "8efe536e503a96af2d24ae545fc58c85"
+#> [1] "7459c22d1102869eeae932f6f18cec4b"
 #> 
 #> 
 #> $version
@@ -154,10 +154,10 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-10-15 08:53:17 UTC"
+#> [1] "2026-10-16 03:36:32 UTC"
 #> 
 #> $payload_id
-#> [1] "a7a8452e9305ae244005ec94ae6edbca"
+#> [1] "a382762a6a4138bc86347a20072440d9"
 ```
 
 The optimiser can return convergence code zero while the maximum

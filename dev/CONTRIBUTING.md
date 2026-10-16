@@ -55,29 +55,45 @@ Keep each pull request focused on one change. A pull request should:
     signatures or behaviour change;
 5.  add a `NEWS.md` entry for user-visible or numerical changes.
 
-## Development setup
+## Development environments
 
-The package environment is pinned with `renv`. From the repository root:
+Open a GitHub Codespace from **Code → Codespaces** to build the
+development environment automatically. CI, Codespaces, and the Copilot
+coding agent use `renv.lock` as the single source of truth for the R
+version and package records.
 
-``` r
+All environments run `.github/scripts/setup-r-env.R`, which restores the
+packages and applies the TMB OSA-header and `compResidual` installation
+workarounds. To restore locally, first install the R version recorded in
+`renv.lock` and the required system libraries, then run from the
+repository root:
 
-renv::restore()
+``` sh
+Rscript .github/scripts/setup-r-env.R
 ```
 
-`compResidual`, used for one-step-ahead residuals on composition data,
-requires the multivariate OSA headers to be installed into `TMB`. If you
-need it, install `TMB` first, then:
+In Codespaces, locked GitHub packages are downloaded from public commit
+archives first, avoiding API rate limits and repository-scoped token
+restrictions. If that fails, setup tries the original API URL. Package
+versions and commit SHAs still come from `renv.lock`; do not install
+newer GitHub versions to work around a download failure.
 
-``` r
+The Ubuntu policy and Quarto CLI version default are documented in
+`.github/actions/setup-opal-env/action.yml`; Codespaces must match them.
+Workflow-specific tools not recorded in the lockfile remain explicit
+installs after the shared setup.
 
-TMB:::install.contrib(
-  "https://github.com/vtrijoulet/OSA_multivariate_dists/archive/main.zip"
-)
-```
+After intentional dependency updates, run
+[`renv::snapshot()`](https://rstudio.github.io/renv/reference/snapshot.html)
+and commit `renv.lock`. Commit R-version updates in that lockfile too;
+CI, Codespaces, and Copilot follow it without separate version edits.
 
-`SparseNUTS` is not on CRAN. If it fails to restore, see the
-[installation
-notes](https://n-ducharmebarth-noaa.github.io/opal/dev/index.html#installation).
+Copilot reads its thin setup-workflow wrapper from the default branch,
+`main`, but uses the working checkout’s environment definition.
+Scheduled runs and manual runs on `main` with `ref: dev` warm caches for
+dev-based tasks. After merging environment setup changes to `main`,
+maintainers should run that manual setup, merge `main` into `dev`, and
+check that a dev-based Copilot task restores the cache.
 
 ## Development workflow
 
