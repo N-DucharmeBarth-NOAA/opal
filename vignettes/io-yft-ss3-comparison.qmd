@@ -449,6 +449,35 @@ knitr::kable(tab, digits = c(0, 2, 2, 1, 1, 3, 3),
                            "Terminal SSB / B0", "Max |depletion error| vs truth"))
 ```
 
+# Matching SS3 lambdas
+
+The objective can be reweighted by observation stream or fleet through
+`data$lambdas`. Each omitted value defaults to 1; `cpue` accepts one value or
+one per index, and `lf` and `wf` accept one value or one per fleet. For example:
+
+```{r}
+inputs <- opaka_quickstart_inputs()
+inputs$data$lambdas <- list(cpue = 1, lf = c(1, 0, 1), wf = 1)
+```
+
+Set a fleet's LF or WF lambda to 0 to omit that data type's likelihood
+contribution for the fleet. `removal_switch_f` remains a separate, broader
+exclusion: it removes both LF and WF compositions for a fleet. Per-type lambdas
+can selectively omit only one of those streams. Changing lambdas with
+`opal_update(lambdas = ...)` invalidates the objective and fit.
+
+The scalar `prior` lambda scales the complete prior contribution, while
+`opal_set_prior_lambda()` can scale a whole prior block or selected elements.
+`data$lambdas$prior_mapped_only <- TRUE` additionally omits prior contributions
+for elements fixed by the parameter map, as in SS3's active-parameter prior
+convention. This affects reported prior values and objective constants, not the
+optimised estimates.
+
+OSA rows excluded by a zero likelihood lambda remain visible with the reason
+`"lambda = 0"`. Non-unit likelihood or prior lambdas temper the fitted objective
+and posterior; `opal_osa()` and `opal_mcmc()` warn when applicable. These
+controls are not phase-specific and do not implement automatic data weighting.
+
 # Summary
 
 * With SS3's growth, opal's length-at-age matches SS3's, and the bundled fit

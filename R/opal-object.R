@@ -221,6 +221,9 @@ opal_obj <- function(data, parameters = NULL, map = NULL, random = character(),
                      bounds = NULL, control = NULL, model = NULL,
                      makeadfun_args = list(), metadata = list()) {
   data <- .opal_sanitize_tables(data)
+  if (get_lambdas(data)$penalty < 1) {
+    warning("A penalty lambda below 1 weakens crash and posfun penalties.", call. = FALSE)
+  }
   .opal_validate_named_list(metadata, "metadata")
   x <- structure(list(
     schema_version = .opal_obj_schema, model = .opal_model_metadata(),
@@ -246,9 +249,14 @@ opal_obj <- function(data, parameters = NULL, map = NULL, random = character(),
     stop("Build the configuration with opal_build() first.", call. = FALSE)
   }
   parameters <- .opal_fit_or(x$fit$parameters, x$parameters)
+  get_lambdas(x$data)
   if (length(x$data$priors)) .opal_validate_priors(parameters, x$data$priors)
+  data <- x$data
+  if (isTRUE(get_lambdas(data)$prior_mapped_only) && length(data$priors)) {
+    data$priors <- .opal_resolve_prior_lambdas(data$priors, x$map, parameters)
+  }
   object <- do.call(RTMB::MakeADFun, c(list(
-    func = cmb(opal_model, x$data), parameters = parameters, map = x$map,
+    func = cmb(opal_model, data), parameters = parameters, map = x$map,
     random = x$random, silent = silent), x$makeadfun_args))
   if (!is.null(x$fit$opt)) {
     if (!identical(names(object$par), names(x$fit$opt$par))) {

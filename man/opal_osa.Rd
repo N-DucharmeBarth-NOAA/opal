@@ -37,9 +37,12 @@ Observation order is the stored input order, then ascending composition
 bin. Composition tables include each observed bin's lower and upper
 boundaries, including row-specific schemes. The final composition bin
 is constrained and omitted from residual calculations. Removed
-fisheries, zero sample sizes, exhausted counts, and numerical failures
+fisheries, zero lambdas, zero sample sizes, exhausted counts, and numerical failures
 remain in the table with explicit exclusion reasons. Multinomial counts
 are rounded as in the fitted likelihood; no new pseudocounts are added.
+Rows assigned a zero likelihood lambda are excluded with reason
+\code{"lambda = 0"}. Fractional likelihood lambdas temper the fitted objective;
+OSA residuals are still computed from the untempered observation model.
 SDNR should be near one, but its interval is approximate because fitted
 parameters and finite samples affect calibration. Catch is conditioned on
 and has no observation likelihood; process priors are not observations.

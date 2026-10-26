@@ -6,10 +6,11 @@
 #' @param x An `opal_obj`.
 #' @param data,parameters,map,random,bounds,control,makeadfun_args As in [opal_obj()].
 #' @param priors Optional replacement for `data$priors`.
+#' @param lambdas Optional replacement for `data$lambdas`.
 #' @param metadata Named metadata to merge.
 #' @return An updated `opal_obj`; the input object is not modified.
 #' @details
-#' Changes to data, priors, parameters, maps, random effects, bounds, or RTMB
+#' Changes to data, priors, lambdas, parameters, maps, random effects, bounds, or RTMB
 #' construction settings clear dependent fits, posteriors, diagnostics, and
 #' projections. Metadata is merged, and optimiser controls can change without
 #' invalidating results. A supplied map is retained unless explicitly replaced;
@@ -22,7 +23,7 @@
 #' summary(labelled)
 #' @export
 opal_update <- function(x, data, parameters, map, random, bounds, control,
-                        makeadfun_args, priors, metadata) {
+                        makeadfun_args, priors, metadata, lambdas) {
   validate_opal_obj(x)
   old <- x
   supplied <- as.list(match.call())[-1L]
@@ -37,6 +38,7 @@ opal_update <- function(x, data, parameters, map, random, bounds, control,
     }
   }
   if (!missing(priors)) x$data["priors"] <- list(priors)
+  if (!missing(lambdas)) x$data["lambdas"] <- list(lambdas)
   if (!missing(control)) x["control"] <- list(control)
   if (!missing(metadata)) {
     .opal_validate_named_list(metadata, "metadata")
@@ -51,6 +53,12 @@ opal_update <- function(x, data, parameters, map, random, bounds, control,
       old$configuration$origins$parameters == "default") {
     x["parameters"] <- list(NULL)
     x$configuration$origins$parameters <- "unresolved"
+  }
+  if (!identical(old$data$lambdas, x$data$lambdas) || "data" %in% names(supplied)) {
+    resolved_lambdas <- get_lambdas(x$data)
+    if (resolved_lambdas$penalty < 1) {
+      warning("A penalty lambda below 1 weakens crash and posfun penalties.", call. = FALSE)
+    }
   }
   if ((upstream || !identical(old$map, x$map) || !identical(old$random, x$random)) &&
       missing(bounds) && old$configuration$origins$bounds != "supplied") {
@@ -191,6 +199,7 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
                        penalty_tolerance = 1e-10, catch_tolerance = 1e-6) {
   scope <- match.arg(scope)
   validate_opal_obj(x, results = scope == "mcmc")
+  .opal_warn_lambda_identifiability(x$data, x$parameters, x$map)
   .opal_obj_flag(stop_on_failure, "stop_on_failure")
   thresholds <- c(gradient_tolerance, max_rhat, min_ess)
   if (length(thresholds) != 3L || any(!is.finite(thresholds)) || any(thresholds <= 0)) {

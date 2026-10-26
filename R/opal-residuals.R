@@ -74,6 +74,7 @@
   if (is.null(sizes)) sizes <- split(field("n"), field("fishery"))
   ints <- field("n_int_fi")
   observed <- field(c("obs_flat", "obs_prop", "obs_ints")[family])
+  lambdas <- get_lambdas(data)
   schemes <- field("scheme")
   nbins <- field("nbins_i")
   input_rows <- field("row_fi")
@@ -117,7 +118,9 @@
       }
       n <- sizes[[j]][i]
       n_int <- if (is.null(ints)) floor(n + 0.5) else ints[[j]][i]
-      include <- data$removal_switch_f[f] == 0 && if (family == 3L) n_int > 0 else n > 0
+      lambda_zero <- lambdas[[type]][f] == 0
+      include <- !lambda_zero && data$removal_switch_f[f] == 0 &&
+        if (family == 3L) n_int > 0 else n > 0
       obs <- observed[offset + seq_along(bins)]
       offset <- offset + length(bins)
       concentration <- exp(parameters[[paste0("log_", type, "_tau")]][f])
@@ -130,6 +133,8 @@
         year = year, bin = bins, bin_lower = head(edges, -1L), bin_upper = tail(edges, -1L),
         observed = obs, predicted = prediction,
         concentration = concentration, include = include,
+        reason = if (lambda_zero) "lambda = 0" else
+          if (include) "" else "excluded by likelihood",
         observation_index = offset - length(bins) + seq_along(bins))
     }
   }
@@ -169,9 +174,12 @@
 #'   bin. Composition tables include each observed bin's lower and upper
 #'   boundaries, including row-specific schemes. The final composition bin
 #'   is constrained and omitted from residual calculations. Removed
-#'   fisheries, zero sample sizes, exhausted counts, and numerical failures
+#'   fisheries, zero lambdas, zero sample sizes, exhausted counts, and numerical failures
 #'   remain in the table with explicit exclusion reasons. Multinomial counts
 #'   are rounded as in the fitted likelihood; no new pseudocounts are added.
+#'   Rows assigned a zero likelihood lambda are excluded with reason
+#'   `"lambda = 0"`. Fractional likelihood lambdas temper the fitted objective;
+#'   OSA residuals are still computed from the untempered observation model.
 #'   SDNR should be near one, but its interval is approximate because fitted
 #'   parameters and finite samples affect calibration. Catch is conditioned on
 #'   and has no observation likelihood; process priors are not observations.
@@ -181,6 +189,14 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
   validate_opal_obj(x)
   if (is.null(x$fit$opt)) stop("OSA diagnostics require a fitted model.", call. = FALSE)
   if (length(conf) != 1 || !is.finite(conf) || conf <= 0 || conf >= 1) stop("`conf` must be between zero and one.")
+  lambdas <- get_lambdas(x$data)
+  numeric_lambdas <- lambdas[setdiff(names(lambdas), "prior_mapped_only")]
+  prior_lambdas <- lapply(x$data$priors %||% list(), `[[`, "lambda")
+  if (any(vapply(numeric_lambdas, function(z) any(z != 0 & z != 1), logical(1))) ||
+      any(vapply(prior_lambdas, function(z) !is.null(z) && any(z != 0 & z != 1),
+                 logical(1)))) {
+    warning("The fitted objective is tempered by non-unit lambdas; OSA residuals are untempered.", call. = FALSE)
+  }
   result <- .opal_with_seed(seed, .opal_residual_result(x, conf))
   .opal_store_derived(x, name, result, "fit", list(seed = seed, conf = conf))
 }
@@ -196,15 +212,25 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
   if (isTRUE(d$cpue_switch > 0L) && nrow(d$cpue_data)) {
     cpue <- d$cpue_data
     idx <- if (is.null(cpue$index)) rep(1L, nrow(cpue)) else cpue$index
+    include <- get_lambdas(d)$cpue[idx] != 0
     residual <- (log(cpue$value) - log(r$cpue_pred)) / r$cpue_sigma
-    if (latent) residual <- RTMB::oneStepPredict(obj, observation.name = "cpue_log_obs",
-      method = "oneStepGeneric", discrete = FALSE, seed = NULL, trace = FALSE)$residual
+    if (latent && any(include)) {
+      conditional <- RTMB::oneStepPredict(obj, observation.name = "cpue_log_obs",
+        method = "oneStepGeneric", discrete = FALSE, subset = which(include),
+        seed = NULL, trace = FALSE)$residual
+      if (length(conditional) == nrow(cpue)) conditional <- conditional[include]
+      residual <- rep(NA_real_, nrow(cpue))
+      residual[include] <- conditional
+    }
+    residual[!include] <- NA_real_
+    reason <- ifelse(!include, "lambda = 0",
+      ifelse(is.finite(residual), "", "non-finite residual"))
     pieces[[1L]] <- data.frame(dataset = paste("CPUE", idx), type = "cpue", family = "lognormal",
       fishery = cpue$fishery, row = seq_len(nrow(cpue)), bin = NA_integer_,
       bin_lower = NA_real_, bin_upper = NA_real_,
       year = d$first_yr + (cpue$ts - 1L) %/% d$n_season,
       observation_index = seq_len(nrow(cpue)), observed = cpue$value, predicted = r$cpue_pred,
-      residual = residual, reason = ifelse(is.finite(residual), "", "non-finite residual"), source = source)
+      residual = residual, include = include, reason = reason, source = source)
   }
   for (type in c("lf", "wf")) {
     rows <- .opal_composition_rows(d, p, r, type)
@@ -212,7 +238,7 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
     flat <- lapply(rows, function(row) {
       k <- length(row$bin)
       z <- rep(NA_real_, k)
-      reason <- rep(if (row$include) "" else "excluded by likelihood", k)
+      reason <- rep(row$reason, k)
       if (row$include) {
         reason[k] <- "constrained final bin"
         if (!latent) z <- .opal_composition_pit(row$observed, row$predicted, row$family, row$concentration)
@@ -227,7 +253,8 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
         fishery = row$fishery, row = row$row, bin = row$bin,
         bin_lower = row$bin_lower, bin_upper = row$bin_upper, year = row$year,
         observation_index = row$observation_index, observed = row$observed,
-        predicted = row$predicted, residual = z, reason = reason, source = source)
+        predicted = row$predicted, residual = z, include = row$include,
+        reason = reason, source = source)
     })
     df <- do.call(rbind, flat)
     if (latent && any(df$reason == "")) {

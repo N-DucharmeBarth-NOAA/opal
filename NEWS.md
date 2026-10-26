@@ -1,5 +1,9 @@
 # opal 0.1.1
 
+- Add likelihood-component lambdas by index and fleet, optional per-element
+  prior lambdas, and mapped-only prior contributions for SS3 comparisons.
+  Reports retain raw components and expose weighted terms; OSA, MCMC, and
+  identifiability checks flag lambda-related caveats.
 - 2026/10/26 ([#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147)):
   Length and weight composition observations can use row-specific, uneven bin
   schemes, supplied in long format or as a list of wide tables. Only model

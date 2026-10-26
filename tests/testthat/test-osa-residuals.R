@@ -73,6 +73,19 @@ test_that("OSA covers both composition streams and all families with exclusions"
   }
 })
 
+test_that("OSA marks zero-lambda composition rows as excluded", {
+  x <- osa_fixture(1L)
+  x <- opal_update(x, lambdas = list(lf = c(0, 1)))
+  x <- opal_build(x)
+  object <- opal_rtmb(x)
+  x <- opal_attach_fit(x, list(par = object$par,
+    objective = object$fn(object$par), convergence = 0L), check = FALSE)
+  result <- opal_derived(opal_osa(x), "osa")$residuals
+  excluded <- result$type == "lf" & result$fishery == 1L
+  expect_true(all(!result$include[excluded]))
+  expect_true(all(result$reason[excluded] == "lambda = 0"))
+})
+
 test_that("SDNR intervals, cache integrity, and CPUE residuals are explicit", {
   x <- opal_osa(opal_fit(small_opal_object()))
   result <- opal_derived(x, "osa")

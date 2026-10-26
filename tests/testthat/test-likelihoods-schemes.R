@@ -201,6 +201,35 @@ test_that("opal_model routes mixed schemes to prediction-only aggregation", {
   }
 })
 
+test_that("fleet lambdas zero every row across mixed LF and WF schemes", {
+  d <- synth_full_data(wf_switch = 1L, lf_switch = 1L)
+  d$lambdas <- list(lf = c(0, 1), wf = c(0, 1))
+  d$n_lf <- d$n_wf <- 3L
+  d$lf_n_f <- d$wf_n_f <- c(2L, 1L)
+  d$lf_fishery_f <- d$wf_fishery_f <- c(1L, 2L)
+  d$lf_year_fi <- d$wf_year_fi <- list(c(1L, 2L), 1L)
+  d$lf_n_fi <- d$wf_n_fi <- list(c(15, 15), 15)
+  d$lf_n_int_fi <- d$wf_n_int_fi <- list(c(15L, 15L), 15L)
+  coarse <- matrix(0, 3L, d$n_len)
+  coarse[cbind(rep(1:3, each = 5L), seq_len(d$n_len))] <- 1
+  for (prefix in c("lf", "wf")) {
+    d[[paste0(prefix, "_rebin_s")]] <- list(coarse, diag(d$n_len))
+    d[[paste0(prefix, "_scheme")]] <- c(1L, 2L, 1L)
+    d[[paste0(prefix, "_nbins_i")]] <- c(3L, d$n_len, 3L)
+    counts <- c(rep(5, 3), rep(1, d$n_len), rep(5, 3))
+    d[[paste0(prefix, "_obs_flat")]] <- counts
+    d[[paste0(prefix, "_obs_ints")]] <- as.integer(counts)
+    d[[paste0(prefix, "_obs_prop")]] <- c(rep(1 / 3, 3),
+      rep(1 / d$n_len, d$n_len), rep(1 / 3, 3))
+  }
+  obj <- synth_obj(d)
+  report <- obj$report()
+  for (prefix in c("lf", "wf")) {
+    expect_equal(report[[paste0("lp_", prefix, "_w")]],
+      report[[paste0("lp_", prefix)]] * c(0, 0, 1))
+  }
+})
+
 test_that("prepared mixed observations remain aligned across fisheries", {
   make_rows <- function(f, y, edges, counts) {
     data.frame(fishery = f, year = y, month = 1L, ts = y,

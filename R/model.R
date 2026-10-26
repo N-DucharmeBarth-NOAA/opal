@@ -22,7 +22,7 @@ utils::globalVariables(c(
   "wt_bin_start", "wt_bin_width",
   "log_wf_tau", "wf_addtocomp", "wf_n_int", "wf_n_int_fi",
   "wf_scheme_edges", "wf_rebin_s", "wf_scheme", "wf_nbins_i",
-  "priors", "sel_fa_external", "sel_basis_f"
+  "priors", "lambdas", "sel_fa_external", "sel_basis_f"
 ))
 
 #' The opal globals
@@ -54,6 +54,9 @@ opal_globals <- function() {
     rebin_counts = rebin_counts,
     rebin_matrix = rebin_matrix,
     get_cpue_like = get_cpue_like, 
+    get_lambdas = get_lambdas,
+    .opal_validate_lambdas = .opal_validate_lambdas,
+    .opal_weight_likelihood = .opal_weight_likelihood,
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors,
     .opal_validate_priors = .opal_validate_priors,
@@ -75,6 +78,7 @@ opal_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
+  lam <- get_lambdas(data)
   has_init_rdev_a <- exists("init_rdev_a", inherits = FALSE) && !is.null(init_rdev_a)
   has_init_bias_adj_a <- exists("init_bias_adj_a", inherits = FALSE) && !is.null(init_bias_adj_a)
   if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
@@ -309,7 +313,22 @@ opal_model <- function(parameters, data) {
   } else {
     lp_wf <- 0
   }
-  nll <- lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+  cpue_index <- if (exists("cpue_data", inherits = FALSE) &&
+      "index" %in% names(cpue_data)) cpue_data$index else
+        if (exists("cpue_data", inherits = FALSE)) rep(1L, nrow(cpue_data)) else integer()
+  lf_obs_fishery <- if (exists("lf_fishery_f", inherits = FALSE) &&
+      exists("lf_n_f", inherits = FALSE)) rep(lf_fishery_f, lf_n_f) else integer()
+  wf_obs_fishery <- if (exists("wf_fishery_f", inherits = FALSE) &&
+      exists("wf_n_f", inherits = FALSE)) rep(wf_fishery_f, wf_n_f) else integer()
+  lp_cpue_w <- .opal_weight_likelihood(lp_cpue, lam$cpue[cpue_index])
+  lp_lf_w <- .opal_weight_likelihood(lp_lf, lam$lf[lf_obs_fishery])
+  lp_wf_w <- .opal_weight_likelihood(lp_wf, lam$wf[wf_obs_fishery])
+  lp_rec_w <- .opal_weight_likelihood(lp_rec, lam$rec)
+  lp_init_rec_w <- .opal_weight_likelihood(lp_init_rec, lam$init_rec)
+  lp_prior_w <- .opal_weight_likelihood(lp_prior, lam$prior)
+  lp_penalty_w <- .opal_weight_likelihood(lp_penalty, lam$penalty)
+  nll <- lp_prior_w + lp_penalty_w + lp_rec_w + lp_init_rec_w +
+    sum(lp_cpue_w) + sum(lp_lf_w) + sum(lp_wf_w)
   
   # Reporting ----
   
@@ -324,6 +343,15 @@ opal_model <- function(parameters, data) {
   REPORT(lp_cpue)
   REPORT(lp_lf)
   REPORT(lp_wf)
+  lambdas <- lam
+  REPORT(lambdas)
+  REPORT(lp_prior_w)
+  REPORT(lp_penalty_w)
+  REPORT(lp_rec_w)
+  REPORT(lp_init_rec_w)
+  REPORT(lp_cpue_w)
+  REPORT(lp_lf_w)
+  REPORT(lp_wf_w)
   
   REPORT(B0)
   REPORT(R0)

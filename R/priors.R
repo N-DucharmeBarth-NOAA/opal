@@ -78,7 +78,9 @@ get_priors <- function(parameters, data = NULL) {
 #'   freedom), `lognormal`, and `beta` (mean and precision). Priors act on the
 #'   stored parameter scale; for example, a normal prior on `log_B0` is a normal
 #'   density on log spawning output. Locations and scales must be scalars or
-#'   match the parameter block length. Indices identify blocks in `parameters`.
+#'   match the parameter block length. An optional `lambda` field applies a
+#'   non-negative scalar or per-element multiplier to the log density; it
+#'   defaults to 1. Indices identify blocks in `parameters`.
 #' @importFrom RTMB dnorm dlnorm
 #' @importFrom RTMBdist dbeta2 dt2
 #' @export
@@ -105,13 +107,19 @@ evaluate_priors <- function(parameters, priors) {
     type <- priors[[i]]$type
     par1 <- priors[[i]]$par1
     par2 <- priors[[i]]$par2
+    lambda <- priors[[i]]$lambda
     idx <- priors[[i]]$index
     x <- parameters[[idx]]
-    if (type == "normal") lp[i] <- sum(dnorm(x = x, mean = par1, sd = par2, log = TRUE))
-    if (type == "student") lp[i] <- sum(dt2(x = x, mu = par1, sigma = par2, df = 3, log = TRUE))
+    if (is.null(lambda)) lambda <- 1
+    if (type == "normal") lp[i] <- sum(.opal_weight_likelihood(
+      dnorm(x = x, mean = par1, sd = par2, log = TRUE), lambda))
+    if (type == "student") lp[i] <- sum(.opal_weight_likelihood(
+      dt2(x = x, mu = par1, sigma = par2, df = 3, log = TRUE), lambda))
     # if (type == "cauchy") lp[i] <- sum(dcauchy(x = x, location = par1, scale = par2, log = TRUE))
-    if (type == "lognormal") lp[i] <- sum(dlnorm(x = x, meanlog = par1, sdlog = par2, log = TRUE))
-    if (type == "beta") lp[i] <- sum(dbeta2(x = x, mu = par1, phi = par2, log = TRUE))
+    if (type == "lognormal") lp[i] <- sum(.opal_weight_likelihood(
+      dlnorm(x = x, meanlog = par1, sdlog = par2, log = TRUE), lambda))
+    if (type == "beta") lp[i] <- sum(.opal_weight_likelihood(
+      dbeta2(x = x, mu = par1, phi = par2, log = TRUE), lambda))
   }
   return(-sum(lp))
 }
@@ -132,11 +140,16 @@ evaluate_priors <- function(parameters, priors) {
     if (length(label) && label %in% names(parameters) && label != names(parameters)[idx]) {
       stop("Prior name and parameter index disagree in prior ", i, ".", call. = FALSE)
     }
-    for (field in c("par1", "par2")) {
+    for (field in c("par1", "par2", "lambda")) {
+      if (field == "lambda" && is.null(p$lambda)) next
       value <- p[[field]]
       if (!is.numeric(value) || !length(value) || any(!is.finite(value)) ||
           !length(value) %in% c(1L, length(parameters[[idx]]))) {
-        stop("Prior ", field, " must be finite with length one or the parameter length.", call. = FALSE)
+        stop("Prior ", field, " must be finite with length one or the parameter length.",
+             call. = FALSE)
+      }
+      if (field == "lambda" && any(value < 0)) {
+        stop("Prior lambda must be non-negative.", call. = FALSE)
       }
     }
     if (any(p$par2 <= 0)) stop("Prior scale or precision must be positive.", call. = FALSE)
