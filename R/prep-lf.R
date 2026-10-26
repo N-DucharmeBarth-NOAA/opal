@@ -39,10 +39,12 @@
 #' @param data a \code{list} containing at minimum the length structure scalars
 #'   \code{len_bin_start}, \code{len_bin_width}, \code{n_len}, and
 #'   \code{n_fishery}.
-#' @param lf_wide a \code{data.frame} in wide format: columns \code{fishery},
-#'   \code{year}, \code{month}, \code{ts} plus one numeric column per length
-#'   bin (named by the bin lower-bound value).  Typically produced by
-#'   \code{tidyr::pivot_wider()} on the long-format \code{wcpo_bet_lf} object.
+#' @param lf_wide A wide data frame, list of wide data frames, or long data
+#'   frame. Wide frames contain \code{fishery}, \code{year}, \code{month},
+#'   \code{ts}, and numeric count columns named by bin lower edges. Long input
+#'   contains the same metadata plus \code{bin_lower}, \code{bin_upper}, and
+#'   \code{count}. Long observations are grouped by \code{fishery}, \code{ts},
+#'   and optionally \code{source}; calendar metadata is taken from the first row.
 #' @param lf_keep_fisheries integer vector of fishery indices to retain.  Pass
 #'   \code{NULL} (the default) to keep all fisheries present in \code{lf_wide}.
 #' @param lf_switch integer likelihood type selector passed straight through to
@@ -69,10 +71,9 @@
 #'   composition proportions after tail compression and before renormalisation.
 #'   This robustifies zero bins. Default \code{1e-08}.
 #' @param lf_upper_edge Final upper edge, or one per element of a list of wide
-#'   data frames. Defaults to the model length-grid upper edge.
-#'   Long input instead supplies
-#'   \code{bin_lower}, \code{bin_upper}, and \code{count}; additional columns
-#'   (for example \code{source}) identify separate observations.
+#'   data frames. Defaults to the model length-grid upper edge,
+#'   \code{data$len_bin_start + data$n_len * data$len_bin_width}. Ignored for
+#'   long input, which supplies both boundaries explicitly.
 #' @param lf_tails Prediction tail handling: \code{"accumulate"} (default)
 #'   extends the outer matrix edges, or \code{"truncate"} excludes outside mass.
 #' @param lf_edge_tol Absolute edge tolerance; defaults to
@@ -87,7 +88,20 @@
 #'   \code{lf_rebin_s} contains prediction matrices (observed bins by model
 #'   length bins). \code{lf_scheme} and \code{lf_nbins_i} follow fishery-grouped
 #'   flat observation order, while \code{lf_row_fi} indexes retained input order.
+#'   The logical \code{lf_native_i}, in flat observation order, identifies
+#'   observations originally on the full native grid before min/max pooling.
 #'   Heterogeneous observations use lists instead of rectangular matrices.
+#'
+#'   Splitting a model length bin at an observed boundary assumes uniform
+#'   prediction mass within that model bin. This approximation is not needed
+#'   when observed boundaries match model boundaries, so nonmatching boundaries
+#'   are rejected by default. Setting \code{lf_allow_misaligned = TRUE} opts into
+#'   the approximation with a diagnostic warning. Check bin labeling and units
+#'   before changing the grid. Diagnostics suggest a finer width dividing the
+#'   observed offsets; edges beyond the model range also require extending that
+#'   range. Changing the grid changes the mean and SD of \code{len_mid}, which
+#'   scale length-based selectivity parameters: existing \code{par_sel} values
+#'   are not directly transferable.
 #'
 #' @return The input \code{data} list with the following elements appended or
 #'   updated:
@@ -95,8 +109,9 @@
 #'     \item{\code{len_lower}, \code{len_upper}, \code{len_mid}}{Length bin
 #'       boundary and midpoint vectors derived from the scalar inputs.}
 #'     \item{\code{lf_switch}}{Passed through from the argument.}
-#'     \item{\code{lf_obs_in}}{Matrix of observed proportions,
-#'       \code{[n_obs x n_len]}.}
+#'     \item{\code{lf_obs_in}}{Observed proportions in retained input order:
+#'       a matrix with one row per observation when bin counts agree, otherwise
+#'       a list of row vectors. Native input has \code{n_len} columns.}
 #'     \item{\code{lf_n}}{Numeric vector of sample sizes per observation row.}
 #'     \item{\code{lf_n_int}}{Integer Dirichlet-multinomial sample sizes
 #'       obtained by half-up rounding of \code{lf_n}.}
@@ -130,15 +145,16 @@
 #'       proportions (for Dirichlet, \code{lf_switch = 2}).}
 #'     \item{\code{lf_addtocomp}}{Stored value of the add-to-composition
 #'       constant used to robustify observed composition bins.}
-#'     \item{\code{lf_nbins}}{Number of bins used in each observation (scalar,
-#'       derived from the first fishery's min/max bin setting).}
+#'     \item{\code{lf_nbins}}{Legacy scalar bin count for the first observation
+#'       in fishery-grouped flat order, or zero for empty input. Use
+#'       \code{lf_nbins_i} for heterogeneous observations.}
 #'   }
 #'
 #' @details
-#' Rows in \code{lf_wide} with a total sample size of zero are silently
-#' removed before any other processing.  Bin alignment between the data frame
-#' columns and the model's length structure is checked with
-#'   the edge tolerance. Dirichlet-multinomial counts use half-up rounding of
+#' Observations with a total sample size of zero are silently removed after
+#' validating counts and edges. Bin alignment against the model's length
+#' structure is checked with the edge tolerance.
+#' Dirichlet-multinomial counts use half-up rounding of
 #' effective sample sizes and largest-remainder allocation. Observations that
 #' round to zero are skipped by the Dirichlet-multinomial likelihood.
 #'

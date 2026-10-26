@@ -1,4 +1,4 @@
-.opal_composition_input <- function(x, upper, model_edges, tol) {
+.opal_composition_input <- function(x, upper, model_edges, tol, default_width = NULL) {
   meta <- c("fishery", "year", "month", "ts")
   out <- list()
   add <- function(info, counts, edges) {
@@ -50,7 +50,8 @@
       matches <- length(lower) == length(model_edges) - 1L &&
         all(abs(lower - head(model_edges, -1L)) <= tol)
       if (is.null(end)) {
-        end <- tail(model_edges, 1L)
+        end <- if (is.null(default_width)) tail(model_edges, 1L) else
+          tail(lower, 1L) + default_width
       }
       if (!is.numeric(end) || length(end) != 1L || !is.finite(end))
         stop("upper_edge must be one finite number per wide data frame.", call. = FALSE)
@@ -76,11 +77,36 @@
   x[lo:hi]
 }
 
+.opal_composition_grid_width <- function(edges, source_edges, tol) {
+  offsets <- abs(c(edges, tail(source_edges, 1L)) - source_edges[1L])
+  eps <- max(tol, .Machine$double.eps * max(1, offsets) * 16)
+  offsets <- offsets[offsets > eps]
+  if (!length(offsets)) return(min(diff(source_edges)))
+  grid <- offsets[1L]
+  for (value in offsets[-1L]) {
+    a <- max(grid, value)
+    b <- min(grid, value)
+    while (b > eps) {
+      remainder <- a %% b
+      if (remainder <= eps || b - remainder <= eps) {
+        a <- b
+        break
+      }
+      a <- b
+      b <- remainder
+    }
+    grid <- a
+  }
+  width <- min(diff(source_edges))
+  grid / max(1, ceiling(grid / width - eps / width))
+}
+
 .opal_composition_registry <- function(rows, source_edges, model_edges,
                                        minbin, maxbin, tails, tol,
                                        prefix, allow_misaligned = FALSE,
                                        native_matrix = NULL) {
   registry <- matrices <- list()
+  native_mapping <- logical()
   scheme <- integer(length(rows))
   width <- diff(source_edges)
   for (i in seq_along(rows)) {
@@ -100,6 +126,9 @@
     }
     same <- which(vapply(registry, function(e)
       length(e) == length(edges) && all(abs(e - edges) <= tol), logical(1)))
+    # Identical displayed edges can represent different weight tail operators:
+    # native observations retain the old finite intermediate weight grid.
+    if (prefix == "wf") same <- same[native_mapping[same] == native]
     if (length(same)) {
       scheme[i] <- same[1L]
       next
@@ -108,15 +137,13 @@
     if (prefix == "lf") {
       bad <- !aligned
       if (any(bad)) {
-        offsets <- abs(edges[bad] - source_edges[1L])
-        suggested <- width[1L] / seq_len(100000L)
-        ok <- vapply(suggested, function(w)
-          all(abs(offsets / w - round(offsets / w)) * w <= tol), logical(1))
-        grid <- if (any(ok)) suggested[which(ok)[1L]] else NA_real_
-        share <- max(vapply(edges[bad], function(e) {
+        grid <- .opal_composition_grid_width(edges, source_edges, tol)
+        split_edges <- edges[bad & edges > source_edges[1L] &
+                               edges < tail(source_edges, 1L)]
+        share <- if (length(split_edges)) max(vapply(split_edges, function(e) {
           p <- ((e - source_edges[1L]) %% width[1L]) / width[1L]
           min(p, 1 - p)
-        }, numeric(1)))
+        }, numeric(1))) else 0
         affected <- which(vapply(rows, function(r)
           length(r$edges) == length(row$edges) &&
             all(abs(r$edges - row$edges) <= tol), logical(1)))
@@ -149,7 +176,7 @@
           tail(source_edges, -1L) > edges[k]
         any(diff(edges)[k] < width[overlap] - tol)
       }, logical(1))
-      if (!native && any(narrower))
+      if (any(narrower))
         warning("WF scheme ", s, " has observed bins narrower than overlapping source bins.",
                 call. = FALSE)
     }
@@ -157,8 +184,10 @@
       m <- native_matrix
       lo <- minbin[f]
       hi <- maxbin[f]
-      if (lo > 1L) m[lo, ] <- colSums(m[seq_len(lo), , drop = FALSE])
-      if (hi < nrow(m)) m[hi, ] <- colSums(m[hi:nrow(m), , drop = FALSE])
+      if (tails == "accumulate") {
+        if (lo > 1L) m[lo, ] <- colSums(m[seq_len(lo), , drop = FALSE])
+        if (hi < nrow(m)) m[hi, ] <- colSums(m[hi:nrow(m), , drop = FALSE])
+      }
       m <- m[lo:hi, , drop = FALSE]
     } else {
       if (tails == "accumulate") {
@@ -170,9 +199,12 @@
     }
     registry[[s]] <- edges
     matrices[[s]] <- m
+    native_mapping[s] <- native
     scheme[i] <- s
   }
   list(scheme_edges = registry, rebin_s = matrices, scheme = scheme,
+       native_i = vapply(rows, function(r) length(r$edges) == length(model_edges) &&
+         all(abs(r$edges - model_edges) <= tol), logical(1)),
        nbins_i = as.integer(vapply(rows, function(r) {
          f <- r$info$fishery
          as.integer(if (length(r$edges) == length(model_edges) &&
@@ -202,6 +234,8 @@
       anyNA(c(minbin, maxbin)) || any(minbin < 1 | minbin != floor(minbin)) ||
       any(maxbin > length(lower) | maxbin != floor(maxbin)) || any(maxbin < minbin))
     stop("minbin/maxbin must be valid per-fishery bin indices.", call. = FALSE)
+  minbin <- as.integer(minbin)
+  maxbin <- as.integer(maxbin)
   if (length(adjust) != data$n_fishery || any(!is.finite(adjust)) || any(adjust <= 0))
     stop("Variance adjustments must be finite and positive.", call. = FALSE)
   if (length(add) != 1L || !is.finite(add) || add < 0)

@@ -134,6 +134,9 @@ test_that("native prepared schemes preserve historical aggregated bin indices", 
   expect_equal(rows[[1]]$bin, 2:3)
   expect_equal(rows[[1]]$bin_lower, c(12, 14))
   expect_equal(rows[[1]]$bin_upper, c(14, 16))
+  fixture$data$lf_native_i <- c(TRUE, FALSE, FALSE, TRUE)
+  rows <- opal:::.opal_composition_rows(fixture$data, fixture$parameters, fixture$report, "lf")
+  expect_equal(lapply(rows, `[[`, "bin"), list(1:2, 2:3, 2:3, 1:2))
 })
 
 test_that("the coarse-grid example fits and plots all scales", {

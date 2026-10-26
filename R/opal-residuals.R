@@ -92,9 +92,11 @@
           native <- if (type == "lf") "len" else "wt"
           start <- data[[paste0(native, "_bin_start")]]
           width <- data[[paste0(native, "_bin_width")]]
-          if (length(start) && length(width) &&
+          native_row <- field("native_i")
+          legacy_native <- length(start) && length(width) &&
               isTRUE(all.equal(edges, start + (seq.int(field("minbin")[f],
-                field("maxbin")[f] + 1L) - 1L) * width))) {
+                field("maxbin")[f] + 1L) - 1L) * width))
+          if (if (is.null(native_row)) legacy_native else isTRUE(native_row[row_id])) {
             bins <- seq.int(field("minbin")[f], field("maxbin")[f])
           }
         }

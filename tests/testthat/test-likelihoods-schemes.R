@@ -256,9 +256,12 @@ test_that("prepared native min/max schemes retain the legacy two-stage mapping",
     d$n_wt <- 15L
     d <- prep_lf_data(d, make_wide(d$len_lower), lf_switch = type,
                       lf_minbin = c(3L, 2L), lf_maxbin = c(12L, 10L))
-    d <- prep_wf_data(d, make_wide(seq(0, by = 0.1, length.out = d$n_wt)),
-                      wf_switch = type, wf_minbin = c(2L, 3L),
-                      wf_maxbin = c(11L, 10L))
+    expect_warning(
+      d <- prep_wf_data(d, make_wide(seq(0, by = 0.1, length.out = d$n_wt)),
+                        wf_switch = type, wf_minbin = c(2L, 3L),
+                        wf_maxbin = c(11L, 10L)),
+      "narrower"
+    )
     legacy <- d
     for (prefix in c("lf", "wf")) {
       legacy[paste0(prefix, c("_rebin_s", "_scheme", "_nbins_i"))] <- NULL

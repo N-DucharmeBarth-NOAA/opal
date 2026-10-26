@@ -214,13 +214,13 @@ test_that("wf_obs_ints sums to the stored DM integer sample size", {
   }
 })
 
-# ---- 8. Bin alignment error when columns don't match expected structure ---------
+# ---- 8. Observed weight bins may differ from the native grid --------------------
 
-test_that("prep_wf_data errors when weight bin columns don't match data scalars", {
+test_that("prep_wf_data accepts weight bin columns independent of native scalars", {
   data(wcpo_bet_data, package = "opal", envir = environment())
   data(wcpo_bet_wf,   package = "opal", envir = environment())
   d <- wcpo_bet_data
-  # Set wrong wt_bin_start so bins won't match
+  # Shift the native grid away from the observed grid.
   d$wt_bin_start <- 5
   d$wt_bin_width <- 1
   d$n_wt         <- 200L
@@ -234,7 +234,15 @@ test_that("prep_wf_data errors when weight bin columns don't match data scalars"
     ) |>
     dplyr::arrange(fishery, ts)
 
-  expect_error(prep_wf_data(d, wf_wide, wf_keep_fisheries = c(8, 9)))
+  prepared <- suppressWarnings(prep_wf_data(d, wf_wide, wf_keep_fisheries = c(6, 7)))
+  expect_equal(prepared$wf_scheme_edges, list(seq(1, 201)))
+  len_edges <- d$len_bin_start + (0:d$n_len) * d$len_bin_width
+  source_edges <- d$lw_a * len_edges^d$lw_b
+  observed_edges <- seq(1, 201)
+  observed_edges[1L] <- min(observed_edges[1L], source_edges[1L])
+  observed_edges[length(observed_edges)] <- max(tail(observed_edges, 1L),
+                                               tail(source_edges, 1L))
+  expect_equal(prepared$wf_rebin_s[[1]], rebin_matrix(source_edges, observed_edges))
 })
 
 # ---- 9. Weight bin derivation consistency ---------------------------------------
