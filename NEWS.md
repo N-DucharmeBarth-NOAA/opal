@@ -10,7 +10,7 @@
   in length or weight units with an optional density scale. Existing grids,
   tail aggregation, objectives, and fitted-model reports remain compatible;
   this feature does not change the scientific model version.
-- Add optional age-based selectivity. The new data element `sel_basis_f`
+- 2026/10/26 ([PR #148](https://github.com/N-DucharmeBarth-NOAA/opal/pull/148)): Add optional age-based selectivity. The new data element `sel_basis_f`
   (1 = length, 2 = age, one per fishery) evaluates the logistic,
   double-normal or double Richards curve directly on age, using the same
   `par_sel` parameters and map, so age-based selectivity can be estimated
@@ -20,7 +20,7 @@
   and 20. Without `sel_basis_f`, every fishery stays length-based and
   existing models give identical results. `sel_fa_external` still takes
   precedence.
-- New Indian Ocean yellowfin case study (simulated data, converted from the
+- 2026/10/16 ([89d97c0](https://github.com/N-DucharmeBarth-NOAA/opal/commit/89d97c0), [PR #148](https://github.com/N-DucharmeBarth-NOAA/opal/pull/148)): New Indian Ocean yellowfin case study (simulated data, converted from the
   IATTC team's Stock Synthesis model): bundled data `io_yft_data`,
   `io_yft_parameters`, `io_yft_map` and `io_yft_reference`, stored fits in
   `inst/extdata/`, and two articles: "Comparing opal with Stock Synthesis"
