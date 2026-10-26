@@ -86,6 +86,39 @@ test_that("OSA marks zero-lambda composition rows as excluded", {
   expect_true(all(result$reason[excluded] == "lambda = 0"))
 })
 
+test_that("OSA excludes CPUE rows with a zero lambda on fixed and latent paths", {
+  for (random in c(FALSE, TRUE)) {
+    x <- small_opal_object(random)
+    d <- x$data
+    d$n_index <- 2L
+    d$cpue_data$index <- c(1L, 2L)
+    d$lambdas <- list(cpue = c(0, 1))
+    x <- opal_build(opal_update(x, data = d))
+    o <- opal_rtmb(x)
+    x <- opal_attach_fit(x, list(par = o$par, objective = o$fn(o$par),
+      convergence = 0L), check = FALSE)
+    cpue <- subset(opal_derived(opal_osa(x), "osa")$residuals, type == "cpue")
+    expect_identical(cpue$include, c(FALSE, TRUE), label = paste("random", random))
+    expect_identical(cpue$reason[1], "lambda = 0")
+    expect_true(is.na(cpue$residual[1]))
+    expect_true(is.finite(cpue$residual[2]))
+  }
+})
+
+test_that("OSA lambda warnings depend on whether residuals are tempered", {
+  x <- osa_fixture(1L)
+  refit <- function(x, lambdas) {
+    x <- opal_build(opal_update(x, lambdas = lambdas))
+    o <- opal_rtmb(x)
+    opal_attach_fit(x, list(par = o$par, objective = o$fn(o$par),
+      convergence = 0L), check = FALSE)
+  }
+  expect_warning(opal_osa(refit(x, list(lf = 0.5))), "untempered observation model")
+  expect_no_warning(opal_osa(refit(x, list(prior = 2, lf = c(0, 1)))))
+  latent <- refit(small_opal_object(TRUE), list(rec = 0.5))
+  expect_warning(opal_osa(latent), "not from a proper predictive")
+})
+
 test_that("SDNR intervals, cache integrity, and CPUE residuals are explicit", {
   x <- opal_osa(opal_fit(small_opal_object()))
   result <- opal_derived(x, "osa")

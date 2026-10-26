@@ -178,8 +178,15 @@
 #'   remain in the table with explicit exclusion reasons. Multinomial counts
 #'   are rounded as in the fitted likelihood; no new pseudocounts are added.
 #'   Rows assigned a zero likelihood lambda are excluded with reason
-#'   `"lambda = 0"`. Fractional likelihood lambdas temper the fitted objective;
-#'   OSA residuals are still computed from the untempered observation model.
+#'   `"lambda = 0"`. For fixed-effect fits, fractional CPUE, LF, or WF lambdas
+#'   temper the fitted estimates, but the residuals use the untempered
+#'   observation model at those estimates; prior, recruitment, and penalty
+#'   lambdas only affect the estimates. For random-effect models,
+#'   `oneStepPredict()` integrates the tape, which already includes every
+#'   lambda, so any non-unit lambda (other than a zero observation lambda,
+#'   whose rows are excluded) makes the residuals come from a tempered joint
+#'   density that is not a proper predictive distribution. A warning is given
+#'   in both cases.
 #'   SDNR should be near one, but its interval is approximate because fitted
 #'   parameters and finite samples affect calibration. Catch is conditioned on
 #'   and has no observation likelihood; process priors are not observations.
@@ -189,16 +196,34 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
   validate_opal_obj(x)
   if (is.null(x$fit$opt)) stop("OSA diagnostics require a fitted model.", call. = FALSE)
   if (length(conf) != 1 || !is.finite(conf) || conf <= 0 || conf >= 1) stop("`conf` must be between zero and one.")
-  lambdas <- get_lambdas(x$data)
-  numeric_lambdas <- lambdas[setdiff(names(lambdas), "prior_mapped_only")]
-  prior_lambdas <- lapply(x$data$priors %||% list(), `[[`, "lambda")
-  if (any(vapply(numeric_lambdas, function(z) any(z != 0 & z != 1), logical(1))) ||
-      any(vapply(prior_lambdas, function(z) !is.null(z) && any(z != 0 & z != 1),
-                 logical(1)))) {
-    warning("The fitted objective is tempered by non-unit lambdas; OSA residuals are untempered.", call. = FALSE)
-  }
+  .opal_osa_warn_lambdas(x)
   result <- .opal_with_seed(seed, .opal_residual_result(x, conf))
   .opal_store_derived(x, name, result, "fit", list(seed = seed, conf = conf))
+}
+
+.opal_osa_warn_lambdas <- function(x) {
+  lambdas <- get_lambdas(x$data)
+  # Zero observation lambdas exclude their rows, so only fractions matter.
+  fractional <- any(vapply(lambdas[c("cpue", "lf", "wf")],
+    function(z) any(z != 0 & z != 1), logical(1)))
+  if (!length(x$random)) {
+    if (fractional) {
+      warning("Fractional observation lambdas tempered the fitted estimates; ",
+              "OSA residuals use the untempered observation model at those estimates.",
+              call. = FALSE)
+    }
+    return(invisible(NULL))
+  }
+  scalars <- unlist(lambdas[c("rec", "init_rec", "prior", "penalty")])
+  priors <- any(vapply(x$data$priors %||% list(), function(p) {
+    !is.null(p$lambda) && any(p$lambda != 1)
+  }, logical(1)))
+  if (fractional || any(scalars != 1) || priors) {
+    warning("Non-unit lambdas temper the joint density that oneStepPredict() ",
+            "integrates, so these OSA residuals are not from a proper predictive ",
+            "distribution.", call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 .opal_residual_result <- function(x, conf) {
