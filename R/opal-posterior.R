@@ -89,25 +89,54 @@ opal_posterior <- function(x,
 #' @param x A fitted `opal_obj`.
 #' @param type Length (`"lf"`) or weight (`"wf"`) compositions.
 #' @param fishery Optional fishery indices to include.
-#' @return A ggplot with observation proportions and fitted probabilities.
-#'   Removed and zero-size rows are excluded. Bin numbers refer to the prepared
-#'   data, including any tail aggregation.
+#' @param scale Display proportions or probability densities. `"auto"` uses
+#'   density when bin widths differ or a fishery-year has different bin schemes.
+#' @return A ggplot with observed points and a fitted line at actual bin
+#'   midpoints. Horizontal observed and fitted segments show the bin extents.
+#'   Removed and zero-size rows are excluded. Density divides both observed
+#'   proportions and fitted probabilities by bin width.
 #' @family assessment diagnostics
 #' @export
-plot_composition <- function(x, type = c("lf", "wf"), fishery = NULL) {
+plot_composition <- function(x, type = c("lf", "wf"), fishery = NULL,
+                             scale = c("auto", "proportion", "density")) {
   type <- match.arg(type)
+  scale <- match.arg(scale)
   object <- opal_rtmb(x, fresh = TRUE)
   p <- object$env$last.par.best
   rows <- .opal_composition_rows(x$data, object$env$parList(par = p), object$report(p), type)
   rows <- Filter(function(z) z$include && (is.null(fishery) || z$fishery %in% fishery), rows)
   if (!length(rows)) stop("No included compositions match this selection.")
   df <- do.call(rbind, lapply(rows, function(z) data.frame(fishery = z$fishery,
-    year = z$year, row = z$row, bin = z$bin, observed = z$observed / sum(z$observed), predicted = z$predicted)))
-  ggplot2::ggplot(df, ggplot2::aes(x = .data$bin, y = .data$observed)) +
-    ggplot2::geom_point() + ggplot2::geom_line(ggplot2::aes(y = .data$predicted)) +
+    year = z$year, row = z$row, bin = z$bin, bin_lower = z$bin_lower,
+    bin_upper = z$bin_upper, observed = z$observed / sum(z$observed), predicted = z$predicted)))
+  df$bin_mid <- (df$bin_lower + df$bin_upper) / 2
+  width <- df$bin_upper - df$bin_lower
+  if (scale == "auto") {
+    schemes <- vapply(rows, function(z) paste(c(z$bin_lower, tail(z$bin_upper, 1L)),
+      collapse = ","), character(1))
+    panels <- vapply(rows, function(z) paste(z$fishery, z$year), character(1))
+    mixed <- any(vapply(split(schemes, panels), function(z) length(unique(z)) > 1L, logical(1)))
+    unequal <- any(vapply(rows, function(z) {
+      widths <- z$bin_upper - z$bin_lower
+      !isTRUE(all.equal(widths, rep(widths[1L], length(widths))))
+    }, logical(1)))
+    scale <- if (unequal || mixed) "density" else "proportion"
+  }
+  if (scale == "density") {
+    df$observed <- df$observed / width
+    df$predicted <- df$predicted / width
+  }
+  caption <- paste0("Observed points; fitted line; horizontal segments show bin extents",
+    if (scale == "density") ". Density = proportion / bin width" else "")
+  ggplot2::ggplot(df, ggplot2::aes(x = .data$bin_mid, y = .data$observed)) +
+    ggplot2::geom_point() + ggplot2::geom_line(ggplot2::aes(y = .data$predicted, group = .data$row)) +
+    ggplot2::geom_segment(ggplot2::aes(x = .data$bin_lower, xend = .data$bin_upper,
+      y = .data$predicted, yend = .data$predicted), alpha = 0.5) +
+    ggplot2::geom_segment(ggplot2::aes(x = .data$bin_lower, xend = .data$bin_upper,
+      yend = .data$observed), alpha = 0.5) +
     ggplot2::facet_wrap(~fishery + year + row) +
-    ggplot2::labs(x = paste(if (type == "lf") "Length" else "Weight", "bin"),
-      y = "Proportion", caption = "Observed points; fitted line") + ggplot2::theme_bw()
+    ggplot2::labs(x = if (type == "lf") "Length" else "Weight",
+      y = if (scale == "density") "Density" else "Proportion", caption = caption) + ggplot2::theme_bw()
 }
 
 #' Compare parameter priors and posterior distributions

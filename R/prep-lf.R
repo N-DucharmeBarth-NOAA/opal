@@ -29,8 +29,8 @@
 
 #' Prepare length composition data for model input
 #'
-#' Transforms a pivoted wide-format length-frequency data frame (one row per fishery
-#' x timestep, bins as columns) into the set of model-ready arrays and vectors
+#' Transforms wide or long length-frequency observations (one composition per
+#' fishery x timestep and optional source) into model-ready arrays and vectors
 #' that \code{opal_model} and \code{get_length_like} expect.  The function
 #' validates bin alignment against the length structure in \code{data}, optionally
 #' filters to a subset of fisheries, and appends every derived object directly to
@@ -39,10 +39,12 @@
 #' @param data a \code{list} containing at minimum the length structure scalars
 #'   \code{len_bin_start}, \code{len_bin_width}, \code{n_len}, and
 #'   \code{n_fishery}.
-#' @param lf_wide a \code{data.frame} in wide format: columns \code{fishery},
-#'   \code{year}, \code{month}, \code{ts} plus one numeric column per length
-#'   bin (named by the bin lower-bound value).  Typically produced by
-#'   \code{tidyr::pivot_wider()} on the long-format \code{wcpo_bet_lf} object.
+#' @param lf_wide A wide data frame, list of wide data frames, or long data
+#'   frame. Wide frames contain \code{fishery}, \code{year}, \code{month},
+#'   \code{ts}, and numeric count columns named by bin lower edges. Long input
+#'   contains the same metadata plus \code{bin_lower}, \code{bin_upper}, and
+#'   \code{count}. Long observations are grouped by \code{fishery}, \code{ts},
+#'   and optionally \code{source}; calendar metadata is taken from the first row.
 #' @param lf_keep_fisheries integer vector of fishery indices to retain.  Pass
 #'   \code{NULL} (the default) to keep all fisheries present in \code{lf_wide}.
 #' @param lf_switch integer likelihood type selector passed straight through to
@@ -68,6 +70,38 @@
 #' @param lf_addtocomp small non-negative numeric constant added to observed
 #'   composition proportions after tail compression and before renormalisation.
 #'   This robustifies zero bins. Default \code{1e-08}.
+#' @param lf_upper_edge Final upper edge, or one per element of a list of wide
+#'   data frames. Defaults to the model length-grid upper edge,
+#'   \code{data$len_bin_start + data$n_len * data$len_bin_width}. Ignored for
+#'   long input, which supplies both boundaries explicitly.
+#' @param lf_tails Prediction tail handling: \code{"accumulate"} (default)
+#'   extends the outer matrix edges, or \code{"truncate"} excludes outside mass.
+#' @param lf_edge_tol Absolute edge tolerance; defaults to
+#'   \code{1e-8 * data$len_bin_width}. Nearby model edges snap silently.
+#' @param lf_allow_misaligned Allow observed edges to split model bins, with a
+#'   diagnostic warning. The default rejects all edges not matching a model
+#'   boundary, including edges beyond the model range.
+#'
+#' @details Inputs may also be lists of wide data frames or long data frames.
+#'   Observed counts remain on their original grid. \code{lf_scheme_edges} is
+#'   a deduplicated list of observed edges, including native min/max pooling.
+#'   \code{lf_rebin_s} contains prediction matrices (observed bins by model
+#'   length bins). \code{lf_scheme} and \code{lf_nbins_i} follow fishery-grouped
+#'   flat observation order, while \code{lf_row_fi} indexes retained input order.
+#'   The logical \code{lf_native_i}, in flat observation order, identifies
+#'   observations originally on the full native grid before min/max pooling.
+#'   Heterogeneous observations use lists instead of rectangular matrices.
+#'
+#'   Splitting a model length bin at an observed boundary assumes uniform
+#'   prediction mass within that model bin. This approximation is not needed
+#'   when observed boundaries match model boundaries, so nonmatching boundaries
+#'   are rejected by default. Setting \code{lf_allow_misaligned = TRUE} opts into
+#'   the approximation with a diagnostic warning. Check bin labeling and units
+#'   before changing the grid. Diagnostics suggest a finer width dividing the
+#'   observed offsets; edges beyond the model range also require extending that
+#'   range. Changing the grid changes the mean and SD of \code{len_mid}, which
+#'   scale length-based selectivity parameters: existing \code{par_sel} values
+#'   are not directly transferable.
 #'
 #' @return The input \code{data} list with the following elements appended or
 #'   updated:
@@ -75,8 +109,9 @@
 #'     \item{\code{len_lower}, \code{len_upper}, \code{len_mid}}{Length bin
 #'       boundary and midpoint vectors derived from the scalar inputs.}
 #'     \item{\code{lf_switch}}{Passed through from the argument.}
-#'     \item{\code{lf_obs_in}}{Matrix of observed proportions,
-#'       \code{[n_obs x n_len]}.}
+#'     \item{\code{lf_obs_in}}{Observed proportions in retained input order:
+#'       a matrix with one row per observation when bin counts agree, otherwise
+#'       a list of row vectors. Native input has \code{n_len} columns.}
 #'     \item{\code{lf_n}}{Numeric vector of sample sizes per observation row.}
 #'     \item{\code{lf_n_int}}{Integer Dirichlet-multinomial sample sizes
 #'       obtained by half-up rounding of \code{lf_n}.}
@@ -110,15 +145,16 @@
 #'       proportions (for Dirichlet, \code{lf_switch = 2}).}
 #'     \item{\code{lf_addtocomp}}{Stored value of the add-to-composition
 #'       constant used to robustify observed composition bins.}
-#'     \item{\code{lf_nbins}}{Number of bins used in each observation (scalar,
-#'       derived from the first fishery's min/max bin setting).}
+#'     \item{\code{lf_nbins}}{Legacy scalar bin count for the first observation
+#'       in fishery-grouped flat order, or zero for empty input. Use
+#'       \code{lf_nbins_i} for heterogeneous observations.}
 #'   }
 #'
 #' @details
-#' Rows in \code{lf_wide} with a total sample size of zero are silently
-#' removed before any other processing.  Bin alignment between the data frame
-#' columns and the model's length structure is checked with
-#' \code{stopifnot()}. Dirichlet-multinomial counts use half-up rounding of
+#' Observations with a total sample size of zero are silently removed after
+#' validating counts and edges. Bin alignment against the model's length
+#' structure is checked with the edge tolerance.
+#' Dirichlet-multinomial counts use half-up rounding of
 #' effective sample sizes and largest-remainder allocation. Observations that
 #' round to zero are skipped by the Dirichlet-multinomial likelihood.
 #'
@@ -132,157 +168,21 @@ prep_lf_data <- function(data,
                          lf_maxbin         = NULL,
                          lf_var_adjust     = NULL,
                          lf_cap            = NULL,
-                         lf_addtocomp      = 1e-08) {
+                         lf_addtocomp      = 1e-08,
+                         lf_upper_edge     = NULL,
+                         lf_tails          = c("accumulate", "truncate"),
+                         lf_edge_tol       = 1e-8 * data$len_bin_width,
+                         lf_allow_misaligned = FALSE) {
 
-  # ---- 1. Extract bin columns and build obs-count matrix ----
-  meta_cols <- c("fishery", "year", "month", "ts")
-  bin_cols  <- sort(as.numeric(setdiff(names(lf_wide), meta_cols)))
-  lf_obs_counts <- as.matrix(lf_wide[, as.character(bin_cols)])
-
-  # ---- 2. Drop rows with zero total sample size ----
-  lf_n <- rowSums(lf_obs_counts)
-  keep <- lf_n > 0
-  lf_wide       <- lf_wide[keep, ]
-  lf_obs_counts <- lf_obs_counts[keep, ]
-  lf_n          <- lf_n[keep]
-
-  # ---- 3. Convert counts to proportions ----
-  lf_obs <- lf_obs_counts / lf_n
-
-  # ---- 3b. Cap effective sample sizes ----
-  if (!is.null(lf_cap)) {
-    stopifnot("lf_cap must be a positive integer" = length(lf_cap) == 1L && is.numeric(lf_cap) && lf_cap > 0)
-    lf_n <- pmin(lf_n, lf_cap)
-  }
-
-  # ---- 4. Validate bin alignment against model length structure ----
-  expected_bins <- seq(data$len_bin_start, by = data$len_bin_width,
-                       length.out = data$n_len)
-  stopifnot("Length bins in lf_wide do not match data length structure" =
-              all(bin_cols == expected_bins))
-
-  # ---- 5. Derive length bin boundaries (single source of truth) ----
-  data$len_lower <- seq(from = data$len_bin_start, by = data$len_bin_width,
-                        length.out = data$n_len)
-  data$len_upper <- data$len_lower + data$len_bin_width
-  data$len_mid   <- data$len_lower + data$len_bin_width / 2
-
-  # ---- 6. Optional fishery filter ----
-  if (!is.null(lf_keep_fisheries)) {
-    lf_use        <- lf_wide$fishery %in% lf_keep_fisheries
-    lf_wide       <- lf_wide[lf_use, ]
-    lf_obs_counts <- lf_obs_counts[lf_use, ]
-    lf_obs        <- lf_obs[lf_use, ]
-    lf_n          <- lf_n[lf_use]
-  }
-
-  # ---- 7. Default min/max bin arguments and variance adjustment ----
-  if (is.null(lf_minbin))     lf_minbin     <- rep(1L, data$n_fishery)
-  if (is.null(lf_maxbin))     lf_maxbin     <- rep(as.integer(data$n_len), data$n_fishery)
-  if (is.null(lf_var_adjust)) lf_var_adjust <- rep(1, data$n_fishery)
-
-  # Apply per-fishery variance adjustment to effective sample sizes
-  lf_n <- lf_n / lf_var_adjust[lf_wide$fishery]
-
-  # ---- 8. Attach index vectors and scalars to data ----
-  data$lf_switch       <- as.integer(lf_switch)
-  data$lf_obs_in       <- lf_obs
-  data$lf_n            <- lf_n
-  data$lf_n_int        <- as.integer(floor(lf_n + 0.5))
-  data$lf_fishery      <- as.integer(lf_wide$fishery)
-  data$lf_fishery_f    <- sort(unique(data$lf_fishery))
-  lf_group             <- factor(data$lf_fishery, levels = data$lf_fishery_f)
-  data$lf_n_f          <- as.integer(table(lf_group))
-  data$lf_year         <- as.integer(lf_wide$ts)  # model timestep (1-based)
-  data$lf_season       <- rep(1L, nrow(lf_wide))
-  data$lf_minbin        <- lf_minbin
-  data$lf_maxbin        <- lf_maxbin
-  data$lf_var_adjust    <- lf_var_adjust
-  data$removal_switch_f <- rep(0L, data$n_fishery)
-  data$n_lf            <- nrow(lf_obs)
-
-  # ---- 9. Build lf_obs_list (list of per-fishery obs matrices) ----
-  lf_fishery_f  <- data$lf_fishery_f
-  lf_n_f        <- data$lf_n_f
-  n_f           <- length(lf_fishery_f)
-  n_len_local   <- ncol(data$lf_obs_in)
-  lf_n_fi       <- split(data$lf_n, lf_group)
-  lf_n_int_fi   <- split(data$lf_n_int, lf_group)
-  lf_year_fi    <- split(data$lf_year, lf_group)
-  lf_row_fi     <- split(seq_len(nrow(data$lf_obs_in)), lf_group)
-  data$lf_n_fi    <- lf_n_fi
-  data$lf_n_int_fi <- lf_n_int_fi
-  data$lf_year_fi <- lf_year_fi
-  data$lf_row_fi  <- lf_row_fi
-
-  lf_obs_list <- vector("list", n_f)
-  for (j in seq_len(n_f)) {
-    f    <- lf_fishery_f[j]
-    bmin <- lf_minbin[f]
-    bmax <- lf_maxbin[f]
-    group_name <- as.character(f)
-    rows <- lf_row_fi[[group_name]]
-    m    <- matrix(0, lf_n_f[j], bmax - bmin + 1L)
-    for (i in seq_len(lf_n_f[j])) {
-      obs <- data$lf_obs_in[rows[i], ]
-      if (bmin > 1)          obs[bmin] <- sum(obs[1:bmin])
-      if (bmax < n_len_local) obs[bmax] <- sum(obs[bmax:n_len_local])
-      obs     <- obs[bmin:bmax]
-      obs     <- obs + lf_addtocomp
-      obs     <- obs / sum(obs)
-      m[i, ]  <- obs * lf_n_fi[[group_name]][i]
-    }
-    lf_obs_list[[j]] <- m
-  }
-
-  # ---- 10. Attach flattened observation vectors ----
-  # Plain-R nested list (for get_length_like reporting)
-  data$lf_obs_data <- list(obs = lf_obs_list)
-
-  # For multinomial (lf_switch = 1): unrounded counts
-  data$lf_obs_flat <- unlist(lapply(lf_obs_list,
-                                    function(m) as.numeric(t(m))),
-                             use.names = FALSE)
-
-  # For Dirichlet-multinomial (lf_switch = 3): rounded integer counts
-  data$lf_obs_ints <- unlist(Map(function(m, n_int) as.integer(vapply(
-                                      seq_len(nrow(m)),
-                                      function(i) .opal_integerize_composition(
-                                        m[i, ], n_int[i]
-                                      )$counts,
-                                      integer(ncol(m))
-                                    )), lf_obs_list, lf_n_int_fi),
-                             use.names = FALSE)
-
-  # For Dirichlet (lf_switch = 2): row-normalised proportions
-  data$lf_obs_prop <- unlist(lapply(lf_obs_list, function(m) {
-    props <- t(apply(m, 1, function(row) {
-      p <- row / sum(row)
-      p <- p + lf_addtocomp
-      p / sum(p)
-    }))
-    as.numeric(t(props))
-  }), use.names = FALSE)
-  data$lf_addtocomp <- lf_addtocomp
-
-  zero_int <- data$lf_n_int == 0L
-  data$lf_dm_zero_n_f <- tabulate(data$lf_fishery[zero_int], data$n_fishery)
-  data$lf_dm_zero_weight_f <- vapply(seq_len(data$n_fishery), function(f) {
-    sum(data$lf_n[zero_int & data$lf_fishery == f])
-  }, numeric(1))
-  if (any(zero_int)) {
-    message("LF Dirichlet-multinomial integerization skipped ", sum(zero_int),
-            " observations with total effective sample size ",
-            signif(sum(data$lf_n[zero_int]), 6), ".")
-  }
-
-  # Number of bins per observation (scalar; same for all obs when bmin/bmax are uniform)
-  data$lf_nbins <- ncol(lf_obs_list[[1]])
-
-  # Clean up any stale fields that earlier code may have left
-  data$lf_obs     <- NULL
-  data$lf_obs_vec <- NULL
-  data$lf_nbins_f <- NULL
-
-  return(data)
+  lf_tails <- match.arg(lf_tails)
+  if (length(lf_edge_tol) != 1L || !is.finite(lf_edge_tol) || lf_edge_tol < 0)
+    stop("lf_edge_tol must be finite and nonnegative.", call. = FALSE)
+  if (!is.logical(lf_allow_misaligned) || length(lf_allow_misaligned) != 1L ||
+      is.na(lf_allow_misaligned))
+    stop("lf_allow_misaligned must be TRUE or FALSE.", call. = FALSE)
+  edges <- data$len_bin_start + (0:data$n_len) * data$len_bin_width
+  input <- .opal_composition_input(lf_wide, lf_upper_edge, edges, lf_edge_tol)
+  .opal_prepare_compositions(data, input, "lf", lf_keep_fisheries,
+    lf_switch, lf_minbin, lf_maxbin, lf_var_adjust, lf_cap, lf_addtocomp,
+    lf_tails, lf_edge_tol, lf_allow_misaligned)
 }
