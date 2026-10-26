@@ -4,7 +4,12 @@
 \alias{plot_composition}
 \title{Plot observed and fitted compositions}
 \usage{
-plot_composition(x, type = c("lf", "wf"), fishery = NULL)
+plot_composition(
+  x,
+  type = c("lf", "wf"),
+  fishery = NULL,
+  scale = c("auto", "proportion", "density")
+)
 }
 \arguments{
 \item{x}{A fitted \code{opal_obj}.}
@@ -12,11 +17,15 @@ plot_composition(x, type = c("lf", "wf"), fishery = NULL)
 \item{type}{Length (\code{"lf"}) or weight (\code{"wf"}) compositions.}
 
 \item{fishery}{Optional fishery indices to include.}
+
+\item{scale}{Display proportions or probability densities. \code{"auto"} uses
+density when bin widths differ or a fishery-year has different bin schemes.}
 }
 \value{
-A ggplot with observation proportions and fitted probabilities.
-Removed and zero-size rows are excluded. Bin numbers refer to the prepared
-data, including any tail aggregation.
+A ggplot with observed points and a fitted line at actual bin
+midpoints. Horizontal observed and fitted segments show the bin extents.
+Removed and zero-size rows are excluded. Density divides both observed
+proportions and fitted probabilities by bin width.
 }
 \description{
 Plot observed and fitted compositions

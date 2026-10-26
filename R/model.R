@@ -15,11 +15,13 @@ utils::globalVariables(c(
   "cpue_switch", "cpue_data", "n_index",
   "lf_switch", "lf_year", "lf_season", "lf_fishery", "lf_minbin", "lf_maxbin", "lf_obs", "lf_n",
   "lf_var_adj", "lf_addtocomp", "lf_n_int", "lf_n_int_fi",
+  "lf_scheme_edges", "lf_rebin_s", "lf_scheme", "lf_nbins_i",
   "wf_switch", "wf_obs_flat", "wf_obs_ints", "wf_obs_prop",
   "wf_n_f", "wf_fishery_f", "wf_fishery", "wf_year", "wf_n",
   "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
   "wt_bin_start", "wt_bin_width",
   "log_wf_tau", "wf_addtocomp", "wf_n_int", "wf_n_int_fi",
+  "wf_scheme_edges", "wf_rebin_s", "wf_scheme", "wf_nbins_i",
   "priors", "sel_fa_external", "sel_basis_f"
 ))
 
@@ -267,7 +269,10 @@ opal_model <- function(parameters, data) {
       n_len = n_len,
       n_lf = n_lf, log_lf_tau = log_lf_tau,
       lf_addtocomp = lf_addtocomp,
-      lf_n_int_fi = lf_n_int_fi
+      lf_n_int_fi = lf_n_int_fi,
+      lf_rebin_s = if (exists("lf_rebin_s", inherits = FALSE)) lf_rebin_s else NULL,
+      lf_scheme = if (exists("lf_scheme", inherits = FALSE)) lf_scheme else NULL,
+      lf_nbins_i = if (exists("lf_nbins_i", inherits = FALSE)) lf_nbins_i else NULL
     )
   } else {
     lp_lf <- 0
@@ -296,7 +301,10 @@ opal_model <- function(parameters, data) {
       n_wf = n_wf,
       log_wf_tau = log_wf_tau,
       wf_addtocomp = wf_addtocomp,
-      wf_n_int_fi = wf_n_int_fi
+      wf_n_int_fi = wf_n_int_fi,
+      wf_rebin_s = if (exists("wf_rebin_s", inherits = FALSE)) wf_rebin_s else NULL,
+      wf_scheme = if (exists("wf_scheme", inherits = FALSE)) wf_scheme else NULL,
+      wf_nbins_i = if (exists("wf_nbins_i", inherits = FALSE)) wf_nbins_i else NULL
     )
   } else {
     lp_wf <- 0

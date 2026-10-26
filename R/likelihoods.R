@@ -128,7 +128,14 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
 #' @param log_lf_tau numeric vector `[n_fishery]` of log-scale variance adjustment parameters.
 #' @param lf_addtocomp small non-negative numeric constant added to predicted
 #'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
+#' @param lf_rebin_s optional list of prediction-only rebinning matrices, each
+#'   `[n_bins, n_len]`, mapping population lengths to an observation scheme.
+#' @param lf_scheme optional integer scheme indices in fishery-grouped flat order.
+#' @param lf_nbins_i optional integer bin counts in fishery-grouped flat order.
 #' @return a \code{numeric} vector of negative log-likelihood contributions, one per observation.
+#'   Reports \code{lf_pred_row}, a list of predictions in fishery-grouped row
+#'   order, and \code{lf_pred}, per-fishery matrices for single schemes or row
+#'   lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.
 #' @details For Dirichlet, concentration is `pred * n_i * exp(log_lf_tau[f])`;
 #'   for Dirichlet-multinomial, it is `pred * exp(log_lf_tau[f])`. The
 #'   multinomial branch uses RTMB's integer-rounded count behavior. The
@@ -152,12 +159,16 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
                             lf_minbin, lf_maxbin, removal_switch_f,
                             lf_switch, n_len, n_lf, log_lf_tau,
                             lf_addtocomp = 1e-08,
-                            lf_n_int_fi = NULL) {
+                            lf_n_int_fi = NULL,
+                            lf_rebin_s = NULL, lf_scheme = NULL,
+                            lf_nbins_i = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   
   n_f <- length(lf_n_f)
   lf_pred <- vector("list", n_f)
+  lf_pred_row <- vector("list", n_lf)
+  use_schemes <- !is.null(lf_rebin_s) && !is.null(lf_scheme) && !is.null(lf_nbins_i)
   lp <- numeric(n_lf)
   
   # OBS-mark only the vector used by the active likelihood
@@ -176,20 +187,36 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
     catch_ya <- catch_pred_fya[f, ys, ]    # [n_obs_f x n_age]
     pred_yl  <- catch_ya %*% t(pla)        # [n_obs_f x n_len], replaces the inner loop matvecs
 
-    bmin <- lf_minbin[f]
-    bmax <- lf_maxbin[f]
-    nbins <- bmax - bmin + 1L
-    lf_pred[[j]] <- matrix(0, lf_n_f[j], nbins)
+    if (use_schemes) {
+      rows <- idx + seq_len(lf_n_f[j])
+      single_scheme <- length(unique(lf_scheme[rows])) == 1L
+      lf_pred[[j]] <- if (single_scheme) matrix(0, lf_n_f[j], lf_nbins_i[rows[1L]]) else vector("list", lf_n_f[j])
+    } else {
+      bmin <- lf_minbin[f]
+      bmax <- lf_maxbin[f]
+      nbins <- bmax - bmin + 1L
+      lf_pred[[j]] <- matrix(0, lf_n_f[j], nbins)
+    }
     for (i in seq_len(lf_n_f[j])) {
       idx <- idx + 1L
       y <- lf_year_fi[[j]][i]
       pred <- pred_yl[i, ]                 # simple row slice, no matvec
-      if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
-      if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
-      pred <- pred[bmin:bmax]
+      if (use_schemes) {
+        nbins <- lf_nbins_i[idx]
+        pred <- c(lf_rebin_s[[lf_scheme[idx]]] %*% pred)
+      } else {
+        if (bmin > 1) pred[bmin] <- sum(pred[1:bmin])
+        if (bmax < n_len) pred[bmax] <- sum(pred[bmax:n_len])
+        pred <- pred[bmin:bmax]
+      }
       pred <- pred + lf_addtocomp
       pred <- pred / sum(pred)
-      lf_pred[[j]][i, ] <- pred
+      lf_pred_row[[idx]] <- pred
+      if (use_schemes && !single_scheme) {
+        lf_pred[[j]][[i]] <- pred
+      } else {
+        lf_pred[[j]][i, ] <- pred
+      }
       n_i <- lf_n_fi[[j]][i]
       n_int_i <- if (is.null(lf_n_int_fi)) as.integer(floor(n_i + 0.5)) else lf_n_int_fi[[j]][i]
       include <- removal_switch_f[f] == 0 & if (lf_switch == 3) n_int_i > 0 else n_i > 0
@@ -216,6 +243,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
     }
   }
   REPORT(lf_pred)
+  REPORT(lf_pred_row)
   return(lp)
 }
 
@@ -249,7 +277,14 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #' @param log_wf_tau numeric vector `[n_fishery]` log-scale variance adjustment.
 #' @param wf_addtocomp small non-negative numeric constant added to predicted
 #'   proportions before normalisation to robustify zero bins. Default \code{1e-08}.
+#' @param wf_rebin_s optional list of prediction-only rebinning matrices, each
+#'   `[n_bins, n_len]`, mapping population lengths directly to weight schemes.
+#' @param wf_scheme optional integer scheme indices in fishery-grouped flat order.
+#' @param wf_nbins_i optional integer bin counts in fishery-grouped flat order.
 #' @return numeric vector of negative log-likelihood contributions, one per observation.
+#'   Reports \code{wf_pred_row}, a list of predictions in fishery-grouped row
+#'   order, and \code{wf_pred}, per-fishery matrices for single schemes or row
+#'   lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.
 #' @details For Dirichlet, concentration is `pred * n_i * exp(log_wf_tau[f])`;
 #'   for Dirichlet-multinomial, it is `pred * exp(log_wf_tau[f])`. The
 #'   multinomial branch uses RTMB's integer-rounded count behavior. The
@@ -265,12 +300,16 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
                             wf_minbin, wf_maxbin, removal_switch_f,
                             wf_switch, n_wt, n_wf, log_wf_tau,
                             wf_addtocomp = 1e-08,
-                            wf_n_int_fi = NULL) {
+                            wf_n_int_fi = NULL,
+                            wf_rebin_s = NULL, wf_scheme = NULL,
+                            wf_nbins_i = NULL) {
   "[<-" <- ADoverload("[<-")
   "c" <- ADoverload("c")
   wf_input_ints <- wf_obs_ints
   n_f <- length(wf_n_f)
   wf_pred <- vector("list", n_f)
+  wf_pred_row <- vector("list", n_wf)
+  use_schemes <- !is.null(wf_rebin_s) && !is.null(wf_scheme) && !is.null(wf_nbins_i)
   lp <- numeric(n_wf)
 
   # OBS-mark only the vector used by the active likelihood
@@ -282,26 +321,46 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
   obs_offset <- 0L
   # Precompute combined age-to-weight projection once per likelihood call.
   # rebin_pla: [n_wt x n_age] = wf_rebin_matrix [n_wt x n_len] %*% pla [n_len x n_age]
-  rebin_pla <- wf_rebin_matrix %*% pla
+  if (!use_schemes) rebin_pla <- wf_rebin_matrix %*% pla
   for (j in seq_len(n_f)) {
     f <- wf_fishery_f[j]
-    bmin <- wf_minbin[f]
-    bmax <- wf_maxbin[f]
-    nbins <- bmax - bmin + 1L
-    wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
+    if (use_schemes) {
+      rows <- idx + seq_len(wf_n_f[j])
+      single_scheme <- length(unique(wf_scheme[rows])) == 1L
+      wf_pred[[j]] <- if (single_scheme) matrix(0, wf_n_f[j], wf_nbins_i[rows[1L]]) else vector("list", wf_n_f[j])
+    } else {
+      bmin <- wf_minbin[f]
+      bmax <- wf_maxbin[f]
+      nbins <- bmax - bmin + 1L
+      wf_pred[[j]] <- matrix(0, wf_n_f[j], nbins)
+    }
     # ONE matmul per fishery: [n_obs_f x n_age] %*% [n_age x n_wt] -> [n_obs_f x n_wt]
     ys <- wf_year_fi[[j]]
     catch_ya <- catch_pred_fya[f, ys, ] # [n_obs_f x n_age]
-    pred_yw <- catch_ya %*% t(rebin_pla) # [n_obs_f x n_wt]
+    if (use_schemes) {
+      pred_yl <- catch_ya %*% t(pla)
+    } else {
+      pred_yw <- catch_ya %*% t(rebin_pla) # [n_obs_f x n_wt]
+    }
     for (i in seq_len(wf_n_f[j])) {
       idx <- idx + 1L
-      pred_at_weight <- pred_yw[i, ] # simple row slice, no matvec
-      if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
-      if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
-      pred <- pred_at_weight[bmin:bmax]
+      if (use_schemes) {
+        nbins <- wf_nbins_i[idx]
+        pred <- c(wf_rebin_s[[wf_scheme[idx]]] %*% pred_yl[i, ])
+      } else {
+        pred_at_weight <- pred_yw[i, ] # simple row slice, no matvec
+        if (bmin > 1) pred_at_weight[bmin] <- sum(pred_at_weight[1:bmin])
+        if (bmax < n_wt) pred_at_weight[bmax] <- sum(pred_at_weight[bmax:n_wt])
+        pred <- pred_at_weight[bmin:bmax]
+      }
       pred <- pred + wf_addtocomp
       pred <- pred / sum(pred)
-      wf_pred[[j]][i, ] <- pred
+      wf_pred_row[[idx]] <- pred
+      if (use_schemes && !single_scheme) {
+        wf_pred[[j]][[i]] <- pred
+      } else {
+        wf_pred[[j]][i, ] <- pred
+      }
       n_i <- wf_n_fi[[j]][i]
       n_int_i <- if (is.null(wf_n_int_fi)) as.integer(floor(n_i + 0.5)) else wf_n_int_fi[[j]][i]
       include <- removal_switch_f[f] == 0 & if (wf_switch == 3) n_int_i > 0 else n_i > 0
@@ -328,5 +387,6 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
     }
   }
   REPORT(wf_pred)
+  REPORT(wf_pred_row)
   return(lp)
 }

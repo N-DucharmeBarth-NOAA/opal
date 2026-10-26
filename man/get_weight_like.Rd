@@ -23,7 +23,10 @@ get_weight_like(
   n_wf,
   log_wf_tau,
   wf_addtocomp = 1e-08,
-  wf_n_int_fi = NULL
+  wf_n_int_fi = NULL,
+  wf_rebin_s = NULL,
+  wf_scheme = NULL,
+  wf_nbins_i = NULL
 )
 }
 \arguments{
@@ -68,9 +71,19 @@ from prep_wf_data().}
 proportions before normalisation to robustify zero bins. Default \code{1e-08}.}
 
 \item{wf_n_int_fi}{optional list of integer Dirichlet-multinomial sample sizes.}
+
+\item{wf_rebin_s}{optional list of prediction-only rebinning matrices, each
+\verb{[n_bins, n_len]}, mapping population lengths directly to weight schemes.}
+
+\item{wf_scheme}{optional integer scheme indices in fishery-grouped flat order.}
+
+\item{wf_nbins_i}{optional integer bin counts in fishery-grouped flat order.}
 }
 \value{
 numeric vector of negative log-likelihood contributions, one per observation.
+Reports \code{wf_pred_row}, a list of predictions in fishery-grouped row
+order, and \code{wf_pred}, per-fishery matrices for single schemes or row
+lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.
 }
 \description{
 Computes likelihood for observed weight compositions using the PLA

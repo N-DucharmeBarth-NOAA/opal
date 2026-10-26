@@ -1,5 +1,15 @@
 # opal 0.1.1
 
+- 2026/10/26 ([#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147)):
+  Length and weight composition observations can use row-specific, uneven bin
+  schemes, supplied in long format or as a list of wide tables. Only model
+  predictions are rebinned. Tail accumulation remains the default; truncation
+  is optional. Misaligned length edges require an explicit override because
+  proportional-overlap rebinning assumes uniform density within model bins.
+  Composition residuals retain input ordering, and plots now show bin extents
+  in length or weight units with an optional density scale. Existing grids,
+  tail aggregation, objectives, and fitted-model reports remain compatible;
+  this feature does not change the scientific model version.
 - Add optional age-based selectivity. The new data element `sel_basis_f`
   (1 = length, 2 = age, one per fishery) evaluates the logistic,
   double-normal or double Richards curve directly on age, using the same

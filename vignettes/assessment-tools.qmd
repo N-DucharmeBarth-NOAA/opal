@@ -148,6 +148,47 @@ Failures retain their chain, iteration, and reason. Marginal draws that omit
 random effects cannot pass the full biological posterior check. Old validation
 records become stale when the validation contract changes.
 
+### Observation-specific composition bins
+
+Each composition observation may have its own contiguous bins. Supply long
+data with `bin_lower`, `bin_upper`, and `count`, or a list of wide tables whose
+bin column names are lower edges (with `lf_upper_edge` or `wf_upper_edge` for
+their final upper edges). Counts stay in their observed bins; fixed matrices
+map model predictions to each distinct scheme.
+
+For example, these illustrative observations use coarse bins in the first
+year and the native length bins in the second year, for one fishery:
+
+```{r}
+#| label: mixed-composition-bins
+coarse_lf <- data.frame(
+  fishery = 1L,
+  year = c(2001L, 2001L, 2002L, 2002L, 2002L),
+  month = 1L,
+  ts = c(1L, 1L, 2L, 2L, 2L),
+  bin_lower = c(20, 60, 20, 40, 60),
+  bin_upper = c(60, 80, 40, 60, 80),
+  count = c(85, 35, 20, 60, 40)
+)
+coarse_data <- prep_lf_data(inputs$data, coarse_lf, lf_tails = "accumulate")
+coarse_fit <- opal_fit(opal_obj(coarse_data, inputs$parameters, inputs$map))
+plot_composition(coarse_fit, type = "lf", scale = "auto")
+```
+
+The default `"accumulate"` treats the first and last observed bins as minus
+and plus groups. Use `"truncate"` when sampling excluded fish outside the
+observed range; predictions are then conditional on that range. The plot uses
+density for unequal bin widths, dividing each proportion by its bin width.
+Choose `scale = "proportion"` to display bin probabilities instead.
+
+Length edges must coincide with model length edges within `lf_edge_tol`.
+Otherwise preparation stops: check lower-edge labels and units, or use a
+finer model grid. `lf_allow_misaligned = TRUE` permits proportional-overlap
+splits with a warning. Changing the model grid also changes the
+`mean(len_mid)`/`sd(len_mid)` selectivity scaling, so `par_sel` values are not
+transferable between grids. Weight edges generally do not align after the
+length–weight conversion, and overlap-based rebinning remains allowed.
+
 ### Other composition distributions
 
 These examples fit both composition streams for each likelihood, then collect the

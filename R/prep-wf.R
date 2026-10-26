@@ -28,6 +28,22 @@
 #' @param wf_addtocomp small non-negative numeric constant added to observed
 #'   composition proportions after tail compression and before renormalisation.
 #'   This robustifies zero bins. Default \code{1e-08}.
+#' @param wf_upper_edge Final upper edge, or one per element of a list of wide
+#'   data frames. Defaults to the native weight-grid upper edge. Long input supplies
+#'   \code{bin_lower}, \code{bin_upper}, and \code{count}; extra columns such as
+#'   \code{source} identify separate observations.
+#' @param wf_tails Prediction tail handling: \code{"accumulate"} (default)
+#'   or \code{"truncate"}.
+#' @param wf_edge_tol Absolute tolerance for deduplicating scheme edges;
+#'   defaults to \code{1e-8 * data$wt_bin_width}.
+#' @details Input may be one wide data frame, a list of wide frames, or long
+#'   data. \code{wf_scheme_edges} records observed edges, including native
+#'   min/max pooling; \code{wf_rebin_s} contains observed-bin by model-length-bin
+#'   prediction matrices. Length edges are converted using \code{lw_a * L^lw_b}.
+#'   Native schemes preserve the legacy two-stage weight mapping and pooling.
+#'   \code{wf_scheme} and \code{wf_nbins_i} follow fishery-grouped flat order;
+#'   \code{wf_row_fi} indexes retained input order. Heterogeneous observations
+#'   use lists where a rectangular matrix is not possible.
 #' @return data list with the following weight composition elements appended:
 #'   \describe{
 #'     \item{\code{wf_switch}}{Passed through from the argument.}
@@ -75,163 +91,17 @@ prep_wf_data <- function(data, wf_wide, wf_keep_fisheries = NULL,
                          wf_switch = 1L, wf_minbin = NULL,
                          wf_maxbin = NULL, wf_var_adjust = NULL,
                          wf_cap = NULL,
-                         wf_addtocomp = 1e-08) {
+                         wf_addtocomp = 1e-08,
+                         wf_upper_edge = NULL,
+                         wf_tails = c("accumulate", "truncate"),
+                         wf_edge_tol = 1e-8 * data$wt_bin_width) {
 
-  # ---- 1. Extract bin columns and build obs-count matrix ----
-  meta_cols <- c("fishery", "year", "month", "ts")
-  bin_cols  <- sort(as.numeric(setdiff(names(wf_wide), meta_cols)))
-  wf_obs_counts <- as.matrix(wf_wide[, as.character(bin_cols)])
-
-  # ---- 2. Drop rows with zero total sample size ----
-  wf_n <- rowSums(wf_obs_counts)
-  keep <- wf_n > 0
-  wf_wide       <- wf_wide[keep, ]
-  wf_obs_counts <- wf_obs_counts[keep, ]
-  wf_n          <- wf_n[keep]
-
-  # ---- 3. Convert counts to proportions ----
-  wf_obs <- wf_obs_counts / wf_n
-
-  # ---- 3b. Cap effective sample sizes ----
-  if (!is.null(wf_cap)) {
-    stopifnot("wf_cap must be a positive integer" =
-                length(wf_cap) == 1L && is.numeric(wf_cap) && wf_cap > 0)
-    wf_n <- pmin(wf_n, wf_cap)
-  }
-
-  # ---- 4. Validate bin alignment against model weight structure ----
-  expected_bins <- seq(data$wt_bin_start, by = data$wt_bin_width,
-                       length.out = data$n_wt)
-  stopifnot("Weight bins in wf_wide do not match data weight structure" =
-              all(bin_cols == expected_bins))
-
-  # ---- 5. Derive weight bin boundaries (single source of truth) ----
-  wt_lower <- seq(from = data$wt_bin_start, by = data$wt_bin_width,
-                  length.out = data$n_wt)
-  wt_upper <- wt_lower + data$wt_bin_width
-  wt_mid   <- wt_lower + data$wt_bin_width / 2
-  wt_bin_edges <- c(wt_lower, wt_upper[data$n_wt])
-
-  data$wt_lower    <- wt_lower
-  data$wt_upper    <- wt_upper
-  data$wt_mid      <- wt_mid
-  data$wt_bin_edges <- wt_bin_edges
-
-  # ---- 6. Compute the rebinning matrix (length -> weight) ----
-  len_lower <- seq(from = data$len_bin_start, by = data$len_bin_width,
-                   length.out = data$n_len)
-  len_upper <- len_lower + data$len_bin_width
-  len_edges <- c(len_lower, len_upper[data$n_len])
-
-  # Convert length edges to weight edges via L-W relationship
-  wt_edges_from_len <- data$lw_a * len_edges^data$lw_b
-
-  # W maps predicted counts at length bins to weight bins [n_wt x n_len]
-  data$wf_rebin_matrix <- rebin_matrix(wt_edges_from_len, wt_bin_edges)
-
-  # ---- 7. Optional fishery filter ----
-  if (!is.null(wf_keep_fisheries)) {
-    wf_use        <- wf_wide$fishery %in% wf_keep_fisheries
-    wf_wide       <- wf_wide[wf_use, ]
-    wf_obs_counts <- wf_obs_counts[wf_use, ]
-    wf_obs        <- wf_obs[wf_use, ]
-    wf_n          <- wf_n[wf_use]
-  }
-
-  # ---- 8. Default min/max bin arguments and variance adjustment ----
-  if (is.null(wf_minbin))     wf_minbin     <- rep(1L, data$n_fishery)
-  if (is.null(wf_maxbin))     wf_maxbin     <- rep(as.integer(data$n_wt), data$n_fishery)
-  if (is.null(wf_var_adjust)) wf_var_adjust <- rep(1, data$n_fishery)
-
-  # Apply per-fishery variance adjustment to effective sample sizes
-  wf_n <- wf_n / wf_var_adjust[wf_wide$fishery]
-
-  # ---- 9. Attach index vectors and scalars to data ----
-  data$wf_switch    <- as.integer(wf_switch)
-  data$wf_obs_in    <- wf_obs
-  data$wf_n         <- wf_n
-  data$wf_n_int     <- as.integer(floor(wf_n + 0.5))
-  data$wf_fishery   <- as.integer(wf_wide$fishery)
-  data$wf_fishery_f <- sort(unique(data$wf_fishery))
-  wf_group          <- factor(data$wf_fishery, levels = data$wf_fishery_f)
-  data$wf_n_f       <- as.integer(table(wf_group))
-  data$wf_year      <- as.integer(wf_wide$ts)
-  data$wf_minbin    <- wf_minbin
-  data$wf_maxbin    <- wf_maxbin
-  data$wf_var_adjust <- wf_var_adjust
-  data$n_wf         <- nrow(wf_obs)
-
-  # ---- 10. Build wf_obs_list (list of per-fishery obs matrices) ----
-  wf_fishery_f  <- data$wf_fishery_f
-  wf_n_f        <- data$wf_n_f
-  n_f           <- length(wf_fishery_f)
-  n_wt_local    <- ncol(data$wf_obs_in)
-  wf_n_fi       <- split(data$wf_n, wf_group)
-  wf_n_int_fi   <- split(data$wf_n_int, wf_group)
-  wf_year_fi    <- split(data$wf_year, wf_group)
-  wf_row_fi     <- split(seq_len(nrow(data$wf_obs_in)), wf_group)
-  data$wf_n_fi    <- wf_n_fi
-  data$wf_n_int_fi <- wf_n_int_fi
-  data$wf_year_fi <- wf_year_fi
-  data$wf_row_fi  <- wf_row_fi
-
-  wf_obs_list <- vector("list", n_f)
-  for (j in seq_len(n_f)) {
-    f    <- wf_fishery_f[j]
-    bmin <- wf_minbin[f]
-    bmax <- wf_maxbin[f]
-    group_name <- as.character(f)
-    rows <- wf_row_fi[[group_name]]
-    m    <- matrix(0, wf_n_f[j], bmax - bmin + 1L)
-    for (i in seq_len(wf_n_f[j])) {
-      obs <- data$wf_obs_in[rows[i], ]
-      if (bmin > 1)           obs[bmin] <- sum(obs[1:bmin])
-      if (bmax < n_wt_local)  obs[bmax] <- sum(obs[bmax:n_wt_local])
-      obs     <- obs[bmin:bmax]
-      obs     <- obs + wf_addtocomp
-      obs     <- obs / sum(obs)
-      m[i, ]  <- obs * wf_n_fi[[group_name]][i]
-    }
-    wf_obs_list[[j]] <- m
-  }
-
-  # ---- 11. Attach flattened observation vectors ----
-  # For multinomial (wf_switch = 1): unrounded counts
-  data$wf_obs_flat <- unlist(lapply(wf_obs_list,
-                                    function(m) as.numeric(t(m))),
-                             use.names = FALSE)
-
-  # For Dirichlet-multinomial (wf_switch = 3): rounded integer counts
-  data$wf_obs_ints <- unlist(Map(function(m, n_int) as.integer(vapply(
-                                      seq_len(nrow(m)),
-                                      function(i) .opal_integerize_composition(
-                                        m[i, ], n_int[i]
-                                      )$counts,
-                                      integer(ncol(m))
-                                    )), wf_obs_list, wf_n_int_fi),
-                             use.names = FALSE)
-
-  # For Dirichlet (wf_switch = 2): row-normalised proportions
-  data$wf_obs_prop <- unlist(lapply(wf_obs_list, function(m) {
-    props <- t(apply(m, 1, function(row) {
-      p <- row / sum(row)
-      p <- p + wf_addtocomp
-      p / sum(p)
-    }))
-    as.numeric(t(props))
-  }), use.names = FALSE)
-  data$wf_addtocomp <- wf_addtocomp
-
-  zero_int <- data$wf_n_int == 0L
-  data$wf_dm_zero_n_f <- tabulate(data$wf_fishery[zero_int], data$n_fishery)
-  data$wf_dm_zero_weight_f <- vapply(seq_len(data$n_fishery), function(f) {
-    sum(data$wf_n[zero_int & data$wf_fishery == f])
-  }, numeric(1))
-  if (any(zero_int)) {
-    message("WF Dirichlet-multinomial integerization skipped ", sum(zero_int),
-            " observations with total effective sample size ",
-            signif(sum(data$wf_n[zero_int]), 6), ".")
-  }
-
-  return(data)
+  wf_tails <- match.arg(wf_tails)
+  if (length(wf_edge_tol) != 1L || !is.finite(wf_edge_tol) || wf_edge_tol < 0)
+    stop("wf_edge_tol must be finite and nonnegative.", call. = FALSE)
+  edges <- data$wt_bin_start + (0:data$n_wt) * data$wt_bin_width
+  input <- .opal_composition_input(wf_wide, wf_upper_edge, edges, wf_edge_tol)
+  .opal_prepare_compositions(data, input, "wf", wf_keep_fisheries,
+    wf_switch, wf_minbin, wf_maxbin, wf_var_adjust, wf_cap, wf_addtocomp,
+    wf_tails, wf_edge_tol)
 }

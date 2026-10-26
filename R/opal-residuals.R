@@ -66,20 +66,53 @@
   n_comp <- data[[paste0("n_", type)]]
   if (is.null(family) || family == 0L || is.null(n_comp) || n_comp == 0L) return(list())
   predictions <- report[[paste0(type, "_pred")]]
-  if (!length(predictions)) return(list())
+  row_predictions <- report[[paste0(type, "_pred_row")]]
+  if (!length(predictions) && !length(row_predictions)) return(list())
   years <- field("year_fi")
   if (is.null(years)) years <- split(field("year"), field("fishery"))
   sizes <- field("n_fi")
   if (is.null(sizes)) sizes <- split(field("n"), field("fishery"))
   ints <- field("n_int_fi")
   observed <- field(c("obs_flat", "obs_prop", "obs_ints")[family])
+  schemes <- field("scheme")
+  nbins <- field("nbins_i")
+  input_rows <- field("row_fi")
   offset <- row_id <- 0L
   out <- list()
-  for (j in seq_along(predictions)) {
+  for (j in seq_along(years)) {
     f <- field("fishery_f")[j]
-    bins <- seq.int(field("minbin")[f], field("maxbin")[f])
-    for (i in seq_len(nrow(predictions[[j]]))) {
+    for (i in seq_along(years[[j]])) {
       row_id <- row_id + 1L
+      if (length(schemes)) {
+        edges <- field("scheme_edges")[[schemes[row_id]]]
+        bins <- seq_len(nbins[row_id])
+        # Native-grid preparations retain their historical bin indices.
+        if (length(field("minbin")) && length(field("maxbin")) &&
+            isTRUE(length(bins) == field("maxbin")[f] - field("minbin")[f] + 1L)) {
+          native <- if (type == "lf") "len" else "wt"
+          start <- data[[paste0(native, "_bin_start")]]
+          width <- data[[paste0(native, "_bin_width")]]
+          if (length(start) && length(width) &&
+              isTRUE(all.equal(edges, start + (seq.int(field("minbin")[f],
+                field("maxbin")[f] + 1L) - 1L) * width))) {
+            bins <- seq.int(field("minbin")[f], field("maxbin")[f])
+          }
+        }
+      } else {
+        bins <- seq.int(field("minbin")[f], field("maxbin")[f])
+        native <- if (type == "lf") "len" else "wt"
+        lower <- data[[paste0(native, "_lower")]]
+        upper <- data[[paste0(native, "_upper")]]
+        if (length(lower) && length(upper)) {
+          edges <- c(lower[bins], upper[tail(bins, 1L)])
+        } else {
+          start <- data[[paste0(native, "_bin_start")]]
+          width <- data[[paste0(native, "_bin_width")]]
+          if (!length(start)) start <- 1
+          if (!length(width)) width <- 1
+          edges <- start + (c(bins, tail(bins, 1L) + 1L) - 1L) * width
+        }
+      }
       n <- sizes[[j]][i]
       n_int <- if (is.null(ints)) floor(n + 0.5) else ints[[j]][i]
       include <- data$removal_switch_f[f] == 0 && if (family == 3L) n_int > 0 else n > 0
@@ -89,13 +122,16 @@
       if (family == 2L) concentration <- concentration * n
       year_index <- years[[j]][i]
       year <- if (length(data$years) >= year_index) data$years[year_index] else data$first_yr + year_index - 1L
-      out[[row_id]] <- list(type = type, family = family, row = row_id, fishery = f,
-        year = year, bin = bins, observed = obs, predicted = predictions[[j]][i, ],
+      input_row <- if (is.null(input_rows)) row_id else input_rows[[j]][i]
+      prediction <- if (length(row_predictions)) row_predictions[[row_id]] else predictions[[j]][i, ]
+      out[[row_id]] <- list(type = type, family = family, row = input_row, fishery = f,
+        year = year, bin = bins, bin_lower = head(edges, -1L), bin_upper = tail(edges, -1L),
+        observed = obs, predicted = prediction,
         concentration = concentration, include = include,
         observation_index = offset - length(bins) + seq_along(bins))
     }
   }
-  out
+  out[order(vapply(out, function(z) z$row, numeric(1)))]
 }
 
 .opal_sdnr <- function(z, conf) {
@@ -128,7 +164,9 @@
 #'   no silent substitution of conditional residuals for marginal residuals.
 #'
 #'   Observation order is the stored input order, then ascending composition
-#'   bin. The final composition bin is constrained and omitted. Removed
+#'   bin. Composition tables include each observed bin's lower and upper
+#'   boundaries, including row-specific schemes. The final composition bin
+#'   is constrained and omitted from residual calculations. Removed
 #'   fisheries, zero sample sizes, exhausted counts, and numerical failures
 #'   remain in the table with explicit exclusion reasons. Multinomial counts
 #'   are rounded as in the fitted likelihood; no new pseudocounts are added.
@@ -161,6 +199,7 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
       method = "oneStepGeneric", discrete = FALSE, seed = NULL, trace = FALSE)$residual
     pieces[[1L]] <- data.frame(dataset = paste("CPUE", idx), type = "cpue", family = "lognormal",
       fishery = cpue$fishery, row = seq_len(nrow(cpue)), bin = NA_integer_,
+      bin_lower = NA_real_, bin_upper = NA_real_,
       year = d$first_yr + (cpue$ts - 1L) %/% d$n_season,
       observation_index = seq_len(nrow(cpue)), observed = cpue$value, predicted = r$cpue_pred,
       residual = residual, reason = ifelse(is.finite(residual), "", "non-finite residual"), source = source)
@@ -183,7 +222,8 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
       }
       data.frame(dataset = paste(toupper(type), row$fishery), type = type,
         family = c("multinomial", "Dirichlet", "Dirichlet-multinomial")[row$family],
-        fishery = row$fishery, row = row$row, bin = row$bin, year = row$year,
+        fishery = row$fishery, row = row$row, bin = row$bin,
+        bin_lower = row$bin_lower, bin_upper = row$bin_upper, year = row$year,
         observation_index = row$observation_index, observed = row$observed,
         predicted = row$predicted, residual = z, reason = reason, source = source)
     })

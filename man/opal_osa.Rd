@@ -34,7 +34,9 @@ approximation. Other observation streams remain conditioned on. There is
 no silent substitution of conditional residuals for marginal residuals.
 
 Observation order is the stored input order, then ascending composition
-bin. The final composition bin is constrained and omitted. Removed
+bin. Composition tables include each observed bin's lower and upper
+boundaries, including row-specific schemes. The final composition bin
+is constrained and omitted from residual calculations. Removed
 fisheries, zero sample sizes, exhausted counts, and numerical failures
 remain in the table with explicit exclusion reasons. Multinomial counts
 are rounded as in the fitted likelihood; no new pseudocounts are added.

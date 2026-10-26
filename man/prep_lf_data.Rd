@@ -13,7 +13,11 @@ prep_lf_data(
   lf_maxbin = NULL,
   lf_var_adjust = NULL,
   lf_cap = NULL,
-  lf_addtocomp = 1e-08
+  lf_addtocomp = 1e-08,
+  lf_upper_edge = NULL,
+  lf_tails = c("accumulate", "truncate"),
+  lf_edge_tol = 1e-08 * data$len_bin_width,
+  lf_allow_misaligned = FALSE
 )
 }
 \arguments{
@@ -57,6 +61,20 @@ feature.}
 \item{lf_addtocomp}{small non-negative numeric constant added to observed
 composition proportions after tail compression and before renormalisation.
 This robustifies zero bins. Default \code{1e-08}.}
+
+\item{lf_upper_edge}{Final upper edge, or one per element of a list of wide
+data frames. Required for non-native wide grids. Long input instead supplies
+\code{bin_lower}, \code{bin_upper}, and \code{count}; additional columns
+(for example \code{source}) identify separate observations.}
+
+\item{lf_tails}{Prediction tail handling: \code{"accumulate"} (default)
+extends the outer matrix edges, or \code{"truncate"} excludes outside mass.}
+
+\item{lf_edge_tol}{Absolute edge tolerance; defaults to
+\code{1e-8 * data$len_bin_width}. Nearby model edges snap silently.}
+
+\item{lf_allow_misaligned}{Allow observed edges to split model bins, with a
+diagnostic warning. The default rejects such edges.}
 }
 \value{
 The input \code{data} list with the following elements appended or
@@ -105,18 +123,26 @@ derived from the first fishery's min/max bin setting).}
 }
 }
 \description{
-Transforms a pivoted wide-format length-frequency data frame (one row per fishery
-x timestep, bins as columns) into the set of model-ready arrays and vectors
+Transforms wide or long length-frequency observations (one composition per
+fishery x timestep and optional source) into model-ready arrays and vectors
 that \code{opal_model} and \code{get_length_like} expect.  The function
 validates bin alignment against the length structure in \code{data}, optionally
 filters to a subset of fisheries, and appends every derived object directly to
 \code{data}.
 }
 \details{
+Inputs may also be lists of wide data frames or long data frames.
+Observed counts remain on their original grid. \code{lf_scheme_edges} is
+a deduplicated list of observed edges, including native min/max pooling.
+\code{lf_rebin_s} contains prediction matrices (observed bins by model
+length bins). \code{lf_scheme} and \code{lf_nbins_i} follow fishery-grouped
+flat observation order, while \code{lf_row_fi} indexes retained input order.
+Heterogeneous observations use lists instead of rectangular matrices.
+
 Rows in \code{lf_wide} with a total sample size of zero are silently
 removed before any other processing.  Bin alignment between the data frame
 columns and the model's length structure is checked with
-\code{stopifnot()}. Dirichlet-multinomial counts use half-up rounding of
+the edge tolerance. Dirichlet-multinomial counts use half-up rounding of
 effective sample sizes and largest-remainder allocation. Observations that
 round to zero are skipped by the Dirichlet-multinomial likelihood.
 }
