@@ -238,6 +238,17 @@ test_that("prior lambda helper updates an opal object and penalty lambdas warn",
   unresolved <- opal_obj(data)
   unresolved <- opal_set_prior_lambda(unresolved, "log_lf_tau", 0, element = 2)
   expect_equal(unresolved$data$priors$log_lf_tau$lambda, c(1, 0))
+  expect_error(opal_set_prior_lambda(unresolved, "log_lf_tau", 0, element = 3),
+               "has 2 elements")
+  data$priors$log_lf_tau$par1 <- 0
+  scalar <- opal_obj(data)
+  expect_error(opal_set_prior_lambda(scalar, "log_lf_tau", 0, element = 2),
+               "length of `log_lf_tau` is unknown")
+  expect_equal(opal_set_prior_lambda(scalar, "log_lf_tau", 0)$data$priors$log_lf_tau$lambda, 0)
+  resolved <- opal_obj(data, parameters, map)
+  expect_equal(opal_set_prior_lambda(resolved, "log_lf_tau", 0, element = 2)$data$priors$log_lf_tau$lambda,
+               c(1, 0))
+  expect_error(opal_set_prior_lambda(resolved, "log_lf_tau", 0, element = 3), "has 2 elements")
   data$lambdas <- list(penalty = 0.5)
   expect_warning(opal_obj(data, parameters, map), "penalty lambda below 1")
   expect_warning(opal:::.opal_warn_tempered(

@@ -207,7 +207,10 @@ get_lambdas <- function(data) {
 #' @param x An `opal_obj` or a named priors list.
 #' @param parameter Name of the parameter block.
 #' @param value Non-negative finite lambda value(s).
-#' @param element Optional one-based element index within the block.
+#' @param element Optional one-based element index within the block, in
+#'   column-major order for matrices. The block length must be known: from
+#'   resolved parameters on an `opal_obj`, or from a vector `par1`, `par2`,
+#'   or `lambda`.
 #' @return The updated `opal_obj` or priors list.
 #' @export
 opal_set_prior_lambda <- function(x, parameter, value, element = NULL) {
@@ -233,13 +236,22 @@ opal_set_prior_lambda <- function(x, parameter, value, element = NULL) {
     prior$lambda <- value
   } else {
     if (!is.numeric(element) || length(element) != 1L || !is.finite(element) ||
-        element != floor(element) || element < 1L ||
-        ((parameter_length_known || known_length > 1L) && element > block_length) ||
-        length(value) != 1L) {
+        element != floor(element) || element < 1L || length(value) != 1L) {
       stop("`element` must select one prior element and `value` must be scalar.", call. = FALSE)
     }
-    lambda <- if (is.null(prior$lambda)) rep(1, max(block_length, element)) else
-      rep(prior$lambda, length.out = max(block_length, element))
+    if (!parameter_length_known && known_length == 1L) {
+      # A scalar prior says nothing about the block length, so a guessed
+      # length would only fail later, in .opal_validate_priors().
+      stop("The length of `", parameter, "` is unknown, so `element` cannot be ",
+           "checked. Resolve the parameters first (for example with opal_build()), ",
+           "or set the whole block with `element = NULL`.", call. = FALSE)
+    }
+    if (element > block_length) {
+      stop("`element` is ", element, ", but `", parameter, "` has ", block_length,
+           " element", if (block_length == 1L) "" else "s", ".", call. = FALSE)
+    }
+    lambda <- if (is.null(prior$lambda)) rep(1, block_length) else
+      rep(prior$lambda, length.out = block_length)
     lambda[element] <- value
     prior$lambda <- lambda
   }

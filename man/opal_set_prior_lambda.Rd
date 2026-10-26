@@ -13,7 +13,10 @@ opal_set_prior_lambda(x, parameter, value, element = NULL)
 
 \item{value}{Non-negative finite lambda value(s).}
 
-\item{element}{Optional one-based element index within the block.}
+\item{element}{Optional one-based element index within the block, in
+column-major order for matrices. The block length must be known: from
+resolved parameters on an \code{opal_obj}, or from a vector \code{par1}, \code{par2},
+or \code{lambda}.}
 }
 \value{
 The updated \code{opal_obj} or priors list.
