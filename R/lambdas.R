@@ -6,6 +6,13 @@
 #'   and `wf` (one or `n_fishery` values each), and scalar `rec`, `init_rec`,
 #'   `prior`, and `penalty` multipliers. `prior_mapped_only` is a logical flag
 #'   that removes prior contributions for elements fixed by the parameter map.
+#'
+#'   `opal_model()` cannot see the parameter map, so `prior_mapped_only` is
+#'   applied only when the objective is built from an `opal_obj` (through
+#'   [opal_build()], [opal_rtmb()], [opal_fit()] or [opal_mcmc()]). An
+#'   objective built directly with `RTMB::MakeADFun(cmb(opal_model, data), ...)`,
+#'   or rebuilt from a legacy `opal_fit`, still includes priors on mapped
+#'   elements, and `opal_model()` warns that the flag was not applied.
 #' @param data A model data list.
 #' @return A fully expanded named list of lambda values.
 #' @export
@@ -118,7 +125,34 @@ get_lambdas <- function(data) {
     if (is.null(lambda)) lambda <- rep(1, length(active))
     priors[[i]]$lambda <- rep(lambda, length.out = length(active)) * active
   }
+  # opal_model() warns when prior_mapped_only is set without this marker.
+  attr(priors, "opal_mapped_only_resolved") <- TRUE
   priors
+}
+
+# Data passed to MakeADFun by the staged workflow, with prior_mapped_only
+# applied. The model function cannot see the map, so this is resolved here.
+.opal_runtime_data <- function(data, map, parameters) {
+  if (isTRUE(get_lambdas(data)$prior_mapped_only) && length(data$priors)) {
+    data$priors <- .opal_resolve_prior_lambdas(data$priors, map, parameters)
+  }
+  data
+}
+
+# TRUE when prior_mapped_only would remove a prior contribution, that is when
+# a prior covers at least one element fixed by the map.
+.opal_prior_mapped_only_changes <- function(data, map, parameters) {
+  if (!isTRUE(get_lambdas(data)$prior_mapped_only) || !length(data$priors)) {
+    return(FALSE)
+  }
+  resolved <- .opal_resolve_prior_lambdas(data$priors, map, parameters)
+  any(vapply(seq_along(resolved), function(i) {
+    after <- resolved[[i]]$lambda
+    if (is.null(after)) return(FALSE)
+    before <- data$priors[[i]]$lambda
+    if (is.null(before)) before <- 1
+    any(rep(before, length.out = length(after)) != after)
+  }, logical(1)))
 }
 
 .opal_lambda_tempered <- function(data, include_prior = FALSE) {

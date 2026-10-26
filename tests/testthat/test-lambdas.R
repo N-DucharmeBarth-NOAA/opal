@@ -148,7 +148,52 @@ test_that("mapped-only priors are resolved before staged runtime construction", 
   data$lambdas <- list(prior_mapped_only = TRUE)
   mapped_only <- opal_build(opal_obj(data, parameters, map))
   expect_gt(opal_report(ordinary)$lp_prior, 0)
-  expect_equal(opal_report(mapped_only)$lp_prior, 0)
+  expect_no_warning(report <- opal_report(mapped_only))
+  expect_equal(report$lp_prior, 0)
+})
+
+test_that("direct MakeADFun warns that prior_mapped_only was not applied", {
+  data <- make_opal_fit_data()
+  parameters <- make_opal_fit_parameters(data)
+  map <- make_opal_fit_map(parameters)
+  data$priors <- list(log_cpue_q = list(type = "normal", par1 = 2,
+    par2 = 1, index = which(names(parameters) == "log_cpue_q")))
+  data$lambdas <- list(prior_mapped_only = TRUE)
+  expect_warning(obj <- RTMB::MakeADFun(cmb(opal_model, data), parameters,
+    map = map, silent = TRUE), "not resolved against the parameter map")
+  expect_gt(suppressWarnings(obj$report())$lp_prior, 0)
+})
+
+test_that("legacy conversion refuses unresolved mapped-only priors", {
+  data <- make_opal_fit_data()
+  parameters <- make_opal_fit_parameters(data)
+  map <- make_opal_fit_map(parameters)
+  data$priors <- list(log_cpue_q = list(type = "normal", par1 = 2,
+    par2 = 1, index = which(names(parameters) == "log_cpue_q")))
+  data$lambdas <- list(prior_mapped_only = TRUE)
+  obj <- suppressWarnings(RTMB::MakeADFun(cmb(opal_model, data), parameters,
+    map = map, silent = TRUE))
+  opt <- list(par = obj$par, objective = suppressWarnings(obj$fn(obj$par)),
+              convergence = 0L)
+  legacy <- suppressWarnings(opal_fit(data, obj, opt, check = FALSE))
+  expect_error(opal_from_fit(legacy), "legacy fits do not resolve")
+})
+
+test_that("MCMC joint sampling resolves mapped-only priors", {
+  x <- small_opal_object(random = TRUE)
+  data <- x$data
+  data$priors <- list(log_cpue_q = list(type = "normal", par1 = 2, par2 = 1,
+    index = which(names(x$parameters) == "log_cpue_q")))
+  data$lambdas <- list(prior_mapped_only = TRUE)
+  x <- opal_update(x, data = data)
+  captured <- NULL
+  capture <- function(obj, ...) {
+    captured <<- list(random = obj$env$random, lp_prior = obj$report()$lp_prior)
+    stop("captured")
+  }
+  expect_warning(opal_mcmc(x, sampler = capture), "captured")
+  expect_length(captured$random, 0L)
+  expect_equal(captured$lp_prior, 0)
 })
 
 test_that("lambda updates invalidate staged fits and warn about unidentified parameters", {

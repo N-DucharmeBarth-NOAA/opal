@@ -856,6 +856,8 @@ opal_fit_compatibility <- function(x) {
 #'
 #' Recreates the objective from stored data, fitted parameters, map, and random
 #' effects, then verifies the active parameter layout and saved objective.
+#' Legacy fits do not apply `lambdas$prior_mapped_only`; the model warns when
+#' it is set. Use [opal_obj()] for that option.
 #'
 #' @param x An `opal_fit` object.
 #' @param strict Stop on compatibility or parameter-order differences.

@@ -237,6 +237,13 @@ opal_model <- function(parameters, data) {
     lp_init_rec <- 0
   }
   if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
+    if (isTRUE(lam$prior_mapped_only) &&
+        !isTRUE(attr(priors, "opal_mapped_only_resolved"))) {
+      warning("`lambdas$prior_mapped_only` is TRUE, but the priors were not ",
+              "resolved against the parameter map, so priors on mapped elements ",
+              "still count. Build the model with opal_obj() and opal_build().",
+              call. = FALSE)
+    }
     lp_prior <- evaluate_priors(parameters, priors)
   } else {
     lp_prior <- 0

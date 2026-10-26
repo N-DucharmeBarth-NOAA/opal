@@ -111,10 +111,7 @@ opal_mcmc <- function(x, sampler = "snuts", init = "auto", check = TRUE,
   if (length(x$random) && !isTRUE(args$laplace)) {
     # Sampling the joint density requires a full parameter vector and bounds.
     parameters <- object$env$parList(par = object$env$last.par.best)
-    data <- x$data
-    if (isTRUE(get_lambdas(data)$prior_mapped_only) && length(data$priors)) {
-      data$priors <- .opal_resolve_prior_lambdas(data$priors, x$map, parameters)
-    }
+    data <- .opal_runtime_data(x$data, x$map, parameters)
     object <- do.call(RTMB::MakeADFun, c(list(func = cmb(opal_model, data),
       parameters = parameters, map = x$map, random = NULL, silent = TRUE), x$makeadfun_args))
     bounds <- list(lower = stats::setNames(rep(-Inf, length(object$par)), names(object$par)),

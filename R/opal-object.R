@@ -251,10 +251,7 @@ opal_obj <- function(data, parameters = NULL, map = NULL, random = character(),
   parameters <- .opal_fit_or(x$fit$parameters, x$parameters)
   get_lambdas(x$data)
   if (length(x$data$priors)) .opal_validate_priors(parameters, x$data$priors)
-  data <- x$data
-  if (isTRUE(get_lambdas(data)$prior_mapped_only) && length(data$priors)) {
-    data$priors <- .opal_resolve_prior_lambdas(data$priors, x$map, parameters)
-  }
+  data <- .opal_runtime_data(x$data, x$map, parameters)
   object <- do.call(RTMB::MakeADFun, c(list(
     func = cmb(opal_model, data), parameters = parameters, map = x$map,
     random = x$random, silent = silent), x$makeadfun_args))

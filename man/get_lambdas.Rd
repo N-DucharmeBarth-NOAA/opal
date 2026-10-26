@@ -21,4 +21,11 @@ The supported entries are \code{cpue} (one or \code{n_index} values), \code{lf}
 and \code{wf} (one or \code{n_fishery} values each), and scalar \code{rec}, \code{init_rec},
 \code{prior}, and \code{penalty} multipliers. \code{prior_mapped_only} is a logical flag
 that removes prior contributions for elements fixed by the parameter map.
+
+\code{opal_model()} cannot see the parameter map, so \code{prior_mapped_only} is
+applied only when the objective is built from an \code{opal_obj} (through
+\code{\link[=opal_build]{opal_build()}}, \code{\link[=opal_rtmb]{opal_rtmb()}}, \code{\link[=opal_fit]{opal_fit()}} or \code{\link[=opal_mcmc]{opal_mcmc()}}). An
+objective built directly with \code{RTMB::MakeADFun(cmb(opal_model, data), ...)},
+or rebuilt from a legacy \code{opal_fit}, still includes priors on mapped
+elements, and \code{opal_model()} warns that the flag was not applied.
 }
