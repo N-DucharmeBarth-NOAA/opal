@@ -70,13 +70,12 @@ The SS3 model of these data uses **age-based** selectivity: double normal
 curves (`age_selex` pattern 20) for the fisheries, mirrors (pattern 15) for
 fisheries 15 and 16, and a logistic curve (pattern 12) for the longline
 index. Fit C2 uses opal's **length-based** curves, seeded from SS3's
-selectivity projected onto length. Two things differ between the bases:
-
-1. The same curve family gives a different shape of selectivity-at-age. A
-   length-based curve reaches age through the spread of length at age, so it
-   cannot bend as sharply as an age-based one.
-2. Length-based selection also changes the predicted lengths *within* an
-   age: the larger fish of an age are more likely to be caught.
+selectivity projected onto length. The bases differ in the shape of
+selectivity-at-age: a length-based curve reaches age through the spread of
+length at age, so it cannot bend as sharply as an age-based one. In opal's
+current composition likelihood, however, both bases use the same length
+distribution within each age; larger fish of a given age are not
+preferentially selected when predicting length compositions.
 
 Held at SS3's selectivity, opal reproduces SS3's stock size; C2 does not:
 
