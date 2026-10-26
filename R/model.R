@@ -20,7 +20,7 @@ utils::globalVariables(c(
   "wf_minbin", "wf_maxbin", "wf_rebin_matrix", "n_wf", "n_wt",
   "wt_bin_start", "wt_bin_width",
   "log_wf_tau", "wf_addtocomp", "wf_n_int", "wf_n_int_fi",
-  "priors", "sel_fa_external"
+  "priors", "sel_fa_external", "sel_basis_f"
 ))
 
 #' The opal globals
@@ -38,6 +38,7 @@ opal_globals <- function() {
     get_maturity_at_age = get_maturity_at_age,
     resolve_bio_vector = resolve_bio_vector,
     get_selectivity = get_selectivity,
+    .validate_sel_basis = .validate_sel_basis,
     sel_logistic = sel_logistic,
     sel_double_normal = sel_double_normal,
     sel_double_richards = sel_double_richards,
@@ -175,8 +176,11 @@ opal_model <- function(parameters, data) {
       stop("'sel_fa_external' must be a matrix or 3-D array.")
     }
   } else {
-    # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated
-    sel_fya <- get_selectivity(data, par_sel, pla, len_mid)
+    # mu_a and sd_a from growth module so AD gradients propagate if growth is estimated.
+    # Age-based fisheries (sel_basis_f == 2) evaluate their curve on age_a instead.
+    sel_min_age <- if (exists("min_age", inherits = FALSE)) min_age else 1L
+    sel_age_a <- seq(sel_min_age, by = 1, length.out = n_age)
+    sel_fya <- get_selectivity(data, par_sel, pla, len_mid, age_a = sel_age_a)
   }
   
   # Main population loop ----

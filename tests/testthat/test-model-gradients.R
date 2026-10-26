@@ -86,3 +86,24 @@ for (sw in 2:3) {
     expect_nonzero_groups(ga, names(p), c("log_lf_tau", "log_L1", "log_k", "log_CV2"))
   })
 }
+test_that("AD gradient matches finite differences for age-based selectivity", {
+  inputs <- opaka_inputs()
+  data <- inputs$data
+  data$sel_basis_f <- rep(1L, data$n_fishery)
+  data$sel_basis_f[c(1, 3)] <- 2L
+  parameters <- inputs$parameters
+  parameters$par_sel[1, 1:2] <- c(-0.5, -0.7)
+  parameters$par_sel[3, ] <- c(-0.3, -1, 0, 0.5, -9, -2)
+  map <- inputs$map
+  map$rdev_y <- factor(rep(NA, length(parameters$rdev_y)))
+  map$init_rdev_a <- factor(rep(NA, length(parameters$init_rdev_a)))
+  obj <- opaka_obj(inputs, data = data, parameters = parameters, map = map)
+  p <- safe_perturb(obj$par)
+  ga <- as.vector(obj$gr(p))
+  expect_true(all(is.finite(ga)))
+  expect_gradient_match(ga, fd5(obj$fn, p), names(p))
+  expect_nonzero_groups(ga, names(p), "par_sel")
+  sel <- obj$report(p)$sel_fya
+  age_a <- data$min_age + seq_len(data$n_age) - 1
+  expect_equal(sel[1, 1, ], sel_logistic(age_a, obj$env$parList(p)$par_sel[1, ]))
+})
