@@ -18,7 +18,7 @@
          call. = FALSE)
   native <- is.data.frame(x) && !all(c("bin_lower", "bin_upper", "count") %in% names(x))
   for (j in seq_along(frames)) {
-    d <- frames[[j]]
+    d <- as.data.frame(frames[[j]])
     if (!all(meta %in% names(d)))
       stop("Composition input requires fishery, year, month, and ts.", call. = FALSE)
     if (all(c("bin_lower", "bin_upper", "count") %in% names(d))) {
