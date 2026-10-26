@@ -28,7 +28,10 @@ get_weight_like(
   n_wf,
   log_wf_tau,
   wf_addtocomp = 1e-08,
-  wf_n_int_fi = NULL
+  wf_n_int_fi = NULL,
+  wf_rebin_s = NULL,
+  wf_scheme = NULL,
+  wf_nbins_i = NULL
 )
 ```
 
@@ -114,10 +117,27 @@ get_weight_like(
 
   optional list of integer Dirichlet-multinomial sample sizes.
 
+- wf_rebin_s:
+
+  optional list of prediction-only rebinning matrices, each
+  `[n_bins, n_len]`, mapping population lengths directly to weight
+  schemes.
+
+- wf_scheme:
+
+  optional integer scheme indices in fishery-grouped flat order.
+
+- wf_nbins_i:
+
+  optional integer bin counts in fishery-grouped flat order.
+
 ## Value
 
 numeric vector of negative log-likelihood contributions, one per
-observation.
+observation. Reports `wf_pred_row`, a list of predictions in
+fishery-grouped row order, and `wf_pred`, per-fishery matrices for
+single schemes or row lists for mixed schemes. Without scheme inputs,
+legacy bin pooling is used.
 
 ## Details
 

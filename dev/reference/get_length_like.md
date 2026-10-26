@@ -25,7 +25,10 @@ get_length_like(
   n_lf,
   log_lf_tau,
   lf_addtocomp = 1e-08,
-  lf_n_int_fi = NULL
+  lf_n_int_fi = NULL,
+  lf_rebin_s = NULL,
+  lf_scheme = NULL,
+  lf_nbins_i = NULL
 )
 ```
 
@@ -113,10 +116,27 @@ get_length_like(
 
   optional list of integer Dirichlet-multinomial sample sizes.
 
+- lf_rebin_s:
+
+  optional list of prediction-only rebinning matrices, each
+  `[n_bins, n_len]`, mapping population lengths to an observation
+  scheme.
+
+- lf_scheme:
+
+  optional integer scheme indices in fishery-grouped flat order.
+
+- lf_nbins_i:
+
+  optional integer bin counts in fishery-grouped flat order.
+
 ## Value
 
 a `numeric` vector of negative log-likelihood contributions, one per
-observation.
+observation. Reports `lf_pred_row`, a list of predictions in
+fishery-grouped row order, and `lf_pred`, per-fishery matrices for
+single schemes or row lists for mixed schemes. Without scheme inputs,
+legacy bin pooling is used.
 
 ## Details
 

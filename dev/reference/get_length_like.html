@@ -70,7 +70,10 @@
 <span>  <span class="va">n_lf</span>,</span>
 <span>  <span class="va">log_lf_tau</span>,</span>
 <span>  lf_addtocomp <span class="op">=</span> <span class="fl">1e-08</span>,</span>
-<span>  lf_n_int_fi <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  lf_n_int_fi <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lf_rebin_s <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lf_scheme <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  lf_nbins_i <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -152,10 +155,26 @@ proportions before normalisation to robustify zero bins. Default <code>1e-08</co
 <dt id="arg-lf-n-int-fi">lf_n_int_fi<a class="anchor" aria-label="anchor" href="#arg-lf-n-int-fi"></a></dt>
 <dd><p>optional list of integer Dirichlet-multinomial sample sizes.</p></dd>
 
+
+<dt id="arg-lf-rebin-s">lf_rebin_s<a class="anchor" aria-label="anchor" href="#arg-lf-rebin-s"></a></dt>
+<dd><p>optional list of prediction-only rebinning matrices, each
+<code>[n_bins, n_len]</code>, mapping population lengths to an observation scheme.</p></dd>
+
+
+<dt id="arg-lf-scheme">lf_scheme<a class="anchor" aria-label="anchor" href="#arg-lf-scheme"></a></dt>
+<dd><p>optional integer scheme indices in fishery-grouped flat order.</p></dd>
+
+
+<dt id="arg-lf-nbins-i">lf_nbins_i<a class="anchor" aria-label="anchor" href="#arg-lf-nbins-i"></a></dt>
+<dd><p>optional integer bin counts in fishery-grouped flat order.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>a <code>numeric</code> vector of negative log-likelihood contributions, one per observation.</p>
+    <p>a <code>numeric</code> vector of negative log-likelihood contributions, one per observation.
+Reports <code>lf_pred_row</code>, a list of predictions in fishery-grouped row
+order, and <code>lf_pred</code>, per-fishery matrices for single schemes or row
+lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

@@ -77,7 +77,10 @@ Gradients propagate through PLA to growth parameters when estimated.</p>
 <span>  <span class="va">n_wf</span>,</span>
 <span>  <span class="va">log_wf_tau</span>,</span>
 <span>  wf_addtocomp <span class="op">=</span> <span class="fl">1e-08</span>,</span>
-<span>  wf_n_int_fi <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  wf_n_int_fi <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  wf_rebin_s <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  wf_scheme <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  wf_nbins_i <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -164,10 +167,26 @@ proportions before normalisation to robustify zero bins. Default <code>1e-08</co
 <dt id="arg-wf-n-int-fi">wf_n_int_fi<a class="anchor" aria-label="anchor" href="#arg-wf-n-int-fi"></a></dt>
 <dd><p>optional list of integer Dirichlet-multinomial sample sizes.</p></dd>
 
+
+<dt id="arg-wf-rebin-s">wf_rebin_s<a class="anchor" aria-label="anchor" href="#arg-wf-rebin-s"></a></dt>
+<dd><p>optional list of prediction-only rebinning matrices, each
+<code>[n_bins, n_len]</code>, mapping population lengths directly to weight schemes.</p></dd>
+
+
+<dt id="arg-wf-scheme">wf_scheme<a class="anchor" aria-label="anchor" href="#arg-wf-scheme"></a></dt>
+<dd><p>optional integer scheme indices in fishery-grouped flat order.</p></dd>
+
+
+<dt id="arg-wf-nbins-i">wf_nbins_i<a class="anchor" aria-label="anchor" href="#arg-wf-nbins-i"></a></dt>
+<dd><p>optional integer bin counts in fishery-grouped flat order.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>numeric vector of negative log-likelihood contributions, one per observation.</p>
+    <p>numeric vector of negative log-likelihood contributions, one per observation.
+Reports <code>wf_pred_row</code>, a list of predictions in fishery-grouped row
+order, and <code>wf_pred</code>, per-fishery matrices for single schemes or row
+lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

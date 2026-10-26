@@ -5,7 +5,12 @@ Plot observed and fitted compositions
 ## Usage
 
 ``` r
-plot_composition(x, type = c("lf", "wf"), fishery = NULL)
+plot_composition(
+  x,
+  type = c("lf", "wf"),
+  fishery = NULL,
+  scale = c("auto", "proportion", "density")
+)
 ```
 
 ## Arguments
@@ -22,11 +27,17 @@ plot_composition(x, type = c("lf", "wf"), fishery = NULL)
 
   Optional fishery indices to include.
 
+- scale:
+
+  Display proportions or probability densities. `"auto"` uses density
+  when bin widths differ or a fishery-year has different bin schemes.
+
 ## Value
 
-A ggplot with observation proportions and fitted probabilities. Removed
-and zero-size rows are excluded. Bin numbers refer to the prepared data,
-including any tail aggregation.
+A ggplot with observed points and a fitted line at actual bin midpoints.
+Horizontal observed and fitted segments show the bin extents. Removed
+and zero-size rows are excluded. Density divides both observed
+proportions and fitted probabilities by bin width.
 
 ## See also
 

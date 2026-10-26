@@ -1,9 +1,9 @@
 # Prepare weight composition data for model input
 
-Transforms a pivoted wide-format weight-frequency data frame into
-model-ready arrays and vectors that get_weight_like() expects. Also
-precomputes the rebinning matrix for converting predicted length
-compositions to weight compositions.
+Transforms wide or long weight-frequency observations into model-ready
+arrays and vectors that get_weight_like() expects. Also precomputes the
+rebinning matrix for converting predicted length compositions to weight
+compositions.
 
 ## Usage
 
@@ -17,7 +17,10 @@ prep_wf_data(
   wf_maxbin = NULL,
   wf_var_adjust = NULL,
   wf_cap = NULL,
-  wf_addtocomp = 1e-08
+  wf_addtocomp = 1e-08,
+  wf_upper_edge = NULL,
+  wf_tails = c("accumulate", "truncate"),
+  wf_edge_tol = 1e-08 * data$wt_bin_width
 )
 ```
 
@@ -31,8 +34,12 @@ prep_wf_data(
 
 - wf_wide:
 
-  data.frame in wide format: columns fishery, year, month, ts plus one
-  numeric column per weight bin (named by bin value).
+  A wide data frame, list of wide data frames, or long data frame. Wide
+  frames contain `fishery`, `year`, `month`, `ts`, and numeric count
+  columns named by bin lower edges. Long input contains the same
+  metadata plus `bin_lower`, `bin_upper`, and `count`. Long observations
+  are grouped by `fishery`, `ts`, and optionally `source`; calendar
+  metadata is taken from the first row.
 
 - wf_keep_fisheries:
 
@@ -71,6 +78,25 @@ prep_wf_data(
   proportions after tail compression and before renormalisation. This
   robustifies zero bins. Default `1e-08`.
 
+- wf_upper_edge:
+
+  Final upper edge, or one per element of a list of wide data frames.
+  Defaults to the largest observed bin lower edge plus
+  `data$wt_bin_width`. Ignored for long input, which supplies both
+  boundaries explicitly.
+
+- wf_tails:
+
+  Prediction tail handling: `"accumulate"` (default) extends custom
+  scheme matrix edges to include the converted length range;
+  `"truncate"` excludes outside prediction mass. Native schemes retain
+  the legacy finite intermediate weight range; see Details.
+
+- wf_edge_tol:
+
+  Absolute tolerance for deduplicating scheme edges; defaults to
+  `1e-8 * data$wt_bin_width`.
+
 ## Value
 
 data list with the following weight composition elements appended:
@@ -99,7 +125,9 @@ data list with the following weight composition elements appended:
 
 - `wf_obs_in`:
 
-  Matrix of observed proportions (n_wf x n_wt).
+  Observed proportions in retained input order: a matrix with one row
+  per observation when bin counts agree, otherwise a list of row
+  vectors. Native input has `n_wt` columns.
 
 - `wf_obs_flat`:
 
@@ -162,6 +190,29 @@ data list with the following weight composition elements appended:
   variance-adjustment divisors applied to `wf_n`.
 
 ## Details
+
+Input may be one wide data frame, a list of wide frames, or long data.
+`wf_scheme_edges` records observed edges, including native min/max
+pooling; `wf_rebin_s` contains observed-bin by model-length-bin
+prediction matrices. Length edges are converted using `lw_a * L^lw_b`.
+Native schemes preserve the legacy two-stage weight mapping and, by
+default, tail pooling. Even under `"accumulate"`, native predictions
+outside the full native weight grid remain excluded, preserving the old
+numerical mapping rather than accumulating the entire converted length
+range. With `wf_tails = "truncate"`, their prediction matrices select
+native min/max rows without accumulating excluded prediction mass.
+Prediction tail policy does not change observed native min/max count
+pooling. Native and custom weight operators remain distinct even when
+their displayed edges coincide, because their prediction tail handling
+can differ. Within each mapping type, schemes deduplicate observed edges
+within `wf_edge_tol`. Registry edges are never expanded for prediction
+tails. `wf_scheme` and `wf_nbins_i` follow fishery-grouped flat order;
+`wf_row_fi` indexes retained input order. Heterogeneous observations use
+lists where a rectangular matrix is not possible. The logical
+`wf_native_i`, in flat observation order, identifies observations
+originally on the full native grid before min/max pooling. Observed bins
+narrower than overlapping converted-length source bins trigger a
+warning, as do weight schemes entirely outside the source range.
 
 Dirichlet-multinomial counts use half-up rounding of effective sample
 sizes and largest-remainder allocation. Observations that round to zero

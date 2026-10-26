@@ -1,9 +1,9 @@
 # Prepare length composition data for model input
 
-Transforms a pivoted wide-format length-frequency data frame (one row
-per fishery x timestep, bins as columns) into the set of model-ready
-arrays and vectors that `opal_model` and `get_length_like` expect. The
-function validates bin alignment against the length structure in `data`,
+Transforms wide or long length-frequency observations (one composition
+per fishery x timestep and optional source) into model-ready arrays and
+vectors that `opal_model` and `get_length_like` expect. The function
+validates bin alignment against the length structure in `data`,
 optionally filters to a subset of fisheries, and appends every derived
 object directly to `data`.
 
@@ -19,7 +19,11 @@ prep_lf_data(
   lf_maxbin = NULL,
   lf_var_adjust = NULL,
   lf_cap = NULL,
-  lf_addtocomp = 1e-08
+  lf_addtocomp = 1e-08,
+  lf_upper_edge = NULL,
+  lf_tails = c("accumulate", "truncate"),
+  lf_edge_tol = 1e-08 * data$len_bin_width,
+  lf_allow_misaligned = FALSE
 )
 ```
 
@@ -32,11 +36,12 @@ prep_lf_data(
 
 - lf_wide:
 
-  a `data.frame` in wide format: columns `fishery`, `year`, `month`,
-  `ts` plus one numeric column per length bin (named by the bin
-  lower-bound value). Typically produced by
-  [`tidyr::pivot_wider()`](https://tidyr.tidyverse.org/reference/pivot_wider.html)
-  on the long-format `wcpo_bet_lf` object.
+  A wide data frame, list of wide data frames, or long data frame. Wide
+  frames contain `fishery`, `year`, `month`, `ts`, and numeric count
+  columns named by bin lower edges. Long input contains the same
+  metadata plus `bin_lower`, `bin_upper`, and `count`. Long observations
+  are grouped by `fishery`, `ts`, and optionally `source`; calendar
+  metadata is taken from the first row.
 
 - lf_keep_fisheries:
 
@@ -81,6 +86,29 @@ prep_lf_data(
   proportions after tail compression and before renormalisation. This
   robustifies zero bins. Default `1e-08`.
 
+- lf_upper_edge:
+
+  Final upper edge, or one per element of a list of wide data frames.
+  Defaults to the model length-grid upper edge,
+  `data$len_bin_start + data$n_len * data$len_bin_width`. Ignored for
+  long input, which supplies both boundaries explicitly.
+
+- lf_tails:
+
+  Prediction tail handling: `"accumulate"` (default) extends the outer
+  matrix edges, or `"truncate"` excludes outside mass.
+
+- lf_edge_tol:
+
+  Absolute edge tolerance; defaults to `1e-8 * data$len_bin_width`.
+  Nearby model edges snap silently.
+
+- lf_allow_misaligned:
+
+  Allow observed edges to split model bins, with a diagnostic warning.
+  The default rejects all edges not matching a model boundary, including
+  edges beyond the model range.
+
 ## Value
 
 The input `data` list with the following elements appended or updated:
@@ -96,7 +124,9 @@ The input `data` list with the following elements appended or updated:
 
 - `lf_obs_in`:
 
-  Matrix of observed proportions, `[n_obs x n_len]`.
+  Observed proportions in retained input order: a matrix with one row
+  per observation when bin counts agree, otherwise a list of row
+  vectors. Native input has `n_len` columns.
 
 - `lf_n`:
 
@@ -177,18 +207,39 @@ The input `data` list with the following elements appended or updated:
 
 - `lf_nbins`:
 
-  Number of bins used in each observation (scalar, derived from the
-  first fishery's min/max bin setting).
+  Legacy scalar bin count for the first observation in fishery-grouped
+  flat order, or zero for empty input. Use `lf_nbins_i` for
+  heterogeneous observations.
 
 ## Details
 
-Rows in `lf_wide` with a total sample size of zero are silently removed
-before any other processing. Bin alignment between the data frame
-columns and the model's length structure is checked with
-[`stopifnot()`](https://rdrr.io/r/base/stopifnot.html).
-Dirichlet-multinomial counts use half-up rounding of effective sample
-sizes and largest-remainder allocation. Observations that round to zero
-are skipped by the Dirichlet-multinomial likelihood.
+Inputs may also be lists of wide data frames or long data frames.
+Observed counts remain on their original grid. `lf_scheme_edges` is a
+deduplicated list of observed edges, including native min/max pooling.
+`lf_rebin_s` contains prediction matrices (observed bins by model length
+bins). `lf_scheme` and `lf_nbins_i` follow fishery-grouped flat
+observation order, while `lf_row_fi` indexes retained input order. The
+logical `lf_native_i`, in flat observation order, identifies
+observations originally on the full native grid before min/max pooling.
+Heterogeneous observations use lists instead of rectangular matrices.
+
+Splitting a model length bin at an observed boundary assumes uniform
+prediction mass within that model bin. This approximation is not needed
+when observed boundaries match model boundaries, so nonmatching
+boundaries are rejected by default. Setting `lf_allow_misaligned = TRUE`
+opts into the approximation with a diagnostic warning. Check bin
+labeling and units before changing the grid. Diagnostics suggest a finer
+width dividing the observed offsets; edges beyond the model range also
+require extending that range. Changing the grid changes the mean and SD
+of `len_mid`, which scale length-based selectivity parameters: existing
+`par_sel` values are not directly transferable.
+
+Observations with a total sample size of zero are silently removed after
+validating counts and edges. Bin alignment against the model's length
+structure is checked with the edge tolerance. Dirichlet-multinomial
+counts use half-up rounding of effective sample sizes and
+largest-remainder allocation. Observations that round to zero are
+skipped by the Dirichlet-multinomial likelihood.
 
 ## See also
 
