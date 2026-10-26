@@ -182,7 +182,7 @@ runtime.
 - [`get_sd_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_sd_at_age.md)
   : Compute SD of length-at-age from CV1 and CV2
 - [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_selectivity.md)
-  : Compute selectivity-at-age from length-based selectivity curves
+  : Compute selectivity-at-age from parametric selectivity curves
 - [`get_unfished_init()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_unfished_init.md)
   : Compute unfished equilibrium quantities from natural mortality only
 - [`get_weight_at_length()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_weight_at_length.md)
@@ -226,6 +226,19 @@ Example inputs and numerical baseline datasets.
 
 - [`opaka_truth`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_truth.md)
   : Opakapaka SS3 OM/EM truth and EM output (extracted)
+
+- [`io_yft_data`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_data.md)
+  : Indian Ocean yellowfin tuna (simulated) assessment data
+
+- [`io_yft_map`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_map.md)
+  : Indian Ocean yellowfin tuna (simulated) parameter map
+
+- [`io_yft_parameters`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_parameters.md)
+  : Indian Ocean yellowfin tuna (simulated) starting parameters
+
+- [`io_yft_reference`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_reference.md)
+  : Indian Ocean yellowfin tuna (simulated) SS3 and truth reference
+  values
 
 - [`opal_baseline`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_baseline.md)
   :

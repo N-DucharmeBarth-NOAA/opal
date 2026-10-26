@@ -29,6 +29,8 @@ and converted to opal data conventions."><meta property="og:image" content="http
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
+    <li><a class="dropdown-item" href="../articles/io-yft-ss3-comparison.html">Comparing opal with Stock Synthesis: Indian Ocean yellowfin</a></li>
+    <li><a class="dropdown-item" href="../articles/io-yft-age-selectivity.html">Length- or age-based selectivity: Indian Ocean yellowfin</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -174,7 +176,10 @@ instantaneous rate (0.135) across all ages.</p></dd>
 
 </dl><p><strong>Selectivity:</strong></p><dl><dt>sel_type_f</dt>
 <dd><p>Selectivity function type by fishery (3 elements). Integer
-codes: 1 = logistic, 2 = double-normal, 3 = double Richards.</p></dd>
+codes: 1 = logistic, 2 = double-normal, 3 = double Richards. Curves
+are evaluated on length; the optional <code>sel_basis_f</code> data element
+(1 = length, 2 = age) evaluates them on age instead (see
+<code><a href="get_selectivity.html">get_selectivity()</a></code>).</p></dd>
 
 
 </dl><p><strong>Priors:</strong></p><dl><dt>priors</dt>

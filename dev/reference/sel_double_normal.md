@@ -14,7 +14,11 @@ sel_double_normal(x, par)
 
 - x:
 
-  Numeric vector of length-bin midpoints.
+  Numeric vector of length-bin midpoints, or of ages for an age-based
+  fishery (`sel_basis_f = 2`); see
+  [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_selectivity.md).
+  The values must be equally spaced, because `x[2] - x[1]` is used as
+  the bin width.
 
 - par:
 

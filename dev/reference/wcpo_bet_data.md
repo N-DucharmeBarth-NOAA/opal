@@ -165,7 +165,10 @@ biological parameters and priors derived from assessment modeling.
 
   Selectivity function type by fishery (15 elements). Integer codes
   representing selectivity curve shapes: 1 = logistic, 2 =
-  double-normal, 3 = double Richards.
+  double-normal, 3 = double Richards. Curves are evaluated on length;
+  the optional `sel_basis_f` data element (1 = length, 2 = age)
+  evaluates them on age instead (see
+  [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_selectivity.md)).
 
 **Priors:**
 

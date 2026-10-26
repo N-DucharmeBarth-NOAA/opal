@@ -5,6 +5,8 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/PULL_REQUEST_TEMPLATE.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/assessment-tools.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/index.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-age-selectivity.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-ss3-comparison.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/opakapaka-fit-review.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/projections.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/articles/quickstart.html</loc></url>
@@ -45,6 +47,10 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_weight_at_length.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_weight_like.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/index.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_data.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_map.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_parameters.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_reference.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_data.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_lf.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opaka_parameters.html</loc></url>

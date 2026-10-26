@@ -27,6 +27,8 @@ to define natural scales for position and width parameters."><meta property="og:
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
+    <li><a class="dropdown-item" href="../articles/io-yft-ss3-comparison.html">Comparing opal with Stock Synthesis: Indian Ocean yellowfin</a></li>
+    <li><a class="dropdown-item" href="../articles/io-yft-age-selectivity.html">Length- or age-based selectivity: Indian Ocean yellowfin</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -61,7 +63,10 @@ to define natural scales for position and width parameters.</p>
 
 
 <dl><dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>Numeric vector of length-bin midpoints.</p></dd>
+<dd><p>Numeric vector of length-bin midpoints, or of ages for an
+age-based fishery (<code>sel_basis_f = 2</code>); see <code><a href="get_selectivity.html">get_selectivity()</a></code>. The
+values must be equally spaced, because <code>x[2] - x[1]</code> is used as the bin
+width.</p></dd>
 
 
 <dt id="arg-par">par<a class="anchor" aria-label="anchor" href="#arg-par"></a></dt>
