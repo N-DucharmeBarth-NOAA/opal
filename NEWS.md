@@ -1,9 +1,19 @@
 # opal 0.1.1
 
-- Add likelihood-component lambdas by index and fleet, optional per-element
-  prior lambdas, and mapped-only prior contributions for SS3 comparisons.
-  Reports retain raw components and expose weighted terms; OSA, MCMC, and
-  identifiability checks flag lambda-related caveats.
+- 2026/10/26 ([#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150)):
+  SS3-style likelihood lambdas. The optional `data$lambdas` list weights CPUE
+  by index, length and weight compositions by fleet, and the recruitment,
+  initial recruitment, prior and penalty terms; 0 switches a term off, and
+  omitted values default to 1, so existing objectives are unchanged. Reports
+  keep the raw `lp_*` terms and add weighted `lp_*_w` terms and `lambdas`. A
+  prior can carry its own `lambda`, per block or per element (see
+  `opal_set_prior_lambda()`), and `lambdas$prior_mapped_only` drops priors on
+  elements fixed by the map when the model is built from an `opal_obj`.
+  `opal_update()` gains a `lambdas` argument. `opal_osa()`, `opal_mcmc()` and
+  fit checks warn about tempered objectives and about parameters a zero
+  lambda leaves without data. With CPUE switched on, non-integer or
+  non-positive CPUE indices are now an error; previously those rows were
+  silently left out of the likelihood.
 - 2026/10/26 ([#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147)):
   Length and weight composition observations can use row-specific, uneven bin
   schemes, supplied in long format or as a list of wide tables. Only model
