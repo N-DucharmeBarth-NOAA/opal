@@ -222,6 +222,31 @@ test_that("lambda updates invalidate staged fits and warn about unidentified par
     "map the corresponding parameters off")
 })
 
+test_that("fit checks warn once and record parameters a zero lambda leaves unidentified", {
+  collect <- function(expr) {
+    messages <- character()
+    value <- withCallingHandlers(expr, warning = function(w) {
+      messages <<- c(messages, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+    list(value = value, n = sum(grepl("unidentified", messages)))
+  }
+  x <- opal_build(small_opal_object())
+  map <- x$map
+  map$log_cpue_q <- NULL
+  x <- opal_update(x, map = map, bounds = NULL, lambdas = list(cpue = 0))
+  fitted <- collect(opal_fit(x))
+  expect_identical(fitted$n, 1L)
+  expect_identical(fitted$value$validation$fit$metrics$lambda_identifiability,
+                   "CPUE index 1")
+  checked <- collect(opal_check(fitted$value))
+  expect_identical(checked$n, 1L)
+  clean <- collect(opal_check(opal_fit(small_opal_object(), check = FALSE)))
+  expect_identical(clean$n, 0L)
+  expect_identical(clean$value$validation$fit$metrics$lambda_identifiability,
+                   character())
+})
+
 test_that("prior lambda helper updates an opal object and penalty lambdas warn", {
   data <- make_opal_fit_data()
   parameters <- make_opal_fit_parameters(data)

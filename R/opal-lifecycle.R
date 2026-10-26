@@ -184,6 +184,10 @@ opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
 #' sample sizes within the thresholds, known sampler diagnostics, no
 #' divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
 #' prevent a passing MCMC check, even if imported parameter draws are usable.
+#' Fit checks also warn when a zero likelihood lambda leaves an estimated
+#' parameter unidentified (for example `log_cpue_q` for an index with
+#' `lambdas$cpue = 0`), and list those cases in `metrics$lambda_identifiability`;
+#' this does not fail the check.
 #' The record is stored in `x$validation[[scope]]`, including metrics, settings,
 #' and the identity of the checked result. These checks do not establish
 #' scientific adequacy of a model or projection scenario.
@@ -199,7 +203,6 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
                        penalty_tolerance = 1e-10, catch_tolerance = 1e-6) {
   scope <- match.arg(scope)
   validate_opal_obj(x, results = scope == "mcmc")
-  .opal_warn_lambda_identifiability(x$data, x$parameters, x$map)
   .opal_obj_flag(stop_on_failure, "stop_on_failure")
   thresholds <- c(gradient_tolerance, max_rhat, min_ess)
   if (length(thresholds) != 3L || any(!is.finite(thresholds)) || any(thresholds <= 0)) {
@@ -207,6 +210,11 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
   }
   if (scope == "fit" && is.null(x$fit$opt)) stop("No fitted optimum to check.", call. = FALSE)
   if (scope == "mcmc" && is.null(x$mcmc)) stop("No posterior to check.", call. = FALSE)
+  # Identifiability depends on the configuration, not the posterior, so it is
+  # checked (and warned about) only by fit checks.
+  lambda_issues <- if (scope == "fit") {
+    .opal_warn_lambda_identifiability(x$data, x$parameters, x$map)
+  } else character()
   result <- tryCatch({
     if (scope == "fit") {
       object <- opal_rtmb(x, fresh = TRUE)
@@ -227,6 +235,7 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
         max_gradient = max(abs(gradient)), positive_hessian = positive,
         inside_bounds = all(par >= x$bounds$lower & par <= x$bounds$upper),
         valid_population = all(is.finite(report$number_ysa)) && all(report$number_ysa >= 0))
+      metrics$lambda_identifiability <- lambda_issues
       metrics$biology <- .opal_diagnose_report(x$data, x$fit$parameters, report,
         penalty_tolerance, catch_tolerance)
       passes <- identical(as.integer(metrics$convergence), 0L) &&
