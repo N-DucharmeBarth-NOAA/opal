@@ -107,3 +107,18 @@ test_that("AD gradient matches finite differences for age-based selectivity", {
   age_a <- data$min_age + seq_len(data$n_age) - 1
   expect_equal(sel[1, 1, ], sel_logistic(age_a, obj$env$parList(p)$par_sel[1, ]))
 })
+
+test_that("AD gradient matches finite differences with non-unit lambdas", {
+  inputs <- opaka_inputs()
+  data <- inputs$data
+  # Mixed per-fleet weights, including a switched-off fleet, plus scalar terms.
+  data$lambdas <- list(cpue = 0.5, lf = c(2, 1, 0), rec = 1.5,
+                       init_rec = 0.5, prior = 2)
+  map <- free_in_map(inputs$map, inputs$parameters, gradient_free)
+  obj <- opaka_obj(inputs, data = data, map = map)
+  p <- safe_perturb(obj$par)
+  ga <- as.vector(obj$gr(p))
+  expect_true(all(is.finite(ga)))
+  expect_gradient_match(ga, fd5(obj$fn, p), names(p))
+  expect_nonzero_groups(ga, names(p), c("log_cpue_tau", "log_L1", "par_sel"))
+})

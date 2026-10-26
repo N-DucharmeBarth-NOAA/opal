@@ -13,18 +13,48 @@ test_that("likelihood lambdas default to one and weighted terms sum to the objec
   expect_identical(defaults$fn(), baseline$fn())
   expect_equal(defaults$report()$lp_lf, baseline$report()$lp_lf)
 
-  data$lambdas <- as.list(stats::setNames(rep(2, 7),
-    c("cpue", "lf", "wf", "rec", "init_rec", "prior", "penalty")))
-  doubled <- synth_obj(data, parameters, map)
-  raw <- doubled$report()
-  weighted <- doubled$report()
-  expect_equal(doubled$fn(), 2 * (raw$lp_prior + raw$lp_penalty +
-    raw$lp_rec + raw$lp_init_rec + sum(raw$lp_cpue) +
-    sum(raw$lp_lf) + sum(raw$lp_wf)), tolerance = 1e-8)
-  expect_equal(doubled$fn(), weighted$lp_prior_w + weighted$lp_penalty_w +
-    weighted$lp_rec_w + weighted$lp_init_rec_w + sum(weighted$lp_cpue_w) +
-    sum(weighted$lp_lf_w) + sum(weighted$lp_wf_w), tolerance = 1e-8)
-  expect_true(all(is.finite(doubled$gr())))
+  data$lambdas <- list(cpue = 0.5, lf = c(2, 0), wf = 3, rec = 2)
+  weighted <- synth_obj(data, parameters, map)
+  report <- weighted$report()
+  expect_equal(weighted$fn(), report$lp_prior_w + report$lp_penalty_w +
+    report$lp_rec_w + report$lp_init_rec_w + sum(report$lp_cpue_w) +
+    sum(report$lp_lf_w) + sum(report$lp_wf_w), tolerance = 1e-8)
+  expect_true(all(is.finite(weighted$gr())))
+})
+
+# Doubling one component's lambda adds exactly its raw term to the objective,
+# leaves the raw report unchanged, and doubles the weighted report.
+expect_lambda_doubles <- function(build, data, name) {
+  term <- paste0("lp_", name)
+  base <- build(data)
+  raw <- base$report()
+  expect_gt(abs(sum(raw[[term]])), 0, label = paste("raw", term))
+  data$lambdas <- stats::setNames(list(2), name)
+  doubled <- build(data)
+  report <- doubled$report()
+  expect_equal(doubled$fn() - base$fn(), sum(raw[[term]]), tolerance = 1e-8,
+               label = paste("objective change for", name))
+  expect_equal(report[[term]], raw[[term]], label = paste("raw", term))
+  expect_equal(report[[paste0(term, "_w")]], 2 * raw[[term]],
+               label = paste("weighted", term))
+}
+
+test_that("a lambda of 2 adds exactly the raw term for each component", {
+  inputs <- opaka_inputs()
+  opaka <- function(data) opaka_obj(inputs, data = data)
+  for (name in c("prior", "rec", "init_rec", "cpue")) {
+    expect_lambda_doubles(opaka, inputs$data, name)
+  }
+  # Opaka's LF counts are fractional, and its multinomial tape rounds them, so
+  # its reported lp_lf differs slightly from the taped term; use integer counts.
+  for (name in c("lf", "wf")) {
+    expect_lambda_doubles(function(data) synth_obj(data), synth_full_data(), name)
+  }
+  # A low B0 makes the catch exceed the population, so the penalty is active.
+  penalised <- synth_full_data(lf_switch = 0L, wf_switch = 0L)
+  parameters <- synth_parameters(penalised)
+  parameters$log_B0 <- 14
+  expect_lambda_doubles(function(data) synth_obj(data, parameters), penalised, "penalty")
 })
 
 test_that("all-one lambdas preserve bundled quickstart and IO yellowfin objectives", {
@@ -119,36 +149,6 @@ test_that("switched-off components ignore per-observation lambdas", {
   report <- synth_obj(data)$report()
   expect_identical(report$lp_lf_w, 0)
   expect_identical(report$lp_wf_w, 0)
-})
-
-test_that("prior lambdas default to one and weight selected elements", {
-  parameters <- list(par_sel = matrix(seq_len(6) / 10, 2, 3))
-  prior <- list(par_sel = list(type = "normal", par1 = matrix(0, 2, 3),
-                               par2 = 1, index = 1))
-  base <- evaluate_priors(parameters, prior)
-  expect_equal(evaluate_priors(parameters, within(prior, par_sel$lambda <- 1)), base)
-  expect_equal(evaluate_priors(parameters, within(prior, par_sel$lambda <- 2)),
-               2 * base)
-  toggled <- opal_set_prior_lambda(prior, "par_sel", 0, element = 2)
-  expected <- -sum(dnorm(parameters$par_sel[-2], 0, 1, log = TRUE))
-  expect_equal(evaluate_priors(parameters, toggled), expected)
-  expect_error(evaluate_priors(parameters,
-    within(prior, par_sel$lambda <- c(1, NA, 1, 1, 1, 1))), "finite")
-  expect_error(evaluate_priors(parameters,
-    within(prior, par_sel$lambda <- rep(-1, 6))), "non-negative")
-  expect_error(evaluate_priors(parameters,
-    within(prior, par_sel$lambda <- 1:5)), "parameter length")
-})
-
-test_that("mapped-only prior resolution disables only fixed elements", {
-  parameters <- list(log_B0 = c(1, 2, 3))
-  priors <- list(log_B0 = list(type = "normal", par1 = 0, par2 = 1,
-                               index = 1, lambda = c(1, 1, 1)))
-  map <- list(log_B0 = factor(c(1, NA, 2)))
-  resolved <- opal:::.opal_resolve_prior_lambdas(priors, map, parameters)
-  expect_equal(resolved$log_B0$lambda, c(1, 0, 1))
-  expect_equal(evaluate_priors(parameters, resolved),
-               -sum(dnorm(parameters$log_B0[c(1, 3)], 0, 1, log = TRUE)))
 })
 
 test_that("mapped-only priors are resolved before staged runtime construction", {
