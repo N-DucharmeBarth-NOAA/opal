@@ -313,16 +313,23 @@ opal_model <- function(parameters, data) {
   } else {
     lp_wf <- 0
   }
-  cpue_index <- if (exists("cpue_data", inherits = FALSE) &&
-      "index" %in% names(cpue_data)) cpue_data$index else
-        if (exists("cpue_data", inherits = FALSE)) rep(1L, nrow(cpue_data)) else integer()
-  lf_obs_fishery <- if (exists("lf_fishery_f", inherits = FALSE) &&
-      exists("lf_n_f", inherits = FALSE)) rep(lf_fishery_f, lf_n_f) else integer()
-  wf_obs_fishery <- if (exists("wf_fishery_f", inherits = FALSE) &&
-      exists("wf_n_f", inherits = FALSE)) rep(wf_fishery_f, wf_n_f) else integer()
-  lp_cpue_w <- .opal_weight_likelihood(lp_cpue, lam$cpue[cpue_index])
-  lp_lf_w <- .opal_weight_likelihood(lp_lf, lam$lf[lf_obs_fishery])
-  lp_wf_w <- .opal_weight_likelihood(lp_wf, lam$wf[wf_obs_fishery])
+  # Per-observation lambdas follow the order of each likelihood vector: CPUE
+  # rows, then composition rows grouped by fishery. Switched-off components
+  # are a scalar 0 and need no weighting.
+  lp_cpue_w <- lp_cpue
+  if (cpue_switch > 0) {
+    cpue_index <- if ("index" %in% names(cpue_data)) cpue_data$index else
+      rep(1L, nrow(cpue_data))
+    lp_cpue_w <- .opal_weight_likelihood(lp_cpue, lam$cpue[cpue_index])
+  }
+  lp_lf_w <- lp_lf
+  if (lf_switch > 0 && n_lf > 0) {
+    lp_lf_w <- .opal_weight_likelihood(lp_lf, lam$lf[rep(lf_fishery_f, lf_n_f)])
+  }
+  lp_wf_w <- lp_wf
+  if (wf_switch > 0 && n_wf > 0) {
+    lp_wf_w <- .opal_weight_likelihood(lp_wf, lam$wf[rep(wf_fishery_f, wf_n_f)])
+  }
   lp_rec_w <- .opal_weight_likelihood(lp_rec, lam$rec)
   lp_init_rec_w <- .opal_weight_likelihood(lp_init_rec, lam$init_rec)
   lp_prior_w <- .opal_weight_likelihood(lp_prior, lam$prior)

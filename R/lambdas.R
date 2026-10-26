@@ -92,7 +92,9 @@ get_lambdas <- function(data) {
   } else if (length(lambda) == length(lp)) {
     weights <- lambda
   } else {
-    return(lp)
+    # A mismatch means the observation order changed; never drop a lambda silently.
+    stop("Lambda length (", length(lambda), ") does not match the number of ",
+         "likelihood terms (", length(lp), ").", call. = FALSE)
   }
   if (all(weights == 1)) return(lp)
   if (all(weights == 0)) return(rep(0, length(lp)))

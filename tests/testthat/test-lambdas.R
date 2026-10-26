@@ -92,6 +92,22 @@ test_that("lambda values are validated and scalar values expand", {
                c(1, 1))
 })
 
+test_that("lambda weighting refuses mismatched lengths", {
+  weight <- opal:::.opal_weight_likelihood
+  expect_equal(weight(c(1, 2, 3), c(0, 1, 2)), c(0, 2, 6))
+  expect_equal(weight(c(1, 2), 1), c(1, 2))
+  expect_error(weight(c(1, 2, 3), c(0, 1)), "does not match")
+  expect_error(weight(c(1, 2, 3), numeric()), "does not match")
+})
+
+test_that("switched-off components ignore per-observation lambdas", {
+  data <- synth_full_data(wf_switch = 0L, lf_switch = 0L)
+  data$lambdas <- list(lf = c(0, 1), wf = c(1, 0))
+  report <- synth_obj(data)$report()
+  expect_identical(report$lp_lf_w, 0)
+  expect_identical(report$lp_wf_w, 0)
+})
+
 test_that("prior lambdas default to one and weight selected elements", {
   parameters <- list(par_sel = matrix(seq_len(6) / 10, 2, 3))
   prior <- list(par_sel = list(type = "normal", par1 = matrix(0, 2, 3),
