@@ -78,6 +78,19 @@ test_that("CPUE lambdas map by index and default missing indices to one", {
   expect_equal(get_lambdas(synth_data())$cpue, 1)
 })
 
+test_that("CPUE index checks match get_cpue_like() and only apply when CPUE is on", {
+  data <- synth_data()
+  data$cpue_data$index <- c(1L, 2L)
+  data$n_index <- 1L
+  # A stale n_index is extended, as get_cpue_like() does.
+  expect_equal(get_lambdas(data)$cpue, c(1, 1))
+  expect_true(is.finite(synth_obj(data)$fn()))
+  data$cpue_data$index <- c(1, 1.5)
+  expect_error(get_lambdas(data), "positive integers")
+  data$cpue_switch <- 0L
+  expect_equal(get_lambdas(data)$cpue, 1)
+})
+
 test_that("lambda values are validated and scalar values expand", {
   data <- synth_full_data()
   expect_equal(get_lambdas(data)$lf, c(1, 1))

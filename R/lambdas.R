@@ -18,12 +18,17 @@
 #' @export
 get_lambdas <- function(data) {
   cpue_data <- data$cpue_data
-  n_index <- data$n_index
-  if (is.null(n_index)) {
-    n_index <- if (is.data.frame(cpue_data) && nrow(cpue_data)) {
-      if ("index" %in% names(cpue_data)) max(cpue_data$index, na.rm = TRUE) else 1L
-    } else 1L
+  index <- if (is.data.frame(cpue_data) && "index" %in% names(cpue_data)) {
+    cpue_data$index
+  } else numeric()
+  if (isTRUE(data$cpue_switch > 0) && length(index) &&
+      (any(!is.finite(index)) || any(index != floor(index)) || any(index < 1L))) {
+    # get_cpue_like() would silently drop these rows from the likelihood.
+    stop("CPUE indices must be positive integers.", call. = FALSE)
   }
+  # As in get_cpue_like(), an index above `n_index` extends the index count.
+  valid <- is.finite(index) & index == floor(index) & index >= 1L
+  n_index <- max(c(data$n_index, index[valid], 1L))
   n_fishery <- data$n_fishery
   if (is.null(n_fishery)) {
     fisheries <- unlist(data[c("removal_switch_f", "lf_fishery_f", "wf_fishery_f",
@@ -37,12 +42,6 @@ get_lambdas <- function(data) {
         size < 1L || size != floor(size)) {
       stop("`", name, "` must be a positive integer.", call. = FALSE)
     }
-  }
-  if (!is.null(cpue_data) && is.data.frame(cpue_data) &&
-      "index" %in% names(cpue_data) &&
-      (any(!is.finite(cpue_data$index)) || any(cpue_data$index != floor(cpue_data$index)) ||
-       any(cpue_data$index < 1L | cpue_data$index > n_index))) {
-    stop("CPUE indices must be integers between 1 and `n_index`.", call. = FALSE)
   }
   lambdas <- data$lambdas
   if (is.null(lambdas)) lambdas <- list()
