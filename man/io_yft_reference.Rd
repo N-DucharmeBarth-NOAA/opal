@@ -19,8 +19,16 @@ size; \code{sel_age} (\code{fishery}, \code{age}, \code{sel}); \code{sel_pattern
 \code{sel_par} (\code{fleet}, \code{pattern}, \code{par}, \code{value}, \code{phase}, \code{lo}, \code{hi},
 \code{label}), SS3's estimated age selectivity parameters P1--P6, with
 \code{phase > 0} for the ones SS3 estimated (see
-\code{\link[=convert_ss3_selex_to_rtmb]{convert_ss3_selex_to_rtmb()}} with \code{basis = "age"}); and \code{length_at_age}
-(\code{age}, \code{length}, start of the time step).}
+\code{\link[=convert_ss3_selex_to_rtmb]{convert_ss3_selex_to_rtmb()}} with \code{basis = "age"}); \code{length_at_age}
+(\code{age}, \code{length}, start of the time step); \code{sizefreq}, SS3's
+generalised size compositions for the index (fleet 17, method 1):
+\code{bins} (lower edges, cm; the last is a plus bin), \code{units}, \code{lambda}
+(0.51) and \code{data} (\code{ts}, \code{fishery}, \code{nsamp}, \code{bin}, \code{obs}, \code{expected}),
+observed and SS3-expected proportions with each observation assigned
+to its quarterly index fishery; and \code{lambdas} (\code{like_comp},
+\code{component}, \code{fleet}, \code{phase}, \code{value}, \code{sizefreq_method}), the
+control file's lambda changes (parameter priors 0, size frequency
+0.51). See the cross-model comparison article.}
 \item{truth}{The operating model (SPM, 159 cells on a 5 degree grid),
 summed over the whole domain: \code{b0}, unfished equilibrium spawning
 biomass (t), and \code{trajectory} (\code{ts}, \code{ssb}, \code{static_dep}).}
@@ -28,7 +36,7 @@ biomass (t), and \code{trajectory} (\code{ts}, \code{ssb}, \code{static_dep}).}
 single-k Schnute curve used before opal supported age-specific K.}
 \item{history}{B0 and terminal depletion of three opal fits: Schnute
 growth with SS3's selectivity, SS3 growth with SS3's selectivity, and
-SS3 growth with opal's estimated selectivity (C2).}
+SS3 growth with opal's estimated selectivity (LEN, formerly C2).}
 \item{source}{Provenance of the export: repository, script, commit,
 date and package versions.}
 }
@@ -38,7 +46,7 @@ SS3 Report.sso and data.ss_new expected values; operating model
 outputs from
 \url{https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop}.
 Exported by \verb{code/rtmb/scripts/04-export-io-yft-for-opal.r} in
-\url{https://github.com/N-DucharmeBarth/wcpfc-bet-single-region}.
+\url{https://github.com/N-DucharmeBarth/opal-sandbox}.
 }
 \usage{
 io_yft_reference

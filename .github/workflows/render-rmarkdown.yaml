@@ -51,8 +51,9 @@ jobs:
           # Render package documentation only. Development assessments can
           # run substantial fits and must be invoked deliberately.
           # Identify changed Rmd and qmd files
-          # New branches have no previous commit; compare their changes to dev.
-          if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+          # New branches have no previous commit, and a force-push's previous
+          # commit may no longer exist; compare their changes to dev.
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
             BEFORE_SHA=$(git merge-base origin/dev "$GITHUB_SHA")
           fi
           git diff --name-only -z "$BEFORE_SHA" "$GITHUB_SHA" -- 'README.Rmd' 'vignettes/*.qmd' > "$RUNNER_TEMP/opal-changed-documents"

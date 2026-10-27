@@ -1,5 +1,5 @@
 ---
-title: "Comparing opal with Stock Synthesis: Indian Ocean yellowfin"
+title: "Indian Ocean yellowfin tuna: Cross model comparison with simulated truth and Stock Synthesis estimation model"
 format:
   html:
     code-fold: true
@@ -9,7 +9,7 @@ execute:
   warning: false
   message: false
 vignette: >
-  %\VignetteIndexEntry{Comparing opal with Stock Synthesis: Indian Ocean yellowfin}
+  %\VignetteIndexEntry{Indian Ocean yellowfin tuna: Cross model comparison with simulated truth and Stock Synthesis estimation model}
   %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
@@ -35,39 +35,83 @@ d     <- io_yft_data
 n_ts  <- d$n_year
 truth <- ref$truth$trajectory
 ss3   <- ref$ss3$trajectory
+sf    <- ref$ss3$sizefreq
 
 # Model outputs precomputed by data-raw/generate-io-yft-vignette-cache.R, so
 # the article renders without rebuilding the RTMB model
 cache <- readRDS(system.file("extdata", "io_yft_vignette_cache.rds", package = "opal"))
-c2    <- cache$models$C2
+opal_m <- cache$models$age_sf
 
 fmt <- function(x, digits = 2) formatC(x, format = "f", digits = digits, big.mark = ",")
 options(knitr.kable.NA = "—")
 fleet_name <- function(f) sprintf("%d: %s", as.integer(f), ref$fleet_names[as.integer(f)])
 last <- function(df, v) df[[v]][df$ts == max(df$ts)]
 
-series_col <- c("opal C2" = "#1E8449", "SS3" = "grey20", "Simulated truth" = "#D4AC0D")
-scale_series <- list(scale_colour_manual(values = series_col, name = NULL))
+series_col <- c("Simulated truth" = "#D4AC0D", "SS3" = "grey20", "opal AGE-SF" = "#C2185B")
+scale_series <- list(scale_colour_manual(values = series_col, name = NULL, drop = TRUE))
 theme_set(theme_bw(base_size = 11) +
             theme(legend.position = "bottom", panel.grid.minor = element_blank()))
 ```
 
-This vignette fits opal to a simulated Indian Ocean yellowfin tuna data set
-and compares the result with the Stock Synthesis 3 (SS3) model built for the
-same data, and with the simulated truth those data came from. Everything it
-needs is bundled with the package: the opal inputs, a stored fit, and
-summary tables from SS3 and from the operating model.
+This article compares three views of one simulated Indian Ocean yellowfin
+tuna stock: the **simulated truth** from the spatial operating model that
+generated the data, the **Stock Synthesis 3 (SS3)** assessment of those data
+developed by the IATTC analyst team, and **opal AGE-SF**, an opal model of
+the same data configured to match that SS3 model as closely as opal can
+while every estimated parameter stays identified.
+How far opal AGE-SF is from SS3 measures how well opal reproduces an
+established assessment; how far either is from the truth measures how well
+a single-region assessment recovers a spatially structured stock. The
+differences between opal and SS3 that remain after matching their settings
+are described in @tbl-differences and @tbl-estimation.
 
-# Background
+Both the simulated data and the SS3 model come from the Spatial Stock
+Assessment Simulation Experiment, an international, blinded experiment in
+which analyst teams assessed data simulated from spatially explicit
+operating models without knowing the truth
+([Goethel et al. 2024](https://doi.org/10.1111/faf.12819)). The IATTC
+team's SS3 model was one of the assessments submitted to it.
 
-## The data and the SS3 model
+```{r}
+#| label: data-size
+n_catch <- sum(d$catch_obs_ysf > 0)
+n_cpue  <- nrow(d$cpue_data)
+n_lf    <- length(d$lf_year)
+n_sf    <- length(unique(sf$data$ts))
+n_comp_cells <- n_lf * d$n_len + n_sf * length(sf$bins)
+```
+
+The data are not a toy example. The model runs `r n_ts` quarterly time
+steps (1952–2015) for 16 extraction fisheries. It is conditioned on
+`r fmt(n_catch, 0)` non-zero fishery-quarter catches and fits
+`r n_cpue` longline CPUE observations in four quarterly series,
+`r fmt(n_lf, 0)` length compositions over `r d$n_len` bins of 5 cm and
+`r n_sf` index size compositions over `r length(sf$bins)` bins: about
+`r fmt(n_comp_cells, 0)` composition cells in all. opal AGE-SF estimates
+`r opal_m$fit$n_par` parameters, most of them the `r n_ts` quarterly
+recruitment deviations. This is comparable to the operational IOTC
+yellowfin assessment the operating model was conditioned on
+([Fu et al. 2018](https://iotc.org/sites/default/files/documents/2018/10/IOTC-2018-WPTT20-33.pdf)),
+which is also a quarterly, multi-fleet, age-structured Stock Synthesis
+model fitted to catch, CPUE and length compositions over a similar period.
+
+Everything needed is bundled with the package: the data, SS3's and the
+operating model's results, and the stored opal fit.
+
+# The three models
+
+## The simulated truth
 
 The data are replicate 4 of the Indian Ocean yellowfin operating model (OM)
 of the
 [Spatial Stock Assessment Simulation Experiment](https://aaronmberger-nwfsc.github.io/Spatial-Assessment-Modeling-Workshop/articles/OM_description_YFT.html).
 The OM was built in the Spatial Population Model software (SPM; Dunn,
 Rasmussen and Mormede 2015) and conditioned on Indian Ocean Tuna Commission
-(IOTC) fishery data (Dunn, Hoyle and Datta 2020). It is spatially explicit:
+(IOTC) fishery data
+([Dunn, Hoyle and Datta 2020](https://iotc.org/sites/default/files/documents/2020/10/IOTC-2020-WPTT22AS-19_Rev1.pdf)).
+The experiment and its results across all participating assessments are
+described by [Goethel et al. (2024)](https://doi.org/10.1111/faf.12819). The
+OM is spatially explicit:
 
 * **Space and time.** The population lives on a 5° × 5° grid of 159 ocean
   cells, in quarterly time steps from 1952 to 2015 (256 quarters), with ages
@@ -86,320 +130,402 @@ Rasmussen and Mormede 2015) and conditioned on Indian Ocean Tuna Commission
 * **Data.** Catch (without error), longline CPUE, length frequencies and tag
   recaptures are simulated cell by cell.
 
-For the experiment, the simulated data were aggregated to the four regions of
-the IOTC yellowfin assessment and to a single area. Because the data are
+For the experiment, the simulated data were aggregated to the four regions
+of the IOTC yellowfin assessment and to a single area. Because the data are
 simulated, the true spawning biomass and unfished spawning biomass (B0) are
-known. The truth files report them by assessment region; here they are summed
-over the whole domain. Spawning biomass is mature biomass at the start of the
-quarter, before fishing, in tonnes, the same definition as SS3's.
+known. The truth files report them by assessment region; here they are
+summed over the whole domain. Spawning biomass is mature biomass at the
+start of the quarter, before fishing, in tonnes, the same definition as
+SS3's and opal's.
+
+## The SS3 model
 
 The SS3 model (SS3 v`r ref$ss3$version`) is the IATTC analyst team's
-single-region estimation model for that experiment, built by Mark N.
+single-region estimation model for the experiment, built by Mark N.
 Maunder, Haikun Xu and Carolina Minte-Vera. It treats each quarter as a
-model "year", so it runs `r n_ts` time steps. opal takes the same time steps
-(`n_year = ` `r n_ts`, `n_season = 1`) and SS3's ages 1–`r d$n_age`, so the
-opal age index equals the SS3 age. Although the SS3 model is
-single-region, it keeps the four-region structure in its fleets: its 16
-extraction fisheries are gear × region combinations from the four-region
-data (for example, `fishing_ll_1` to `fishing_ll_4` are longline in regions
-1–4). SS3's mean length-at-age is the OM's own (Fu et al. 2018, after Fonteneau and Gascuel 2008), so growth is
-known exactly.
+model "year", so it runs `r n_ts` time steps. It keeps the four-region
+structure in its fleets: its 16 extraction fisheries are gear × region
+combinations (for example, `fishing_ll_1` to `fishing_ll_4` are longline in
+regions 1–4). Its mean length-at-age is the OM's own
+([Fu et al. 2018](https://iotc.org/sites/default/files/documents/2018/10/IOTC-2018-WPTT20-33.pdf),
+after Fonteneau and Gascuel 2008), so growth is known exactly. Selectivity is
+age-based, and the longline survey has both a CPUE index and generalised
+size compositions.
+
+## opal AGE-SF
+
+The bundled opal inputs were produced from SS3's data, control, parameter
+and report files by an SS3-to-opal converter
+([opal-sandbox](`r ref$source$repository`), `code/rtmb`). They
+reconcile exactly with SS3 for catch, the index, the length compositions
+and biology (M, weight, maturity and spawning potential at age). opal takes
+the same time steps (`n_year = ` `r n_ts`, `n_season = 1`) and SS3's ages
+1–`r d$n_age`, so the opal age index equals the SS3 age.
 
 ```{r}
 #| label: dimensions
 knitr::kable(data.frame(
   quantity = c("Time steps (quarters)", "Ages", "Extraction fisheries",
                "Index series (longline CPUE, one per quarter)",
-               "Fisheries with length compositions", "Length bins"),
-  value = c(n_ts, d$n_age, 16, 4, length(d$lf_fishery_f), d$n_len)),
+               "Fisheries with length compositions", "Length bins",
+               "Index size-composition bins"),
+  value = c(n_ts, d$n_age, 16, 4, length(d$lf_fishery_f), d$n_len, length(sf$bins))),
   col.names = c("Quantity", "Value"))
 ```
 
-Catch is in numbers. The longline CPUE index is split into four quarterly
-series, each with its own catchability (opal fisheries 17–20). Length
-compositions enter as multinomials, with SS3's variance adjustments
-(`mult_by_lencomp_N`) carried across.
+The bundled inputs (`io_yft_data`, `io_yft_parameters`, `io_yft_map`) use
+opal's default length-based selectivity. AGE-SF changes them in two ways,
+shown in [Building AGE-SF](#building-age-sf): it uses SS3's age-based
+selectivity curves, and it fits SS3's index size compositions with SS3's
+weight. Other differences between SS3 and opal stay, as structural choices
+rather than settings to match.
 
-## Converting SS3 to opal
+## How the three differ
 
-The opal inputs were produced by an SS3-to-opal converter
-([wcpfc-bet-single-region](`r ref$source$repository`), `code/rtmb`). It reads
-the SS3 data, control, parameter and report files, and its output reconciles
-exactly with SS3 for catch, the index, the length compositions and biology
-(M, weight, maturity and spawning potential at age). Fitted at SS3's own
-parameter values, opal tracks SS3's spawning biomass to within 10%, and that
-gap comes entirely from when catch is removed within the quarter (see
-[Model differences](#model-differences)).
+The population and fishing processes:
 
-The first conversion used opal's single-k Schnute growth curve. SS3 uses its
-`GrowthModel 3`, where K changes with age, and the Schnute curve cannot
-follow it: it was 5–16 cm too long at ages 4–8. Through the length
-compositions, that shifted the fitted stock size well away from SS3's. opal
-now implements SS3's age-specific K growth as an option to `get_growth()`
-(`log_k_mult` and `k_mult_ages`), and the bundled inputs use it with SS3's
-growth parameters.
+| | Simulated truth (SPM) | SS3 | opal AGE-SF |
+|---|---|---|---|
+| Space | 159 cells, movement between them | One region; fleets keep the four regions | As SS3 |
+| Recruitment | Beverton–Holt (h = 0.8) on total SSB; spatially apportioned | Beverton–Holt; deviations sum to zero; age-0 recruits at *t* | SS3's steepness and σ_R; unconstrained deviations; age-1 recruits at *t* + 1 |
+| Growth | The OM's | `GrowthModel 3`, age-specific K (the OM's growth) | The same, through `get_growth()` with `log_k_mult` |
+| Fishing | Seven gear fisheries; exploitation rates by cell | 16 fisheries; hybrid F (Baranov), F and M act together through the quarter | 16 fisheries; the quarter's catch is removed at the start, then M acts |
+
+: Structural differences between the simulated truth, SS3 and opal AGE-SF in the population and fishing processes. {#tbl-differences}
+
+The estimation choices, which only the two assessments have:
+
+| | SS3 | opal AGE-SF |
+|---|---|---|
+| Selectivity | Age-based double normal (fisheries), logistic (survey); mirrors | The same curve families and mirrors, on age (`sel_basis_f = 2`) |
+| Selectivity bounds | Per parameter (index inflection 8–18 quarters) | ±20 on opal's age scale for every `par_sel` |
+| Timing of observations | Index and compositions at mid-quarter | Everything at the start of the quarter |
+| Index | One series, one analytic catchability | Four quarterly series, four estimated catchabilities |
+| Index size compositions | 14 bins from 30 cm, λ = 0.51 | The same bins and λ |
+| Priors | None (λ = 0 on parameter priors) | opal's defaults: N(0, 2) on `par_sel`, weak normal priors on log B0 and log q |
+| Equilibrium plus group | Iterated to 3 × the number of ages | Closed-form geometric tail (≈5e-5 difference in SPR0) |
+
+: Differences in estimation choices between SS3 and opal AGE-SF. {#tbl-estimation}
+
+Catch timing is the largest difference. At SS3's own parameter values, it
+alone moves opal's spawning biomass by up to 10%, because under heavy catch
+opal ends each quarter with more fish than the Baranov equation leaves. The
+priors are kept on purpose (see [How we got here](#how-we-got-here)).
+
+# Building AGE-SF
+
+## Growth
+
+The bundled inputs already use SS3's age-specific K growth. (The first
+conversion used opal's single-k Schnute curve, which was 5–16 cm too long
+at ages 4–8 and moved the fitted stock size well away from SS3's; opal now
+implements `GrowthModel 3` through `get_growth()`.)
 
 ```{r}
 #| label: growth
-#| fig-height: 4
-#| fig-cap: "Mean length-at-age at the start of the quarter: SS3, opal with SS3's age-specific K (as used here), and the single-k Schnute curve used in the first conversion."
 p <- io_yft_parameters
 laa_opal <- get_growth(d$n_age, d$A1, d$A2, exp(p$log_L1), exp(p$log_L2), p$log_k,
                        min_age = d$min_age, log_k_mult = p$log_k_mult,
                        k_mult_ages = d$k_mult_ages,
                        plus_group_adjust = isTRUE(d$growth_plus_group_adjust))
-growth_lab <- c("SS3", "opal, SS3 age-specific K", "opal, Schnute (first conversion)")
-growth <- rbind(
-  data.frame(ref$ss3$length_at_age, series = growth_lab[1]),
-  data.frame(age = d$age_a, length = laa_opal, series = growth_lab[2]),
-  data.frame(ref$schnute_length_at_age, series = growth_lab[3]))
-growth$series <- factor(growth$series, growth_lab)
-# SS3 is drawn wide underneath so the identical opal curve stays visible.
-ggplot(growth, aes(age, length, colour = series, linetype = series, linewidth = series)) +
-  geom_line() +
-  scale_colour_manual(values = setNames(c("grey70", "#1E8449", "#C0392B"), growth_lab),
-                      name = NULL) +
-  scale_linetype_manual(values = setNames(c("solid", "dashed", "dotted"), growth_lab),
-                        name = NULL) +
-  scale_linewidth_manual(values = setNames(c(2.2, 0.8, 0.8), growth_lab), name = NULL) +
-  labs(x = "Age (quarters)", y = "Mean length (cm)")
 ```
 
-With growth matched (largest difference
-`r fmt(max(abs(laa_opal - ref$ss3$length_at_age$length)), 4)` cm), the
-remaining differences between the two models are structural. The table
-below follows the fits from the first conversion to the one in this
-vignette. The first two hold selectivity at SS3's estimates; C2 estimates
-opal's own.
+opal's mean length-at-age differs from SS3's by at most
+`r fmt(max(abs(laa_opal - ref$ss3$length_at_age$length)), 4)` cm.
+
+## Age-based selectivity
+
+SS3 uses double normal curves (`age_selex` pattern 20) for the fisheries,
+mirrors (pattern 15) for fisheries 15 and 16, and a logistic curve
+(pattern 12) for the longline index. `sel_basis_f = 2` evaluates opal's
+curves directly on age, and `convert_ss3_selex_to_rtmb(basis = "age")`
+converts SS3's estimated parameters, held in `io_yft_reference`, to opal's
+`par_sel` scale:
 
 ```{r}
-#| label: history
-h <- ref$history
-knitr::kable(data.frame(h$model, B0_ratio = h$B0 / ref$ss3$ssb0, h$terminal_depletion),
-             digits = c(0, 2, 3),
-             col.names = c("opal fit", "B0 / SS3 B0", "Terminal SSB / B0"))
+#| label: age-selectivity
+sp  <- ref$ss3$sel_par
+pat <- ref$ss3$sel_pattern
+
+# SS3 fleet whose parameters each opal fishery uses: fisheries 1-16 are SS3
+# fleets 1-16 (15 and 16 mirror 14 through pattern 15), and the four
+# quarterly index series 17-20 are SS3's survey, fleet 17.
+ss3_fleet <- c(seq_len(16), rep(17L, 4))
+mirror <- pat$pattern[ss3_fleet] == 15L
+ss3_fleet[mirror] <- pat$special[ss3_fleet[mirror]]
+ss3_pars <- t(vapply(ss3_fleet, function(fl) {
+  v <- sp$value[sp$fleet == fl]
+  c(v, rep(0, 6 - length(v)))
+}, numeric(6)))
+
+d_age <- io_yft_data
+d_age$sel_basis_f <- rep(2L, d_age$n_fishery)
+p_age <- io_yft_parameters
+p_age$par_sel <- convert_ss3_selex_to_rtmb(ss3_pars, d_age$sel_type_f,
+                                           sel_lengths = d_age$len_mid,
+                                           basis = "age", sel_ages = d_age$age_a)
 ```
 
-SS3's terminal SSB / B0 is `r fmt(last(ss3, "static_dep"), 3)`.
-
-## Model differences
-
-opal and SS3 are both age-structured, but they make different structural
-choices. The ones that matter for this model are:
-
-| | SS3 (this model) | opal |
-|---|---|---|
-| Growth | `GrowthModel 3`, age-specific K | The same, through `get_growth()` with `log_k_mult` |
-| Timing of biology within the quarter | Catch, length compositions and the index use mid-season length-at-age and abundance | Everything is evaluated at the start of the quarter |
-| Catch | Hybrid F (`F_Method = 3`): F and M act together through the quarter (Baranov) | The quarter's catch is removed at the start, then M acts |
-| Selectivity | Age-based: double normal (fisheries), logistic (survey) | Length-based double normal and logistic, mapped to age through the probability of length at age |
-| Spawner-recruit timing | Age-0 recruits at *t* from SSB at *t* | Age-1 recruits at *t* + 1 from SSB at *t* + 1 (SS3's age 0 is not carried) |
-| Index | One series, one analytic catchability | Four quarterly series, four estimated catchabilities |
-| Survey size-frequency data | Generalised size compositions (λ = 0.51) | Not included |
-| Equilibrium plus group | Iterated to 3 × the number of ages | Closed-form geometric tail (≈5e-5 difference in SPR0) |
-| Priors | None on ln R0 or selectivity | N(0, 2) on selectivity parameters; weak normal priors on log B0 and log q |
-
-Catch timing is the largest. At SS3's own parameter values it alone moves
-opal's spawning biomass by up to 10%, because under heavy catch opal ends
-each quarter with more fish than the Baranov equation leaves.
-
-# The assessment
-
-The bundled inputs start at SS3's solution: SS3's unfished spawning biomass,
-recruitment deviations and recruitment bias ramp. Growth, natural mortality,
-steepness and σ_R are fixed at SS3's values. Selectivity curves start from
-opal curves fitted to SS3's selectivity, projected onto length.
+SS3's final selectivity is −999 for every double normal, meaning "no
+adjustment": the descending limb is the plain normal curve.
+`convert_ss3_selex_to_rtmb()` turns −999 into −9, which pulls the whole limb
+down. Setting the final selectivity to the unadjusted curve's own value at
+the oldest age reproduces "no adjustment" exactly at the starting values
+(the final selectivity is fixed, so this is an approximation once the peak
+or descending width move):
 
 ```{r}
-#| label: build
-assessment <- opal_obj(
-  data = io_yft_data,
-  parameters = io_yft_parameters,
-  map = io_yft_map,
-  control = list(eval.max = 10000, iter.max = 10000),
-  metadata = list(stock = "Indian Ocean yellowfin (simulated)", model = "C2")
-)
+#| label: no-adjustment
+# Unadjusted descending limb at the oldest age, as in sel_double_normal()
+dn_unadjusted_end <- function(par, x) {
+  n <- length(x)
+  bin_width <- x[2] - x[1]
+  peak <- mean(x) + par[1] * sd(x)
+  peak2 <- peak + bin_width + (0.99 * x[n] - peak - bin_width) / (1 + exp(-par[2]))
+  exp(-(x[n] - peak2)^2 / (exp(par[4]) * sd(x)^2))
+}
+for (f in which(d_age$sel_type_f == 2L & ss3_pars[, 6] <= -999)) {
+  p_age$par_sel[f, 6] <- max(qlogis(dn_unadjusted_end(p_age$par_sel[f, ], d_age$age_a)), -20)
+}
 ```
 
-## Selectivity
-
-The map estimates the opal equivalents of the selectivity parameters SS3
-estimated.
+The map estimates every selectivity parameter SS3 estimated (phase > 0),
+with SS3's mirrors. On the age scale, SS3's plateau and ascending-width
+parameters for several fisheries are near −10 to −15, outside opal's default
+`par_sel` bounds of ±7, so the bounds are widened to SS3's ±20:
 
 ```{r}
-#| label: sel-map
-sel_free <- matrix(!is.na(io_yft_map$par_sel), nrow = nrow(io_yft_parameters$par_sel))
-sel_level <- matrix(as.integer(io_yft_map$par_sel), nrow = nrow(io_yft_parameters$par_sel))
-own <- vapply(seq_len(nrow(sel_level)), function(f) {
-  lv <- sel_level[f, !is.na(sel_level[f, ])]
-  if (!length(lv)) return("none (fixed)")
-  src <- which(apply(sel_level, 1, function(r) any(r %in% lv)))[1]
-  if (src != f) sprintf("mirrors fishery %d", src) else
-    paste(which(sel_free[f, ]), collapse = ", ")
-}, character(1))
-family <- c("logistic", "double normal", "double Richards")[d$sel_type_f]
-knitr::kable(data.frame(fishery = fleet_name(seq_along(own)), family = family,
-                        estimated = own),
-             col.names = c("Fishery", "opal curve", "Estimated parameter columns"))
+#| label: map-bounds
+est <- matrix(NA_integer_, d_age$n_fishery, 6)
+k <- 0L
+for (fl in unique(ss3_fleet)) {
+  cols <- sp$par[sp$fleet == fl & sp$phase > 0]
+  ids <- k + seq_along(cols)
+  k <- k + length(cols)
+  for (f in which(ss3_fleet == fl)) est[f, cols] <- ids
+}
+map_age <- io_yft_map
+map_age$par_sel <- factor(as.vector(est))
+
+age_bounds <- function(parameters, map, lim = 20) {
+  active <- unlist(lapply(names(parameters), function(n)
+    rep(n, if (is.null(map[[n]])) length(parameters[[n]]) else nlevels(droplevels(map[[n]])))))
+  b <- get_bounds(list(par = setNames(numeric(length(active)), active)), parameters)
+  b$lower[b$parameter == "par_sel"] <- -lim
+  b$upper[b$parameter == "par_sel"] <- lim
+  b
+}
 ```
 
-For the double normal, columns 1–4 are the peak, plateau, ascending width
-and descending width, the same order as SS3's pattern 20 parameters P1–P4.
-Columns 5 and 6 (initial and final selectivity) were fixed in SS3 and stay
-at their starting values here.
+At SS3's parameters, opal's age-based curves reproduce SS3's
+selectivity-at-age:
 
-Nine parameters SS3 estimated are fixed in this configuration. Estimated
-freely, they settle at the mean of opal's N(0, 2) selectivity prior: the
-length data do not inform them. They are the plateau and descending width of
-the asymptotic fisheries 4, 5, 7 and 13, where selectivity reaches 1 before
-the largest lengths observed, and fishery 9's descending width. Fixing them
-at their starting values gives the same fit (likelihood components agree to
-the third decimal), without the result depending on the prior.
+```{r}
+#| label: sel-check
+sel0 <- get_selectivity(d_age, p_age$par_sel, pla = NULL, len_mid = d_age$len_mid,
+                        age_a = d_age$age_a)[, 1, ]
+s0 <- data.frame(fishery = rep(seq_len(nrow(sel0)), times = ncol(sel0)),
+                 age = rep(d_age$age_a, each = nrow(sel0)), sel = as.vector(sel0))
+cmp <- merge(s0, ref$ss3$sel_age, by = c("fishery", "age"), suffixes = c("_opal", "_ss3"))
+```
 
-## Fit
+The largest difference over all fisheries and ages is
+`r fmt(max(abs(cmp$sel_opal - cmp$sel_ss3)), 4)`; `r nlevels(map_age$par_sel)`
+selectivity parameters are estimated.
 
-Fitting takes a few minutes, so the vignette uses the stored result. The
-fit below was made from exactly these inputs.
+## Index size compositions
+
+SS3's generalised size compositions for the survey use `r length(sf$bins)`
+bins with lower edges `r paste(sf$bins, collapse = ", ")` cm, in numbers,
+with `r length(unique(sf$data$ts))` observations and sample sizes of
+`r min(sf$data$nsamp)`–`r max(sf$data$nsamp)`. SS3 puts the population
+below 30 cm into the first bin, and the last bin is open-ended; opal's
+default `"accumulate"` tails do both. `prep_lf_data()` takes the 5 cm
+length compositions and the size compositions as two wide tables, each on
+its own bins; only opal's predictions are rebinned. In opal the index is
+four quarterly series, so each observation goes to the index fishery of its
+quarter; the four share one selectivity curve, as SS3's survey does. SS3's
+lambda of 0.51 on the size compositions becomes an `lf` lambda on those four
+fisheries.
+
+```{r}
+#| label: sizefreq-data
+# The bundled 5 cm compositions as a wide table of counts. lf_n carries
+# SS3's variance adjustment (n / lf_var_adjust), so it is undone here for
+# prep_lf_data() to reapply.
+lf_wide <- function(d) {
+  n_raw <- d$lf_n * d$lf_var_adjust[d$lf_fishery]
+  counts <- d$lf_obs_in * n_raw
+  colnames(counts) <- as.character(d$len_lower)
+  data.frame(fishery = d$lf_fishery, year = d$lf_year, month = 1L, ts = d$lf_year,
+             counts, check.names = FALSE)
+}
+# SS3's size compositions as a wide table of counts (proportion x sample size)
+sizefreq_wide <- function(ref) {
+  sf <- ref$ss3$sizefreq$data
+  wide <- stats::reshape(sf[, c("ts", "fishery", "nsamp", "bin", "obs")],
+                         idvar = c("ts", "fishery", "nsamp"), timevar = "bin",
+                         direction = "wide")
+  counts <- as.matrix(wide[, paste0("obs.", ref$ss3$sizefreq$bins)]) * wide$nsamp
+  colnames(counts) <- as.character(ref$ss3$sizefreq$bins)
+  data.frame(fishery = wide$fishery, year = wide$ts, month = 1L, ts = wide$ts,
+             counts, check.names = FALSE, row.names = NULL)
+}
+
+# Both bin schemes end at the top of the model's length grid
+top <- d_age$len_bin_start + d_age$n_len * d_age$len_bin_width
+d_sf <- prep_lf_data(
+  d_age,
+  list(lf_wide(d_age), sizefreq_wide(ref)),
+  lf_switch     = d_age$lf_switch,
+  lf_minbin     = d_age$lf_minbin,
+  lf_maxbin     = d_age$lf_maxbin,
+  lf_var_adjust = d_age$lf_var_adjust,
+  lf_addtocomp  = d_age$lf_addtocomp,
+  lf_upper_edge = c(top, top))
+
+index_f <- sort(unique(d_age$cpue_data$fishery))
+lf_lambda <- rep(1, d_sf$n_fishery)
+lf_lambda[index_f] <- sf$lambda
+d_sf$lambdas <- list(lf = lf_lambda)
+```
+
+```{r}
+#| label: inputs-check
+#| include: false
+# The inputs built above must be the stored fit's: compare a numeric
+# fingerprint with the one data-raw/generate-io-yft-vignette-cache.R stored.
+fingerprint <- function(data, parameters, map) {
+  rapply(list(data = data, parameters = parameters, map = lapply(map, as.integer)),
+         function(v) c(length(v), sum(as.numeric(v), na.rm = TRUE)),
+         classes = c("numeric", "integer", "logical"), how = "unlist")
+}
+stopifnot(isTRUE(all.equal(fingerprint(d_sf, p_age, map_age), cache$inputs_fingerprint)))
+```
+
+At SS3's solution (before fitting), opal's predicted size compositions are
+close to SS3's expected values:
+
+```{r}
+#| label: sizefreq-check
+ss3_like <- function(o, e, n) { i <- o > 0; -sum(n[i] * o[i] * log(e[i] / o[i])) }
+sf_pred <- function(nm) merge(sf$data, cache$models[[nm]]$sizefreq,
+                              by = c("fishery", "ts", "bin"))
+chk <- sf_pred("age_sf_start")
+knitr::kable(data.frame(
+  quantity = c("Largest difference in a proportion", "Mean absolute difference",
+               "SS3-style multinomial likelihood, SS3's expected values",
+               "The same, opal's predictions", "SS3's reported likelihood (Report.sso)"),
+  value = c(fmt(max(abs(chk$predicted - chk$expected)), 4),
+            fmt(mean(abs(chk$predicted - chk$expected)), 4),
+            fmt(ss3_like(chk$obs, chk$expected, chk$nsamp), 1),
+            fmt(ss3_like(chk$obs, chk$predicted, chk$nsamp), 1), "1,067.4")),
+  col.names = c("At SS3's solution", "Value"))
+```
+
+The remaining difference is the timing: SS3 takes the survey at
+mid-quarter, opal at the start. (The SS3-style likelihood is
+−Σ N o log(e / o); opal's multinomial differs by a constant.)
+
+# Fit
+
+AGE-SF is fitted in two steps: first without the size compositions (AGE),
+from SS3's solution, then with them, from AGE's estimates. Fitting takes
+several minutes, so the article uses the stored fit, made from exactly
+these inputs. `data-raw/generate-io-yft-fits.R` also polishes the optimum
+with Newton steps and runs `opal_check()` with a gradient tolerance of 1e-4.
 
 ```{r}
 #| label: fit
 #| eval: false
-fit <- opal_fit(assessment, n_passes = 2L)
-```
+control <- list(eval.max = 10000, iter.max = 10000)
+age <- opal_fit(opal_obj(d_age, p_age, map_age, bounds = age_bounds(p_age, map_age),
+                         control = control), n_passes = 2L)
+p_start <- opal_rtmb(age)$env$parList(age$fit$opt$par)
+age_sf <- opal_fit(opal_obj(d_sf, p_start, map_age, bounds = age_bounds(p_start, map_age),
+                            control = control), n_passes = 2L)
 
-The stored fit also polishes the optimum with Newton steps and runs
-`opal_check()` with a gradient tolerance of 1e-4
-(`data-raw/generate-io-yft-c2-fit.R`).
-
-The stored fit is `inst/extdata/io_yft_c2_fit.rds`. Reading it and
-rebuilding the model for `opal_report()` takes about a minute, so the
-figures below use outputs precomputed from it
-(`data-raw/generate-io-yft-vignette-cache.R`):
-
-```{r}
-#| label: load-fit
-#| eval: false
-fit <- opal_read(system.file("extdata", "io_yft_c2_fit.rds", package = "opal"))
-summary(fit)
-report <- opal_report(fit)
+# The stored fit
+age_sf <- opal_read(system.file("extdata", "io_yft_age_sf_fit.rds", package = "opal"))
+summary(age_sf)
 ```
 
 ```{r}
-#| label: fit-summary
-cat(c2$fit$summary, sep = "\n")
-B0 <- c2$B0
-```
-
-```{r}
-#| label: fit-check
-v <- c2$fit
+#| label: fit-table
+v <- opal_m$fit
+w <- opal_m$nll_w
 knitr::kable(data.frame(
-  quantity = c("Estimated parameters", "Objective", "Max |gradient|", "opal_check()"),
-  value = c(v$n_par, fmt(v$objective, 3),
+  quantity = c("Estimated parameters", "Objective", "Index", "Length compositions",
+               "Index size compositions (× 0.51)", "Recruitment", "Priors",
+               "Max |gradient|", "opal_check()"),
+  value = c(v$n_par, fmt(v$objective, 2), fmt(w[["index"]], 1), fmt(w[["length"]], 1),
+            fmt(w[["sizefreq"]], 1), fmt(w[["recruitment"]], 1), fmt(w[["prior"]], 1),
             formatC(v$max_gradient, format = "e", digits = 1),
             if (isTRUE(v$passes)) "passed" else "failed")),
-  col.names = c("Quantity", "Value"))
+  col.names = c("AGE-SF", "Value"))
 ```
 
-# Fits to the data
+# How we got here
 
-## Index
+AGE-SF is the last of a sequence of opal fits, each making one change from
+the one before. `SS3-SEL` holds selectivity at SS3's estimates;
+`LEN` is the bundled inputs (`io_yft_map`), with opal's length-based
+selectivity estimated; `AGE-SF-NP` is SS3's configuration exactly, with the
+priors switched off as well.
 
 ```{r}
-#| label: index-fits
-#| fig-height: 7
-#| fig-cap: "Observed longline index (points, ±1.96 SE) with opal's predictions and SS3's expected values. Each quarterly series is on a mean-one scale."
-cp <- d$cpue_data
-idx <- data.frame(ts = cp$ts, fishery = cp$fishery, obs = cp$value, se = cp$se,
-                  pred = c2$cpue$pred)
-pred <- rbind(data.frame(ts = idx$ts, fishery = idx$fishery, value = idx$pred, series = "opal C2"),
-              data.frame(ts = ref$ss3$cpue$ts, fishery = ref$ss3$cpue$fishery,
-                         value = ref$ss3$cpue$expected, series = "SS3"))
-ggplot() +
-  geom_linerange(data = idx, aes(ts, ymin = obs * exp(-1.96 * se), ymax = obs * exp(1.96 * se)),
-                 colour = "grey60") +
-  geom_point(data = idx, aes(ts, obs), size = 1, colour = "grey40") +
-  geom_line(data = pred, aes(ts, value, colour = series), linewidth = 0.6) +
-  facet_wrap(~ fishery, ncol = 1, labeller = as_labeller(fleet_name)) +
-  scale_series +
-  labs(x = "Time step (quarter)", y = "Index (mean = 1 per series)")
+#| label: bridge
+br <- cache$bridge
+h <- ref$history[2, ]
+bridge <- rbind(
+  data.frame(model = "SS3-SEL", change = "SS3's selectivity held fixed",
+             sel_free = 0L, B0 = h$B0, dep = h$terminal_depletion, check = NA),
+  data.frame(model = br$model, change = br$change, sel_free = br$sel_free, B0 = br$B0,
+             dep = br$terminal_depletion,
+             check = ifelse(br$passes, "passed",
+                            ifelse(br$positive_hessian, "failed", "failed (Hessian)"))),
+  data.frame(model = "SS3", change = NA, sel_free = NA, B0 = ref$ss3$ssb0,
+             dep = last(ss3, "static_dep"), check = NA),
+  data.frame(model = "Simulated truth", change = NA, sel_free = NA, B0 = ref$truth$b0,
+             dep = last(truth, "static_dep"), check = NA))
+bridge$B0 <- bridge$B0 / ref$ss3$ssb0
+bridge$model[bridge$model == "AGE-SF"] <- "**AGE-SF**"
+knitr::kable(bridge, digits = c(0, 0, 0, 2, 3, 0), row.names = FALSE,
+             col.names = c("Fit", "Change from the row above", "Selectivity parameters",
+                           "B0 / SS3 B0", "Terminal SSB / B0", "opal_check()"))
+b <- setNames(seq_len(nrow(br)), br$model)
 ```
 
-```{r}
-#| label: index-rmse
-rmse <- function(o, p) sqrt(mean((log(o) - log(p))^2))
-knitr::kable(data.frame(model = c("opal C2", "SS3"),
-                        rmse = c(rmse(idx$obs, idx$pred),
-                                 rmse(ref$ss3$cpue$obs, ref$ss3$cpue$expected))),
-             digits = 4, col.names = c("Model", "RMSE of log residuals"))
-```
-
-## Length compositions
-
-```{r}
-#| label: comp-aggregate
-#| fig-height: 8
-#| fig-cap: "Length compositions aggregated over all observations for each fishery, weighted by sample size: observed (bars), opal's predictions and SS3's expected values."
-agg <- do.call(rbind, lapply(seq_along(d$lf_fishery_f), function(j) {
-  obs  <- d$lf_obs_data$obs[[j]]
-  obs  <- obs / rowSums(obs)
-  n    <- d$lf_n_fi[[j]]
-  data.frame(fishery = d$lf_fishery_f[j], bin = d$len_lower,
-             observed  = colSums(obs * n) / sum(n))
-}))
-agg <- merge(agg, c2$lf, by = c("fishery", "bin"))
-ss3_lf <- ref$ss3$lf
-lines <- rbind(data.frame(fishery = agg$fishery, bin = agg$bin, value = agg$predicted,
-                          series = "opal C2"),
-               data.frame(fishery = ss3_lf$fishery, bin = ss3_lf$bin, value = ss3_lf$expected,
-                          series = "SS3"))
-width <- diff(d$len_lower[1:2])
-ggplot() +
-  geom_col(data = agg, aes(bin + width / 2, observed), fill = "grey80", width = width) +
-  geom_line(data = lines, aes(bin + width / 2, value, colour = series), linewidth = 0.6) +
-  facet_wrap(~ fishery, ncol = 4, scales = "free_y", labeller = as_labeller(fleet_name)) +
-  scale_series +
-  labs(x = "Length (cm)", y = "Proportion")
-```
-
-With the growth curves identical, opal's predicted compositions differ from
-SS3's through selectivity and the within-quarter timing.
-
-# Selectivity
-
-```{r}
-#| label: sel-age
-#| fig-height: 8
-#| fig-cap: "Selectivity-at-age: SS3 (age-based) and opal C2 (length-based, mapped to age)."
-sa <- rbind(
-  data.frame(c2$sel_age, series = "opal C2"),
-  data.frame(ref$ss3$sel_age, series = "SS3"))
-ggplot(sa[sa$fishery <= 17, ], aes(age, sel, colour = series)) +
-  geom_line(linewidth = 0.7) +
-  facet_wrap(~ fishery, ncol = 4, labeller = as_labeller(fleet_name)) +
-  scale_series +
-  labs(x = "Age (quarters)", y = "Selectivity")
-```
-
-Fisheries 15 and 16 mirror 14, and panel 17 stands for all four quarterly
-index series. opal's curves are functions of length and reach age through
-the spread of length at age, so they rise more gradually than SS3's
-age-based curves. Several dome-shaped curves (fisheries 2, 3, 6, 8, 11 and
-12) fall faster after the peak in opal but level off above zero at the
-oldest ages, where SS3's fall towards zero. The largest difference is
-fishery 5, where opal's ascending limb is much shallower, and its fit to
-that fishery's length compositions is closer to the data.
+* Held at SS3's selectivity, opal reproduces SS3's stock size closely.
+  Estimating selectivity lowers it, whether the curves are opal's
+  length-based ones (LEN) or SS3's own age-based ones (AGE), so the
+  selectivity basis is not what separates opal from SS3.
+* The index size compositions inform the index's selectivity, which
+  otherwise only the CPUE trend informs. They move opal's depletion from
+  `r fmt(br$terminal_depletion[b[["AGE"]]], 3)` to
+  `r fmt(br$terminal_depletion[b[["AGE-SF"]]], 3)`, towards SS3's.
+* Switching off the priors, as SS3 does, leaves
+  `r br$sel_free[b[["AGE"]]] - br$sel_free[b[["AGE-SF-NP"]]]` selectivity
+  parameters with a flat likelihood (plateau widths at a single age,
+  knife-edge limbs, and the plateau and descending limb of asymptotic
+  fisheries). AGE-SF-NP holds them fixed, and its Hessian is still not
+  positive definite, so its standard errors cannot be used; SS3, run without
+  a Hessian, does not report on this. Its stock status differs little from
+  AGE-SF's. Without priors the likelihood also has more than one optimum:
+  started from SS3's solution rather than AGE's estimates, AGE-SF-NP stops
+  at a worse optimum with a larger stock. AGE-SF keeps opal's priors, which
+  identify every parameter SS3 estimated.
 
 # Stock status
 
 ```{r}
 #| label: trajectories
 #| fig-height: 7
-#| fig-cap: "Spawning biomass (top) and static depletion SSB / B0 (bottom): opal C2, SS3 and the simulated truth."
+#| fig-cap: "Spawning biomass (top) and static depletion SSB / B0 (bottom): the simulated truth, SS3 and opal AGE-SF."
 traj <- rbind(
-  data.frame(c2$trajectory, series = "opal C2"),
+  data.frame(truth, series = "Simulated truth"),
   data.frame(ss3, series = "SS3"),
-  data.frame(truth, series = "Simulated truth"))
+  data.frame(opal_m$trajectory, series = "opal AGE-SF"))
 traj$series <- factor(traj$series, names(series_col))
 long <- rbind(data.frame(ts = traj$ts, series = traj$series, value = traj$ssb / 1e6,
                          panel = "Spawning biomass (million t)"),
@@ -414,118 +540,207 @@ ggplot(long, aes(ts, value, colour = series)) +
 ```
 
 ```{r}
-#| label: recruitment
-#| fig-height: 4
-#| fig-cap: "Recruitment deviations, opal C2 against SS3. opal's deviation for time step t sets the age-1 recruits entering at t + 1."
-rd <- merge(data.frame(ts = seq_along(c2$rdev), opal = c2$rdev),
-            ref$ss3$recdevs, by = "ts")
-ggplot(rd, aes(recdev, opal)) +
-  geom_abline(colour = "grey60") +
-  geom_point(size = 0.8, alpha = 0.6, colour = series_col[["opal C2"]]) +
-  labs(x = "SS3 recruitment deviation", y = "opal recruitment deviation")
-```
-
-```{r}
-#| label: comparison-table
+#| label: status-table
 compare <- function(x, y) {
   m <- merge(x, y, by = "ts")
   c(mean_pct = mean(abs(100 * (m$ssb.x / m$ssb.y - 1))),
-    max_dep_err = max(abs(m$static_dep.x - m$static_dep.y)))
+    max_dep = max(abs(m$static_dep.x - m$static_dep.y)))
 }
-opal_traj <- traj[traj$series == "opal C2", c("ts", "ssb", "static_dep")]
-vs_ss3   <- compare(opal_traj, ss3)
-vs_truth <- rbind(compare(opal_traj, truth), compare(ss3, truth))
+opal_tr <- opal_m$trajectory
+B0 <- c(ref$truth$b0, ref$ss3$ssb0, opal_m$B0)
 tab <- data.frame(
-  model = c("opal C2", "SS3", "Simulated truth"),
-  B0 = c(B0, ref$ss3$ssb0, ref$truth$b0) / 1e6,
-  B0_truth = c(B0, ref$ss3$ssb0, ref$truth$b0) / ref$truth$b0,
-  vs_ss3 = c(vs_ss3[["mean_pct"]], NA, NA),
-  vs_truth = c(vs_truth[, "mean_pct"], NA),
-  terminal = c(last(opal_traj, "static_dep"), last(ss3, "static_dep"), last(truth, "static_dep")),
-  dep_err = c(vs_truth[, "max_dep_err"], NA))
-knitr::kable(tab, digits = c(0, 2, 2, 1, 1, 3, 3),
-             col.names = c("Model", "B0 (million t)", "B0 / true B0",
-                           "SSB mean |% diff| from SS3", "SSB mean |% diff| from truth",
-                           "Terminal SSB / B0", "Max |depletion error| vs truth"))
+  model = names(series_col),
+  B0 = B0 / 1e6,
+  B0_truth = B0 / ref$truth$b0,
+  terminal = c(last(truth, "static_dep"), last(ss3, "static_dep"),
+               last(opal_tr, "static_dep")),
+  pct_truth = c(NA, compare(ss3, truth)[["mean_pct"]], compare(opal_tr, truth)[["mean_pct"]]),
+  dep_truth = c(NA, compare(ss3, truth)[["max_dep"]], compare(opal_tr, truth)[["max_dep"]]),
+  pct_ss3 = c(NA, NA, compare(opal_tr, ss3)[["mean_pct"]]),
+  dep_ss3 = c(NA, NA, compare(opal_tr, ss3)[["max_dep"]]))
+knitr::kable(tab, digits = c(0, 2, 2, 3, 1, 3, 1, 3), row.names = FALSE,
+             col.names = c("Model", "B0 (million t)", "B0 / true B0", "Terminal SSB / B0",
+                           "SSB mean |% diff| from truth", "Max |depletion diff| from truth",
+                           "SSB mean |% diff| from SS3", "Max |depletion diff| from SS3"))
 ```
-
-# Matching SS3 lambdas
-
-SS3 control files often weight likelihood components with lambdas, or switch
-a fleet's data off with a lambda of 0. opal does the same through
-`data$lambdas`, a list whose entries all default to 1:
-
-* `cpue`: one value, or one per index;
-* `lf` and `wf`: one value, or one per fleet (a fleet that mixes bin schemes
-  still has a single lambda);
-* `rec`, `init_rec`, `prior` and `penalty`: one value each.
-
-To drop the length compositions of fishery 16 from this assessment:
 
 ```{r}
-#| label: lambdas
-#| eval: false
-lf_lambda <- rep(1, d$n_fishery)
-lf_lambda[16] <- 0
-weighted <- opal_update(assessment, lambdas = list(lf = lf_lambda))
-report <- opal_report(opal_build(weighted))
-terms <- c("lp_prior", "lp_penalty", "lp_rec", "lp_init_rec",
-           "lp_cpue", "lp_lf", "lp_wf")
-data.frame(raw = vapply(report[terms], sum, numeric(1)),
-           weighted = vapply(report[paste0(terms, "_w")], sum, numeric(1)))
+#| label: recruitment
+#| fig-height: 4
+#| fig-cap: "Recruitment deviations, opal AGE-SF against SS3. opal's deviation for time step t sets the age-1 recruits entering at t + 1. The truth's recruitment is not part of the bundled reference values."
+rd <- merge(data.frame(ts = seq_along(opal_m$rdev), opal = opal_m$rdev),
+            ref$ss3$recdevs, by = "ts")
+ggplot(rd, aes(recdev, opal)) +
+  geom_abline(colour = "grey60") +
+  geom_point(size = 0.8, alpha = 0.6, colour = series_col[["opal AGE-SF"]]) +
+  labs(x = "SS3 recruitment deviation", y = "opal recruitment deviation")
 ```
 
-The chunk is not run here because it rebuilds the model, which takes about
-half a minute. The report keeps the raw terms (`lp_lf` and the rest) and adds
-the weighted terms (`lp_lf_w` and the rest) and the resolved `lambdas`.
-`opal_update(lambdas = ...)` clears any fit, because the objective has changed.
-`removal_switch_f` is the broader switch: it removes a fleet's length and
-weight compositions together, whereas `lf` and `wf` lambdas act on one data
-type each.
+# Fits to the data
 
-Priors can be switched off too. The `prior` lambda scales the whole prior
-term, and `opal_set_prior_lambda()` sets a lambda for one prior block or for a
-single element of it, such as one `par_sel` cell. SS3 only evaluates priors on
-estimated parameters; `data$lambdas$prior_mapped_only <- TRUE` does the same by
-dropping prior terms for elements the map fixes. It changes the reported prior
-and objective, not the estimates. The model function cannot see the map, so the
-flag only applies when the model is built from an `opal_obj`; `opal_model()`
-warns if it is set on a model built directly with `RTMB::MakeADFun()`.
+The truth has no fits to the data, and its selectivity is defined by gear
+and cell, so this section compares SS3 and opal only.
 
-Lambdas other than 0 and 1 temper the objective. `opal_mcmc()` warns that the
-posterior is tempered, and `opal_osa()` warns that the residuals are affected.
-OSA rows from a fleet with a lambda of 0 are kept, with the reason
-`"lambda = 0"`. A fit check warns when a lambda of 0 leaves an estimated
-parameter without data, for example an index's catchability. Lambdas cannot
-change between estimation phases, and opal has no automatic data weighting.
+## Index
+
+```{r}
+#| label: index-fits
+#| fig-height: 7
+#| fig-cap: "Observed longline index (points, ±1.96 SE) with SS3's expected values and opal's predictions. Each quarterly series is on a mean-one scale."
+cp <- d$cpue_data
+idx <- data.frame(ts = cp$ts, fishery = cp$fishery, obs = cp$value, se = cp$se,
+                  pred = opal_m$cpue$pred)
+pred <- rbind(data.frame(ts = ref$ss3$cpue$ts, fishery = ref$ss3$cpue$fishery,
+                         value = ref$ss3$cpue$expected, series = "SS3"),
+              data.frame(ts = idx$ts, fishery = idx$fishery, value = idx$pred,
+                         series = "opal AGE-SF"))
+pred$series <- factor(pred$series, names(series_col))
+ggplot() +
+  geom_linerange(data = idx, aes(ts, ymin = obs * exp(-1.96 * se), ymax = obs * exp(1.96 * se)),
+                 colour = "grey60") +
+  geom_point(data = idx, aes(ts, obs), size = 1, colour = "grey40") +
+  geom_line(data = pred, aes(ts, value, colour = series), linewidth = 0.6) +
+  facet_wrap(~ fishery, ncol = 1, labeller = as_labeller(fleet_name)) +
+  scale_series +
+  labs(x = "Time step (quarter)", y = "Index (mean = 1 per series)")
+```
+
+```{r}
+#| label: index-rmse
+rmse <- function(o, p) sqrt(mean((log(o) - log(p))^2))
+knitr::kable(data.frame(model = c("SS3", "opal AGE-SF"),
+                        rmse = c(rmse(ref$ss3$cpue$obs, ref$ss3$cpue$expected),
+                                 rmse(idx$obs, idx$pred))),
+             digits = 4, col.names = c("Model", "RMSE of log index residuals"))
+```
+
+## Length compositions
+
+```{r}
+#| label: comp-aggregate
+#| fig-height: 8
+#| fig-cap: "Length compositions aggregated over all observations for each fishery, weighted by sample size: observed (bars), SS3's expected values and opal's predictions."
+agg <- do.call(rbind, lapply(seq_along(d$lf_fishery_f), function(j) {
+  obs <- d$lf_obs_data$obs[[j]]
+  obs <- obs / rowSums(obs)
+  n   <- d$lf_n_fi[[j]]
+  data.frame(fishery = d$lf_fishery_f[j], bin = d$len_lower,
+             observed = colSums(obs * n) / sum(n))
+}))
+lines <- rbind(
+  data.frame(fishery = ref$ss3$lf$fishery, bin = ref$ss3$lf$bin,
+             value = ref$ss3$lf$expected, series = "SS3"),
+  data.frame(fishery = opal_m$lf$fishery, bin = opal_m$lf$bin,
+             value = opal_m$lf$predicted, series = "opal AGE-SF"))
+lines$series <- factor(lines$series, names(series_col))
+width <- diff(d$len_lower[1:2])
+ggplot() +
+  geom_col(data = agg, aes(bin + width / 2, observed), fill = "grey80", width = width) +
+  geom_line(data = lines, aes(bin + width / 2, value, colour = series), linewidth = 0.6) +
+  facet_wrap(~ fishery, ncol = 4, scales = "free_y", labeller = as_labeller(fleet_name)) +
+  scale_series +
+  labs(x = "Length (cm)", y = "Proportion")
+```
+
+## Index size compositions
+
+```{r}
+#| label: sizefreq-fit
+#| fig-height: 4.5
+#| fig-cap: "Index size compositions aggregated over all observations, weighted by sample size: observed (bars), SS3's expected values and opal's predictions."
+agg_sf <- function(p, v) {
+  a <- tapply(p[[v]] * p$nsamp, p$bin, sum)
+  data.frame(bin = as.numeric(names(a)), value = as.numeric(a / sum(a)))
+}
+p_sf <- sf_pred("age_sf")
+lines_sf <- rbind(data.frame(agg_sf(p_sf, "expected"), series = "SS3"),
+                  data.frame(agg_sf(p_sf, "predicted"), series = "opal AGE-SF"))
+lines_sf$series <- factor(lines_sf$series, names(series_col))
+ggplot() +
+  geom_col(data = agg_sf(p_sf, "obs"), aes(bin + 5, value), fill = "grey80", width = 10) +
+  geom_line(data = lines_sf, aes(bin + 5, value, colour = series), linewidth = 0.6) +
+  scale_series +
+  labs(x = "Length (cm; the last bin is 160 cm and above)", y = "Proportion")
+```
+
+```{r}
+#| label: sizefreq-like
+knitr::kable(data.frame(
+  model = c("SS3", "opal AGE-SF"),
+  like = c(ss3_like(p_sf$obs, p_sf$expected, p_sf$nsamp),
+           ss3_like(p_sf$obs, p_sf$predicted, p_sf$nsamp))),
+  digits = 1, col.names = c("Model", "SS3-style likelihood of the index size compositions"))
+```
+
+## Selectivity
+
+```{r}
+#| label: sel-age
+#| fig-height: 8
+#| fig-cap: "Selectivity-at-age: SS3 and opal AGE-SF."
+sa <- rbind(data.frame(ref$ss3$sel_age, series = "SS3"),
+            data.frame(opal_m$sel_age, series = "opal AGE-SF"))
+sa$series <- factor(sa$series, names(series_col))
+ggplot(sa[sa$fishery <= 17, ], aes(age, sel, colour = series)) +
+  geom_line(linewidth = 0.7) +
+  facet_wrap(~ fishery, ncol = 4, labeller = as_labeller(fleet_name)) +
+  scale_series +
+  labs(x = "Age (quarters)", y = "Selectivity")
+```
+
+```{r}
+#| label: a50
+a50 <- function(sa) {
+  s <- sa[sa$fishery == 17, ]
+  stats::approx(s$sel, s$age, 0.5, ties = "ordered")$y
+}
+a50_ss3 <- a50(ref$ss3$sel_age)
+a50_opal <- a50(opal_m$sel_age)
+```
+
+Fisheries 15 and 16 mirror 14, and panel 17 stands for all four quarterly
+index series. The index reaches 50% selectivity at
+`r fmt(a50_opal, 1)` quarters in opal and `r fmt(a50_ss3, 1)` in SS3; SS3's
+estimate sits at its lower bound of 8 quarters, which opal does not impose.
 
 # Summary
 
-* With SS3's growth, opal's length-at-age matches SS3's, and the bundled fit
-  converges and passes `opal_check()`.
-* opal C2's B0 is `r fmt(B0 / ref$ss3$ssb0, 2)` × SS3's and its terminal
-  depletion is `r fmt(last(opal_traj, "static_dep"), 3)`, against SS3's
-  `r fmt(last(ss3, "static_dep"), 3)` and a true
-  `r fmt(last(truth, "static_dep"), 3)`.
-* Held at SS3's selectivity, opal reproduces SS3's stock size closely
-  (B0 `r fmt(ref$history$B0[2] / ref$ss3$ssb0, 2)` × SS3's). C2's lower
-  stock size comes from the selectivity curves opal estimates from the
-  length compositions. Its depletion trajectory nonetheless follows
-  SS3's closely for most of the series and drops below it late on.
-  Estimating SS3's own age-based curves instead gives a similar stock size
-  (`vignette("io-yft-age-selectivity", package = "opal")`), so the
-  difference is not that opal's curves are length-based.
-* Neither model is the truth. SS3 overestimates B0 by
-  `r fmt(100 * (ref$ss3$ssb0 / ref$truth$b0 - 1), 0)`%; the operating model
-  has movement among 159 cells and spatially varying recruitment, which
-  neither single-region model represents. Matching SS3 and matching the truth are separate questions.
+```{r}
+#| label: summary-values
+dep_t <- last(truth, "static_dep")
+dep_s <- last(ss3, "static_dep")
+dep_o <- last(opal_tr, "static_dep")
+```
+
+* **Against the truth.** Neither single-region assessment is the truth. The
+  operating model has movement among 159 cells and spatially varying
+  recruitment, which neither represents. SS3's B0 is
+  `r fmt(ref$ss3$ssb0 / ref$truth$b0, 2)` × the true B0 and opal AGE-SF's
+  `r fmt(opal_m$B0 / ref$truth$b0, 2)` ×; terminal depletion is
+  `r fmt(dep_s, 3)` (SS3) and `r fmt(dep_o, 3)` (opal), against a true
+  `r fmt(dep_t, 3)`.
+* **Against SS3.** With SS3's growth, selectivity curves and mirrors, index
+  size compositions and lambda, opal AGE-SF's B0 is
+  `r fmt(opal_m$B0 / ref$ss3$ssb0, 2)` × SS3's, and its spawning biomass
+  differs from SS3's by `r fmt(compare(opal_tr, ss3)[["mean_pct"]], 1)`% on
+  average. The fit converges and passes `opal_check()`.
+* **What remains.** The rest of the gap to SS3 lies in the structural
+  differences that stay: catch removed at the start of the quarter rather
+  than through it (up to 10% of spawning biomass at SS3's own parameters),
+  four quarterly catchabilities rather than one, and unconstrained
+  recruitment deviations. It also depends on which optimum each model is
+  in. Removing opal's priors as well (AGE-SF-NP, SS3's configuration)
+  changes the stock status little, but leaves some selectivity parameters
+  unidentified.
 
 # Credit and references
 
-The SS3 model was developed by the IATTC analyst team (Mark N. Maunder,
-Haikun Xu and Carolina Minte-Vera, Inter-American Tropical Tuna Commission)
-for the Spatial Stock Assessment Simulation Experiment. The yellowfin
-assessments from the experiment, including theirs, are evaluated in:
+The simulated example and the SS3 estimation model both come from the
+Spatial Stock Assessment Simulation Experiment. The SS3 model was developed
+by the IATTC analyst team (Mark N. Maunder, Haikun Xu and Carolina
+Minte-Vera, Inter-American Tropical Tuna Commission) as their submission to
+it. The experiment's design, its operating models and the evaluation of the
+submitted assessments, including theirs, are described in:
 
 * Goethel, D.R., et al. (2024). 'Drivin' with your eyes closed': Results from
   an international, blinded simulation experiment to evaluate spatial stock
@@ -541,23 +756,28 @@ The age-specific K growth model is Stock Synthesis' `GrowthModel 3`:
 
 The data and the simulated truth are from replicate 4 of the Indian Ocean
 yellowfin operating model
-(<https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop>):
+(<https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop>).
+The IOTC working-party papers below have no DOI, so they link to the IOTC
+document archive where a copy is available:
 
 * Dunn, A., Rasmussen, S. and Mormede, S. (2015). Spatial Population Model.
   NIWA Technical Report 138.
-* Dunn, A., Hoyle, S.D. and Datta, S. (2020). Development of spatially
+* Dunn, A., Hoyle, S. and Datta, S. (2020). Development of spatially
   explicit operating models for yellowfin tuna populations in the Indian
-  Ocean. IOTC Working Party on Tropical Tunas 22.
-* Fu, D., Merino, G., Langley, A. and Ijurco, A. (2018). Preliminary Indian
-  Ocean yellowfin tuna stock assessment 1950–2017 (Stock Synthesis). IOTC
-  20th Working Party on Tropical Tunas.
+  Ocean. IOTC-2020-WPTT22(AS)-19_Rev1.
+  <https://iotc.org/sites/default/files/documents/2020/10/IOTC-2020-WPTT22AS-19_Rev1.pdf>
+* Fu, D., Langley, A., Merino, G. and Urtizberea, A. (2018). Preliminary
+  Indian Ocean yellowfin tuna stock assessment 1950–2017 (Stock Synthesis).
+  IOTC-2018-WPTT20-33.
+  <https://iotc.org/sites/default/files/documents/2018/10/IOTC-2018-WPTT20-33.pdf>
 * Fonteneau, A. and Gascuel, D. (2008). Growth rates and apparent growth
   curves, for yellowfin, skipjack and bigeye tagged and recovered in the
   Indian Ocean during the IOTTP. IOTC-2008-WPTDA-08.
 
-The SS3-to-opal converter and the detailed conversion vignettes are in
-<`r ref$source$repository`> (`code/rtmb`); the bundled data were exported by
-`r ref$source$script` at commit `r ref$source$commit`. The opal outputs shown were computed with
-opal `r cache$opal` (commit `r cache$commit`). Age-based selectivity, which
-SS3 uses here, is compared with C2 in
-`vignette("io-yft-age-selectivity", package = "opal")`.
+The SS3-to-opal converter is in <`r ref$source$repository`> (`code/rtmb`);
+the bundled data were exported by `r ref$source$script` at commit
+`r ref$source$commit`, and SS3's size compositions and lambdas by
+`r ref$source$sizefreq_script`. The opal outputs shown were computed with
+opal `r cache$opal` (commit `r cache$commit`) by
+`data-raw/generate-io-yft-fits.R` and
+`data-raw/generate-io-yft-vignette-cache.R`.
