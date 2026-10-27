@@ -14,10 +14,10 @@ As for \link{io_yft_data}.
 io_yft_map
 }
 \description{
-The map for fit "C2" of \link{io_yft_data}: \code{log_B0}, the 256 recruitment
-deviations, the four quarterly catchabilities and 49 selectivity
-parameters are estimated (310 in total). Growth, natural mortality,
-steepness and sigma_R are fixed at SS3's values.
+The map for fit "LEN" (formerly "C2") of \link{io_yft_data}: \code{log_B0}, the
+256 recruitment deviations, the four quarterly catchabilities and 49
+selectivity parameters are estimated (310 in total). Growth, natural
+mortality, steepness and sigma_R are fixed at SS3's values.
 }
 \details{
 Selectivity estimates the opal equivalents of the parameters SS3

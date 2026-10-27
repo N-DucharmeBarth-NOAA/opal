@@ -1,15 +1,13 @@
-# Precompute what the Indian Ocean yellowfin articles plot, so that they
-# render in seconds without rebuilding the RTMB model:
+# Precompute what the Indian Ocean yellowfin article plots, so that it
+# renders in seconds without rebuilding the RTMB model:
 #
 #   inst/extdata/io_yft_vignette_cache.rds
 #
-# Read by vignettes/io-yft-ss3-comparison.qmd,
-# vignettes/io-yft-age-selectivity.qmd and vignettes/io-yft-ss3-matched.qmd.
-# Run from the package root after generate-io-yft-c2-fit.R,
-# generate-io-yft-age-fits.R or generate-io-yft-matched-fits.R, or after any
-# change to opal's model code (a few minutes: one model build per entry).
+# Read by vignettes/io-yft-ss3-comparison.qmd. Run from the package root
+# after generate-io-yft-fits.R, or after any change to opal's model code
+# (about a minute: one model build per entry).
 pkgload::load_all()
-source("data-raw/io-yft-ss3-matched-setup.R")
+source("data-raw/io-yft-setup.R")
 
 d <- io_yft_data
 n_ts <- d$n_year
@@ -77,45 +75,26 @@ extract <- function(x, par = NULL) {
     fit = fit)
 }
 
-inputs <- io_yft_matched_inputs()
-sa <- io_yft_reference$ss3$sel_age
-external_data <- inputs$data
-external_data$sel_fa_external <- matrix(0, d$n_fishery, d$n_age)
-external_data$sel_fa_external[cbind(sa$fishery, match(sa$age, d$age_a))] <- sa$sel
+age_sf <- io_yft_inputs()$`AGE-SF`
 models <- list(
-  C2 = read_fit("io_yft_c2_fit.rds"),
-  A = read_fit("io_yft_age_fit.rds"),
-  A_ss3 = read_fit("io_yft_age_ss3_fit.rds"),
-  # Age-based selectivity at SS3's values, everything else at SS3's
-  # solution, not fitted: the bridging check.
-  A_start = opal_obj(inputs$data, inputs$parameters, inputs$map_c2,
-                     bounds = io_yft_age_bounds(inputs$parameters, inputs$map_c2)),
-  # The same, with SS3's selectivity-at-age supplied as a fixed matrix
-  E_start = opal_obj(external_data, inputs$parameters, inputs$map_c2,
-                     bounds = io_yft_age_bounds(inputs$parameters, inputs$map_c2)),
-  # SS3-matched fits (io-yft-ss3-matched article)
-  S1 = read_fit("io_yft_matched_s1_fit.rds"),
-  S2 = read_fit("io_yft_matched_s2_fit.rds"),
-  S3 = read_fit("io_yft_matched_s3_fit.rds"),
-  # S2's inputs at SS3's solution, not fitted: opal's predictions of the
-  # index size compositions against SS3's expected values. A-SS3's map, so
-  # that A-SS3's estimates can be evaluated with it below.
-  S2_start = opal_obj(inputs$data_s2, inputs$parameters, inputs$map_ss3,
-                      bounds = io_yft_age_bounds(inputs$parameters, inputs$map_ss3)))
+  # The article's model
+  age_sf = read_fit("io_yft_age_sf_fit.rds"),
+  # AGE-SF's inputs at SS3's solution, not fitted: opal's predictions of the
+  # index size compositions against SS3's expected values
+  age_sf_start = opal_obj(age_sf$data, age_sf$parameters, age_sf$map,
+                          bounds = io_yft_age_bounds(age_sf$parameters, age_sf$map)))
+stopifnot(isTRUE(all.equal(models$age_sf$data, age_sf$data)))
 
 cache <- list(
   created = format(Sys.time(), tz = "UTC", usetz = TRUE),
   opal = as.character(utils::packageVersion("opal")),
   commit = tryCatch(system2("git", c("rev-parse", "--short", "HEAD"), stdout = TRUE),
                     error = function(e) NA_character_),
-  models = lapply(models, extract))
-# A-SS3's estimates with S2's data (the same parameters): how well A-SS3,
-# which did not see the index size compositions, predicts them.
-cache$models$A_ss3_S2 <- extract(models$S2_start, par = models$A_ss3$fit$opt$par)
-# Identifiability without priors (generate-io-yft-matched-fits.R)
-cache$s1_free <- readRDS(file.path("inst", "extdata", "io_yft_matched_s1_free.rds"))
-# Start sensitivity of S1 and S2 (generate-io-yft-matched-fits.R)
-cache$starts <- readRDS(file.path("inst", "extdata", "io_yft_matched_starts.rds"))
+  models = lapply(models, extract),
+  # The article's bridge table (generate-io-yft-fits.R)
+  bridge = readRDS(file.path("inst", "extdata", "io_yft_bridge.rds")),
+  # What the article checks its inline AGE-SF inputs against
+  inputs_fingerprint = io_yft_fingerprint(age_sf$data, age_sf$parameters, age_sf$map))
 
 saveRDS(cache, file.path("inst", "extdata", "io_yft_vignette_cache.rds"),
         compress = "xz", version = 3L)

@@ -3,8 +3,8 @@
 #' Model inputs for a quarterly, single-region assessment of simulated Indian
 #' Ocean yellowfin tuna, converted from the IATTC analyst team's Stock
 #' Synthesis 3 (SS3) model for the Spatial Stock Assessment Simulation
-#' Experiment (replicate 4). Used by the "Comparing opal with Stock Synthesis"
-#' article.
+#' Experiment (replicate 4). Used by the Indian Ocean yellowfin cross-model
+#' comparison article (`vignette("io-yft-ss3-comparison", package = "opal")`).
 #'
 #' @details
 #' The model runs 256 quarterly time steps (`n_year = 256`, `n_season = 1`)
@@ -23,8 +23,8 @@
 #' Selectivity is length-based (`sel_type_f`: 2 = double normal for fisheries
 #' 1--16, 1 = logistic for the index series). `sel_basis_f` is not set, so
 #' every curve is evaluated on length; adding `sel_basis_f = rep(2L, 20)`
-#' evaluates them on age instead, as SS3 does (see the "Length- or age-based
-#' selectivity" article). `priors` holds the default
+#' evaluates them on age instead, as SS3 does (see the cross-model comparison
+#' article). `priors` holds the default
 #' priors from [get_priors()].
 #'
 #' @format A named list of 62 elements in the form [opal_obj()] expects:
@@ -61,10 +61,10 @@
 
 #' Indian Ocean yellowfin tuna (simulated) parameter map
 #'
-#' The map for fit "C2" of [io_yft_data]: `log_B0`, the 256 recruitment
-#' deviations, the four quarterly catchabilities and 49 selectivity
-#' parameters are estimated (310 in total). Growth, natural mortality,
-#' steepness and sigma_R are fixed at SS3's values.
+#' The map for fit "LEN" (formerly "C2") of [io_yft_data]: `log_B0`, the
+#' 256 recruitment deviations, the four quarterly catchabilities and 49
+#' selectivity parameters are estimated (310 in total). Growth, natural
+#' mortality, steepness and sigma_R are fixed at SS3's values.
 #'
 #' Selectivity estimates the opal equivalents of the parameters SS3
 #' estimated: columns 1--4 of the double normal for fisheries 1--14 and both
@@ -105,7 +105,7 @@
 #'     to its quarterly index fishery; and `lambdas` (`like_comp`,
 #'     `component`, `fleet`, `phase`, `value`, `sizefreq_method`), the
 #'     control file's lambda changes (parameter priors 0, size frequency
-#'     0.51). See the "Matching the Stock Synthesis configuration" article.}
+#'     0.51). See the cross-model comparison article.}
 #'   \item{truth}{The operating model (SPM, 159 cells on a 5 degree grid),
 #'     summed over the whole domain: `b0`, unfished equilibrium spawning
 #'     biomass (t), and `trajectory` (`ts`, `ssb`, `static_dep`).}
@@ -113,7 +113,7 @@
 #'     single-k Schnute curve used before opal supported age-specific K.}
 #'   \item{history}{B0 and terminal depletion of three opal fits: Schnute
 #'     growth with SS3's selectivity, SS3 growth with SS3's selectivity, and
-#'     SS3 growth with opal's estimated selectivity (C2).}
+#'     SS3 growth with opal's estimated selectivity (LEN, formerly C2).}
 #'   \item{source}{Provenance of the export: repository, script, commit,
 #'     date and package versions.}
 #' }

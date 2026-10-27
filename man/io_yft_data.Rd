@@ -25,8 +25,8 @@ io_yft_data
 Model inputs for a quarterly, single-region assessment of simulated Indian
 Ocean yellowfin tuna, converted from the IATTC analyst team's Stock
 Synthesis 3 (SS3) model for the Spatial Stock Assessment Simulation
-Experiment (replicate 4). Used by the "Comparing opal with Stock Synthesis"
-article.
+Experiment (replicate 4). Used by the Indian Ocean yellowfin cross-model
+comparison article (\code{vignette("io-yft-ss3-comparison", package = "opal")}).
 }
 \details{
 The model runs 256 quarterly time steps (\code{n_year = 256}, \code{n_season = 1})
@@ -45,8 +45,8 @@ multipliers, which are in \code{io_yft_parameters$log_k_mult}, and
 Selectivity is length-based (\code{sel_type_f}: 2 = double normal for fisheries
 1--16, 1 = logistic for the index series). \code{sel_basis_f} is not set, so
 every curve is evaluated on length; adding \code{sel_basis_f = rep(2L, 20)}
-evaluates them on age instead, as SS3 does (see the "Length- or age-based
-selectivity" article). \code{priors} holds the default
+evaluates them on age instead, as SS3 does (see the cross-model comparison
+article). \code{priors} holds the default
 priors from \code{\link[=get_priors]{get_priors()}}.
 }
 \examples{

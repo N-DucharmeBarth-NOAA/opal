@@ -28,7 +28,7 @@ observed and SS3-expected proportions with each observation assigned
 to its quarterly index fishery; and \code{lambdas} (\code{like_comp},
 \code{component}, \code{fleet}, \code{phase}, \code{value}, \code{sizefreq_method}), the
 control file's lambda changes (parameter priors 0, size frequency
-0.51). See the "Matching the Stock Synthesis configuration" article.}
+0.51). See the cross-model comparison article.}
 \item{truth}{The operating model (SPM, 159 cells on a 5 degree grid),
 summed over the whole domain: \code{b0}, unfished equilibrium spawning
 biomass (t), and \code{trajectory} (\code{ts}, \code{ssb}, \code{static_dep}).}
@@ -36,7 +36,7 @@ biomass (t), and \code{trajectory} (\code{ts}, \code{ssb}, \code{static_dep}).}
 single-k Schnute curve used before opal supported age-specific K.}
 \item{history}{B0 and terminal depletion of three opal fits: Schnute
 growth with SS3's selectivity, SS3 growth with SS3's selectivity, and
-SS3 growth with opal's estimated selectivity (C2).}
+SS3 growth with opal's estimated selectivity (LEN, formerly C2).}
 \item{source}{Provenance of the export: repository, script, commit,
 date and package versions.}
 }

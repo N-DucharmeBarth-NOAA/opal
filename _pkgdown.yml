@@ -64,8 +64,6 @@ articles:
     navbar: ~
     contents:
       - io-yft-ss3-comparison
-      - io-yft-age-selectivity
-      - io-yft-ss3-matched
 
 reference:
   - title: Assessment objects
