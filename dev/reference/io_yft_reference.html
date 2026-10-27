@@ -25,8 +25,7 @@ for comparison with opal fits to io_yft_data."><meta property="og:image" content
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
-    <li><a class="dropdown-item" href="../articles/io-yft-ss3-comparison.html">Comparing opal with Stock Synthesis: Indian Ocean yellowfin</a></li>
-    <li><a class="dropdown-item" href="../articles/io-yft-age-selectivity.html">Length- or age-based selectivity: Indian Ocean yellowfin</a></li>
+    <li><a class="dropdown-item" href="../articles/io-yft-ss3-comparison.html">Indian Ocean yellowfin tuna: Cross model comparison with simulated truth and Stock Synthesis estimation model</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -72,8 +71,16 @@ size; <code>sel_age</code> (<code>fishery</code>, <code>age</code>, <code>sel</c
 <code>sel_par</code> (<code>fleet</code>, <code>pattern</code>, <code>par</code>, <code>value</code>, <code>phase</code>, <code>lo</code>, <code>hi</code>,
 <code>label</code>), SS3's estimated age selectivity parameters P1–P6, with
 <code>phase &gt; 0</code> for the ones SS3 estimated (see
-<code><a href="convert_ss3_selex_to_rtmb.html">convert_ss3_selex_to_rtmb()</a></code> with <code>basis = "age"</code>); and <code>length_at_age</code>
-(<code>age</code>, <code>length</code>, start of the time step).</p></dd>
+<code><a href="convert_ss3_selex_to_rtmb.html">convert_ss3_selex_to_rtmb()</a></code> with <code>basis = "age"</code>); <code>length_at_age</code>
+(<code>age</code>, <code>length</code>, start of the time step); <code>sizefreq</code>, SS3's
+generalised size compositions for the index (fleet 17, method 1):
+<code>bins</code> (lower edges, cm; the last is a plus bin), <code>units</code>, <code>lambda</code>
+(0.51) and <code>data</code> (<code>ts</code>, <code>fishery</code>, <code>nsamp</code>, <code>bin</code>, <code>obs</code>, <code>expected</code>),
+observed and SS3-expected proportions with each observation assigned
+to its quarterly index fishery; and <code>lambdas</code> (<code>like_comp</code>,
+<code>component</code>, <code>fleet</code>, <code>phase</code>, <code>value</code>, <code>sizefreq_method</code>), the
+control file's lambda changes (parameter priors 0, size frequency
+0.51). See the cross-model comparison article.</p></dd>
 
 <dt>truth</dt>
 <dd><p>The operating model (SPM, 159 cells on a 5 degree grid),
@@ -87,7 +94,7 @@ single-k Schnute curve used before opal supported age-specific K.</p></dd>
 <dt>history</dt>
 <dd><p>B0 and terminal depletion of three opal fits: Schnute
 growth with SS3's selectivity, SS3 growth with SS3's selectivity, and
-SS3 growth with opal's estimated selectivity (C2).</p></dd>
+SS3 growth with opal's estimated selectivity (LEN, formerly C2).</p></dd>
 
 <dt>source</dt>
 <dd><p>Provenance of the export: repository, script, commit,
@@ -101,7 +108,7 @@ date and package versions.</p></dd>
 outputs from
 <a href="https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop" class="external-link">https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop</a>.
 Exported by <code>code/rtmb/scripts/04-export-io-yft-for-opal.r</code> in
-<a href="https://github.com/N-DucharmeBarth/wcpfc-bet-single-region" class="external-link">https://github.com/N-DucharmeBarth/wcpfc-bet-single-region</a>.</p>
+<a href="https://github.com/N-DucharmeBarth/opal-sandbox" class="external-link">https://github.com/N-DucharmeBarth/opal-sandbox</a>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

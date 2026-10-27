@@ -3,8 +3,9 @@
 Model inputs for a quarterly, single-region assessment of simulated
 Indian Ocean yellowfin tuna, converted from the IATTC analyst team's
 Stock Synthesis 3 (SS3) model for the Spatial Stock Assessment
-Simulation Experiment (replicate 4). Used by the "Comparing opal with
-Stock Synthesis" article.
+Simulation Experiment (replicate 4). Used by the Indian Ocean yellowfin
+cross-model comparison article
+([`vignette("io-yft-ss3-comparison", package = "opal")`](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-ss3-comparison.md)).
 
 ## Usage
 
@@ -23,7 +24,7 @@ bias adjustment (`bias_adj_y`) and priors.
 ## Source
 
 Converted from SS3 v3.24 files with the SS3-to-opal converter in
-<https://github.com/N-DucharmeBarth/wcpfc-bet-single-region>
+<https://github.com/N-DucharmeBarth/opal-sandbox>
 (`code/rtmb/scripts/04-export-io-yft-for-opal.r`). SS3 model by M.N.
 Maunder, H. Xu and C. Minte-Vera (IATTC); data simulated from the
 operating model described in Goethel et al. (2024)
@@ -50,8 +51,8 @@ approximation. Selectivity is length-based (`sel_type_f`: 2 = double
 normal for fisheries 1–16, 1 = logistic for the index series).
 `sel_basis_f` is not set, so every curve is evaluated on length; adding
 `sel_basis_f = rep(2L, 20)` evaluates them on age instead, as SS3 does
-(see the "Length- or age-based selectivity" article). `priors` holds the
-default priors from
+(see the cross-model comparison article). `priors` holds the default
+priors from
 [`get_priors()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_priors.md).
 
 ## See also

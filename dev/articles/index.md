@@ -15,7 +15,6 @@
 
 ### Case studies
 
-- [Comparing opal with Stock Synthesis: Indian Ocean
-  yellowfin](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-ss3-comparison.md):
-- [Length- or age-based selectivity: Indian Ocean
-  yellowfin](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-age-selectivity.md):
+- [Indian Ocean yellowfin tuna: Cross model comparison with simulated
+  truth and Stock Synthesis estimation
+  model](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-ss3-comparison.md):

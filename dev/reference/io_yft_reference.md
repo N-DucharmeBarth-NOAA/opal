@@ -32,8 +32,16 @@ A named list:
   `label`), SS3's estimated age selectivity parameters P1–P6, with
   `phase > 0` for the ones SS3 estimated (see
   [`convert_ss3_selex_to_rtmb()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/convert_ss3_selex_to_rtmb.md)
-  with `basis = "age"`); and `length_at_age` (`age`, `length`, start of
-  the time step).
+  with `basis = "age"`); `length_at_age` (`age`, `length`, start of the
+  time step); `sizefreq`, SS3's generalised size compositions for the
+  index (fleet 17, method 1): `bins` (lower edges, cm; the last is a
+  plus bin), `units`, `lambda` (0.51) and `data` (`ts`, `fishery`,
+  `nsamp`, `bin`, `obs`, `expected`), observed and SS3-expected
+  proportions with each observation assigned to its quarterly index
+  fishery; and `lambdas` (`like_comp`, `component`, `fleet`, `phase`,
+  `value`, `sizefreq_method`), the control file's lambda changes
+  (parameter priors 0, size frequency 0.51). See the cross-model
+  comparison article.
 
 - truth:
 
@@ -50,7 +58,7 @@ A named list:
 
   B0 and terminal depletion of three opal fits: Schnute growth with
   SS3's selectivity, SS3 growth with SS3's selectivity, and SS3 growth
-  with opal's estimated selectivity (C2).
+  with opal's estimated selectivity (LEN, formerly C2).
 
 - source:
 
@@ -63,4 +71,4 @@ SS3 Report.sso and data.ss_new expected values; operating model outputs
 from
 <https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop>.
 Exported by `code/rtmb/scripts/04-export-io-yft-for-opal.r` in
-<https://github.com/N-DucharmeBarth/wcpfc-bet-single-region>.
+<https://github.com/N-DucharmeBarth/opal-sandbox>.

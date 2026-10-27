@@ -1,6 +1,6 @@
 # Indian Ocean yellowfin tuna (simulated) parameter map
 
-The map for fit "C2" of
+The map for fit "LEN" (formerly "C2") of
 [io_yft_data](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/io_yft_data.md):
 `log_B0`, the 256 recruitment deviations, the four quarterly
 catchabilities and 49 selectivity parameters are estimated (310 in

@@ -45,8 +45,7 @@
     <li><a class="dropdown-item" href="../articles/assessment-tools.html">Assessment diagnostics and sensitivity analyses</a></li>
     <li><a class="dropdown-item" href="../articles/seasonal-cpue-impact.html">Seasonal CPUE correction: impact and rebuilding saved fits</a></li>
     <li><a class="dropdown-item" href="../articles/projections.html">Project a saved assessment</a></li>
-    <li><a class="dropdown-item" href="../articles/io-yft-ss3-comparison.html">Comparing opal with Stock Synthesis: Indian Ocean yellowfin</a></li>
-    <li><a class="dropdown-item" href="../articles/io-yft-age-selectivity.html">Length- or age-based selectivity: Indian Ocean yellowfin</a></li>
+    <li><a class="dropdown-item" href="../articles/io-yft-ss3-comparison.html">Indian Ocean yellowfin tuna: Cross model comparison with simulated truth and Stock Synthesis estimation model</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -464,18 +463,54 @@ Figure 3: Observed length-composition proportions and fitted probabilities for 
 </div>
 </div>
 </div>
+</section><section class="level3"><h3 id="likelihood-lambdas">Likelihood lambdas<a class="anchor" aria-label="anchor" href="#likelihood-lambdas"></a>
+</h3>
+<p>SS3 control files often weight likelihood components with lambdas, or switch a fleet’s data off with a lambda of 0. opal does the same through <code>data$lambdas</code>, a list whose entries all default to 1:</p>
+<ul>
+<li>
+<code>cpue</code>: one value, or one per index;</li>
+<li>
+<code>lf</code> and <code>wf</code>: one value, or one per fleet (a fleet that mixes bin schemes still has a single lambda);</li>
+<li>
+<code>rec</code>, <code>init_rec</code>, <code>prior</code> and <code>penalty</code>: one value each.</li>
+</ul>
+<p>To drop the length compositions of fishery 2 from the simulated assessment:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lf_lambda</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">n_fishery</span><span class="op">)</span></span>
+<span><span class="va">lf_lambda</span><span class="op">[</span><span class="fl">2</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0</span></span>
+<span><span class="va">weighted</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_update.html">opal_update</a></span><span class="op">(</span><span class="va">assessment</span>, lambdas <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lf <span class="op">=</span> <span class="va">lf_lambda</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_report.html">opal_report</a></span><span class="op">(</span><span class="fu"><a href="../reference/opal_build.html">opal_build</a></span><span class="op">(</span><span class="va">weighted</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">terms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lp_prior"</span>, <span class="st">"lp_penalty"</span>, <span class="st">"lp_rec"</span>, <span class="st">"lp_init_rec"</span>,</span>
+<span>           <span class="st">"lp_cpue"</span>, <span class="st">"lp_lf"</span>, <span class="st">"lp_wf"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>raw <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">report</span><span class="op">[</span><span class="va">terms</span><span class="op">]</span>, <span class="va">sum</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>           weighted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">report</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">terms</span>, <span class="st">"_w"</span><span class="op">)</span><span class="op">]</span>, <span class="va">sum</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                     raw     weighted
+lp_prior     -0.28503427  -0.28503427
+lp_penalty    0.00000000   0.00000000
+lp_rec        0.03177362   0.03177362
+lp_init_rec   0.00000000   0.00000000
+lp_cpue     -32.14982164 -32.14982164
+lp_lf       129.36440295  63.74266535
+lp_wf       143.56411922 143.56411922</code></pre>
+</div>
+</div>
+<p>The report keeps the raw terms (<code>lp_lf</code> and the rest) and adds the weighted terms (<code>lp_lf_w</code> and the rest) and the resolved <code>lambdas</code>. <code>opal_update(lambdas = ...)</code> clears any fit, because the objective has changed. <code>removal_switch_f</code> is the broader switch: it removes a fleet’s length and weight compositions together, whereas <code>lf</code> and <code>wf</code> lambdas act on one data type each.</p>
+<p>Priors can be switched off too. The <code>prior</code> lambda scales the whole prior term, and <code><a href="../reference/opal_set_prior_lambda.html">opal_set_prior_lambda()</a></code> sets a lambda for one prior block or for a single element of it, such as one <code>par_sel</code> cell. SS3 only evaluates priors on estimated parameters; <code>data$lambdas$prior_mapped_only &lt;- TRUE</code> does the same by dropping prior terms for elements the map fixes. It changes the reported prior and objective, not the estimates. The model function cannot see the map, so the flag only applies when the model is built from an <code>opal_obj</code>; <code><a href="../reference/opal_model.html">opal_model()</a></code> warns if it is set on a model built directly with <code>RTMB::MakeADFun()</code>.</p>
+<p>Lambdas other than 0 and 1 temper the objective. <code><a href="../reference/opal_mcmc.html">opal_mcmc()</a></code> warns that the posterior is tempered, and <code><a href="../reference/opal_osa.html">opal_osa()</a></code> warns that the residuals are affected. OSA rows from a fleet with a lambda of 0 are kept, with the reason <code>"lambda = 0"</code>. A fit check warns when a lambda of 0 leaves an estimated parameter without data, for example an index’s catchability. Lambdas cannot change between estimation phases, and opal has no automatic data weighting. The Indian Ocean yellowfin article (<code><a href="../articles/io-yft-ss3-comparison.html">vignette("io-yft-ss3-comparison", package = "opal")</a></code>) uses lambdas to match an SS3 configuration.</p>
 </section></section><section class="level2"><h2 id="posterior-analysis">Posterior analysis<a class="anchor" aria-label="anchor" href="#posterior-analysis"></a>
 </h2>
 <p>The bundled simulated posterior was generated with four chains, 1,000 warm-up iterations, and 1,000 retained iterations per chain. Its generation script is <code>data-raw/generate-assessment-example.R</code>. That script requires both fit and MCMC checks to pass before saving. Website builds read the result instead of sampling. To reproduce it yourself:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_mcmc.html">opal_mcmc</a></span><span class="op">(</span><span class="va">assessment</span>, seed <span class="op">=</span> <span class="fl">927</span>, chains <span class="op">=</span> <span class="fl">4</span>, cores <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>                       num_warmup <span class="op">=</span> <span class="fl">1000</span>, num_samples <span class="op">=</span> <span class="fl">1000</span>, adapt_delta <span class="op">=</span> <span class="fl">0.95</span><span class="op">)</span></span>
 <span><span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_check.html">opal_check</a></span><span class="op">(</span><span class="va">assessment</span>, <span class="st">"mcmc"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/opal_io.html">opal_save</a></span><span class="op">(</span><span class="va">assessment</span>, <span class="st">"simulated-assessment.rds"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_io.html">opal_read</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"assessment_example.rds"</span>, package <span class="op">=</span> <span class="st">"opal"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co"># Refresh diagnostics under the current validation version without resampling.</span></span>
 <span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_check.html">opal_check</a></span><span class="op">(</span><span class="va">sampled</span>, <span class="st">"fit"</span><span class="op">)</span></span>
@@ -488,7 +523,7 @@ Objective: 240.3783
 Fit check: passed  | MCMC check: passed
 MCMC: 4 chains; 1000 retained iterations</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">sampled</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">mcmc</span><span class="op">$</span><span class="va">metrics</span><span class="op">$</span><span class="va">parameters</span>, digits <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <table class="table caption-top">
@@ -520,7 +555,7 @@ MCMC: 4 chains; 1000 retained iterations</code></pre>
 </tbody>
 </table>
 </div>
-<div class="sourceCode cell-code" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sampled</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">mcmc</span><span class="op">$</span><span class="va">metrics</span><span class="op">$</span><span class="va">biology</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"passes"</span>, <span class="st">"checked"</span>, <span class="st">"scope"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$passes
@@ -535,7 +570,7 @@ $scope
 </div>
 <p>Summaries use each draw’s own model report and preserve the selected chain and iteration identifiers. Non-finite values stop the calculation rather than being silently removed. Running summaries does not turn an unchecked posterior into an accepted one.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_posterior.html">opal_posterior</a></span><span class="op">(</span><span class="va">sampled</span>,</span>
 <span>  quantities <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"B0"</span>, <span class="st">"spawning_biomass_y"</span>, <span class="st">"static_depletion_y"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">posterior</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_derived.html">opal_derived</a></span><span class="op">(</span><span class="va">sampled</span>, <span class="st">"posterior"</span><span class="op">)</span></span>
@@ -598,7 +633,7 @@ $scope
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">depletion</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/subset.html" class="external-link">subset</a></span><span class="op">(</span><span class="va">posterior</span><span class="op">$</span><span class="va">reports</span>, <span class="va">quantity</span> <span class="op">==</span> <span class="st">"static_depletion_y"</span><span class="op">)</span></span>
 <span><span class="va">depletion</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">sampled</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">years</span>, <span class="va">sampled</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">last_yr</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">depletion</span>, <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">year</span>, y <span class="op">=</span> <span class="va">q0.500</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
@@ -617,7 +652,7 @@ Figure 4: Median and 95% posterior intervals for simulated depletion. These int
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_prior_posterior.html">plot_prior_posterior</a></span><span class="op">(</span><span class="va">sampled</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div id="fig-prior-posterior" class="quarto-float quarto-figure quarto-figure-center">
@@ -635,7 +670,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </h2>
 <p><code><a href="../reference/opal_profile.html">opal_profile()</a></code> fixes a parameter value and re-optimises the remaining active parameters. It profiles the <strong>penalised objective</strong>, including priors, unless those terms are absent. Do not interpret it automatically as a likelihood-ratio confidence interval. Inspect the saved convergence, gradient, biological checks, and component contributions for every point.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">centre</span> <span class="op">&lt;-</span> <span class="va">assessment</span><span class="op">$</span><span class="va">fit</span><span class="op">$</span><span class="va">parameters</span><span class="op">$</span><span class="va">log_B0</span></span>
 <span><span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_profile.html">opal_profile</a></span><span class="op">(</span><span class="va">assessment</span>, <span class="st">"log_B0"</span>, <span class="va">centre</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, length.out <span class="op">=</span> <span class="fl">9</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="../reference/opal_derived.html">opal_derived</a></span><span class="op">(</span><span class="va">assessment</span>, <span class="st">"profile"</span><span class="op">)</span><span class="op">$</span><span class="va">table</span>, digits <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
@@ -725,7 +760,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </tbody>
 </table>
 </div>
-<div class="sourceCode cell-code" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_opal_profile.html">plot_opal_profile</a></span><span class="op">(</span><span class="va">assessment</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
 <div>
@@ -736,7 +771,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </div>
 <p>A grid makes alternative assumptions explicit. Checkpoints are reusable only when the scientific target, starting state, fitting controls, and validation contract match. Failed scenarios remain in the result.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">higher_mortality</span> <span class="op">&lt;-</span> <span class="va">inputs</span><span class="op">$</span><span class="va">data</span></span>
 <span><span class="va">higher_mortality</span><span class="op">$</span><span class="va">M</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0.35</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">data</span><span class="op">$</span><span class="va">n_age</span><span class="op">)</span></span>
 <span><span class="va">grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_grid.html">opal_grid</a></span><span class="op">(</span><span class="fu"><a href="../reference/opal_obj.html">opal_obj</a></span><span class="op">(</span><span class="va">inputs</span><span class="op">$</span><span class="va">data</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">parameters</span>, <span class="va">inputs</span><span class="op">$</span><span class="va">map</span><span class="op">)</span>,</span>
@@ -772,7 +807,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </div>
 <p>For a larger analysis, supply <code>directory = "sensitivity-checkpoints"</code>. Sampling and balanced model selection are explicit subsequent steps:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_grid_mcmc.html">opal_grid_mcmc</a></span><span class="op">(</span><span class="va">grid</span>, seed <span class="op">=</span> <span class="fl">927</span>, chains <span class="op">=</span> <span class="fl">4</span>, cores <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>                       num_warmup <span class="op">=</span> <span class="fl">1000</span>, num_samples <span class="op">=</span> <span class="fl">1000</span><span class="op">)</span></span>
 <span><span class="va">selection</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_grid_draws.html">opal_grid_draws</a></span><span class="op">(</span><span class="va">grid</span>, n_per_model <span class="op">=</span> <span class="fl">400</span>, seed <span class="op">=</span> <span class="fl">123</span><span class="op">)</span></span></code></pre></div>
@@ -782,7 +817,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </h2>
 <p><code><a href="../reference/opal_msy.html">opal_msy()</a></code> calculates deterministic equilibrium yield using a stated fleet allocation, fixed reference-year selectivity, and Beverton–Holt recruitment. Here the fleets receive equal harvest-intensity weights. This calculation is independent of the projection engine.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">assessment</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_msy.html">opal_msy</a></span><span class="op">(</span><span class="va">assessment</span>, fleet_weights <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="fu"><a href="../reference/opal_derived.html">opal_derived</a></span><span class="op">(</span><span class="va">assessment</span>, <span class="st">"msy"</span><span class="op">)</span><span class="op">$</span><span class="va">draws</span>, digits <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></code></pre></div>
 <div class="cell-output-display">
@@ -831,7 +866,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </div>
 <p><code>u_msy</code> is a scalar <strong>seasonal harvest intensity</strong>, not an instantaneous annual fishing mortality. Fleet/age harvest fractions are <code>u * fleet_weight[f] * selectivity[f,a]</code>. Yield uses model weight units, while <code>b_msy</code> uses model spawning-output units. The engine matches the historical seasonal survival and plus-group convention and solves equilibrium recruitment without recruitment deviations or positive continuation. Upper-bound maxima are flagged as unresolved.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Deliberately small, balanced subset for a quick tutorial calculation.</span></span>
 <span><span class="va">selected</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">0</span><span class="op">:</span><span class="fl">3</span>, <span class="kw">function</span><span class="op">(</span><span class="va">chain</span><span class="op">)</span> <span class="va">chain</span> <span class="op">*</span> <span class="fl">1000</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">901</span>, by <span class="op">=</span> <span class="fl">100</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">sampled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_msy.html">opal_msy</a></span><span class="op">(</span><span class="va">sampled</span>, fleet_weights <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span>,</span>
@@ -956,7 +991,7 @@ Figure 5: Specified log-spawning-output prior and the simulated example’s pos
 </tbody>
 </table>
 </div>
-<div class="sourceCode cell-code" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode cell-code" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">msy</span><span class="op">$</span><span class="va">probability_below_bmsy</span></span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0</code></pre>

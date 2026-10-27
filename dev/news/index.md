@@ -2,6 +2,24 @@
 
 ## opal 0.1.1
 
+- 2026/10/27: The three Indian Ocean yellowfin articles are now one,
+  “Indian Ocean yellowfin tuna: Cross model comparison with simulated
+  truth and Stock Synthesis estimation model” (`io-yft-ss3-comparison`).
+  It compares the operating model’s truth, the IATTC team’s SS3 model
+  and opal fit AGE-SF: SS3’s age-based selectivity curves and mirrors,
+  plus SS3’s generalised size compositions for the index on their own
+  bins with SS3’s lambda of 0.51 (row-specific composition bin schemes
+  and `lf` lambdas). AGE-SF is built inline from the bundled data. The
+  earlier fits appear in one bridge table under consistent names:
+  SS3-SEL, LEN (formerly C2), AGE (formerly A-SS3), AGE-SF and AGE-SF-NP
+  (AGE-SF with SS3’s lambda of 0 on parameter priors).
+  `io_yft_reference$ss3` gains `sizefreq` and `lambdas`. `inst/extdata/`
+  now holds only `io_yft_age_sf_fit.rds`, the bridge summaries and the
+  article cache; the stored fits C2, A, A-SS3, S1, S2 and the
+  start-sensitivity runs were removed. `data-raw/generate-io-yft-fits.R`
+  refits every model in the bridge table. The likelihood-lambdas how-to
+  moved to the “Assessment tools” article.
+
 - 2026/10/26
   ([\#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150)):
   SS3-style likelihood lambdas. The optional `data$lambdas` list weights

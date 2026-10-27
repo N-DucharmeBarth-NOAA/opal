@@ -295,6 +295,73 @@ plot_composition(assessment, type = "lf", fishery = 1)
 Figure 3: Observed length-composition proportions and fitted
 probabilities for the first fishery in the simulated example.
 
+### Likelihood lambdas
+
+SS3 control files often weight likelihood components with lambdas, or
+switch a fleet’s data off with a lambda of 0. opal does the same through
+`data$lambdas`, a list whose entries all default to 1:
+
+- `cpue`: one value, or one per index;
+- `lf` and `wf`: one value, or one per fleet (a fleet that mixes bin
+  schemes still has a single lambda);
+- `rec`, `init_rec`, `prior` and `penalty`: one value each.
+
+To drop the length compositions of fishery 2 from the simulated
+assessment:
+
+``` r
+
+lf_lambda <- rep(1, inputs$data$n_fishery)
+lf_lambda[2] <- 0
+weighted <- opal_update(assessment, lambdas = list(lf = lf_lambda))
+report <- opal_report(opal_build(weighted))
+terms <- c("lp_prior", "lp_penalty", "lp_rec", "lp_init_rec",
+           "lp_cpue", "lp_lf", "lp_wf")
+data.frame(raw = vapply(report[terms], sum, numeric(1)),
+           weighted = vapply(report[paste0(terms, "_w")], sum, numeric(1)))
+```
+
+                         raw     weighted
+    lp_prior     -0.28503427  -0.28503427
+    lp_penalty    0.00000000   0.00000000
+    lp_rec        0.03177362   0.03177362
+    lp_init_rec   0.00000000   0.00000000
+    lp_cpue     -32.14982164 -32.14982164
+    lp_lf       129.36440295  63.74266535
+    lp_wf       143.56411922 143.56411922
+
+The report keeps the raw terms (`lp_lf` and the rest) and adds the
+weighted terms (`lp_lf_w` and the rest) and the resolved `lambdas`.
+`opal_update(lambdas = ...)` clears any fit, because the objective has
+changed. `removal_switch_f` is the broader switch: it removes a fleet’s
+length and weight compositions together, whereas `lf` and `wf` lambdas
+act on one data type each.
+
+Priors can be switched off too. The `prior` lambda scales the whole
+prior term, and
+[`opal_set_prior_lambda()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_set_prior_lambda.md)
+sets a lambda for one prior block or for a single element of it, such as
+one `par_sel` cell. SS3 only evaluates priors on estimated parameters;
+`data$lambdas$prior_mapped_only <- TRUE` does the same by dropping prior
+terms for elements the map fixes. It changes the reported prior and
+objective, not the estimates. The model function cannot see the map, so
+the flag only applies when the model is built from an `opal_obj`;
+[`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_model.md)
+warns if it is set on a model built directly with `RTMB::MakeADFun()`.
+
+Lambdas other than 0 and 1 temper the objective.
+[`opal_mcmc()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_mcmc.md)
+warns that the posterior is tempered, and
+[`opal_osa()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_osa.md)
+warns that the residuals are affected. OSA rows from a fleet with a
+lambda of 0 are kept, with the reason `"lambda = 0"`. A fit check warns
+when a lambda of 0 leaves an estimated parameter without data, for
+example an index’s catchability. Lambdas cannot change between
+estimation phases, and opal has no automatic data weighting. The Indian
+Ocean yellowfin article
+([`vignette("io-yft-ss3-comparison", package = "opal")`](https://n-ducharmebarth-noaa.github.io/opal/dev/articles/io-yft-ss3-comparison.md))
+uses lambdas to match an SS3 configuration.
+
 ## Posterior analysis
 
 The bundled simulated posterior was generated with four chains, 1,000
