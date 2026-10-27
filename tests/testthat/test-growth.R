@@ -60,7 +60,7 @@ test_that("default and empty multipliers preserve the original growth exactly", 
 # https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop/blob/2174509/vignettes/OM_description_YFT.Rmd
 # https://aaronmberger-nwfsc.github.io/Spatial-Assessment-Modeling-Workshop/articles/OM_description_YFT.html
 # Identical to SS3 v3.24AB endgrowth Len_Beg, replicate 4:
-# N-DucharmeBarth/wcpfc-bet-single-region, commit e7d8c8e,
+# N-DucharmeBarth/opal-sandbox, commit e7d8c8e,
 # model-files/ss3/xx-io-yft-sim-iattc-sample-tree-4/Report.sso.
 # Growth: Fu et al. (2018), after Fonteneau and Gascuel (2008).
 test_that("age-specific K reproduces SS3 GrowthModel 3 for IO yellowfin", {

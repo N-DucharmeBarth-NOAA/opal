@@ -12,7 +12,7 @@ adjustment (\code{bias_adj_y}) and priors.
 }
 \source{
 Converted from SS3 v3.24 files with the SS3-to-opal converter in
-\url{https://github.com/N-DucharmeBarth/wcpfc-bet-single-region}
+\url{https://github.com/N-DucharmeBarth/opal-sandbox}
 (\verb{code/rtmb/scripts/04-export-io-yft-for-opal.r}). SS3 model by M.N.
 Maunder, H. Xu and C. Minte-Vera (IATTC); data simulated from the
 operating model described in Goethel et al. (2024)

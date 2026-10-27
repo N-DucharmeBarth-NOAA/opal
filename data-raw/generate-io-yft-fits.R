@@ -18,7 +18,7 @@ control <- list(eval.max = 10000, iter.max = 10000)
 metadata <- list(
   stock = "Indian Ocean yellowfin (simulated, replicate 4)",
   source = "SS3 model by M.N. Maunder, H. Xu and C. Minte-Vera (IATTC), converted to opal",
-  converter = "https://github.com/N-DucharmeBarth/wcpfc-bet-single-region (code/rtmb)")
+  converter = "https://github.com/N-DucharmeBarth/opal-sandbox (code/rtmb)")
 description <- c(
   LEN = "LEN: SS3 age-specific K growth, opal length-based selectivity",
   AGE = "AGE: SS3's age-based selectivity curves, every parameter SS3 estimated",

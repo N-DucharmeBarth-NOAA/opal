@@ -32,7 +32,7 @@
 #'   growth settings, length compositions (`lf_*`), the recruitment bias
 #'   adjustment (`bias_adj_y`) and priors.
 #' @source Converted from SS3 v3.24 files with the SS3-to-opal converter in
-#'   <https://github.com/N-DucharmeBarth/wcpfc-bet-single-region>
+#'   <https://github.com/N-DucharmeBarth/opal-sandbox>
 #'   (`code/rtmb/scripts/04-export-io-yft-for-opal.r`). SS3 model by M.N.
 #'   Maunder, H. Xu and C. Minte-Vera (IATTC); data simulated from the
 #'   operating model described in Goethel et al. (2024)
@@ -121,5 +121,5 @@
 #'   outputs from
 #'   <https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop>.
 #'   Exported by `code/rtmb/scripts/04-export-io-yft-for-opal.r` in
-#'   <https://github.com/N-DucharmeBarth/wcpfc-bet-single-region>.
+#'   <https://github.com/N-DucharmeBarth/opal-sandbox>.
 "io_yft_reference"

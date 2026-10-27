@@ -156,7 +156,7 @@ size compositions.
 
 The bundled opal inputs were produced from SS3's data, control, parameter
 and report files by an SS3-to-opal converter
-([wcpfc-bet-single-region](`r ref$source$repository`), `code/rtmb`). They
+([opal-sandbox](`r ref$source$repository`), `code/rtmb`). They
 reconcile exactly with SS3 for catch, the index, the length compositions
 and biology (M, weight, maturity and spawning potential at age). opal takes
 the same time steps (`n_year = ` `r n_ts`, `n_season = 1`) and SS3's ages

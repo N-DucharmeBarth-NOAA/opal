@@ -46,7 +46,7 @@ SS3 Report.sso and data.ss_new expected values; operating model
 outputs from
 \url{https://github.com/aaronmberger-nwfsc/Spatial-Assessment-Modeling-Workshop}.
 Exported by \verb{code/rtmb/scripts/04-export-io-yft-for-opal.r} in
-\url{https://github.com/N-DucharmeBarth/wcpfc-bet-single-region}.
+\url{https://github.com/N-DucharmeBarth/opal-sandbox}.
 }
 \usage{
 io_yft_reference
