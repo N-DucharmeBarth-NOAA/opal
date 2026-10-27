@@ -32,6 +32,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_growth.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_harvest_rate.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_initial_numbers.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_lambdas.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_length_like.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_map.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_maturity_at_age.html</loc></url>
@@ -88,6 +89,7 @@
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_profile.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_project.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_report.html</loc></url>
+<url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_set_prior_lambda.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_update.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_biomass_spawning.html</loc></url>
 <url><loc>https://n-ducharmebarth-noaa.github.io/opal/dev/reference/plot_catch.html</loc></url>

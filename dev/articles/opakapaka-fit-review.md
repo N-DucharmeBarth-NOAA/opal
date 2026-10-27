@@ -99,6 +99,9 @@ fit$validation$fit$metrics
 #> $valid_population
 #> [1] TRUE
 #> 
+#> $lambda_identifiability
+#> character(0)
+#> 
 #> $biology
 #> $biology$passes
 #> [1] TRUE

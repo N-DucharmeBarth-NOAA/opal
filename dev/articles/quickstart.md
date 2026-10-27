@@ -69,17 +69,17 @@ fit
 #> <opal_obj> fitted
 #> Active parameters: 127 
 #> Objective: 1832.412 
-#> Fit check: passed  | MCMC check: not run
+#> Fit check: failed  | MCMC check: not run
 fit$validation$fit
 #> $passes
-#> [1] TRUE
+#> [1] FALSE
 #> 
 #> $metrics
 #> $metrics$convergence
 #> [1] 0
 #> 
 #> $metrics$max_gradient
-#> [1] 0.0009558889
+#> [1] 0.001041864
 #> 
 #> $metrics$positive_hessian
 #> [1] TRUE
@@ -89,6 +89,9 @@ fit$validation$fit
 #> 
 #> $metrics$valid_population
 #> [1] TRUE
+#> 
+#> $metrics$lambda_identifiability
+#> character(0)
 #> 
 #> $metrics$biology
 #> $metrics$biology$passes
@@ -114,7 +117,7 @@ fit$validation$fit
 #> [1] 0
 #> 
 #> $metrics$biology$metrics$max_harvest
-#> [1] 0.09746105
+#> [1] 0.09746108
 #> 
 #> $metrics$biology$metrics$max_relative_catch_error
 #> [1] 6.704801e-10
@@ -127,10 +130,10 @@ fit$validation$fit
 #> 
 #> $identity
 #> $identity$target
-#> [1] "1f8972ae87090a5d4730bbbe905773f1"
+#> [1] "ee90089a452842dd84b666be93b7481b"
 #> 
 #> $identity$fit
-#> [1] "8efe536e503a96af2d24ae545fc58c85"
+#> [1] "7459c22d1102869eeae932f6f18cec4b"
 #> 
 #> 
 #> $version
@@ -154,10 +157,10 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-10-26 22:25:45 UTC"
+#> [1] "2026-10-27 03:57:08 UTC"
 #> 
 #> $payload_id
-#> [1] "fe2d36f3639e8362412ba6e16e41c15e"
+#> [1] "af17e4ecc684adddd5e9cd861da80705"
 ```
 
 The optimiser can return convergence code zero while the maximum

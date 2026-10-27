@@ -34,8 +34,9 @@ Supported distributions are `normal`, `student` (three degrees of
 freedom), `lognormal`, and `beta` (mean and precision). Priors act on
 the stored parameter scale; for example, a normal prior on `log_B0` is a
 normal density on log spawning output. Locations and scales must be
-scalars or match the parameter block length. Indices identify blocks in
-`parameters`.
+scalars or match the parameter block length. An optional `lambda` field
+applies a non-negative scalar or per-element multiplier to the log
+density; it defaults to 1. Indices identify blocks in `parameters`.
 
 ## Examples
 

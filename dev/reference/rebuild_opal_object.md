@@ -2,7 +2,10 @@
 
 Recreates the objective from stored data, fitted parameters, map, and
 random effects, then verifies the active parameter layout and saved
-objective.
+objective. Legacy fits do not apply `lambdas$prior_mapped_only`; the
+model warns when it is set. Use
+[`opal_obj()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_obj.md)
+for that option.
 
 ## Usage
 

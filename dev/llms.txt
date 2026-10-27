@@ -387,6 +387,10 @@ model.
   : Get default parameter bounds
 - [`get_priors()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_priors.md)
   : Get priors
+- [`get_lambdas()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_lambdas.md)
+  : Resolve likelihood-component lambdas
+- [`opal_set_prior_lambda()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_set_prior_lambda.md)
+  : Set a prior lambda
 - [`prep_lf_data()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/prep_lf_data.md)
   : Prepare length composition data for model input
 - [`prep_wf_data()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/prep_wf_data.md)

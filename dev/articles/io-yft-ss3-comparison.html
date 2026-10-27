@@ -743,6 +743,33 @@
 </table>
 </div>
 </div>
+</section><section class="section level2"><h2 id="matching-ss3-lambdas">Matching SS3 lambdas<a class="anchor" aria-label="anchor" href="#matching-ss3-lambdas"></a>
+</h2>
+<p>SS3 control files often weight likelihood components with lambdas, or switch a fleet’s data off with a lambda of 0. opal does the same through <code>data$lambdas</code>, a list whose entries all default to 1:</p>
+<ul>
+<li>
+<code>cpue</code>: one value, or one per index;</li>
+<li>
+<code>lf</code> and <code>wf</code>: one value, or one per fleet (a fleet that mixes bin schemes still has a single lambda);</li>
+<li>
+<code>rec</code>, <code>init_rec</code>, <code>prior</code> and <code>penalty</code>: one value each.</li>
+</ul>
+<p>To drop the length compositions of fishery 16 from this assessment:</p>
+<div class="cell">
+<details class="code-fold"><summary>Show code</summary><div class="sourceCode cell-code" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">lf_lambda</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">d</span><span class="op">$</span><span class="va">n_fishery</span><span class="op">)</span></span>
+<span><span class="va">lf_lambda</span><span class="op">[</span><span class="fl">16</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">0</span></span>
+<span><span class="va">weighted</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_update.html">opal_update</a></span><span class="op">(</span><span class="va">assessment</span>, lambdas <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>lf <span class="op">=</span> <span class="va">lf_lambda</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">report</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/opal_report.html">opal_report</a></span><span class="op">(</span><span class="fu"><a href="../reference/opal_build.html">opal_build</a></span><span class="op">(</span><span class="va">weighted</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">terms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"lp_prior"</span>, <span class="st">"lp_penalty"</span>, <span class="st">"lp_rec"</span>, <span class="st">"lp_init_rec"</span>,</span>
+<span>           <span class="st">"lp_cpue"</span>, <span class="st">"lp_lf"</span>, <span class="st">"lp_wf"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>raw <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">report</span><span class="op">[</span><span class="va">terms</span><span class="op">]</span>, <span class="va">sum</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>           weighted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">report</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">terms</span>, <span class="st">"_w"</span><span class="op">)</span><span class="op">]</span>, <span class="va">sum</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</details>
+</div>
+<p>The chunk is not run here because it rebuilds the model, which takes about half a minute. The report keeps the raw terms (<code>lp_lf</code> and the rest) and adds the weighted terms (<code>lp_lf_w</code> and the rest) and the resolved <code>lambdas</code>. <code>opal_update(lambdas = ...)</code> clears any fit, because the objective has changed. <code>removal_switch_f</code> is the broader switch: it removes a fleet’s length and weight compositions together, whereas <code>lf</code> and <code>wf</code> lambdas act on one data type each.</p>
+<p>Priors can be switched off too. The <code>prior</code> lambda scales the whole prior term, and <code><a href="../reference/opal_set_prior_lambda.html">opal_set_prior_lambda()</a></code> sets a lambda for one prior block or for a single element of it, such as one <code>par_sel</code> cell. SS3 only evaluates priors on estimated parameters; <code>data$lambdas$prior_mapped_only &lt;- TRUE</code> does the same by dropping prior terms for elements the map fixes. It changes the reported prior and objective, not the estimates. The model function cannot see the map, so the flag only applies when the model is built from an <code>opal_obj</code>; <code><a href="../reference/opal_model.html">opal_model()</a></code> warns if it is set on a model built directly with <code>RTMB::MakeADFun()</code>.</p>
+<p>Lambdas other than 0 and 1 temper the objective. <code><a href="../reference/opal_mcmc.html">opal_mcmc()</a></code> warns that the posterior is tempered, and <code><a href="../reference/opal_osa.html">opal_osa()</a></code> warns that the residuals are affected. OSA rows from a fleet with a lambda of 0 are kept, with the reason <code>"lambda = 0"</code>. A fit check warns when a lambda of 0 leaves an estimated parameter without data, for example an index’s catchability. Lambdas cannot change between estimation phases, and opal has no automatic data weighting.</p>
 </section><section class="section level2"><h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h2>
 <ul>

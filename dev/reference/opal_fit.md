@@ -163,21 +163,22 @@ assessment <- opal_obj(inputs$data, inputs$parameters, inputs$map)
 assessment <- opal_fit(assessment)
 #> Warning: NA/NaN function evaluation
 #> All parameters are estimable
+#> Warning: The fit check failed; results are retained.
 summary(assessment)
 #> <opal_obj> fitted
 #> Active parameters: 127 
 #> Objective: 1832.412 
-#> Fit check: passed  | MCMC check: not run 
+#> Fit check: failed  | MCMC check: not run 
 assessment$validation$fit
 #> $passes
-#> [1] TRUE
+#> [1] FALSE
 #> 
 #> $metrics
 #> $metrics$convergence
 #> [1] 0
 #> 
 #> $metrics$max_gradient
-#> [1] 0.0009558889
+#> [1] 0.001041864
 #> 
 #> $metrics$positive_hessian
 #> [1] TRUE
@@ -187,6 +188,9 @@ assessment$validation$fit
 #> 
 #> $metrics$valid_population
 #> [1] TRUE
+#> 
+#> $metrics$lambda_identifiability
+#> character(0)
 #> 
 #> $metrics$biology
 #> $metrics$biology$passes
@@ -212,7 +216,7 @@ assessment$validation$fit
 #> [1] 0
 #> 
 #> $metrics$biology$metrics$max_harvest
-#> [1] 0.09746105
+#> [1] 0.09746108
 #> 
 #> $metrics$biology$metrics$max_relative_catch_error
 #> [1] 6.704801e-10
@@ -225,10 +229,10 @@ assessment$validation$fit
 #> 
 #> $identity
 #> $identity$target
-#> [1] "1f8972ae87090a5d4730bbbe905773f1"
+#> [1] "ee90089a452842dd84b666be93b7481b"
 #> 
 #> $identity$fit
-#> [1] "8efe536e503a96af2d24ae545fc58c85"
+#> [1] "7459c22d1102869eeae932f6f18cec4b"
 #> 
 #> 
 #> $version
@@ -252,10 +256,10 @@ assessment$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-10-26 22:24:07 UTC"
+#> [1] "2026-10-27 03:54:54 UTC"
 #> 
 #> $payload_id
-#> [1] "7136b43685c1a47a247b8df5ad0486a9"
+#> [1] "66997febf0471dd2dd634fb5238be578"
 #> 
 # }
 ```

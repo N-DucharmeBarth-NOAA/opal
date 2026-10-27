@@ -65,7 +65,8 @@ Defaults are resolved again when their upstream configuration changes.</p>
 <span>  <span class="va">control</span>,</span>
 <span>  <span class="va">makeadfun_args</span>,</span>
 <span>  <span class="va">priors</span>,</span>
-<span>  <span class="va">metadata</span></span>
+<span>  <span class="va">metadata</span>,</span>
+<span>  <span class="va">lambdas</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -88,6 +89,10 @@ Defaults are resolved again when their upstream configuration changes.</p>
 <dt id="arg-metadata">metadata<a class="anchor" aria-label="anchor" href="#arg-metadata"></a></dt>
 <dd><p>Named metadata to merge.</p></dd>
 
+
+<dt id="arg-lambdas">lambdas<a class="anchor" aria-label="anchor" href="#arg-lambdas"></a></dt>
+<dd><p>Optional replacement for <code>data$lambdas</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -95,7 +100,7 @@ Defaults are resolved again when their upstream configuration changes.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Changes to data, priors, parameters, maps, random effects, bounds, or RTMB
+    <p>Changes to data, priors, lambdas, parameters, maps, random effects, bounds, or RTMB
 construction settings clear dependent fits, posteriors, diagnostics, and
 projections. Metadata is merged, and optimiser controls can change without
 invalidating results. A supplied map is retained unless explicitly replaced;

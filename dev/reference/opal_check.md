@@ -67,10 +67,14 @@ joint posterior draw is checked for bounds and biology. MCMC checks also
 require at least two chains, finite R-hat and effective sample sizes
 within the thresholds, known sampler diagnostics, no divergences, and no
 maximum-tree-depth hits. Missing sampler diagnostics prevent a passing
-MCMC check, even if imported parameter draws are usable. The record is
-stored in `x$validation[[scope]]`, including metrics, settings, and the
-identity of the checked result. These checks do not establish scientific
-adequacy of a model or projection scenario.
+MCMC check, even if imported parameter draws are usable. Fit checks also
+warn when a zero likelihood lambda leaves an estimated parameter
+unidentified (for example `log_cpue_q` for an index with
+`lambdas$cpue = 0`), and list those cases in
+`metrics$lambda_identifiability`; this does not fail the check. The
+record is stored in `x$validation[[scope]]`, including metrics,
+settings, and the identity of the checked result. These checks do not
+establish scientific adequacy of a model or projection scenario.
 
 ## See also
 
@@ -118,6 +122,9 @@ assessment$validation$fit$metrics
 #> 
 #> $valid_population
 #> [1] TRUE
+#> 
+#> $lambda_identifiability
+#> character(0)
 #> 
 #> $biology
 #> $biology$passes

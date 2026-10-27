@@ -18,7 +18,8 @@ opal_update(
   control,
   makeadfun_args,
   priors,
-  metadata
+  metadata,
+  lambdas
 )
 ```
 
@@ -41,14 +42,18 @@ opal_update(
 
   Named metadata to merge.
 
+- lambdas:
+
+  Optional replacement for `data$lambdas`.
+
 ## Value
 
 An updated `opal_obj`; the input object is not modified.
 
 ## Details
 
-Changes to data, priors, parameters, maps, random effects, bounds, or
-RTMB construction settings clear dependent fits, posteriors,
+Changes to data, priors, lambdas, parameters, maps, random effects,
+bounds, or RTMB construction settings clear dependent fits, posteriors,
 diagnostics, and projections. Metadata is merged, and optimiser controls
 can change without invalidating results. A supplied map is retained
 unless explicitly replaced; check its dimensions when changing parameter

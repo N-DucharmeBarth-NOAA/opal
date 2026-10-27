@@ -115,6 +115,10 @@ require at least two chains, finite R-hat and effective
 sample sizes within the thresholds, known sampler diagnostics, no
 divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
 prevent a passing MCMC check, even if imported parameter draws are usable.
+Fit checks also warn when a zero likelihood lambda leaves an estimated
+parameter unidentified (for example <code>log_cpue_q</code> for an index with
+<code>lambdas$cpue = 0</code>), and list those cases in <code>metrics$lambda_identifiability</code>;
+this does not fail the check.
 The record is stored in <code>x$validation[[scope]]</code>, including metrics, settings,
 and the identity of the checked result. These checks do not establish
 scientific adequacy of a model or projection scenario.</p>
@@ -165,6 +169,9 @@ scientific adequacy of a model or projection scenario.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $valid_population</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $lambda_identifiability</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> character(0)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $biology</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $biology$passes</span>

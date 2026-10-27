@@ -94,9 +94,19 @@ no silent substitution of conditional residuals for marginal residuals.</p>
 bin. Composition tables include each observed bin's lower and upper
 boundaries, including row-specific schemes. The final composition bin
 is constrained and omitted from residual calculations. Removed
-fisheries, zero sample sizes, exhausted counts, and numerical failures
+fisheries, zero lambdas, zero sample sizes, exhausted counts, and numerical failures
 remain in the table with explicit exclusion reasons. Multinomial counts
 are rounded as in the fitted likelihood; no new pseudocounts are added.
+Rows assigned a zero likelihood lambda are excluded with reason
+<code>"lambda = 0"</code>. For fixed-effect fits, fractional CPUE, LF, or WF lambdas
+temper the fitted estimates, but the residuals use the untempered
+observation model at those estimates; prior, recruitment, and penalty
+lambdas only affect the estimates. For random-effect models,
+<code>oneStepPredict()</code> integrates the tape, which already includes every
+lambda, so any non-unit lambda (other than a zero observation lambda,
+whose rows are excluded) makes the residuals come from a tempered joint
+density that is not a proper predictive distribution. A warning is given
+in both cases.
 SDNR should be near one, but its interval is approximate because fitted
 parameters and finite samples affect calibration. Catch is conditioned on
 and has no observation likelihood; process priors are not observations.</p>

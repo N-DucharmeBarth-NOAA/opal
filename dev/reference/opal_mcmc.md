@@ -67,7 +67,8 @@ to the assessment. After sampling, inspect `x$validation$mcmc` and
 previously checked, passing posterior.
 [`opal_as_tmbfit()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_as_tmbfit.md)
 exposes the selected samples to SparseNUTS plotting and diagnostic
-tools.
+tools. Non-unit likelihood or prior lambdas temper the posterior and are
+reported with a warning.
 
 ## See also
 
