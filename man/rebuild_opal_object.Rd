@@ -37,4 +37,6 @@ A newly constructed RTMB objective.
 \description{
 Recreates the objective from stored data, fitted parameters, map, and random
 effects, then verifies the active parameter layout and saved objective.
+Legacy fits do not apply \code{lambdas$prior_mapped_only}; the model warns when
+it is set. Use \code{\link[=opal_obj]{opal_obj()}} for that option.
 }

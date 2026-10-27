@@ -6,10 +6,11 @@
 #' @param x An `opal_obj`.
 #' @param data,parameters,map,random,bounds,control,makeadfun_args As in [opal_obj()].
 #' @param priors Optional replacement for `data$priors`.
+#' @param lambdas Optional replacement for `data$lambdas`.
 #' @param metadata Named metadata to merge.
 #' @return An updated `opal_obj`; the input object is not modified.
 #' @details
-#' Changes to data, priors, parameters, maps, random effects, bounds, or RTMB
+#' Changes to data, priors, lambdas, parameters, maps, random effects, bounds, or RTMB
 #' construction settings clear dependent fits, posteriors, diagnostics, and
 #' projections. Metadata is merged, and optimiser controls can change without
 #' invalidating results. A supplied map is retained unless explicitly replaced;
@@ -22,7 +23,7 @@
 #' summary(labelled)
 #' @export
 opal_update <- function(x, data, parameters, map, random, bounds, control,
-                        makeadfun_args, priors, metadata) {
+                        makeadfun_args, priors, metadata, lambdas) {
   validate_opal_obj(x)
   old <- x
   supplied <- as.list(match.call())[-1L]
@@ -37,6 +38,7 @@ opal_update <- function(x, data, parameters, map, random, bounds, control,
     }
   }
   if (!missing(priors)) x$data["priors"] <- list(priors)
+  if (!missing(lambdas)) x$data["lambdas"] <- list(lambdas)
   if (!missing(control)) x["control"] <- list(control)
   if (!missing(metadata)) {
     .opal_validate_named_list(metadata, "metadata")
@@ -51,6 +53,12 @@ opal_update <- function(x, data, parameters, map, random, bounds, control,
       old$configuration$origins$parameters == "default") {
     x["parameters"] <- list(NULL)
     x$configuration$origins$parameters <- "unresolved"
+  }
+  if (!identical(old$data$lambdas, x$data$lambdas) || "data" %in% names(supplied)) {
+    resolved_lambdas <- get_lambdas(x$data)
+    if (resolved_lambdas$penalty < 1) {
+      warning("A penalty lambda below 1 weakens crash and posfun penalties.", call. = FALSE)
+    }
   }
   if ((upstream || !identical(old$map, x$map) || !identical(old$random, x$random)) &&
       missing(bounds) && old$configuration$origins$bounds != "supplied") {
@@ -176,6 +184,10 @@ opal_attach_fit <- function(x, opt, check = TRUE, check_args = list()) {
 #' sample sizes within the thresholds, known sampler diagnostics, no
 #' divergences, and no maximum-tree-depth hits. Missing sampler diagnostics
 #' prevent a passing MCMC check, even if imported parameter draws are usable.
+#' Fit checks also warn when a zero likelihood lambda leaves an estimated
+#' parameter unidentified (for example `log_cpue_q` for an index with
+#' `lambdas$cpue = 0`), and list those cases in `metrics$lambda_identifiability`;
+#' this does not fail the check.
 #' The record is stored in `x$validation[[scope]]`, including metrics, settings,
 #' and the identity of the checked result. These checks do not establish
 #' scientific adequacy of a model or projection scenario.
@@ -198,6 +210,11 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
   }
   if (scope == "fit" && is.null(x$fit$opt)) stop("No fitted optimum to check.", call. = FALSE)
   if (scope == "mcmc" && is.null(x$mcmc)) stop("No posterior to check.", call. = FALSE)
+  # Identifiability depends on the configuration, not the posterior, so it is
+  # checked (and warned about) only by fit checks.
+  lambda_issues <- if (scope == "fit") {
+    .opal_warn_lambda_identifiability(x$data, x$parameters, x$map)
+  } else character()
   result <- tryCatch({
     if (scope == "fit") {
       object <- opal_rtmb(x, fresh = TRUE)
@@ -218,6 +235,7 @@ opal_check <- function(x, scope = c("fit", "mcmc"), gradient_tolerance = 1e-3,
         max_gradient = max(abs(gradient)), positive_hessian = positive,
         inside_bounds = all(par >= x$bounds$lower & par <= x$bounds$upper),
         valid_population = all(is.finite(report$number_ysa)) && all(report$number_ysa >= 0))
+      metrics$lambda_identifiability <- lambda_issues
       metrics$biology <- .opal_diagnose_report(x$data, x$fit$parameters, report,
         penalty_tolerance, catch_tolerance)
       passes <- identical(as.integer(metrics$convergence), 0L) &&

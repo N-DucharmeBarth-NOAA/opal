@@ -22,7 +22,7 @@ utils::globalVariables(c(
   "wt_bin_start", "wt_bin_width",
   "log_wf_tau", "wf_addtocomp", "wf_n_int", "wf_n_int_fi",
   "wf_scheme_edges", "wf_rebin_s", "wf_scheme", "wf_nbins_i",
-  "priors", "sel_fa_external", "sel_basis_f"
+  "priors", "lambdas", "sel_fa_external", "sel_basis_f"
 ))
 
 #' The opal globals
@@ -54,6 +54,9 @@ opal_globals <- function() {
     rebin_counts = rebin_counts,
     rebin_matrix = rebin_matrix,
     get_cpue_like = get_cpue_like, 
+    get_lambdas = get_lambdas,
+    .opal_validate_lambdas = .opal_validate_lambdas,
+    .opal_weight_likelihood = .opal_weight_likelihood,
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors,
     .opal_validate_priors = .opal_validate_priors,
@@ -75,6 +78,7 @@ opal_model <- function(parameters, data) {
   "c" <- ADoverload("c")
   "diag<-" <- ADoverload("diag<-")
   getAll(data, parameters, warn = FALSE)
+  lam <- get_lambdas(data)
   has_init_rdev_a <- exists("init_rdev_a", inherits = FALSE) && !is.null(init_rdev_a)
   has_init_bias_adj_a <- exists("init_bias_adj_a", inherits = FALSE) && !is.null(init_bias_adj_a)
   if (!exists("cpue_switch", inherits = FALSE)) cpue_switch <- 0L
@@ -233,6 +237,13 @@ opal_model <- function(parameters, data) {
     lp_init_rec <- 0
   }
   if (exists("priors", inherits = FALSE) && !is.null(priors) && length(priors) > 0) {
+    if (isTRUE(lam$prior_mapped_only) &&
+        !isTRUE(attr(priors, "opal_mapped_only_resolved"))) {
+      warning("`lambdas$prior_mapped_only` is TRUE, but the priors were not ",
+              "resolved against the parameter map, so priors on mapped elements ",
+              "still count. Build the model with opal_obj() and opal_build().",
+              call. = FALSE)
+    }
     lp_prior <- evaluate_priors(parameters, priors)
   } else {
     lp_prior <- 0
@@ -309,7 +320,29 @@ opal_model <- function(parameters, data) {
   } else {
     lp_wf <- 0
   }
-  nll <- lp_prior + lp_penalty + lp_rec + lp_init_rec + sum(lp_cpue) + sum(lp_lf) + sum(lp_wf)
+  # Per-observation lambdas follow the order of each likelihood vector: CPUE
+  # rows, then composition rows grouped by fishery. Switched-off components
+  # are a scalar 0 and need no weighting.
+  lp_cpue_w <- lp_cpue
+  if (cpue_switch > 0) {
+    cpue_index <- if ("index" %in% names(cpue_data)) cpue_data$index else
+      rep(1L, nrow(cpue_data))
+    lp_cpue_w <- .opal_weight_likelihood(lp_cpue, lam$cpue[cpue_index])
+  }
+  lp_lf_w <- lp_lf
+  if (lf_switch > 0 && n_lf > 0) {
+    lp_lf_w <- .opal_weight_likelihood(lp_lf, lam$lf[rep(lf_fishery_f, lf_n_f)])
+  }
+  lp_wf_w <- lp_wf
+  if (wf_switch > 0 && n_wf > 0) {
+    lp_wf_w <- .opal_weight_likelihood(lp_wf, lam$wf[rep(wf_fishery_f, wf_n_f)])
+  }
+  lp_rec_w <- .opal_weight_likelihood(lp_rec, lam$rec)
+  lp_init_rec_w <- .opal_weight_likelihood(lp_init_rec, lam$init_rec)
+  lp_prior_w <- .opal_weight_likelihood(lp_prior, lam$prior)
+  lp_penalty_w <- .opal_weight_likelihood(lp_penalty, lam$penalty)
+  nll <- lp_prior_w + lp_penalty_w + lp_rec_w + lp_init_rec_w +
+    sum(lp_cpue_w) + sum(lp_lf_w) + sum(lp_wf_w)
   
   # Reporting ----
   
@@ -324,6 +357,15 @@ opal_model <- function(parameters, data) {
   REPORT(lp_cpue)
   REPORT(lp_lf)
   REPORT(lp_wf)
+  lambdas <- lam
+  REPORT(lambdas)
+  REPORT(lp_prior_w)
+  REPORT(lp_penalty_w)
+  REPORT(lp_rec_w)
+  REPORT(lp_init_rec_w)
+  REPORT(lp_cpue_w)
+  REPORT(lp_lf_w)
+  REPORT(lp_wf_w)
   
   REPORT(B0)
   REPORT(R0)

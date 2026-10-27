@@ -14,7 +14,8 @@ opal_update(
   control,
   makeadfun_args,
   priors,
-  metadata
+  metadata,
+  lambdas
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ opal_update(
 \item{priors}{Optional replacement for \code{data$priors}.}
 
 \item{metadata}{Named metadata to merge.}
+
+\item{lambdas}{Optional replacement for \code{data$lambdas}.}
 }
 \value{
 An updated \code{opal_obj}; the input object is not modified.
@@ -35,7 +38,7 @@ reports. Metadata and optimiser controls do not alter the scientific target.
 Defaults are resolved again when their upstream configuration changes.
 }
 \details{
-Changes to data, priors, parameters, maps, random effects, bounds, or RTMB
+Changes to data, priors, lambdas, parameters, maps, random effects, bounds, or RTMB
 construction settings clear dependent fits, posteriors, diagnostics, and
 projections. Metadata is merged, and optimiser controls can change without
 invalidating results. A supplied map is retained unless explicitly replaced;

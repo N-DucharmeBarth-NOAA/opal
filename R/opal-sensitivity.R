@@ -54,7 +54,8 @@ opal_profile <- function(x, parameter, values, element = 1L, fit_args = list(), 
       gradient <- if (length(object$par)) max(abs(object$gr(candidate$fit$opt$par))) else 0
       biology <- opal_diagnose(candidate)
       report <- opal_report(candidate)
-      terms <- intersect(c("lp_prior", "lp_penalty", "lp_rec", "lp_init_rec", "lp_cpue", "lp_lf", "lp_wf"), names(report))
+      terms <- intersect(c("lp_prior_w", "lp_penalty_w", "lp_rec_w",
+        "lp_init_rec_w", "lp_cpue_w", "lp_lf_w", "lp_wf_w"), names(report))
       components[[i]] <- data.frame(value = values[i], component = terms,
         objective = vapply(report[terms], sum, numeric(1)))
       fits[[i]] <- candidate

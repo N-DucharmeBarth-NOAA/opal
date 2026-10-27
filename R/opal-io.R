@@ -19,6 +19,13 @@ opal_from_fit <- function(x, integrity = c("portable", "exact")) {
   }
   integrity <- match.arg(integrity)
   validate_opal_fit(x)
+  # Legacy objectives are rebuilt without resolving prior_mapped_only, but the
+  # staged workflow resolves it, so the saved objective could not be verified.
+  if (.opal_prior_mapped_only_changes(x$data, x$map, x$parameters)) {
+    stop("This legacy fit sets `lambdas$prior_mapped_only` with priors on mapped ",
+         "elements, which legacy fits do not resolve. Refit it with opal_obj(), ",
+         "or set `prior_mapped_only` to FALSE before converting.", call. = FALSE)
+  }
   runtime <- opal_fit_object(x, fresh = TRUE, integrity = integrity)
   out <- opal_obj(x$data, x$parameters, x$map, x$random, x$bounds,
                    x$control, makeadfun_args = x$makeadfun_args,

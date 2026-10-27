@@ -73,7 +73,8 @@ opal_attach_mcmc <- function(x, mcmc, settings = list(), check = TRUE,
 #' the assessment. After sampling, inspect `x$validation$mcmc` and
 #' `x$mcmc_history`; a failed or unchecked attempt cannot replace a previously
 #' checked, passing posterior. [opal_as_tmbfit()] exposes the selected samples
-#' to SparseNUTS plotting and diagnostic tools.
+#'   to SparseNUTS plotting and diagnostic tools. Non-unit likelihood or prior
+#'   lambdas temper the posterior and are reported with a warning.
 #' @family assessment workflow
 #' @examples
 #' \dontrun{
@@ -88,6 +89,7 @@ opal_mcmc <- function(x, sampler = "snuts", init = "auto", check = TRUE,
                       check_args = list(), ...) {
   validate_opal_obj(x, results = TRUE)
   x <- opal_build(x)
+  .opal_warn_tempered(x$data, include_prior = TRUE, context = "posterior")
   .opal_obj_flag(check, "check")
   .opal_validate_named_list(check_args, "check_args")
   supplied <- list(...)
@@ -109,7 +111,8 @@ opal_mcmc <- function(x, sampler = "snuts", init = "auto", check = TRUE,
   if (length(x$random) && !isTRUE(args$laplace)) {
     # Sampling the joint density requires a full parameter vector and bounds.
     parameters <- object$env$parList(par = object$env$last.par.best)
-    object <- do.call(RTMB::MakeADFun, c(list(func = cmb(opal_model, x$data),
+    data <- .opal_runtime_data(x$data, x$map, parameters)
+    object <- do.call(RTMB::MakeADFun, c(list(func = cmb(opal_model, data),
       parameters = parameters, map = x$map, random = NULL, silent = TRUE), x$makeadfun_args))
     bounds <- list(lower = stats::setNames(rep(-Inf, length(object$par)), names(object$par)),
                    upper = stats::setNames(rep(Inf, length(object$par)), names(object$par)))

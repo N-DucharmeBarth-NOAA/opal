@@ -47,7 +47,8 @@ retained iterations per chain. Set \code{seed} and choose effort appropriate to
 the assessment. After sampling, inspect \code{x$validation$mcmc} and
 \code{x$mcmc_history}; a failed or unchecked attempt cannot replace a previously
 checked, passing posterior. \code{\link[=opal_as_tmbfit]{opal_as_tmbfit()}} exposes the selected samples
-to SparseNUTS plotting and diagnostic tools.
+to SparseNUTS plotting and diagnostic tools. Non-unit likelihood or prior
+lambdas temper the posterior and are reported with a warning.
 }
 \examples{
 \dontrun{

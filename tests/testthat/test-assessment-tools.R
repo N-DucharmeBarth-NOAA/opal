@@ -25,6 +25,7 @@ test_that("profiles re-optimise a fixed parameter on its stored scale", {
   expect_true(all(result$table$delta >= -1e-7))
   expect_equal(result$table$objective, vapply(result$fits,function(z) opal_rtmb(z)$fn(numeric()),numeric(1)))
   expect_equal(as.numeric(rowsum(result$components$objective,result$components$value)),result$table$objective)
+  expect_true(all(grepl("_w$", result$components$component)))
   expect_s3_class(plot_opal_profile(x),"ggplot")
 })
 
