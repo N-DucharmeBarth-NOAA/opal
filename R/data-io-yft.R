@@ -96,8 +96,16 @@
 #'     `sel_par` (`fleet`, `pattern`, `par`, `value`, `phase`, `lo`, `hi`,
 #'     `label`), SS3's estimated age selectivity parameters P1--P6, with
 #'     `phase > 0` for the ones SS3 estimated (see
-#'     [convert_ss3_selex_to_rtmb()] with `basis = "age"`); and `length_at_age`
-#'     (`age`, `length`, start of the time step).}
+#'     [convert_ss3_selex_to_rtmb()] with `basis = "age"`); `length_at_age`
+#'     (`age`, `length`, start of the time step); `sizefreq`, SS3's
+#'     generalised size compositions for the index (fleet 17, method 1):
+#'     `bins` (lower edges, cm; the last is a plus bin), `units`, `lambda`
+#'     (0.51) and `data` (`ts`, `fishery`, `nsamp`, `bin`, `obs`, `expected`),
+#'     observed and SS3-expected proportions with each observation assigned
+#'     to its quarterly index fishery; and `lambdas` (`like_comp`,
+#'     `component`, `fleet`, `phase`, `value`, `sizefreq_method`), the
+#'     control file's lambda changes (parameter priors 0, size frequency
+#'     0.51). See the "Matching the Stock Synthesis configuration" article.}
 #'   \item{truth}{The operating model (SPM, 159 cells on a 5 degree grid),
 #'     summed over the whole domain: `b0`, unfished equilibrium spawning
 #'     biomass (t), and `trajectory` (`ts`, `ssb`, `static_dep`).}

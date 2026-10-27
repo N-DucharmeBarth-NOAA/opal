@@ -1,5 +1,14 @@
 # opal 0.1.1
 
+- 2026/10/27: New article "Matching the Stock Synthesis configuration:
+  Indian Ocean yellowfin". It takes the age-based fit A-SS3 two steps closer
+  to the SS3 model, using SS3's lambda of 0 on parameter priors
+  (`data$lambdas$prior`) and fitting SS3's generalised size compositions for
+  the index on their own bins with SS3's lambda of 0.51 (row-specific
+  composition bin schemes and `lf` lambdas). It also shows how the results
+  depend on starting values. `io_yft_reference$ss3` gains `sizefreq` and
+  `lambdas`, and `inst/extdata/` the stored fits S1 and S2 and the
+  start-sensitivity runs (`data-raw/generate-io-yft-matched-fits.R`).
 - 2026/10/26 ([#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150)):
   SS3-style likelihood lambdas. The optional `data$lambdas` list weights CPUE
   by index, length and weight compositions by fleet, and the recruitment,
