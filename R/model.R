@@ -6,6 +6,8 @@ utils::globalVariables(c(
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_k_mult", "k_mult_ages",
   "growth_plus_group_adjust", "log_CV1", "log_CV2",
+  "growth_model", "growth_age_offset", "richards_b",
+  "log_L0", "log_rmax", "log_k_gc", "t50_gc",
   "n_age", "min_age", "max_age", 
   "first_yr", "last_yr", "first_yr_catch", "n_year", "n_season", "n_fishery",
   "M",
@@ -34,6 +36,10 @@ opal_globals <- function() {
   list(
     posfun = posfun, 
     get_growth = get_growth,
+    .growth_vb = .growth_vb,
+    .growth_richards = .growth_richards,
+    .growth_cessation = .growth_cessation,
+    .is_growth_model = .is_growth_model,
     .validate_growth_options = .validate_growth_options,
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
@@ -96,20 +102,38 @@ opal_model <- function(parameters, data) {
   
   # Growth module ----
 
-  # Back-transform growth/variability parameters
-  L1 <- exp(log_L1)
-  L2 <- exp(log_L2)
+  # Module 1: Mean length-at-age ("vonB" = Schnute VB, "richards",
+  # "cessation"). Growth ages are 1, ..., n_age (the get_growth() default
+  # min_age) for all three.
+  growth_model <- if (exists("growth_model", inherits = FALSE)) growth_model else "vonB"
 
-  # Module 1: Mean length-at-age (Schnute VB)
-  mu_a <- get_growth(
-    n_age, A1, A2, L1, L2, log_k,
-    log_k_mult = if (exists("log_k_mult", inherits = FALSE)) log_k_mult else NULL,
-    k_mult_ages = if (exists("k_mult_ages", inherits = FALSE)) k_mult_ages else NULL,
-    plus_group_adjust = if (exists("growth_plus_group_adjust", inherits = FALSE)) growth_plus_group_adjust else FALSE
-  )
+  if (identical(growth_model, "cessation")) {
+    mu_a <- get_growth(
+      n_age, A1, A2, growth_model = "cessation",
+      L0 = exp(log_L0), log_rmax = log_rmax, log_k_gc = log_k_gc, t50 = t50_gc,
+      age_offset = if (exists("growth_age_offset", inherits = FALSE)) growth_age_offset else 0
+    )
+    # No L1/L2 parameters: CVs refer to the predicted lengths at A1 and A2.
+    L_ref1 <- mu_a[A1]
+    L_ref2 <- mu_a[A2]
+  } else {
+    # Back-transform growth/variability parameters
+    L1 <- exp(log_L1)
+    L2 <- exp(log_L2)
+    mu_a <- get_growth(
+      n_age, A1, A2, L1, L2, log_k,
+      log_k_mult = if (exists("log_k_mult", inherits = FALSE)) log_k_mult else NULL,
+      k_mult_ages = if (exists("k_mult_ages", inherits = FALSE)) k_mult_ages else NULL,
+      plus_group_adjust = if (exists("growth_plus_group_adjust", inherits = FALSE)) growth_plus_group_adjust else FALSE,
+      growth_model = growth_model,
+      b = if (identical(growth_model, "richards")) richards_b else NULL
+    )
+    L_ref1 <- L1
+    L_ref2 <- L2
+  }
 
   # Module 2: SD of length-at-age (linear CV interpolation)
-  sd_a <- get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
+  sd_a <- get_sd_at_age(mu_a, L_ref1, L_ref2, log_CV1, log_CV2)
 
   # Shared PLA — computed once and reused for weight, maturity, selectivity
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)

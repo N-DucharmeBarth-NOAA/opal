@@ -25,4 +25,16 @@ opal model data sets.
 \details{
 If \code{data$k_mult_ages} is supplied, adds \code{log_k_mult}
 initialized to zero (unit K multipliers).
+
+Parameters for the alternative growth curves (see \code{\link{get_growth}})
+are added only when \code{data$growth_model} selects them:
+\itemize{
+\item \code{growth_model = "richards"} adds \code{richards_b = 1},
+which gives the VB curve.
+\item \code{growth_model = "cessation"} adds \code{log_L0}
+(initialized at \code{log_L1}), \code{log_rmax} (initialized at
+\code{log((L2 - L1) / (A2 - A1))}, length per model age step),
+\code{log_k_gc = 0} and \code{t50_gc} (initialized at the midpoint
+of the modeled ages, \code{(1 + n_age) / 2 + growth_age_offset}).
+}
 }

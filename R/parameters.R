@@ -12,9 +12,21 @@
 #' @details If \code{data$k_mult_ages} is supplied, adds \code{log_k_mult}
 #'   initialized to zero (unit K multipliers).
 #'
+#'   Parameters for the alternative growth curves (see \code{\link{get_growth}})
+#'   are added only when \code{data$growth_model} selects them:
+#'   \itemize{
+#'     \item \code{growth_model = "richards"} adds \code{richards_b = 1},
+#'       which gives the VB curve.
+#'     \item \code{growth_model = "cessation"} adds \code{log_L0}
+#'       (initialized at \code{log_L1}), \code{log_rmax} (initialized at
+#'       \code{log((L2 - L1) / (A2 - A1))}, length per model age step),
+#'       \code{log_k_gc = 0} and \code{t50_gc} (initialized at the midpoint
+#'       of the modeled ages, \code{(1 + n_age) / 2 + growth_age_offset}).
+#'   }
+#'
 #' @return A \code{list} of initial parameter values.
 #' @export
-#' 
+#'
 get_parameters <- function(data = NULL, model = NULL) {
   if (is.null(model) && is.character(data) && length(data) == 1L) {
     model <- data
@@ -25,6 +37,19 @@ get_parameters <- function(data = NULL, model = NULL) {
   parameters <- .load_bundled_parameters(model)
   if (length(data$k_mult_ages)) {
     parameters$log_k_mult <- rep(0, length(data$k_mult_ages))
+  }
+  growth_model <- if (is.null(data$growth_model)) "vonB" else data$growth_model
+  if (identical(growth_model, "richards")) {
+    parameters$richards_b <- 1
+  }
+  if (identical(growth_model, "cessation")) {
+    L1 <- exp(parameters$log_L1)
+    L2 <- exp(parameters$log_L2)
+    age_offset <- if (is.null(data$growth_age_offset)) 0 else data$growth_age_offset
+    parameters$log_L0 <- parameters$log_L1
+    parameters$log_rmax <- log((L2 - L1) / (data$A2 - data$A1))
+    parameters$log_k_gc <- 0
+    parameters$t50_gc <- (1 + data$n_age) / 2 + age_offset
   }
   parameters
 }
@@ -57,15 +82,21 @@ get_parameters <- function(data = NULL, model = NULL) {
 #' 
 #' @param parameters a \code{list} containing the initial parameter values to be passed to \code{MakeADFun}.
 #' @return a named \code{list} of parameter mapping.
+#' @details Growth parameters \code{log_L1}, \code{log_L2}, \code{log_k},
+#'   \code{log_k_mult} and \code{richards_b} are fixed. The growth cessation
+#'   parameters (\code{log_L0}, \code{log_rmax}, \code{log_k_gc},
+#'   \code{t50_gc}) are estimated when present. Under
+#'   \code{growth_model = "cessation"}, \code{log_L1}, \code{log_L2} and \code{log_k}
+#'   are unused, and fixing them keeps the Hessian non-singular.
 #' @export
-#' 
+#'
 get_map <- function(parameters) {
   fixed <- intersect(
     c(
       "log_h", "log_sigma_r", "cpue_creep", "log_cpue_tau",
       "log_cpue_omega", "log_lf_tau", "log_wf_tau", "log_L1", "log_L2",
-      "log_k", "log_k_mult", "log_CV1", "log_CV2", "par_sel", "log_init_F_f",
-      "init_rdev_a"
+      "log_k", "log_k_mult", "richards_b", "log_CV1", "log_CV2", "par_sel",
+      "log_init_F_f", "init_rdev_a"
     ),
     names(parameters)
   )
@@ -105,6 +136,7 @@ get_bounds <- function(obj, parameters) {
   set_bounds("rdev_y", -5, 5)
   set_bounds("init_rdev_a", -5, 5)
   set_bounds("par_sel", -7, 7)
+  set_bounds("t50_gc", 0, Inf)
 
   check_bounds(opt = obj, lower = lower, upper = upper)
 

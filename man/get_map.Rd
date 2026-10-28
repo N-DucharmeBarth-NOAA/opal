@@ -16,3 +16,11 @@ a named \code{list} of parameter mapping.
 Get a default parameter mapping. Parameter mapping is used by \code{MakeADFun}
 to turn parameters on/off.
 }
+\details{
+Growth parameters \code{log_L1}, \code{log_L2}, \code{log_k},
+\code{log_k_mult} and \code{richards_b} are fixed. The growth cessation
+parameters (\code{log_L0}, \code{log_rmax}, \code{log_k_gc},
+\code{t50_gc}) are estimated when present. Under
+\code{growth_model = "cessation"}, \code{log_L1}, \code{log_L2} and \code{log_k}
+are unused, and fixing them keeps the Hessian non-singular.
+}

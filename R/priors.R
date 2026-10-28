@@ -52,6 +52,32 @@ get_priors <- function(parameters, data = NULL) {
     priors[["log_k_mult"]] <- list(type = "normal", par1 = log_k_mult_mean, par2 = 0.3,
                                  index = which("log_k_mult" == names(parameters)))
   }
+  # Alternative growth curves: richards_b and t50_gc are on the natural scale
+  if ("richards_b" %in% names(parameters)) {
+    richards_b_mean <- if (!is.null(data) && !is.null(data$prior_richards_b_mean)) data$prior_richards_b_mean else parameters$richards_b
+    priors[["richards_b"]] <- list(type = "normal", par1 = richards_b_mean, par2 = 0.5,
+                                   index = which("richards_b" == names(parameters)))
+  }
+  if ("log_L0" %in% names(parameters)) {
+    log_L0_mean <- if (!is.null(data) && !is.null(data$prior_log_L0_mean)) data$prior_log_L0_mean else parameters$log_L0
+    priors[["log_L0"]] <- list(type = "normal", par1 = log_L0_mean, par2 = 0.1,
+                               index = which("log_L0" == names(parameters)))
+  }
+  if ("log_rmax" %in% names(parameters)) {
+    log_rmax_mean <- if (!is.null(data) && !is.null(data$prior_log_rmax_mean)) data$prior_log_rmax_mean else parameters$log_rmax
+    priors[["log_rmax"]] <- list(type = "normal", par1 = log_rmax_mean, par2 = 0.3,
+                                 index = which("log_rmax" == names(parameters)))
+  }
+  if ("log_k_gc" %in% names(parameters)) {
+    log_k_gc_mean <- if (!is.null(data) && !is.null(data$prior_log_k_gc_mean)) data$prior_log_k_gc_mean else parameters$log_k_gc
+    priors[["log_k_gc"]] <- list(type = "normal", par1 = log_k_gc_mean, par2 = 0.5,
+                                 index = which("log_k_gc" == names(parameters)))
+  }
+  if ("t50_gc" %in% names(parameters)) {
+    t50_gc_mean <- if (!is.null(data) && !is.null(data$prior_t50_gc_mean)) data$prior_t50_gc_mean else parameters$t50_gc
+    priors[["t50_gc"]] <- list(type = "normal", par1 = t50_gc_mean, par2 = 2,
+                               index = which("t50_gc" == names(parameters)))
+  }
 
   # Variability priors
   if ("log_CV1" %in% names(parameters)) {
