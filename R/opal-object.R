@@ -118,7 +118,10 @@ validate_opal_obj <- function(x, results = FALSE) {
     log_k_mult = x$parameters$log_k_mult,
     k_mult_ages = x$data$k_mult_ages,
     plus_group_adjust = if (is.null(x$data$growth_plus_group_adjust)) FALSE else x$data$growth_plus_group_adjust,
-    check_length = !is.null(x$parameters)
+    check_length = !is.null(x$parameters),
+    growth_model = if (is.null(x$data$growth_model)) 1L else x$data$growth_model,
+    A2 = x$data$A2,
+    age_offset = if (is.null(x$data$growth_age_offset)) 0 else x$data$growth_age_offset
   )
   if (!is.null(x$control)) .opal_validate_named_list(x$control, "control")
   if (length(intersect(names(x$makeadfun_args),
@@ -225,6 +228,7 @@ opal_obj <- function(data, parameters = NULL, map = NULL, random = character(),
     warning("A penalty lambda below 1 weakens crash and posfun penalties.", call. = FALSE)
   }
   .opal_validate_named_list(metadata, "metadata")
+  .validate_growth_values(data, parameters)
   x <- structure(list(
     schema_version = .opal_obj_schema, model = .opal_model_metadata(),
     data = data, parameters = parameters, map = map, random = random,

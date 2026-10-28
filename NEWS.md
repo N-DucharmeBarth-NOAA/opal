@@ -1,5 +1,20 @@
 # opal 0.1.1
 
+- 2026/10/28: Alternative growth curves. `get_growth()` gains a
+  `growth_model` argument: `1` (default) is the existing Schnute VB curve,
+  `2` is the Richards curve (`L1`, `L2`, `log_k`, `b`) and `3` is the growth
+  cessation model (`L0`, `log_rmax`, `log_k_gc`, `t50`, `age_offset`). These
+  codes are opal's own and do not correspond to SS3 GrowthModel codes; SS3
+  GrowthModel 3 (age-specific K) remains `growth_model = 1` with
+  `log_k_mult`. The Richards parameterization and usage guidance follow the
+  Stock Synthesis user manual (section 8.5.2.2.2); the growth cessation model
+  is Eq. 2 of Maunder et al. (2018, Mar Biol 165:76). `opal_model()` reads
+  `data$growth_model` and `data$growth_age_offset`, both optional, so
+  existing objectives are unchanged. `get_parameters()` adds `richards_b`
+  (fixed by `get_map()`) or `log_L0`, `log_rmax`, `log_k_gc` and `t50_gc`
+  (estimated) for the selected curve, and `get_priors()` and `get_bounds()`
+  cover the new parameters. Under growth cessation, `log_CV1` and `log_CV2`
+  are the CVs at the predicted lengths at `A1` and `A2`.
 - 2026/10/27: The three Indian Ocean yellowfin articles are now one,
   "Indian Ocean yellowfin tuna: Cross model comparison with simulated truth
   and Stock Synthesis estimation model" (`io-yft-ss3-comparison`). It
