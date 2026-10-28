@@ -1,5 +1,7 @@
 # opal 0.1.2
-- 2026/10/28: The pkgdown site renders math with MathJax
+
+- 2026/10/28 ([9f1260c](https://github.com/N-DucharmeBarth-NOAA/opal/commit/9f1260c)):
+  The pkgdown site renders math with MathJax
   (`template: math-rendering: mathjax`), so `\deqn{}` and `\eqn{}` equations
   in the reference pages display as equations instead of raw LaTeX.
   `get_growth()` gains examples that set up each growth configuration (VB,
