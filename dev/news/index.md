@@ -2,6 +2,30 @@
 
 ## opal 0.1.1
 
+- 2026/10/28: Alternative growth curves.
+  [`get_growth()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_growth.md)
+  gains a `growth_model` argument: `"vonB"` (default) is the existing
+  Schnute VB curve, `"richards"` is the Richards curve (`L1`, `L2`,
+  `log_k`, `b`) and `"cessation"` is the growth cessation model (`L0`,
+  `log_rmax`, `log_k_gc`, `t50`, `age_offset`). SS3 GrowthModel 3
+  (age-specific K) remains `"vonB"` with `log_k_mult`. The Richards
+  parameterization and usage guidance follow the Stock Synthesis user
+  manual (section 8.5.2.2.2); the growth cessation model is Eq. 2 of
+  Maunder et al. (2018, Mar Biol 165:76).
+  [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_model.md)
+  reads `data$growth_model` and `data$growth_age_offset`, both optional,
+  so existing objectives are unchanged.
+  [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_parameters.md)
+  adds `richards_b` (fixed by
+  [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_map.md))
+  or `log_L0`, `log_rmax`, `log_k_gc` and `t50_gc` (estimated) for the
+  selected curve, and
+  [`get_priors()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_priors.md)
+  and
+  [`get_bounds()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_bounds.md)
+  cover the new parameters. Under growth cessation, `log_CV1` and
+  `log_CV2` are the CVs at the predicted lengths at `A1` and `A2`.
+
 - 2026/10/27: The three Indian Ocean yellowfin articles are now one,
   “Indian Ocean yellowfin tuna: Cross model comparison with simulated
   truth and Stock Synthesis estimation model” (`io-yft-ss3-comparison`).

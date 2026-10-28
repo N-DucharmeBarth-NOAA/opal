@@ -130,7 +130,7 @@ fit$validation$fit
 #> 
 #> $identity
 #> $identity$target
-#> [1] "ee90089a452842dd84b666be93b7481b"
+#> [1] "cbc2d736d98b56ef575335279e2bc6cb"
 #> 
 #> $identity$fit
 #> [1] "7459c22d1102869eeae932f6f18cec4b"
@@ -157,10 +157,10 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-10-27 21:43:56 UTC"
+#> [1] "2026-10-28 21:42:47 UTC"
 #> 
 #> $payload_id
-#> [1] "64c1d6d56b35850072f32d02e5821f5d"
+#> [1] "a539aeecb1392917a6951f391f733ecd"
 ```
 
 The optimiser can return convergence code zero while the maximum

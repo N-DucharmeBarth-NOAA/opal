@@ -167,8 +167,7 @@ runtime.
 - [`get_cpue_like()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_cpue_like.md)
   : CPUE index likelihood (multi-index)
 - [`get_growth()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_growth.md)
-  : Compute mean length-at-age using the Schnute parameterization of VB
-  growth
+  : Compute mean length-at-age
 - [`get_harvest_rate()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_harvest_rate.md)
   : Harvest rate calculation
 - [`get_initial_numbers()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_initial_numbers.md)

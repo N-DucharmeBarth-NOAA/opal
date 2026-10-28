@@ -78,7 +78,15 @@ modified after loading.</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>If <code>data$k_mult_ages</code> is supplied, adds <code>log_k_mult</code>
 initialized to zero (unit K multipliers).</p>
-    </div>
+<p>Parameters for the alternative growth curves (see <code><a href="get_growth.html">get_growth</a></code>)
+are added only when <code>data$growth_model</code> selects them:</p><ul><li><p><code>growth_model = "richards"</code> adds <code>richards_b = 1</code>,
+which gives the VB curve.</p></li>
+<li><p><code>growth_model = "cessation"</code> adds <code>log_L0</code>
+(initialized at <code>log_L1</code>), <code>log_rmax</code> (initialized at
+<code>log((L2 - L1) / (A2 - A1))</code>, length per model age step),
+<code>log_k_gc = 0</code> and <code>t50_gc</code> (initialized at the midpoint
+of the modeled ages, <code>(1 + n_age) / 2 + growth_age_offset</code>).</p></li>
+</ul></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

@@ -30,3 +30,15 @@ A `list` of initial parameter values.
 
 If `data$k_mult_ages` is supplied, adds `log_k_mult` initialized to zero
 (unit K multipliers).
+
+Parameters for the alternative growth curves (see
+[`get_growth`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_growth.md))
+are added only when `data$growth_model` selects them:
+
+- `growth_model = "richards"` adds `richards_b = 1`, which gives the VB
+  curve.
+
+- `growth_model = "cessation"` adds `log_L0` (initialized at `log_L1`),
+  `log_rmax` (initialized at `log((L2 - L1) / (A2 - A1))`, length per
+  model age step), `log_k_gc = 0` and `t50_gc` (initialized at the
+  midpoint of the modeled ages, `(1 + n_age) / 2 + growth_age_offset`).
