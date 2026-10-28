@@ -1,6 +1,7 @@
-# opal 0.1.1
+# opal 0.1.2
 
-- 2026/10/28: Alternative growth curves. `get_growth()` gains a
+- 2026/10/28 ([PR #158](https://github.com/N-DucharmeBarth-NOAA/opal/pull/158)):
+  Alternative growth curves. `get_growth()` gains a
   `growth_model` argument: `"vonB"` (default) is the existing Schnute VB
   curve, `"richards"` is the Richards curve (`L1`, `L2`, `log_k`, `b`) and
   `"cessation"` is the growth cessation model (`L0`, `log_rmax`, `log_k_gc`,
@@ -14,7 +15,11 @@
   (estimated) for the selected curve, and `get_priors()` and `get_bounds()`
   cover the new parameters. Under growth cessation, `log_CV1` and `log_CV2`
   are the CVs at the predicted lengths at `A1` and `A2`.
-- 2026/10/27: The three Indian Ocean yellowfin articles are now one,
+
+# opal 0.1.1
+
+- 2026/10/27 ([PR #152](https://github.com/N-DucharmeBarth-NOAA/opal/pull/152)):
+  The three Indian Ocean yellowfin articles are now one,
   "Indian Ocean yellowfin tuna: Cross model comparison with simulated truth
   and Stock Synthesis estimation model" (`io-yft-ss3-comparison`). It
   compares the operating model's truth, the
@@ -31,7 +36,7 @@
   removed. `data-raw/generate-io-yft-fits.R` refits every model in the
   bridge table. The likelihood-lambdas how-to moved to the "Assessment
   tools" article.
-- 2026/10/26 ([#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150)):
+- 2026/10/26 ([#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150), [PR #151](https://github.com/N-DucharmeBarth-NOAA/opal/pull/151)):
   SS3-style likelihood lambdas. The optional `data$lambdas` list weights CPUE
   by index, length and weight compositions by fleet, and the recruitment,
   initial recruitment, prior and penalty terms; 0 switches a term off, and
@@ -45,7 +50,7 @@
   lambda leaves without data. With CPUE switched on, non-integer or
   non-positive CPUE indices are now an error; previously those rows were
   silently left out of the likelihood.
-- 2026/10/26 ([#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147)):
+- 2026/10/26 ([#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147), [PR #149](https://github.com/N-DucharmeBarth-NOAA/opal/pull/149)):
   Length and weight composition observations can use row-specific, uneven bin
   schemes, supplied in long format or as a list of wide tables. Only model
   predictions are rebinned. Tail accumulation remains the default; truncation
@@ -80,7 +85,8 @@
   validation and proceed to grid sampling. Diagnostic version v3 invalidates
   old checks and grid checkpoints; rerun `opal_check()` on existing v5 objects.
   This diagnostic fix does not change model objectives or fitted estimates.
-- Quantify the existing seasonal CPUE correction in reproducible paired
+- 2026/10/15 ([d65126f](https://github.com/N-DucharmeBarth-NOAA/opal/commit/d65126f), [PR #143](https://github.com/N-DucharmeBarth-NOAA/opal/pull/143)):
+  Quantify the existing seasonal CPUE correction in reproducible paired
   simulations: maximum prediction changes at fixed parameters are 8.24% and
   12.28%, and refitted B0 changes are +4.99% and +11.71%, for the specified
   two- and four-season examples. These are illustrative, not real-stock impact
@@ -89,8 +95,7 @@
   unchanged, and all bundled stock inputs use one season. See the seasonal
   CPUE impact article for observation coverage, diagnostics, and instructions
   for rebuilding and refitting saved contract-v4-or-earlier assessments.
-
-- 2026/10/13 ([e1fbdbd](https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc)): Add optional SS3 GrowthModel 3 cumulative age-specific K
+- 2026/10/13 ([e1fbdbd](https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc), [PR #141](https://github.com/N-DucharmeBarth-NOAA/opal/pull/141)): Add optional SS3 GrowthModel 3 cumulative age-specific K
   multipliers and plus-group length adjustment, credited to Stock Synthesis
   (Methot and Wetzel 2013). Existing model configurations retain their exact
   growth calculation and numerical contract.
