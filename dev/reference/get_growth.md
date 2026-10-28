@@ -234,3 +234,44 @@ parameters. Canadian Journal of Fisheries and Aquatic Sciences 38:
 [Stock Synthesis
 source](https://github.com/nmfs-ost/ss3-source-code/blob/d0da9a5/SS3trial.tpl),
 sections SS_Label_Info_16.2.2–16.2.4.1.4.
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+  # Starting values from the IO yellowfin inputs (quarterly ages, SS3
+  # GrowthModel 3 solution). In opal_model() the same options come from
+  # data (growth_model, k_mult_ages, growth_plus_group_adjust,
+  # growth_age_offset) and parameters (log_L1, log_L2, log_k, log_k_mult,
+  # richards_b, log_L0, log_rmax, log_k_gc, t50_gc).
+  data(io_yft_data)
+  data(io_yft_parameters)
+  d <- io_yft_data
+  p <- io_yft_parameters
+  L1 <- exp(p$log_L1)
+  L2 <- exp(p$log_L2)
+
+  # von Bertalanffy (Schnute), the default: single K
+  L_vb <- get_growth(d$n_age, d$A1, d$A2, L1, L2, p$log_k)
+
+  # SS3 GrowthModel 3: age-specific K multipliers and plus-group adjustment
+  L_ss3 <- get_growth(d$n_age, d$A1, d$A2, L1, L2, p$log_k,
+                      log_k_mult = p$log_k_mult,
+                      k_mult_ages = d$k_mult_ages,
+                      plus_group_adjust = TRUE)
+
+  # Richards (b = 1 recovers VB; b near 0 approximates Gompertz)
+  L_rich <- get_growth(d$n_age, d$A1, d$A2, L1, L2, log_k = log(0.25),
+                       growth_model = "richards", b = -1)
+
+  # Growth cessation: absolute age t = model age + age_offset
+  L_gc <- get_growth(d$n_age, d$A1, d$A2, growth_model = "cessation",
+                     L0 = 15, log_rmax = log(7), log_k_gc = log(0.6),
+                     t50 = 18, age_offset = 0)
+
+  matplot(cbind(L_vb, L_ss3, L_rich, L_gc), type = "l", lty = 1,
+          xlab = "Model age (quarters)", ylab = "Mean length (cm)")
+  legend("bottomright", c("vonB", "SS3 GM3", "Richards", "Cessation"),
+         col = 1:4, lty = 1)
+} # }
+```
