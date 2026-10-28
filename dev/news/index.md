@@ -1,8 +1,10 @@
 # Changelog
 
-## opal 0.1.1
+## opal 0.1.2
 
-- 2026/10/28: Alternative growth curves.
+- 2026/10/28 ([PR
+  \#158](https://github.com/N-DucharmeBarth-NOAA/opal/pull/158)):
+  Alternative growth curves.
   [`get_growth()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_growth.md)
   gains a `growth_model` argument: `"vonB"` (default) is the existing
   Schnute VB curve, `"richards"` is the Richards curve (`L1`, `L2`,
@@ -26,26 +28,30 @@
   cover the new parameters. Under growth cessation, `log_CV1` and
   `log_CV2` are the CVs at the predicted lengths at `A1` and `A2`.
 
-- 2026/10/27: The three Indian Ocean yellowfin articles are now one,
-  “Indian Ocean yellowfin tuna: Cross model comparison with simulated
-  truth and Stock Synthesis estimation model” (`io-yft-ss3-comparison`).
-  It compares the operating model’s truth, the IATTC team’s SS3 model
-  and opal fit AGE-SF: SS3’s age-based selectivity curves and mirrors,
-  plus SS3’s generalised size compositions for the index on their own
-  bins with SS3’s lambda of 0.51 (row-specific composition bin schemes
-  and `lf` lambdas). AGE-SF is built inline from the bundled data. The
-  earlier fits appear in one bridge table under consistent names:
-  SS3-SEL, LEN (formerly C2), AGE (formerly A-SS3), AGE-SF and AGE-SF-NP
-  (AGE-SF with SS3’s lambda of 0 on parameter priors).
-  `io_yft_reference$ss3` gains `sizefreq` and `lambdas`. `inst/extdata/`
-  now holds only `io_yft_age_sf_fit.rds`, the bridge summaries and the
-  article cache; the stored fits C2, A, A-SS3, S1, S2 and the
-  start-sensitivity runs were removed. `data-raw/generate-io-yft-fits.R`
-  refits every model in the bridge table. The likelihood-lambdas how-to
-  moved to the “Assessment tools” article.
+## opal 0.1.1
 
+- 2026/10/27 ([PR
+  \#152](https://github.com/N-DucharmeBarth-NOAA/opal/pull/152)): The
+  three Indian Ocean yellowfin articles are now one, “Indian Ocean
+  yellowfin tuna: Cross model comparison with simulated truth and Stock
+  Synthesis estimation model” (`io-yft-ss3-comparison`). It compares the
+  operating model’s truth, the IATTC team’s SS3 model and opal fit
+  AGE-SF: SS3’s age-based selectivity curves and mirrors, plus SS3’s
+  generalised size compositions for the index on their own bins with
+  SS3’s lambda of 0.51 (row-specific composition bin schemes and `lf`
+  lambdas). AGE-SF is built inline from the bundled data. The earlier
+  fits appear in one bridge table under consistent names: SS3-SEL, LEN
+  (formerly C2), AGE (formerly A-SS3), AGE-SF and AGE-SF-NP (AGE-SF with
+  SS3’s lambda of 0 on parameter priors). `io_yft_reference$ss3` gains
+  `sizefreq` and `lambdas`. `inst/extdata/` now holds only
+  `io_yft_age_sf_fit.rds`, the bridge summaries and the article cache;
+  the stored fits C2, A, A-SS3, S1, S2 and the start-sensitivity runs
+  were removed. `data-raw/generate-io-yft-fits.R` refits every model in
+  the bridge table. The likelihood-lambdas how-to moved to the
+  “Assessment tools” article.
 - 2026/10/26
-  ([\#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150)):
+  ([\#150](https://github.com/N-DucharmeBarth-NOAA/opal/issues/150), [PR
+  \#151](https://github.com/N-DucharmeBarth-NOAA/opal/pull/151)):
   SS3-style likelihood lambdas. The optional `data$lambdas` list weights
   CPUE by index, length and weight compositions by fleet, and the
   recruitment, initial recruitment, prior and penalty terms; 0 switches
@@ -64,20 +70,19 @@
   zero lambda leaves without data. With CPUE switched on, non-integer or
   non-positive CPUE indices are now an error; previously those rows were
   silently left out of the likelihood.
-
 - 2026/10/26
-  ([\#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147)):
-  Length and weight composition observations can use row-specific,
-  uneven bin schemes, supplied in long format or as a list of wide
-  tables. Only model predictions are rebinned. Tail accumulation remains
-  the default; truncation is optional. Misaligned length edges require
-  an explicit override because proportional-overlap rebinning assumes
-  uniform density within model bins. Composition residuals retain input
+  ([\#147](https://github.com/N-DucharmeBarth-NOAA/opal/issues/147), [PR
+  \#149](https://github.com/N-DucharmeBarth-NOAA/opal/pull/149)): Length
+  and weight composition observations can use row-specific, uneven bin
+  schemes, supplied in long format or as a list of wide tables. Only
+  model predictions are rebinned. Tail accumulation remains the default;
+  truncation is optional. Misaligned length edges require an explicit
+  override because proportional-overlap rebinning assumes uniform
+  density within model bins. Composition residuals retain input
   ordering, and plots now show bin extents in length or weight units
   with an optional density scale. Existing grids, tail aggregation,
   objectives, and fitted-model reports remain compatible; this feature
   does not change the scientific model version.
-
 - 2026/10/26 ([PR
   \#148](https://github.com/N-DucharmeBarth-NOAA/opal/pull/148)): Add
   optional age-based selectivity. The new data element `sel_basis_f` (1
@@ -94,7 +99,6 @@
   patterns 12 and 20. Without `sel_basis_f`, every fishery stays
   length-based and existing models give identical results.
   `sel_fa_external` still takes precedence.
-
 - 2026/10/16
   ([89d97c0](https://github.com/N-DucharmeBarth-NOAA/opal/commit/89d97c0),
   [PR \#148](https://github.com/N-DucharmeBarth-NOAA/opal/pull/148)):
@@ -107,7 +111,6 @@
   parameters. Both articles read outputs precomputed by
   `data-raw/generate-io-yft-vignette-cache.R`, so they render in
   seconds.
-
 - 2026/10/15 ([PR
   \#143](https://github.com/N-DucharmeBarth-NOAA/opal/pull/143)): Fix
   fit validation for random-effect models by calculating the marginal
@@ -119,8 +122,10 @@
   [`opal_check()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_check.md)
   on existing v5 objects. This diagnostic fix does not change model
   objectives or fitted estimates.
-
-- Quantify the existing seasonal CPUE correction in reproducible paired
+- 2026/10/15
+  ([d65126f](https://github.com/N-DucharmeBarth-NOAA/opal/commit/d65126f),
+  [PR \#143](https://github.com/N-DucharmeBarth-NOAA/opal/pull/143)):
+  Quantify the existing seasonal CPUE correction in reproducible paired
   simulations: maximum prediction changes at fixed parameters are 8.24%
   and 12.28%, and refitted B0 changes are +4.99% and +11.71%, for the
   specified two- and four-season examples. These are illustrative, not
@@ -130,9 +135,9 @@
   stock inputs use one season. See the seasonal CPUE impact article for
   observation coverage, diagnostics, and instructions for rebuilding and
   refitting saved contract-v4-or-earlier assessments.
-
 - 2026/10/13
-  ([e1fbdbd](https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc)):
+  ([e1fbdbd](https://github.com/N-DucharmeBarth-NOAA/opal/commit/e1fbdbd78eeebff20b0a13e55cb3c8e8148408cc),
+  [PR \#141](https://github.com/N-DucharmeBarth-NOAA/opal/pull/141)):
   Add optional SS3 GrowthModel 3 cumulative age-specific K multipliers
   and plus-group length adjustment, credited to Stock Synthesis (Methot
   and Wetzel 2013). Existing model configurations retain their exact

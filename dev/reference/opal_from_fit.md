@@ -50,11 +50,11 @@ legacy <- read_opal_fit(system.file("extdata", "opaka_quickstart_fit.rds",
                                    package = "opal"), integrity = "portable")
 #> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
 #> Warning: Portable runtime identity was not independently verified because `rebuild = FALSE`.
-#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.1.
+#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.2.
 assessment <- opal_from_fit(legacy)
 #> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
 #> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
-#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.1.
+#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.2.
 summary(assessment)
 #> <opal_obj> fitted
 #> Active parameters: 127 
