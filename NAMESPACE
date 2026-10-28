@@ -141,7 +141,5 @@ importFrom(stats,
 )
 importFrom(utils,
   setTxtProgressBar,
-  txtProgressBar,
-  head,
-  tail
+  txtProgressBar
 )

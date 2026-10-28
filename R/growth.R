@@ -7,58 +7,55 @@
 #' @param n_age Integer. Number of age classes.
 #' @param A1 Integer. Reference age for L1 (data).
 #' @param A2 Integer. Reference age for L2 (data).
-#' @param L1 Numeric. Length at age A1 (may be AD). Used by
-#'   \code{growth_model} 1 and 2.
-#' @param L2 Numeric. Length at age A2 (may be AD). Used by
-#'   \code{growth_model} 1 and 2.
+#' @param L1 Numeric. Length at age A1 (may be AD). Used by \code{"vonB"}
+#'   and \code{"richards"}.
+#' @param L2 Numeric. Length at age A2 (may be AD). Used by \code{"vonB"}
+#'   and \code{"richards"}.
 #' @param log_k Numeric. Log growth coefficient per model age step (may be
-#'   AD). Used by \code{growth_model} 1 and 2.
+#'   AD). Used by \code{"vonB"} and \code{"richards"}.
 #' @param min_age Integer. Minimum age (default 1L).
 #' @param log_k_mult Numeric vector (may be AD). Log K multipliers; \code{NULL}
-#'   or length zero retains the single-K curve. \code{growth_model = 1} only.
+#'   or length zero retains the single-K curve. \code{"vonB"} only.
 #' @param k_mult_ages Integer vector (data). Ages at which the multipliers apply,
 #'   strictly increasing within the modeled ages and matching \code{log_k_mult}.
-#'   \code{growth_model = 1} only.
+#'   \code{"vonB"} only.
 #' @param plus_group_adjust Logical (data). Apply SS3's oldest-age length
 #'   approximation, independently of the multipliers (default \code{FALSE}).
-#'   \code{growth_model = 1} only.
-#' @param growth_model Integer (data). Growth curve code (default \code{1L},
-#'   VB). See Details; the codes are opal's own.
+#'   \code{"vonB"} only.
+#' @param growth_model Character (data). Growth curve: \code{"vonB"}
+#'   (default), \code{"richards"} or \code{"cessation"}. See Details.
 #' @param b Numeric. Richards shape parameter on the natural scale (may be
-#'   AD). Must be non-zero. Used by \code{growth_model = 2}.
+#'   AD). Must be non-zero. Used by \code{"richards"}.
 #' @param L0 Numeric. Length at absolute age 0, natural scale (may be AD).
-#'   Used by \code{growth_model = 3}.
+#'   Used by \code{"cessation"}.
 #' @param log_rmax Numeric. Log maximum growth rate, in length per model age
-#'   step (may be AD). Used by \code{growth_model = 3}.
+#'   step (may be AD). Used by \code{"cessation"}.
 #' @param log_k_gc Numeric. Log steepness of the logistic decline in growth
-#'   rate, per model age step (may be AD). Used by \code{growth_model = 3}.
+#'   rate, per model age step (may be AD). Used by \code{"cessation"}.
 #' @param t50 Numeric. Absolute age at the logistic midpoint (may be AD).
-#'   Used by \code{growth_model = 3}.
+#'   Used by \code{"cessation"}.
 #' @param age_offset Numeric (data). Added to the modeled ages to give the
-#'   absolute age \code{t} used by \code{growth_model = 3} (default 0).
+#'   absolute age \code{t} used by \code{"cessation"} (default 0).
 #' @details
-#' \subsection{Growth model codes}{
+#' \subsection{Growth models}{
 #'   \tabular{lll}{
 #'     \code{growth_model} \tab Curve \tab Arguments used \cr
-#'     \code{1} (default) \tab Schnute VB \tab \code{L1}, \code{L2},
+#'     \code{"vonB"} (default) \tab Schnute VB \tab \code{L1}, \code{L2},
 #'       \code{log_k} (optionally \code{log_k_mult}, \code{k_mult_ages},
 #'       \code{plus_group_adjust}) \cr
-#'     \code{2} \tab Richards \tab \code{L1}, \code{L2}, \code{log_k},
-#'       \code{b} \cr
-#'     \code{3} \tab Growth cessation \tab \code{L0}, \code{log_rmax},
-#'       \code{log_k_gc}, \code{t50}, \code{age_offset}
+#'     \code{"richards"} \tab Richards \tab \code{L1}, \code{L2},
+#'       \code{log_k}, \code{b} \cr
+#'     \code{"cessation"} \tab Growth cessation \tab \code{L0},
+#'       \code{log_rmax}, \code{log_k_gc}, \code{t50}, \code{age_offset}
 #'   }
-#'   These codes are specific to opal and do not correspond to the Stock
-#'   Synthesis (SS3) GrowthModel codes. In particular, opal
-#'   \code{growth_model = 3} is not SS3 GrowthModel 3 (age-specific K). SS3
-#'   GrowthModel 3 is reproduced in opal by \code{growth_model = 1} with
-#'   \code{log_k_mult} and \code{k_mult_ages}.
+#'   Stock Synthesis (SS3) GrowthModel 3 (age-specific K) is reproduced by
+#'   \code{"vonB"} with \code{log_k_mult} and \code{k_mult_ages}.
 #'
 #'   All rates (\code{log_k}, \code{log_rmax} and \code{log_k_gc}) are per
 #'   model age step.
 #' }
 #'
-#' \subsection{von Bertalanffy (growth_model = 1)}{
+#' \subsection{von Bertalanffy (growth_model = "vonB")}{
 #'   Uses the Schnute parameterization of the von Bertalanffy growth curve,
 #'   \deqn{L_a = L_1 + (L_2 - L_1)\frac{1 - e^{-k(a - A_1)}}{1 - e^{-k(A_2 - A_1)}}.}{L_a = L1 + (L2 - L1) (1 - exp(-k (a - A1))) / (1 - exp(-k (A2 - A1))).}
 #'   Optionally reproduces SS3 GrowthModel 3 (age-specific K), including its
@@ -85,7 +82,7 @@
 #'   \code{\link{get_sd_at_age}}.
 #' }
 #'
-#' \subsection{Richards (growth_model = 2)}{
+#' \subsection{Richards (growth_model = "richards")}{
 #'   Uses the Richards (1959) curve as parameterized by Schnute (1981),
 #'   \deqn{L_a = \left[L_1^b + (L_2^b - L_1^b)\frac{1 - e^{-k(a - A_1)}}{1 - e^{-k(A_2 - A_1)}}\right]^{1/b}.}{L_a = [L1^b + (L2^b - L1^b) (1 - exp(-k (a - A1))) / (1 - exp(-k (A2 - A1)))]^(1/b).}
 #'   The parameterization and the guidance in this subsection follow the
@@ -109,7 +106,7 @@
 #'   possible curve shapes. opal does not clamp the bracket.
 #' }
 #'
-#' \subsection{Growth cessation (growth_model = 3)}{
+#' \subsection{Growth cessation (growth_model = "cessation")}{
 #'   Uses the growth cessation model of Maunder et al. (2018), Eq. 2,
 #'   \deqn{L_t = L_0 + r_{max}\left[\frac{\ln(e^{-k t_{50}} + 1) - \ln(e^{k(t - t_{50})} + 1)}{k} + t\right],}{L_t = L0 + rmax [(log(exp(-k t50) + 1) - log(exp(k (t - t50)) + 1)) / k + t],}
 #'   with \code{rmax = exp(log_rmax)} and \code{k = exp(log_k_gc)}. The
@@ -158,7 +155,7 @@ get_growth <- function(n_age, A1, A2, L1 = NULL, L2 = NULL, log_k = NULL,
                        min_age = 1L,
                        log_k_mult = NULL, k_mult_ages = NULL,
                        plus_group_adjust = FALSE,
-                       growth_model = 1L,
+                       growth_model = "vonB",
                        b = NULL,
                        L0 = NULL, log_rmax = NULL, log_k_gc = NULL, t50 = NULL,
                        age_offset = 0) {
@@ -169,12 +166,12 @@ get_growth <- function(n_age, A1, A2, L1 = NULL, L2 = NULL, log_k = NULL,
                            L0 = L0, log_rmax = log_rmax,
                            log_k_gc = log_k_gc, t50 = t50,
                            age_offset = age_offset, check_required = TRUE)
-  switch(as.character(growth_model),
-    "1" = .growth_vb(n_age, A1, A2, L1, L2, log_k, min_age,
-                     log_k_mult, k_mult_ages, plus_group_adjust),
-    "2" = .growth_richards(n_age, A1, A2, L1, L2, log_k, b, min_age),
-    "3" = .growth_cessation(n_age, L0, log_rmax, log_k_gc, t50,
-                            min_age, age_offset)
+  switch(growth_model,
+    vonB = .growth_vb(n_age, A1, A2, L1, L2, log_k, min_age,
+                      log_k_mult, k_mult_ages, plus_group_adjust),
+    richards = .growth_richards(n_age, A1, A2, L1, L2, log_k, b, min_age),
+    cessation = .growth_cessation(n_age, L0, log_rmax, log_k_gc, t50,
+                                  min_age, age_offset)
   )
 }
 
@@ -242,48 +239,52 @@ get_growth <- function(n_age, A1, A2, L1 = NULL, L2 = NULL, log_k = NULL,
   L0 + rmax * ((sp0 - spt) / k + t)
 }
 
+.is_growth_model <- function(growth_model) {
+  is.character(growth_model) && length(growth_model) == 1L &&
+    growth_model %in% c("vonB", "richards", "cessation")
+}
+
 # Structural checks only; these must not branch on AD values. Value checks on
 # initial parameters are in .validate_growth_values().
 .validate_growth_options <- function(n_age, A1, min_age = 1L,
                                      log_k_mult = NULL, k_mult_ages = NULL,
                                      plus_group_adjust = FALSE,
                                      check_length = TRUE,
-                                     growth_model = 1L, A2 = NULL,
+                                     growth_model = "vonB", A2 = NULL,
                                      L1 = NULL, L2 = NULL, log_k = NULL,
                                      b = NULL, L0 = NULL, log_rmax = NULL,
                                      log_k_gc = NULL, t50 = NULL,
                                      age_offset = 0,
                                      check_required = FALSE) {
-  if (!is.numeric(growth_model) || length(growth_model) != 1L ||
-      !growth_model %in% c(1L, 2L, 3L)) {
-    stop("`growth_model` must be 1 (VB), 2 (Richards) or 3 (growth cessation).",
+  if (!.is_growth_model(growth_model)) {
+    stop("`growth_model` must be one of \"vonB\", \"richards\" or \"cessation\".",
          call. = FALSE)
   }
   if (check_required) {
-    required <- switch(as.character(growth_model),
-      "1" = list(L1 = L1, L2 = L2, log_k = log_k),
-      "2" = list(L1 = L1, L2 = L2, log_k = log_k, b = b),
-      "3" = list(L0 = L0, log_rmax = log_rmax, log_k_gc = log_k_gc, t50 = t50)
+    required <- switch(growth_model,
+      vonB = list(L1 = L1, L2 = L2, log_k = log_k),
+      richards = list(L1 = L1, L2 = L2, log_k = log_k, b = b),
+      cessation = list(L0 = L0, log_rmax = log_rmax, log_k_gc = log_k_gc, t50 = t50)
     )
     missing <- names(required)[vapply(required, is.null, logical(1))]
     if (length(missing)) {
-      stop(sprintf("`growth_model = %d` requires %s.", as.integer(growth_model),
+      stop(sprintf("`growth_model = \"%s\"` requires %s.", growth_model,
                    paste0("`", missing, "`", collapse = ", ")), call. = FALSE)
     }
   }
-  if (growth_model != 1L && (length(log_k_mult) || length(k_mult_ages))) {
-    stop("`log_k_mult` and `k_mult_ages` are supported only with `growth_model = 1`.",
+  if (growth_model != "vonB" && (length(log_k_mult) || length(k_mult_ages))) {
+    stop("`log_k_mult` and `k_mult_ages` are supported only with `growth_model = \"vonB\"`.",
          call. = FALSE)
   }
   if (!is.numeric(age_offset) || length(age_offset) != 1L || !is.finite(age_offset)) {
     stop("`age_offset` must be a finite number.", call. = FALSE)
   }
-  if (growth_model == 3L) {
+  if (growth_model == "cessation") {
     modeled <- seq(min_age, by = 1, length.out = n_age)
     for (nm in c("A1", "A2")) {
       a <- if (nm == "A1") A1 else A2
       if (length(a) != 1L || !is.finite(a) || !a %in% modeled) {
-        stop(sprintf("`%s` must be a modeled age when `growth_model = 3`.", nm),
+        stop(sprintf("`%s` must be a modeled age when `growth_model = \"cessation\"`.", nm),
              call. = FALSE)
       }
     }
@@ -311,8 +312,8 @@ get_growth <- function(n_age, A1, A2, L1 = NULL, L2 = NULL, log_k = NULL,
       !plus_group_adjust %in% c(FALSE, TRUE)) {
     stop("`plus_group_adjust` must be a logical flag or 0/1.", call. = FALSE)
   }
-  if (plus_group_adjust && growth_model != 1L) {
-    stop("`plus_group_adjust` is supported only with `growth_model = 1`.", call. = FALSE)
+  if (plus_group_adjust && growth_model != "vonB") {
+    stop("`plus_group_adjust` is supported only with `growth_model = \"vonB\"`.", call. = FALSE)
   }
   if (plus_group_adjust && (max_age <= 0 || max_age != floor(max_age))) {
     stop("Plus-group adjustment requires a positive integer oldest age.", call. = FALSE)
@@ -324,23 +325,22 @@ get_growth <- function(n_age, A1, A2, L1 = NULL, L2 = NULL, log_k = NULL,
 # opal_model() evaluates growth at ages 1, ..., n_age (the get_growth()
 # default), so A1 is compared with 1.
 .validate_growth_values <- function(data, parameters = NULL) {
-  growth_model <- if (is.null(data$growth_model)) 1L else data$growth_model
-  if (!is.numeric(growth_model) || length(growth_model) != 1L ||
-      !growth_model %in% c(1L, 2L, 3L)) {
+  growth_model <- if (is.null(data$growth_model)) "vonB" else data$growth_model
+  if (!.is_growth_model(growth_model)) {
     return(invisible(NULL))  # reported by .validate_growth_options()
   }
   if (!is.null(parameters)) {
-    required <- switch(as.character(growth_model),
-      "1" = character(), "2" = "richards_b",
-      "3" = c("log_L0", "log_rmax", "log_k_gc", "t50_gc"))
+    required <- switch(growth_model,
+      vonB = character(), richards = "richards_b",
+      cessation = c("log_L0", "log_rmax", "log_k_gc", "t50_gc"))
     missing <- setdiff(required, names(parameters))
     if (length(missing)) {
-      stop(sprintf("`growth_model = %d` requires parameter(s) %s; see get_parameters().",
-                   as.integer(growth_model), paste0("`", missing, "`", collapse = ", ")),
+      stop(sprintf("`growth_model = \"%s\"` requires parameter(s) %s; see get_parameters().",
+                   growth_model, paste0("`", missing, "`", collapse = ", ")),
            call. = FALSE)
     }
   }
-  if (growth_model == 2L) {
+  if (growth_model == "richards") {
     b <- parameters$richards_b
     if (!is.null(b) && (length(b) != 1L || !is.finite(b) || b == 0)) {
       stop("`richards_b` must be a finite, non-zero number.", call. = FALSE)
@@ -351,7 +351,7 @@ get_growth <- function(n_age, A1, A2, L1 = NULL, L2 = NULL, log_k = NULL,
               call. = FALSE)
     }
   }
-  if (growth_model == 3L && is.null(data$growth_age_offset)) {
+  if (growth_model == "cessation" && is.null(data$growth_age_offset)) {
     message("Growth cessation uses absolute age t = model age + ",
             "`growth_age_offset`; `growth_age_offset` is not supplied and defaults to 0.")
   }

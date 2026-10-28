@@ -15,9 +15,9 @@
 #'   Parameters for the alternative growth curves (see \code{\link{get_growth}})
 #'   are added only when \code{data$growth_model} selects them:
 #'   \itemize{
-#'     \item \code{growth_model = 2} (Richards) adds \code{richards_b = 1},
+#'     \item \code{growth_model = "richards"} adds \code{richards_b = 1},
 #'       which gives the VB curve.
-#'     \item \code{growth_model = 3} (growth cessation) adds \code{log_L0}
+#'     \item \code{growth_model = "cessation"} adds \code{log_L0}
 #'       (initialized at \code{log_L1}), \code{log_rmax} (initialized at
 #'       \code{log((L2 - L1) / (A2 - A1))}, length per model age step),
 #'       \code{log_k_gc = 0} and \code{t50_gc} (initialized at the midpoint
@@ -38,11 +38,11 @@ get_parameters <- function(data = NULL, model = NULL) {
   if (length(data$k_mult_ages)) {
     parameters$log_k_mult <- rep(0, length(data$k_mult_ages))
   }
-  growth_model <- if (is.null(data$growth_model)) 1L else data$growth_model
-  if (identical(as.integer(growth_model), 2L)) {
+  growth_model <- if (is.null(data$growth_model)) "vonB" else data$growth_model
+  if (identical(growth_model, "richards")) {
     parameters$richards_b <- 1
   }
-  if (identical(as.integer(growth_model), 3L)) {
+  if (identical(growth_model, "cessation")) {
     L1 <- exp(parameters$log_L1)
     L2 <- exp(parameters$log_L2)
     age_offset <- if (is.null(data$growth_age_offset)) 0 else data$growth_age_offset
@@ -86,7 +86,7 @@ get_parameters <- function(data = NULL, model = NULL) {
 #'   \code{log_k_mult} and \code{richards_b} are fixed. The growth cessation
 #'   parameters (\code{log_L0}, \code{log_rmax}, \code{log_k_gc},
 #'   \code{t50_gc}) are estimated when present. Under
-#'   \code{growth_model = 3}, \code{log_L1}, \code{log_L2} and \code{log_k}
+#'   \code{growth_model = "cessation"}, \code{log_L1}, \code{log_L2} and \code{log_k}
 #'   are unused, and fixing them keeps the Hessian non-singular.
 #' @export
 #'

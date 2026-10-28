@@ -213,28 +213,28 @@ test_that("opal_model forwards optional growth inputs and preserves the default"
 
 # Test alternative growth models ----
 
-test_that("growth_model = 1 is identical to the default VB call", {
-  expect_identical(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 1L),
+test_that("growth_model = \"vonB\" is identical to the default call", {
+  expect_identical(get_growth(n_age, A1, A2, L1, L2, k, growth_model = "vonB"),
                    get_growth(n_age, A1, A2, L1, L2, k))
   expect_identical(
-    get_growth(n_age, A1, A2, L1, L2, k, plus_group_adjust = TRUE, growth_model = 1L),
+    get_growth(n_age, A1, A2, L1, L2, k, plus_group_adjust = TRUE, growth_model = "vonB"),
     get_growth(n_age, A1, A2, L1, L2, k, plus_group_adjust = TRUE))
   args <- list(n_age = 28L, A1 = 1L, A2 = 28L, L1 = 22, L2 = 145,
                log_k = log(0.455 / 4), log_k_mult = log(c(0.5, 0.75, 1.8)),
                k_mult_ages = c(2L, 3L, 7L), plus_group_adjust = TRUE)
-  expect_identical(do.call(get_growth, c(args, list(growth_model = 1L))),
+  expect_identical(do.call(get_growth, c(args, list(growth_model = "vonB"))),
                    do.call(get_growth, args))
 })
 
 test_that("Richards with b = 1 matches VB and passes through L1 and L2", {
   vb <- get_growth(n_age, A1, A2, L1, L2, k)
-  expect_equal(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 2L, b = 1),
+  expect_equal(get_growth(n_age, A1, A2, L1, L2, k, growth_model = "richards", b = 1),
                vb, tolerance = 1e-12)
   vb0 <- get_growth(12L, 2L, 10L, L1, L2, k, min_age = 0L)
   expect_equal(get_growth(12L, 2L, 10L, L1, L2, k, min_age = 0L,
-                          growth_model = 2L, b = 1), vb0, tolerance = 1e-12)
+                          growth_model = "richards", b = 1), vb0, tolerance = 1e-12)
   for (b in c(-0.5, 0.5, 2)) {
-    mu <- get_growth(n_age, A1, A2, L1, L2, k, growth_model = 2L, b = b)
+    mu <- get_growth(n_age, A1, A2, L1, L2, k, growth_model = "richards", b = b)
     expect_equal(mu[A1], L1, tolerance = 1e-10)
     expect_equal(mu[A2], L2, tolerance = 1e-10)
   }
@@ -244,13 +244,13 @@ test_that("Richards with small b approximates Gompertz growth", {
   ages <- seq_len(n_age)
   frac <- (1 - exp(-exp(k) * (ages - A1))) / (1 - exp(-exp(k) * (A2 - A1)))
   gompertz <- L1 * exp(log(L2 / L1) * frac)
-  expect_equal(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 2L, b = 1e-4),
+  expect_equal(get_growth(n_age, A1, A2, L1, L2, k, growth_model = "richards", b = 1e-4),
                gompertz, tolerance = 1e-3)
 })
 
 test_that("Richards returns NaN below A1 for some b > 0 without erroring", {
   # Below A1 the fraction is negative; with b = 3 the bracket is negative.
-  growth <- function() get_growth(10L, 5L, 10L, 10, 12, log(1), growth_model = 2L, b = 3)
+  growth <- function() get_growth(10L, 5L, 10L, 10, 12, log(1), growth_model = "richards", b = 3)
   expect_no_error(growth())
   mu <- growth()
   expect_true(is.nan(mu[1]))
@@ -260,7 +260,7 @@ test_that("Richards returns NaN below A1 for some b > 0 without erroring", {
 # Golden values: Maunder et al. (2018), Mar Biol 165:76, bigeye tuna.
 # Parameters from Table 1 (L0, rmax, k, t50); length at age 10 from Table 2.
 test_that("growth cessation reproduces Maunder et al. (2018)", {
-  mu <- get_growth(41L, 1L, 10L, min_age = 0L, growth_model = 3L,
+  mu <- get_growth(41L, 1L, 10L, min_age = 0L, growth_model = "cessation",
                    L0 = 18.85, log_rmax = log(37.24), log_k_gc = log(0.89),
                    t50 = 4.57)
   expect_lt(abs(mu[11] - 189.4), 0.1)
@@ -272,7 +272,7 @@ test_that("growth cessation reproduces Maunder et al. (2018)", {
 
 test_that("growth cessation uses absolute age through age_offset", {
   cess <- function(min_age, age_offset = 0, n = 20L) {
-    get_growth(n, 2L, 10L, min_age = min_age, growth_model = 3L,
+    get_growth(n, 2L, 10L, min_age = min_age, growth_model = "cessation",
                L0 = 20, log_rmax = log(15), log_k_gc = log(0.5), t50 = 6,
                age_offset = age_offset)
   }
@@ -282,12 +282,12 @@ test_that("growth cessation uses absolute age through age_offset", {
 })
 
 test_that("growth cessation is stable for extreme and small k", {
-  mu <- get_growth(101L, 1L, 2L, min_age = 0L, growth_model = 3L,
+  mu <- get_growth(101L, 1L, 2L, min_age = 0L, growth_model = "cessation",
                    L0 = 10, log_rmax = log(20), log_k_gc = log(10), t50 = 5)
   expect_true(all(is.finite(mu)))
   expect_true(all(diff(mu) >= -1e-10))
   t <- 0:30
-  mu_small <- get_growth(31L, 1L, 2L, min_age = 0L, growth_model = 3L,
+  mu_small <- get_growth(31L, 1L, 2L, min_age = 0L, growth_model = "cessation",
                          L0 = 10, log_rmax = log(20), log_k_gc = log(1e-6), t50 = 5)
   expect_equal(mu_small, 10 + 20 * t / 2, tolerance = 1e-4)
 })
@@ -295,7 +295,7 @@ test_that("growth cessation is stable for extreme and small k", {
 test_that("growth cessation is monotone for positive parameter values", {
   for (pars in list(c(5, 1, 0.1, 2), c(18.85, 37.24, 0.89, 4.57),
                     c(1, 100, 3, 20), c(50, 0.5, 0.01, 0.5))) {
-    mu <- get_growth(60L, 1L, 2L, min_age = 0L, growth_model = 3L,
+    mu <- get_growth(60L, 1L, 2L, min_age = 0L, growth_model = "cessation",
                      L0 = pars[1], log_rmax = log(pars[2]),
                      log_k_gc = log(pars[3]), t50 = pars[4])
     expect_true(all(is.finite(mu)))
@@ -315,26 +315,29 @@ test_that("Richards and growth cessation derivatives match central finite differ
     expect_lt(max(abs(as.numeric(tape$jacobian(par)) - fd) / pmax(1, abs(fd))), 1e-6)
   }
   check_tape(function(p) sum(get_growth(
-    20L, 1L, 20L, p[1], p[2], p[3], growth_model = 2L, b = p[4]
+    20L, 1L, 20L, p[1], p[2], p[3], growth_model = "richards", b = p[4]
   )^2), c(30, 180, log(0.2), 0.5))
   check_tape(function(p) sum(get_growth(
-    15L, 1L, 10L, min_age = 0L, growth_model = 3L,
+    15L, 1L, 10L, min_age = 0L, growth_model = "cessation",
     L0 = p[1], log_rmax = p[2], log_k_gc = p[3], t50 = p[4]
   )^2), c(18.85, log(37.24), log(0.89), 4.57))
 })
 
 test_that("invalid growth model inputs fail clearly", {
-  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 4L), "growth_model")
-  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = NA), "growth_model")
+  for (bad in list("gompertz", "VonB", NA_character_, NA, 1L, 2L, c("vonB", "richards"))) {
+    expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = bad),
+                 "must be one of \"vonB\", \"richards\" or \"cessation\"")
+  }
   expect_error(get_growth(n_age, A1, A2, L1, L2), "requires `log_k`")
-  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 2L), "requires `b`")
-  expect_error(get_growth(n_age, A1, A2, growth_model = 3L, L0 = 10, t50 = 5),
+  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = "richards"), "requires `b`")
+  expect_error(get_growth(n_age, A1, A2, growth_model = "cessation", L0 = 10, t50 = 5),
                "requires `log_rmax`, `log_k_gc`")
-  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 2L, b = 1,
-                          log_k_mult = 0, k_mult_ages = 2L), "only with `growth_model = 1`")
-  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = 2L, b = 1,
-                          plus_group_adjust = TRUE), "only with `growth_model = 1`")
-  cess <- function(A1, A2, ...) get_growth(10L, A1, A2, growth_model = 3L,
+  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = "richards", b = 1,
+                          log_k_mult = 0, k_mult_ages = 2L),
+               "only with `growth_model = \"vonB\"`")
+  expect_error(get_growth(n_age, A1, A2, L1, L2, k, growth_model = "richards", b = 1,
+                          plus_group_adjust = TRUE), "only with `growth_model = \"vonB\"`")
+  cess <- function(A1, A2, ...) get_growth(10L, A1, A2, growth_model = "cessation",
                                            L0 = 10, log_rmax = 0, log_k_gc = 0,
                                            t50 = 5, ...)
   expect_error(cess(0L, 5L), "`A1` must be a modeled age")
@@ -347,12 +350,12 @@ test_that("alternative growth parameters have defaults, maps, priors and bounds"
   base <- get_parameters(model = "opakapaka")
   expect_false(any(c("richards_b", "log_L0", "log_rmax", "log_k_gc", "t50_gc") %in%
                      names(base)))
-  data$growth_model <- 2L
+  data$growth_model <- "richards"
   rich <- get_parameters(data, model = "opakapaka")
   expect_identical(rich$richards_b, 1)
   expect_true(is.na(get_map(rich)$richards_b))
   expect_identical(get_priors(rich, data)$richards_b$par1, 1)
-  data$growth_model <- 3L
+  data$growth_model <- "cessation"
   data$growth_age_offset <- -1
   cess <- get_parameters(data, model = "opakapaka")
   expect_false("richards_b" %in% names(cess))
@@ -376,19 +379,19 @@ test_that("opal_model supports Richards and growth cessation", {
   inputs <- opaka_inputs()
   baseline <- opaka_obj()
   data <- inputs$data
-  data$growth_model <- 1L
+  data$growth_model <- "vonB"
   vb <- opaka_obj(data = data)
   expect_identical(vb$fn(vb$par), baseline$fn(baseline$par))
   expect_identical(vb$gr(vb$par), baseline$gr(baseline$par))
 
-  data$growth_model <- 2L
+  data$growth_model <- "richards"
   parameters <- inputs$parameters
   parameters$richards_b <- 1
   map <- c(inputs$map, list(richards_b = factor(NA)))
   rich <- opaka_obj(data = data, parameters = parameters, map = map)
   expect_equal(rich$fn(rich$par), baseline$fn(baseline$par), tolerance = 1e-10)
 
-  data$growth_model <- 3L
+  data$growth_model <- "cessation"
   data$A1 <- 1L
   data$growth_age_offset <- -1
   parameters <- inputs$parameters
@@ -407,7 +410,7 @@ test_that("opal_model supports Richards and growth cessation", {
 test_that("opal_obj checks alternative growth values", {
   inputs <- opaka_inputs()
   data <- inputs$data
-  data$growth_model <- 2L
+  data$growth_model <- "richards"
   parameters <- inputs$parameters
   parameters$richards_b <- 0
   map <- c(inputs$map, list(richards_b = factor(NA)))
@@ -416,7 +419,7 @@ test_that("opal_obj checks alternative growth values", {
   parameters$richards_b <- 0.5
   data$A1 <- 2L
   expect_warning(opal_obj(data, parameters, map), "NaN predicted lengths")
-  data$growth_model <- 3L
+  data$growth_model <- "cessation"
   data$A1 <- 1L
   parameters <- inputs$parameters
   parameters[c("log_L0", "log_rmax", "log_k_gc", "t50_gc")] <-
@@ -428,7 +431,7 @@ test_that("opal_obj checks alternative growth values", {
                "requires parameter.*log_L0")
   data$A1 <- 0L
   expect_error(opal_obj(data, parameters, inputs$map), "`A1` must be a modeled age")
-  data$growth_model <- 5L
+  data$growth_model <- "gompertz"
   expect_error(opal_obj(data, inputs$parameters, inputs$map), "growth_model")
 })
 

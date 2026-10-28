@@ -119,7 +119,7 @@ validate_opal_obj <- function(x, results = FALSE) {
     k_mult_ages = x$data$k_mult_ages,
     plus_group_adjust = if (is.null(x$data$growth_plus_group_adjust)) FALSE else x$data$growth_plus_group_adjust,
     check_length = !is.null(x$parameters),
-    growth_model = if (is.null(x$data$growth_model)) 1L else x$data$growth_model,
+    growth_model = if (is.null(x$data$growth_model)) "vonB" else x$data$growth_model,
     A2 = x$data$A2,
     age_offset = if (is.null(x$data$growth_age_offset)) 0 else x$data$growth_age_offset
   )

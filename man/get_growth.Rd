@@ -15,7 +15,7 @@ get_growth(
   log_k_mult = NULL,
   k_mult_ages = NULL,
   plus_group_adjust = FALSE,
-  growth_model = 1L,
+  growth_model = "vonB",
   b = NULL,
   L0 = NULL,
   log_rmax = NULL,
@@ -31,48 +31,48 @@ get_growth(
 
 \item{A2}{Integer. Reference age for L2 (data).}
 
-\item{L1}{Numeric. Length at age A1 (may be AD). Used by
-\code{growth_model} 1 and 2.}
+\item{L1}{Numeric. Length at age A1 (may be AD). Used by \code{"vonB"}
+and \code{"richards"}.}
 
-\item{L2}{Numeric. Length at age A2 (may be AD). Used by
-\code{growth_model} 1 and 2.}
+\item{L2}{Numeric. Length at age A2 (may be AD). Used by \code{"vonB"}
+and \code{"richards"}.}
 
 \item{log_k}{Numeric. Log growth coefficient per model age step (may be
-AD). Used by \code{growth_model} 1 and 2.}
+AD). Used by \code{"vonB"} and \code{"richards"}.}
 
 \item{min_age}{Integer. Minimum age (default 1L).}
 
 \item{log_k_mult}{Numeric vector (may be AD). Log K multipliers; \code{NULL}
-or length zero retains the single-K curve. \code{growth_model = 1} only.}
+or length zero retains the single-K curve. \code{"vonB"} only.}
 
 \item{k_mult_ages}{Integer vector (data). Ages at which the multipliers apply,
 strictly increasing within the modeled ages and matching \code{log_k_mult}.
-\code{growth_model = 1} only.}
+\code{"vonB"} only.}
 
 \item{plus_group_adjust}{Logical (data). Apply SS3's oldest-age length
 approximation, independently of the multipliers (default \code{FALSE}).
-\code{growth_model = 1} only.}
+\code{"vonB"} only.}
 
-\item{growth_model}{Integer (data). Growth curve code (default \code{1L},
-VB). See Details; the codes are opal's own.}
+\item{growth_model}{Character (data). Growth curve: \code{"vonB"}
+(default), \code{"richards"} or \code{"cessation"}. See Details.}
 
 \item{b}{Numeric. Richards shape parameter on the natural scale (may be
-AD). Must be non-zero. Used by \code{growth_model = 2}.}
+AD). Must be non-zero. Used by \code{"richards"}.}
 
 \item{L0}{Numeric. Length at absolute age 0, natural scale (may be AD).
-Used by \code{growth_model = 3}.}
+Used by \code{"cessation"}.}
 
 \item{log_rmax}{Numeric. Log maximum growth rate, in length per model age
-step (may be AD). Used by \code{growth_model = 3}.}
+step (may be AD). Used by \code{"cessation"}.}
 
 \item{log_k_gc}{Numeric. Log steepness of the logistic decline in growth
-rate, per model age step (may be AD). Used by \code{growth_model = 3}.}
+rate, per model age step (may be AD). Used by \code{"cessation"}.}
 
 \item{t50}{Numeric. Absolute age at the logistic midpoint (may be AD).
-Used by \code{growth_model = 3}.}
+Used by \code{"cessation"}.}
 
 \item{age_offset}{Numeric (data). Added to the modeled ages to give the
-absolute age \code{t} used by \code{growth_model = 3} (default 0).}
+absolute age \code{t} used by \code{"cessation"} (default 0).}
 }
 \value{
 Numeric vector of length \code{n_age}: mean length at each age
@@ -84,28 +84,25 @@ selected by \code{growth_model}: the Schnute parameterization of the von
 Bertalanffy (VB) curve, the Richards curve, or the growth cessation model.
 }
 \details{
-\subsection{Growth model codes}{
+\subsection{Growth models}{
 \tabular{lll}{
 \code{growth_model} \tab Curve \tab Arguments used \cr
-\code{1} (default) \tab Schnute VB \tab \code{L1}, \code{L2},
+\code{"vonB"} (default) \tab Schnute VB \tab \code{L1}, \code{L2},
 \code{log_k} (optionally \code{log_k_mult}, \code{k_mult_ages},
 \code{plus_group_adjust}) \cr
-\code{2} \tab Richards \tab \code{L1}, \code{L2}, \code{log_k},
-\code{b} \cr
-\code{3} \tab Growth cessation \tab \code{L0}, \code{log_rmax},
-\code{log_k_gc}, \code{t50}, \code{age_offset}
+\code{"richards"} \tab Richards \tab \code{L1}, \code{L2},
+\code{log_k}, \code{b} \cr
+\code{"cessation"} \tab Growth cessation \tab \code{L0},
+\code{log_rmax}, \code{log_k_gc}, \code{t50}, \code{age_offset}
 }
-These codes are specific to opal and do not correspond to the Stock
-Synthesis (SS3) GrowthModel codes. In particular, opal
-\code{growth_model = 3} is not SS3 GrowthModel 3 (age-specific K). SS3
-GrowthModel 3 is reproduced in opal by \code{growth_model = 1} with
-\code{log_k_mult} and \code{k_mult_ages}.
+Stock Synthesis (SS3) GrowthModel 3 (age-specific K) is reproduced by
+\code{"vonB"} with \code{log_k_mult} and \code{k_mult_ages}.
 
 All rates (\code{log_k}, \code{log_rmax} and \code{log_k_gc}) are per
 model age step.
 }
 
-\subsection{von Bertalanffy (growth_model = 1)}{
+\subsection{von Bertalanffy (growth_model = "vonB")}{
 Uses the Schnute parameterization of the von Bertalanffy growth curve,
 \deqn{L_a = L_1 + (L_2 - L_1)\frac{1 - e^{-k(a - A_1)}}{1 - e^{-k(A_2 - A_1)}}.}{L_a = L1 + (L2 - L1) (1 - exp(-k (a - A1))) / (1 - exp(-k (A2 - A1))).}
 Optionally reproduces SS3 GrowthModel 3 (age-specific K), including its
@@ -132,7 +129,7 @@ later SS3 versions may differ. CV interpolation is handled separately by
 \code{\link{get_sd_at_age}}.
 }
 
-\subsection{Richards (growth_model = 2)}{
+\subsection{Richards (growth_model = "richards")}{
 Uses the Richards (1959) curve as parameterized by Schnute (1981),
 \deqn{L_a = \left[L_1^b + (L_2^b - L_1^b)\frac{1 - e^{-k(a - A_1)}}{1 - e^{-k(A_2 - A_1)}}\right]^{1/b}.}{L_a = [L1^b + (L2^b - L1^b) (1 - exp(-k (a - A1))) / (1 - exp(-k (A2 - A1)))]^(1/b).}
 The parameterization and the guidance in this subsection follow the
@@ -156,7 +153,7 @@ undefined. The choice of \code{A1} and \code{A2} also constrains the
 possible curve shapes. opal does not clamp the bracket.
 }
 
-\subsection{Growth cessation (growth_model = 3)}{
+\subsection{Growth cessation (growth_model = "cessation")}{
 Uses the growth cessation model of Maunder et al. (2018), Eq. 2,
 \deqn{L_t = L_0 + r_{max}\left[\frac{\ln(e^{-k t_{50}} + 1) - \ln(e^{k(t - t_{50})} + 1)}{k} + t\right],}{L_t = L0 + rmax [(log(exp(-k t50) + 1) - log(exp(k (t - t50)) + 1)) / k + t],}
 with \code{rmax = exp(log_rmax)} and \code{k = exp(log_k_gc)}. The

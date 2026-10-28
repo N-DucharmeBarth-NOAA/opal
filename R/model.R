@@ -39,6 +39,7 @@ opal_globals <- function() {
     .growth_vb = .growth_vb,
     .growth_richards = .growth_richards,
     .growth_cessation = .growth_cessation,
+    .is_growth_model = .is_growth_model,
     .validate_growth_options = .validate_growth_options,
     get_sd_at_age = get_sd_at_age,
     get_weight_at_length = get_weight_at_length,
@@ -101,14 +102,14 @@ opal_model <- function(parameters, data) {
   
   # Growth module ----
 
-  # Module 1: Mean length-at-age (opal growth codes, not SS3 GrowthModel
-  # codes: 1 = Schnute VB, 2 = Richards, 3 = growth cessation). Growth ages
-  # are 1, ..., n_age (the get_growth() default min_age) for all three.
-  growth_model <- if (exists("growth_model", inherits = FALSE)) growth_model else 1L
+  # Module 1: Mean length-at-age ("vonB" = Schnute VB, "richards",
+  # "cessation"). Growth ages are 1, ..., n_age (the get_growth() default
+  # min_age) for all three.
+  growth_model <- if (exists("growth_model", inherits = FALSE)) growth_model else "vonB"
 
-  if (growth_model == 3L) {
+  if (identical(growth_model, "cessation")) {
     mu_a <- get_growth(
-      n_age, A1, A2, growth_model = 3L,
+      n_age, A1, A2, growth_model = "cessation",
       L0 = exp(log_L0), log_rmax = log_rmax, log_k_gc = log_k_gc, t50 = t50_gc,
       age_offset = if (exists("growth_age_offset", inherits = FALSE)) growth_age_offset else 0
     )
@@ -125,7 +126,7 @@ opal_model <- function(parameters, data) {
       k_mult_ages = if (exists("k_mult_ages", inherits = FALSE)) k_mult_ages else NULL,
       plus_group_adjust = if (exists("growth_plus_group_adjust", inherits = FALSE)) growth_plus_group_adjust else FALSE,
       growth_model = growth_model,
-      b = if (growth_model == 2L) richards_b else NULL
+      b = if (identical(growth_model, "richards")) richards_b else NULL
     )
     L_ref1 <- L1
     L_ref2 <- L2
