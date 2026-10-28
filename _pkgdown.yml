@@ -2,6 +2,7 @@ url: https://n-ducharmebarth-noaa.github.io/opal/
 
 template:
   bootstrap: 5
+  math-rendering: mathjax
   
   bslib:
     # NOAA Fisheries color scheme

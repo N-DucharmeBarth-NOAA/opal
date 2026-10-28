@@ -1,5 +1,10 @@
 # opal 0.1.2
-
+- 2026/10/28: The pkgdown site renders math with MathJax
+  (`template: math-rendering: mathjax`), so `\deqn{}` and `\eqn{}` equations
+  in the reference pages display as equations instead of raw LaTeX.
+  `get_growth()` gains examples that set up each growth configuration (VB,
+  SS3 GrowthModel 3, Richards and growth cessation) from the IO yellowfin
+  inputs.
 - 2026/10/28 ([PR #158](https://github.com/N-DucharmeBarth-NOAA/opal/pull/158)):
   Alternative growth curves. `get_growth()` gains a
   `growth_model` argument: `"vonB"` (default) is the existing Schnute VB
@@ -15,6 +20,7 @@
   (estimated) for the selected curve, and `get_priors()` and `get_bounds()`
   cover the new parameters. Under growth cessation, `log_CV1` and `log_CV2`
   are the CVs at the predicted lengths at `A1` and `A2`.
+
 
 # opal 0.1.1
 
