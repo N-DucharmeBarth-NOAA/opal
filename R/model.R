@@ -6,6 +6,7 @@ utils::globalVariables(c(
   "par_sel",
   "log_L1", "log_L2", "log_k", "log_k_mult", "k_mult_ages",
   "growth_plus_group_adjust", "log_CV1", "log_CV2",
+  "growth_sd_model", "log_SD1", "log_SD2",
   "growth_model", "growth_age_offset", "richards_b",
   "log_L0", "log_rmax", "log_k_gc", "t50_gc",
   "n_age", "min_age", "max_age", 
@@ -42,6 +43,7 @@ opal_globals <- function() {
     .is_growth_model = .is_growth_model,
     .validate_growth_options = .validate_growth_options,
     get_sd_at_age = get_sd_at_age,
+    .is_growth_sd_model = .is_growth_sd_model,
     get_weight_at_length = get_weight_at_length,
     get_maturity_at_age = get_maturity_at_age,
     resolve_bio_vector = resolve_bio_vector,
@@ -132,8 +134,16 @@ opal_model <- function(parameters, data) {
     L_ref2 <- L2
   }
 
-  # Module 2: SD of length-at-age (linear CV interpolation)
-  sd_a <- get_sd_at_age(mu_a, L_ref1, L_ref2, log_CV1, log_CV2)
+  # Module 2: SD of length-at-age. "cv" (default): CV linear in mean length
+  # (SS3 CV_Growth_Pattern 0). "sd": SD linear in mean length, held constant
+  # below A1 and from A2 (SS3 CV_Growth_Pattern 2).
+  growth_sd_model <- if (exists("growth_sd_model", inherits = FALSE)) growth_sd_model else "cv"
+  if (identical(growth_sd_model, "sd")) {
+    sd_a <- get_sd_at_age(mu_a, L_ref1, L_ref2, sd_model = "sd",
+                          log_SD1 = log_SD1, log_SD2 = log_SD2, A1 = A1, A2 = A2)
+  } else {
+    sd_a <- get_sd_at_age(mu_a, L_ref1, L_ref2, log_CV1, log_CV2)
+  }
 
   # Shared PLA — computed once and reused for weight, maturity, selectivity
   pla <- get_pla(len_lower, len_upper, mu_a, sd_a)

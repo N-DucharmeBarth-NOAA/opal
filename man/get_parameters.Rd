@@ -37,4 +37,10 @@ which gives the VB curve.
 \code{log_k_gc = 0} and \code{t50_gc} (initialized at the midpoint
 of the modeled ages, \code{(1 + n_age) / 2 + growth_age_offset}).
 }
+
+If \code{data$growth_sd_model = "sd"} (see \code{\link{get_sd_at_age}}),
+adds \code{log_SD1} and \code{log_SD2}, the log SDs of length-at-age at
+the reference lengths, initialized at \code{log_CV1 + log_L1} and
+\code{log_CV2 + log_L2} (the SDs implied by the CVs). \code{log_CV1}
+and \code{log_CV2} are then unused.
 }

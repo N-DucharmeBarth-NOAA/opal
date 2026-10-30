@@ -435,6 +435,62 @@ test_that("opal_obj checks alternative growth values", {
   expect_error(opal_obj(data, inputs$parameters, inputs$map), "growth_model")
 })
 
+test_that("growth_sd_model = \"sd\" adds SD parameters, maps and priors", {
+  data <- opaka_inputs()$data
+  expect_false(any(c("log_SD1", "log_SD2") %in%
+                     names(get_parameters(data, model = "opakapaka"))))
+  data$growth_sd_model <- "sd"
+  p <- get_parameters(data, model = "opakapaka")
+  expect_equal(exp(p$log_SD1), exp(p$log_L1) * exp(p$log_CV1))
+  expect_equal(exp(p$log_SD2), exp(p$log_L2) * exp(p$log_CV2))
+  expect_true(all(is.na(unlist(get_map(p)[c("log_SD1", "log_SD2")]))))
+  priors <- get_priors(p, data)
+  expect_identical(priors$log_SD1$par1, p$log_SD1)
+  expect_identical(priors$log_SD2$par2, 0.3)
+})
+
+test_that("opal_model supports growth_sd_model with each growth curve", {
+  inputs <- opaka_inputs()
+  baseline <- opaka_obj()
+  data <- inputs$data
+  data$growth_sd_model <- "cv"
+  cv <- opaka_obj(data = data)
+  expect_identical(cv$fn(cv$par), baseline$fn(baseline$par))
+
+  data$growth_sd_model <- "sd"
+  expect_error(opal_obj(data, inputs$parameters, inputs$map),
+               "requires parameter.*log_SD1")
+  base_par <- inputs$parameters
+  base_par$log_SD1 <- base_par$log_CV1 + base_par$log_L1
+  base_par$log_SD2 <- base_par$log_CV2 + base_par$log_L2
+  configs <- list(
+    vonB = list(),
+    richards = list(richards_b = 1),
+    cessation = list(log_L0 = base_par$log_L1, log_rmax = 1, log_k_gc = 0,
+                     t50_gc = (1 + data$n_age) / 2 - 1)
+  )
+  for (gm in names(configs)) {
+    d <- data
+    d$growth_model <- gm
+    if (gm == "cessation") {
+      d$A1 <- 1L
+      d$growth_age_offset <- -1
+    }
+    p <- c(base_par, configs[[gm]])
+    map <- c(inputs$map, if (gm == "richards") list(richards_b = factor(NA)))
+    map[c("log_SD1", "log_SD2")] <- NULL
+    obj <- opaka_obj(data = d, parameters = p, map = map)
+    expect_true(all(c("log_SD1", "log_SD2") %in% names(obj$par)), info = gm)
+    expect_true(is.finite(obj$fn(obj$par)), info = gm)
+    gr <- obj$gr(obj$par)
+    expect_true(all(is.finite(gr)), info = gm)
+    expect_true(all(gr[names(obj$par) %in% c("log_SD1", "log_SD2")] != 0), info = gm)
+  }
+
+  data$growth_sd_model <- "logsd"
+  expect_error(opal_obj(data, inputs$parameters, inputs$map), "growth_sd_model")
+})
+
 test_that("opal_globals includes the growth model helpers", {
   globals <- opal_globals()
   expect_true(all(c(".growth_vb", ".growth_richards", ".growth_cessation") %in%
@@ -462,6 +518,67 @@ test_that("get_sd_at_age returns positive values", {
   mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
   sd_a <- get_sd_at_age(mu_a, L1, L2, CV1, CV2)
   expect_true(all(sd_a > 0))
+})
+
+test_that("sd_model = \"cv\" is the original CV-linear form", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  original <- mu_a * (exp(CV1) + (mu_a - L1) / (L2 - L1) * (exp(CV2) - exp(CV1)))
+  expect_identical(get_sd_at_age(mu_a, L1, L2, CV1, CV2), original)
+  expect_identical(get_sd_at_age(mu_a, L1, L2, CV1, CV2, sd_model = "cv"), original)
+})
+
+test_that("sd_model = \"sd\" is linear in mean length through SD1 and SD2", {
+  mu_a <- get_growth(n_age, 3L, 30L, L1, L2, k)
+  SD1 <- 4
+  SD2 <- 12
+  sd_a <- get_sd_at_age(mu_a, L1, L2, sd_model = "sd",
+                        log_SD1 = log(SD1), log_SD2 = log(SD2))
+  expect_equal(sd_a[3], SD1, tolerance = 1e-12)
+  expect_equal(sd_a[30], SD2, tolerance = 1e-12)
+  fit <- lm(sd_a ~ mu_a)
+  expect_lt(max(abs(residuals(fit))), 1e-10)
+  expect_equal(unname(coef(fit)[2]), (SD2 - SD1) / (L2 - L1), tolerance = 1e-10)
+})
+
+test_that("A1 and A2 hold the SD at its end values, as SS3 does", {
+  mu_a <- get_growth(n_age, 3L, 30L, L1, L2, k)
+  args <- list(mu_a, L1, L2, sd_model = "sd", log_SD1 = log(4), log_SD2 = log(12))
+  free <- do.call(get_sd_at_age, args)
+  held <- do.call(get_sd_at_age, c(args, list(A1 = 3L, A2 = 30L)))
+  expect_identical(held[1:2], c(4, 4))
+  expect_equal(held[30:n_age], rep(12, n_age - 29), tolerance = 1e-12)
+  expect_equal(held[3:29], free[3:29], tolerance = 1e-12)
+  cv_held <- get_sd_at_age(mu_a, L1, L2, CV1, CV2, A1 = 3L, A2 = 30L)
+  expect_equal(cv_held[1:2], rep(L1 * exp(CV1), 2), tolerance = 1e-12)
+  expect_equal(cv_held[30:n_age], rep(L2 * exp(CV2), n_age - 29), tolerance = 1e-12)
+})
+
+test_that("get_sd_at_age checks sd_model and its parameters", {
+  mu_a <- get_growth(n_age, A1, A2, L1, L2, k)
+  expect_error(get_sd_at_age(mu_a, L1, L2, CV1, CV2, sd_model = "logsd"), "sd_model")
+  expect_error(get_sd_at_age(mu_a, L1, L2, sd_model = "sd"), "log_SD1")
+  expect_error(get_sd_at_age(mu_a, L1, L2), "log_CV1")
+})
+
+# SS3 3.30 EPO bigeye (IATTC SAC-14), GrowthModel 8 with CV_Growth_Pattern 2:
+# SD_young = 3.5308 at L(age 0) = 22.79, SD_old = 9.47985 at Linf = 191.628
+# (Growth_Age_for_L2 = 999). SS3's SD_Beg (Report.sso, Biology_at_age) is
+# SD-linear with the slope over Linf - L1, and is held at SD_old at the
+# oldest age (40 quarters).
+test_that("sd_model = \"sd\" reproduces SS3 SD_Beg for EPO bigeye", {
+  mu_a <- get_growth(41L, 1L, 41L, growth_model = "cessation", L0 = 22.79,
+                     log_rmax = log(10.2127), log_k_gc = log(0.1811),
+                     t50 = 16.248, age_offset = -1)
+  sd_a <- get_sd_at_age(mu_a, mu_a[1], mu_a[41], sd_model = "sd",
+                        log_SD1 = log(3.5308), log_SD2 = log(9.47985),
+                        A1 = 1L, A2 = 41L)
+  ages <- c(0, 4, 8, 12, 16, 20, 28, 40)
+  ss3 <- c(3.53, 4.87, 6.11, 7.19, 8.06, 8.67, 9.26, 9.48)
+  expect_equal(mu_a[ages + 1],
+               c(22.8, 60.7, 96.0, 126.8, 151.3, 168.5, 185.3, 191.0),
+               tolerance = 1e-3)
+  # Within 0.3%: opal's slope uses mu_a[41] = 190.87 rather than Linf.
+  expect_lt(max(abs(sd_a[ages + 1] / ss3 - 1)), 0.005)
 })
 
 # Test get_weight_at_length ----

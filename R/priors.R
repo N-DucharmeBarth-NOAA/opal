@@ -90,6 +90,16 @@ get_priors <- function(parameters, data = NULL) {
     priors[["log_CV2"]] <- list(type = "normal", par1 = log_CV2_mean, par2 = 0.3,
                                  index = which("log_CV2" == names(parameters)))
   }
+  if ("log_SD1" %in% names(parameters)) {
+    log_SD1_mean <- if (!is.null(data) && !is.null(data$prior_log_SD1_mean)) data$prior_log_SD1_mean else parameters$log_SD1
+    priors[["log_SD1"]] <- list(type = "normal", par1 = log_SD1_mean, par2 = 0.3,
+                                 index = which("log_SD1" == names(parameters)))
+  }
+  if ("log_SD2" %in% names(parameters)) {
+    log_SD2_mean <- if (!is.null(data) && !is.null(data$prior_log_SD2_mean)) data$prior_log_SD2_mean else parameters$log_SD2
+    priors[["log_SD2"]] <- list(type = "normal", par1 = log_SD2_mean, par2 = 0.3,
+                                 index = which("log_SD2" == names(parameters)))
+  }
 
   evaluate_priors(parameters, priors)
   return(priors)
