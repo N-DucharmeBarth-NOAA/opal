@@ -129,17 +129,17 @@
 <span><span class="co">#&gt; &lt;opal_obj&gt; fitted</span></span>
 <span><span class="co">#&gt; Active parameters: 127 </span></span>
 <span><span class="co">#&gt; Objective: 1832.412 </span></span>
-<span><span class="co">#&gt; Fit check: failed  | MCMC check: not run</span></span>
+<span><span class="co">#&gt; Fit check: passed  | MCMC check: not run</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">validation</span><span class="op">$</span><span class="va">fit</span></span>
 <span><span class="co">#&gt; $passes</span></span>
-<span><span class="co">#&gt; [1] FALSE</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics</span></span>
 <span><span class="co">#&gt; $metrics$convergence</span></span>
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics$max_gradient</span></span>
-<span><span class="co">#&gt; [1] 0.001041864</span></span>
+<span><span class="co">#&gt; [1] 0.0009558889</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics$positive_hessian</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
@@ -177,7 +177,7 @@
 <span><span class="co">#&gt; [1] 0</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics$biology$metrics$max_harvest</span></span>
-<span><span class="co">#&gt; [1] 0.09746108</span></span>
+<span><span class="co">#&gt; [1] 0.09746105</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $metrics$biology$metrics$max_relative_catch_error</span></span>
 <span><span class="co">#&gt; [1] 6.704801e-10</span></span>
@@ -190,10 +190,10 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $identity</span></span>
 <span><span class="co">#&gt; $identity$target</span></span>
-<span><span class="co">#&gt; [1] "cbc2d736d98b56ef575335279e2bc6cb"</span></span>
+<span><span class="co">#&gt; [1] "b027dcefde6500ba99739cd02dbcef64"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $identity$fit</span></span>
-<span><span class="co">#&gt; [1] "7459c22d1102869eeae932f6f18cec4b"</span></span>
+<span><span class="co">#&gt; [1] "8efe536e503a96af2d24ae545fc58c85"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $version</span></span>
@@ -217,10 +217,10 @@
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $checked_at</span></span>
-<span><span class="co">#&gt; [1] "2026-10-28 22:32:27 UTC"</span></span>
+<span><span class="co">#&gt; [1] "2026-10-30 00:23:39 UTC"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $payload_id</span></span>
-<span><span class="co">#&gt; [1] "4e4c67c49cca604f84b4a3abcc579fcb"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "f7ec7c35b43f801014ee58de2779aebf"</span></span></code></pre></div>
 </div>
 <p>The optimiser can return convergence code zero while the maximum gradient still exceeds the default tolerance of <code>0.001</code>. Inspect the recorded metrics. If needed, continue from the stored optimum with a tighter relative objective tolerance for the optimiser, keeping the same model and diagnostic threshold. This example checks after each pass, allows up to three further passes, and stops if the checks still fail; the <code>fitted</code> stage alone is not acceptance.</p>
 <div class="cell">

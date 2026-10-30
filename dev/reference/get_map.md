@@ -23,7 +23,8 @@ a named `list` of parameter mapping.
 ## Details
 
 Growth parameters `log_L1`, `log_L2`, `log_k`, `log_k_mult` and
-`richards_b` are fixed. The growth cessation parameters (`log_L0`,
-`log_rmax`, `log_k_gc`, `t50_gc`) are estimated when present. Under
-`growth_model = "cessation"`, `log_L1`, `log_L2` and `log_k` are unused,
-and fixing them keeps the Hessian non-singular.
+`richards_b` are fixed, as are the growth-variability parameters
+`log_CV1`, `log_CV2`, `log_SD1` and `log_SD2`. The growth cessation
+parameters (`log_L0`, `log_rmax`, `log_k_gc`, `t50_gc`) are estimated
+when present. Under `growth_model = "cessation"`, `log_L1`, `log_L2` and
+`log_k` are unused, and fixing them keeps the Hessian non-singular.

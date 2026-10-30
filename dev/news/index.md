@@ -2,6 +2,27 @@
 
 ## opal 0.1.2
 
+- 2026/10/29: SD of length-at-age can be linear in mean length (SS3
+  `CV_Growth_Pattern = 2`).
+  [`get_sd_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_sd_at_age.md)
+  gains `sd_model`: `"cv"` (default) is the existing CV-linear form,
+  which is SS3 pattern 0 (the documentation previously called it pattern
+  2), and `"sd"` makes SD linear in mean length between `log_SD1` and
+  `log_SD2`, the log SDs at the reference lengths. Optional `A1` and
+  `A2` hold the SD at its end values below `A1` and from `A2` on, as SS3
+  does (`SS_ALK.tpl`).
+  [`opal_model()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/opal_model.md)
+  reads the optional `data$growth_sd_model`; under `"sd"` it holds the
+  end values, and `"cv"` objectives are unchanged.
+  [`get_parameters()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_parameters.md)
+  adds `log_SD1` and `log_SD2` (initialized at the SDs implied by the
+  CVs),
+  [`get_map()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_map.md)
+  fixes them, and
+  [`get_priors()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_priors.md)
+  covers them. For the EPO bigeye SS3 model (GrowthModel 8, pattern 2),
+  `"sd"` reproduces SS3’s `SD_Beg` within 0.3%; the CV form was off by
+  up to 72%.
 - 2026/10/28
   ([9f1260c](https://github.com/N-DucharmeBarth-NOAA/opal/commit/9f1260c)):
   The pkgdown site renders math with MathJax

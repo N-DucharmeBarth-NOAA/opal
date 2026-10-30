@@ -449,7 +449,7 @@ runtime.
 - [`get_recruitment_prior()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_recruitment_prior.md)
   : Recruitment prior
 - [`get_sd_at_age()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_sd_at_age.md)
-  : Compute SD of length-at-age from CV1 and CV2
+  : Compute SD of length-at-age
 - [`get_selectivity()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_selectivity.md)
   : Compute selectivity-at-age from parametric selectivity curves
 - [`get_unfished_init()`](https://n-ducharmebarth-noaa.github.io/opal/dev/reference/get_unfished_init.md)

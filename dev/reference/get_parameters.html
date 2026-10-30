@@ -92,7 +92,12 @@ which gives the VB curve.</p></li>
 <code>log((L2 - L1) / (A2 - A1))</code>, length per model age step),
 <code>log_k_gc = 0</code> and <code>t50_gc</code> (initialized at the midpoint
 of the modeled ages, <code>(1 + n_age) / 2 + growth_age_offset</code>).</p></li>
-</ul></div>
+</ul><p>If <code>data$growth_sd_model = "sd"</code> (see <code><a href="get_sd_at_age.html">get_sd_at_age</a></code>),
+adds <code>log_SD1</code> and <code>log_SD2</code>, the log SDs of length-at-age at
+the reference lengths, initialized at <code>log_CV1 + log_L1</code> and
+<code>log_CV2 + log_L2</code> (the SDs implied by the CVs). <code>log_CV1</code>
+and <code>log_CV2</code> are then unused.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
