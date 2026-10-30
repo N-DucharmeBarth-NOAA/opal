@@ -2,26 +2,81 @@
 % Please edit documentation in R/growth.R
 \name{get_sd_at_age}
 \alias{get_sd_at_age}
-\title{Compute SD of length-at-age from CV1 and CV2}
+\title{Compute SD of length-at-age}
 \usage{
-get_sd_at_age(mu_a, L1, L2, log_CV1, log_CV2)
+get_sd_at_age(
+  mu_a,
+  L1,
+  L2,
+  log_CV1 = NULL,
+  log_CV2 = NULL,
+  sd_model = "cv",
+  log_SD1 = NULL,
+  log_SD2 = NULL,
+  A1 = NULL,
+  A2 = NULL
+)
 }
 \arguments{
 \item{mu_a}{Numeric vector. Mean length at age (from \code{\link{get_growth}}).
 May be AD.}
 
-\item{L1}{Numeric. Length at age A1 (may be AD).}
+\item{L1}{Numeric. Lower reference length, at age A1 (may be AD).}
 
-\item{L2}{Numeric. Length at age A2 (may be AD).}
+\item{L2}{Numeric. Upper reference length, at age A2 (may be AD).}
 
-\item{log_CV1}{Numeric. CV at age A1 (may be AD).}
+\item{log_CV1}{Numeric. Log CV at \code{L1} (may be AD). Used by
+\code{"cv"}.}
 
-\item{log_CV2}{Numeric. CV at age A2 (may be AD).}
+\item{log_CV2}{Numeric. Log CV at \code{L2} (may be AD). Used by
+\code{"cv"}.}
+
+\item{sd_model}{Character (data). \code{"cv"} (default) or \code{"sd"}.
+See Details.}
+
+\item{log_SD1}{Numeric. Log SD at \code{L1} (may be AD). Used by
+\code{"sd"}.}
+
+\item{log_SD2}{Numeric. Log SD at \code{L2} (may be AD). Used by
+\code{"sd"}.}
+
+\item{A1, A2}{Integer (data). Optional positions in \code{mu_a} of the
+reference ages. When both are supplied, the SD at positions below
+\code{A1} is held at its value at \code{L1}, and the SD at positions
+\code{A2} and above at its value at \code{L2}. When \code{NULL}
+(default), the linear form is extrapolated to all ages.}
 }
 \value{
 Numeric vector of SD at each age.
 }
 \description{
-Linearly interpolates CV as a function of mean length, matching
-SS3's \code{CV_Growth_Pattern = 2}.
+Computes the SD of length at each age from two growth-variability
+parameters at the reference lengths \code{L1} and \code{L2}, under one of
+two forms selected by \code{sd_model}.
+}
+\details{
+\describe{
+\item{\code{"cv"}}{CV is linear in mean length,
+\deqn{CV_a = CV_1 + \frac{\mu_a - L_1}{L_2 - L_1}(CV_2 - CV_1),\quad SD_a = \mu_a CV_a,}{CV_a = CV1 + (mu_a - L1) / (L2 - L1) * (CV2 - CV1), SD_a = mu_a * CV_a,}
+which is SS3's \code{CV_Growth_Pattern = 0} (CV = f(LAA)). SD is
+then quadratic in mean length.}
+\item{\code{"sd"}}{SD is linear in mean length,
+\deqn{SD_a = SD_1 + \frac{\mu_a - L_1}{L_2 - L_1}(SD_2 - SD_1),}{SD_a = SD1 + (mu_a - L1) / (L2 - L1) * (SD2 - SD1),}
+which is SS3's \code{CV_Growth_Pattern = 2} (SD = f(LAA)).}
+}
+Under both patterns, SS3 holds the CV (or SD) at its young value for ages
+below \code{A1} and at its old value for ages at or above \code{A2}
+(\code{SS_ALK.tpl}, SS_Label_Info_16.5.3). Supply \code{A1} and \code{A2}
+to do the same. \code{\link{opal_model}} supplies them under \code{"sd"}
+only, so \code{"cv"} objectives are unchanged.
+
+When SS3's \code{Growth_Age_for_L2 = 999}, its upper reference length is
+Linf, but the SD is still held at the old value from the oldest age. With
+\code{A2} set to the oldest age, \code{"sd"} then matches SS3 at
+\code{A2} and below \code{A1}, and differs slightly in between because
+the slope uses \code{mu_a[A2]} instead of Linf.
+}
+\references{
+\href{https://github.com/nmfs-ost/ss3-source-code/blob/main/SS_ALK.tpl}{Stock Synthesis source},
+\code{SS_ALK.tpl}, SS_Label_Info_16.5.2--16.5.4.
 }

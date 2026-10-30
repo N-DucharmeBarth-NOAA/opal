@@ -24,6 +24,12 @@
 #'       of the modeled ages, \code{(1 + n_age) / 2 + growth_age_offset}).
 #'   }
 #'
+#'   If \code{data$growth_sd_model = "sd"} (see \code{\link{get_sd_at_age}}),
+#'   adds \code{log_SD1} and \code{log_SD2}, the log SDs of length-at-age at
+#'   the reference lengths, initialized at \code{log_CV1 + log_L1} and
+#'   \code{log_CV2 + log_L2} (the SDs implied by the CVs). \code{log_CV1}
+#'   and \code{log_CV2} are then unused.
+#'
 #' @return A \code{list} of initial parameter values.
 #' @export
 #'
@@ -50,6 +56,10 @@ get_parameters <- function(data = NULL, model = NULL) {
     parameters$log_rmax <- log((L2 - L1) / (data$A2 - data$A1))
     parameters$log_k_gc <- 0
     parameters$t50_gc <- (1 + data$n_age) / 2 + age_offset
+  }
+  if (identical(data$growth_sd_model, "sd")) {
+    parameters$log_SD1 <- parameters$log_CV1 + parameters$log_L1
+    parameters$log_SD2 <- parameters$log_CV2 + parameters$log_L2
   }
   parameters
 }
@@ -83,7 +93,9 @@ get_parameters <- function(data = NULL, model = NULL) {
 #' @param parameters a \code{list} containing the initial parameter values to be passed to \code{MakeADFun}.
 #' @return a named \code{list} of parameter mapping.
 #' @details Growth parameters \code{log_L1}, \code{log_L2}, \code{log_k},
-#'   \code{log_k_mult} and \code{richards_b} are fixed. The growth cessation
+#'   \code{log_k_mult} and \code{richards_b} are fixed, as are the
+#'   growth-variability parameters \code{log_CV1}, \code{log_CV2},
+#'   \code{log_SD1} and \code{log_SD2}. The growth cessation
 #'   parameters (\code{log_L0}, \code{log_rmax}, \code{log_k_gc},
 #'   \code{t50_gc}) are estimated when present. Under
 #'   \code{growth_model = "cessation"}, \code{log_L1}, \code{log_L2} and \code{log_k}
@@ -95,7 +107,8 @@ get_map <- function(parameters) {
     c(
       "log_h", "log_sigma_r", "cpue_creep", "log_cpue_tau",
       "log_cpue_omega", "log_lf_tau", "log_wf_tau", "log_L1", "log_L2",
-      "log_k", "log_k_mult", "richards_b", "log_CV1", "log_CV2", "par_sel",
+      "log_k", "log_k_mult", "richards_b", "log_CV1", "log_CV2",
+      "log_SD1", "log_SD2", "par_sel",
       "log_init_F_f", "init_rdev_a"
     ),
     names(parameters)

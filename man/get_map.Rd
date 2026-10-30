@@ -18,7 +18,9 @@ to turn parameters on/off.
 }
 \details{
 Growth parameters \code{log_L1}, \code{log_L2}, \code{log_k},
-\code{log_k_mult} and \code{richards_b} are fixed. The growth cessation
+\code{log_k_mult} and \code{richards_b} are fixed, as are the
+growth-variability parameters \code{log_CV1}, \code{log_CV2},
+\code{log_SD1} and \code{log_SD2}. The growth cessation
 parameters (\code{log_L0}, \code{log_rmax}, \code{log_k_gc},
 \code{t50_gc}) are estimated when present. Under
 \code{growth_model = "cessation"}, \code{log_L1}, \code{log_L2} and \code{log_k}
