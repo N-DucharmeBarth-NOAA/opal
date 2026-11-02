@@ -37,6 +37,10 @@ report_fit <- function(nm, x) {
               isTRUE(v$passes)))
 }
 
+# For report-only contract changes, rebuild AGE-SF with its verified saved
+# optimum. The bridge has no likelihood components and needs no regeneration.
+previous <- Sys.getenv("OPAL_REBUILD_FROM")
+if (!nzchar(previous)) {
 fits <- list()
 for (nm in c("LEN", "AGE")) {
   fits[[nm]] <- io_yft_fit_polished(build(nm))
@@ -95,5 +99,19 @@ bridge <- do.call(rbind, lapply(names(change), function(nm)
   io_yft_bridge_row(fits[[nm]], nm, change[[nm]])))
 print(bridge)
 saveRDS(bridge, file.path("inst", "extdata", "io_yft_bridge.rds"), compress = "xz", version = 3L)
+} else {
+  old <- readRDS(previous)$object
+  x <- opal_obj(old$data, old$parameters, old$map, random = old$random,
+    bounds = old$bounds, control = old$control,
+    makeadfun_args = old$makeadfun_args, metadata = old$provenance$metadata)
+  object <- opal_rtmb(x, fresh = TRUE)
+  stopifnot(identical(names(object$par), names(old$fit$opt$par)),
+            abs(object$fn(old$fit$opt$par) - old$fit$opt$objective) < 1e-8,
+            all(is.finite(object$gr(old$fit$opt$par))))
+  fits <- list(`AGE-SF` = opal_attach_fit(x, old$fit$opt,
+    check_args = list(gradient_tolerance = 1e-4)))
+  stopifnot(isTRUE(fits$`AGE-SF`$validation$fit$passes))
+  report_fit("AGE-SF", fits$`AGE-SF`)
+}
 opal_save(fits$`AGE-SF`, file.path("inst", "extdata", "io_yft_age_sf_fit.rds"),
           compress = "xz", overwrite = TRUE)

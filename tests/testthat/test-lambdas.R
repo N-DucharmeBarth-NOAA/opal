@@ -22,6 +22,66 @@ test_that("likelihood lambdas default to one and weighted terms sum to the objec
   expect_true(all(is.finite(weighted$gr())))
 })
 
+test_that("fractional composition components account for the objective at start and MLE", {
+  terms <- paste0("lp_", c("prior", "penalty", "rec", "init_rec", "cpue", "lf", "wf"))
+  for (switch in 1:3) {
+    data <- synth_full_data(wf_switch = switch, lf_switch = switch)
+    data$wf_n_f <- 2L
+    # The synthetic WF integer counts must agree with its sample sizes for DM.
+    data$wf_obs_ints <- as.integer(data$wf_obs_flat)
+    data$lf_obs_flat <- data$lf_obs_flat * 1.037
+    data$wf_obs_flat <- data$wf_obs_flat * 1.037
+    data$lambdas <- list(cpue = 1, lf = 1, wf = 1, rec = 1,
+      init_rec = 1, prior = 1, penalty = 1)
+    parameters <- synth_parameters(data)
+    parameters$log_h <- log(0.75)
+    map <- synth_map(parameters)
+    obj <- synth_obj(data, parameters, map)
+    expect_named(obj$par, "log_B0")
+    bounds <- get_bounds(obj, parameters)
+    bounds$lower <- pmax(bounds$lower, 14)
+    opt <- nlminb(obj$par, obj$fn, obj$gr,
+      lower = bounds$lower, upper = bounds$upper)
+    expect_equal(opt$convergence, 0L, info = paste("switch", switch))
+    expect_lt(max(abs(obj$gr(opt$par))), 1e-3)
+    expect_lt(opt$objective, obj$fn(obj$par))
+
+    weighted_data <- data
+    weighted_data$lambdas <- list(cpue = 0.5, lf = c(2, 0.4), wf = 3,
+      rec = 2, init_rec = 0.7, prior = 1.3, penalty = 1.2)
+    weighted <- synth_obj(weighted_data, parameters, map)
+    zeroed <- lapply(c("lf", "wf"), function(component) {
+      zero_data <- weighted_data
+      zero_data$lambdas[[component]] <- 0
+      synth_obj(zero_data, parameters, map)
+    })
+    for (point in list(start = obj$par, mle = opt$par)) {
+      report <- obj$report(point)
+      expect_equal(sum(unlist(report[terms])), obj$fn(point), tolerance = 1e-8)
+      report_w <- weighted$report(point)
+      expect_equal(sum(unlist(report_w[paste0(terms, "_w")])),
+        weighted$fn(point), tolerance = 1e-8)
+      expect_equal(report_w[terms], report[terms])
+      for (i in seq_along(zeroed)) {
+        term <- paste0("lp_", c("lf", "wf")[i], "_w")
+        expect_equal(weighted$fn(point) - zeroed[[i]]$fn(point),
+          sum(report_w[[term]]), tolerance = 1e-8)
+        expect_equal(sum(zeroed[[i]]$report(point)[[term]]), 0)
+      }
+    }
+  }
+})
+
+test_that("quickstart raw components account for start and stored MLE objectives", {
+  obj <- opaka_obj()
+  mle <- readRDS(test_path("_reference", "opaka-quickstart.rds"))$mle$par
+  terms <- paste0("lp_", c("prior", "penalty", "rec", "init_rec", "cpue", "lf", "wf"))
+  for (point in list(start = obj$par, stored_mle = mle)) {
+    expect_equal(sum(unlist(obj$report(point)[terms])), obj$fn(point),
+      tolerance = 1e-8)
+  }
+})
+
 # Doubling one component's lambda adds exactly its raw term to the objective,
 # leaves the raw report unchanged, and doubles the weighted report.
 expect_lambda_doubles <- function(build, data, name) {
@@ -42,14 +102,10 @@ expect_lambda_doubles <- function(build, data, name) {
 test_that("a lambda of 2 adds exactly the raw term for each component", {
   inputs <- opaka_inputs()
   opaka <- function(data) opaka_obj(inputs, data = data)
-  for (name in c("prior", "rec", "init_rec", "cpue")) {
+  for (name in c("prior", "rec", "init_rec", "cpue", "lf")) {
     expect_lambda_doubles(opaka, inputs$data, name)
   }
-  # Opaka's LF counts are fractional, and its multinomial tape rounds them, so
-  # its reported lp_lf differs slightly from the taped term; use integer counts.
-  for (name in c("lf", "wf")) {
-    expect_lambda_doubles(function(data) synth_obj(data), synth_full_data(), name)
-  }
+  expect_lambda_doubles(function(data) synth_obj(data), synth_full_data(), "wf")
   # A low B0 makes the catch exceed the population, so the penalty is active.
   penalised <- synth_full_data(lf_switch = 0L, wf_switch = 0L)
   parameters <- synth_parameters(penalised)

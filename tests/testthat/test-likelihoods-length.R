@@ -309,8 +309,8 @@ test_that("multiple observations: obs_offset advances correctly across observati
   obs_y1 <- c(0, 100, 0, 0, 0, 0, 0, 0)
   obs_y2 <- c(0, 0, 0, 0, 0, 0, 0, 100)
 
-  expected_nll1 <- -dmultinom(obs_y1, prob = pred_y1, log = TRUE)
-  expected_nll2 <- -dmultinom(obs_y2, prob = pred_y2, log = TRUE)
+  expected_nll1 <- ref_multinom_nll(obs_y1, pred_y1 / sum(pred_y1))
+  expected_nll2 <- ref_multinom_nll(obs_y2, pred_y2 / sum(pred_y2))
 
   lf_args <- list(
     lf_obs_flat      = c(obs_y1, obs_y2),   # concatenated flat vector
@@ -380,15 +380,93 @@ test_that("Dirichlet-multinomial approaches multinomial at high concentration", 
   expect_equal(actual, expected, tolerance = 1e-4)
 })
 
-test_that("multinomial rounds fractional counts in RTMB", {
+test_that("multinomial uses fractional counts unrounded", {
   fx <- comp_fixture()
   groups <- attach_obs(base_groups(), integer = FALSE)
   args <- comp_args("lf", groups, fx, 1, c(0, 0))
   actual <- do.call(get_length_like, args)
-  rounded_groups <- groups
-  for (j in seq_along(rounded_groups)) {
-    rounded_groups[[j]]$obs <- round(rounded_groups[[j]]$obs)
-  }
-  expected <- expected_comp_nll(rounded_groups, fx, 1, c(0, 0))
+  expected <- expected_comp_nll(groups, fx, 1, c(0, 0))
   expect_equal(actual, expected, tolerance = 1e-10)
+})
+
+test_that("multinomial numeric and AD kernels agree", {
+  density <- opal:::.opal_dmultinom
+  x <- c(2.4, 3.6, 1.2)
+  p <- c(.3, .5, .2)
+  expected <- lgamma(sum(x) + 1) - sum(lgamma(x + 1)) + sum(x * log(p))
+  expect_equal(density(x, p), expected, tolerance = 1e-12)
+  expect_equal(density(x, p, log = FALSE), exp(expected), tolerance = 1e-12)
+  expect_equal(density(c(2, 4, 1), p),
+               stats::dmultinom(c(2, 4, 1), prob = p, log = TRUE))
+  tape <- RTMB::MakeTape(function(pp) density(x, pp), p)
+  reference <- RTMB::MakeTape(function(pp) RTMB::dmultinom(x, prob = pp, log = TRUE), p)
+  for (prob in list(p, 2 * p)) {
+    expect_equal(density(x, prob), as.numeric(reference(prob)), tolerance = 1e-12)
+    expect_equal(as.numeric(tape(prob)), as.numeric(reference(prob)))
+    expect_true(all(is.finite(tape$jacobian(prob))))
+  }
+  counts <- RTMB::MakeTape(function(xx) density(xx, p), x)
+  expect_equal(as.numeric(counts(x)), expected)
+  expect_true(all(is.finite(counts$jacobian(x))))
+  for (obs in list(c(0, 3, 2), c(1, 3, 2))) {
+    zero <- RTMB::MakeTape(function(pp) RTMB::dmultinom(obs, prob = pp, log = TRUE), p)
+    expect_equal(density(obs, c(0, .6, .4)), as.numeric(zero(c(0, .6, .4))))
+  }
+})
+
+test_that("fixed multinomial probabilities use an unrounded objective constant", {
+  x <- c(2.4, 3.6, 1.2)
+  p <- c(.3, .5, .2)
+  model <- function(par) {
+    y <- RTMB::OBS(x)
+    -opal:::.opal_dmultinom(y, p) + par$a^2
+  }
+  obj <- RTMB::MakeADFun(model, list(a = 0), silent = TRUE)
+  expect_equal(obj$fn(), ref_multinom_nll(x, p), tolerance = 1e-12)
+})
+
+test_that("multinomial composition simulation retains RTMB observation dispatch", {
+  data <- synth_full_data(lf_switch = 1L, wf_switch = 1L)
+  data$wf_n_f <- 2L
+  data$lf_obs_flat <- data$lf_obs_flat * 1.037
+  data$wf_obs_flat <- data$wf_obs_flat * 1.037
+  obj <- synth_obj(data)
+  set.seed(155)
+  simulated <- obj$simulate()
+  for (name in c("lf_obs_flat", "wf_obs_flat")) {
+    expect_length(simulated[[name]], length(data[[name]]))
+    expect_true(all(is.finite(simulated[[name]])))
+    expect_true(all(simulated[[name]] >= 0))
+    expect_equal(simulated[[name]], floor(simulated[[name]]))
+    expect_false(identical(simulated[[name]], data[[name]]))
+  }
+})
+
+test_that("multinomial simulation and latent OSA match RTMB directly", {
+  build <- function(density, observed = c(2, 4), random = "a") {
+    data <- list(y = observed)
+    model <- function(par) {
+      "c" <- RTMB::ADoverload("c")
+      RTMB::getAll(data, par)
+      y <- RTMB::OBS(y)
+      q <- 1 / (1 + exp(-a))
+      -density(y, prob = c(q, 1 - q), log = TRUE) -
+        RTMB::dnorm(a, mu, 1, log = TRUE)
+    }
+    RTMB::MakeADFun(model, list(a = 0, mu = 0), random = random, silent = TRUE)
+  }
+  obj <- build(opal:::.opal_dmultinom)
+  reference <- build(RTMB::dmultinom)
+  expect_equal(obj$fn(), reference$fn())
+  expect_equal(obj$gr(), reference$gr())
+  residual <- function(o) RTMB::oneStepPredict(o, observation.name = "y",
+    method = "oneStepGeneric", discrete = TRUE, subset = 1L,
+    range = c(0, Inf), seed = 155, trace = FALSE)
+  expect_equal(residual(obj), residual(reference))
+  obj <- build(opal:::.opal_dmultinom, c(2.4, 3.6), random = NULL)
+  reference <- build(RTMB::dmultinom, c(2.4, 3.6), random = NULL)
+  set.seed(155)
+  simulated <- obj$simulate()
+  set.seed(155)
+  expect_identical(simulated, reference$simulate())
 })

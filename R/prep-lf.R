@@ -136,7 +136,7 @@
 #'     \item{\code{n_lf}}{Total number of observation rows.}
 #'     \item{\code{lf_obs_data}}{Named list \code{list(obs = lf_obs_list)} for
 #'       plain-R access in \code{get_length_like}.}
-#'     \item{\code{lf_obs_flat}}{Flattened numeric vector of counts (for
+#'     \item{\code{lf_obs_flat}}{Flattened numeric vector of unrounded counts (for
 #'       multinomial, \code{lf_switch = 1}).}
 #'     \item{\code{lf_obs_ints}}{Flattened integer counts that sum to
 #'       \code{lf_n_int} per observation (for Dirichlet-multinomial,

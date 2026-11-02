@@ -27,3 +27,16 @@
   }
   ans
 }
+
+# stats::dmultinom rounds counts, unlike RTMB's AD method. Reports must
+# follow the tape while retaining RTMB's OSA and simulation dispatch.
+.opal_dmultinom <- function(x, prob, log = TRUE) {
+  if (inherits(x, c("osa", "simref")) ||
+      inherits(x, "advector") || inherits(prob, "advector")) {
+    return(RTMB::dmultinom(x, prob = prob, log = log))
+  }
+  prob <- prob / sum(prob)
+  r <- lgamma(sum(x) + 1) - sum(lgamma(x + 1)) +
+    sum(x[x != 0] * log(prob[x != 0]))
+  if (log) r else exp(r)
+}
