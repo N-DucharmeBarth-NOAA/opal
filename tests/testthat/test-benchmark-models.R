@@ -1,8 +1,10 @@
 # Baseline calibration: 2026-11-03, Ubuntu 22.04, R 4.5.2, RTMB 1.9,
 # one OMP/OpenBLAS/MKL thread. Generated explicitly with
 # dev/update-benchmark-baseline.R 20 and dev/run-benchmark-instructions.R.
-# These sandbox measurements are initial candidates, not hosted noise validation.
-# Refresh on the hosted workflow before making the checks required.
+# Hosted memory rows: run 41724716265 attempt 2, artifact 13275492072.
+# IO YFT full-fit and instruction rows remain sandbox candidates; metadata
+# marks the pending hosted metrics. Complete hosted calibration/noise validation
+# before making the checks required.
 test_that("benchmark comparison gates memory and structure, not single-run time", {
   old <- Sys.getenv("OPAL_BENCHMARK_TOL", unset = NA_character_)
   on.exit(if (is.na(old)) Sys.unsetenv("OPAL_BENCHMARK_TOL") else

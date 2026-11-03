@@ -35,6 +35,21 @@ benchmark_cases <- function() {
   cases[cases %in% selected]
 }
 
+benchmark_timing_cases <- function(profile = Sys.getenv("OPAL_BENCHMARK_TIMING_PROFILE", "full")) {
+  if (!is.character(profile) || length(profile) != 1L || is.na(profile) ||
+      !profile %in% c("smoke", "full")) {
+    stop("Timing profile must be smoke or full.")
+  }
+  cases <- setdiff(benchmark_cases(), "io_yft_fit_evals")
+  if (profile == "smoke") {
+    cases <- intersect(cases, c("opaka_makeadfun", "opaka_fn", "opaka_gr",
+                                "opaka_report", "bet_fn", "bet_gr",
+                                "io_yft_fn", "io_yft_gr"))
+  }
+  if (!length(cases)) stop("No timing cases selected for this profile.")
+  cases
+}
+
 benchmark_inputs <- function(model) {
   if (identical(model, "opaka")) return(opal::opaka_quickstart_inputs())
   if (identical(model, "io_yft")) {
@@ -370,6 +385,13 @@ benchmark_metadata <- function() {
        scientific_version = get(".opal_model_scientific_version", asNamespace("opal")),
        packages = versions, opal_path = if (requireNamespace("opal", quietly = TRUE)) find.package("opal") else NA_character_,
        runner = Sys.getenv(c("RUNNER_OS", "RUNNER_ARCH", "RUNNER_NAME", "GITHUB_RUN_ID")),
+       workflow = list(
+         run_url = if (nzchar(Sys.getenv("GITHUB_RUN_ID"))) paste0(
+           Sys.getenv("GITHUB_SERVER_URL"), "/", Sys.getenv("GITHUB_REPOSITORY"),
+           "/actions/runs/", Sys.getenv("GITHUB_RUN_ID")) else NA_character_,
+         attempt = Sys.getenv("GITHUB_RUN_ATTEMPT"), job = Sys.getenv("GITHUB_JOB"),
+         timing_profile = Sys.getenv("OPAL_BENCHMARK_TIMING_PROFILE"),
+         rounds = Sys.getenv("OPAL_BENCHMARK_ROUNDS")),
        threads = Sys.getenv(c("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")),
        cpu = if (file.exists("/proc/cpuinfo")) unique(grep("^model name", readLines("/proc/cpuinfo"), value = TRUE)) else NA_character_,
        peak_rss_method = "Linux VmHWM minus a fresh idle process loading opal and bench; 5 MiB comparison floor",

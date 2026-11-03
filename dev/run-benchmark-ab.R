@@ -9,9 +9,8 @@ benchmark_ab_main <- function() {
   if (any(!dir.exists(libraries))) stop("Both installed A/B libraries are required")
   rounds <- as.integer(Sys.getenv("OPAL_BENCHMARK_ROUNDS", "10"))
   if (!is.finite(rounds) || rounds < 5L) stop("At least five A/B rounds are required")
-  cases <- benchmark_cases()
   # A single long fit collects deterministic counts, not a timing CI.
-  timing_cases <- setdiff(cases, "io_yft_fit_evals")
+  timing_cases <- benchmark_timing_cases()
   out <- Sys.getenv("OPAL_BENCHMARK_OUT", file.path(root, "benchmark-out"))
   dir.create(out, recursive = TRUE, showWarnings = FALSE)
   measurements <- list()
@@ -66,6 +65,10 @@ benchmark_ab_main <- function() {
     }
   }
   results <- do.call(rbind, results)
+  metadata <- benchmark_metadata()
+  metadata$timing_cases <- timing_cases
+  metadata$rounds <- rounds
+  attr(results, "benchmark_metadata") <- metadata
   write_benchmark_results(results, out)
   saveRDS(list(metadata = benchmark_metadata(), libraries = libraries,
                commits = Sys.getenv(c("OPAL_BENCHMARK_BASE_SHA",

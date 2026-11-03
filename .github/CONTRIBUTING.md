@@ -109,9 +109,24 @@ Tests use `testthat` edition 3.
 
 `.github/workflows/benchmark.yaml` runs independently of the numerical and
 simulation tests. Its `memory` job runs on every pull request to `dev` or
-`main`, weekly against `dev`, and on manual dispatch. The PR-only `timing-ab`
+`main`, weekly against `dev`, and on manual dispatch. The PR `timing-ab`
 job installs the exact PR BASE and HEAD in separate libraries outside the
-checkouts and measures them interleaved on the same runner. The `instructions`
+checkouts and measures them interleaved on the same runner. PR timing uses five
+paired rounds of eight indicative cases: opaka tape construction, objective,
+gradient and report, plus BET and IO YFT objectives and gradients. It excludes
+repeated fits, trajectories and Hessians, targeting 10–20 minutes including
+cached setup. The measurement step has a 20-minute PR timeout; setup time and
+uncached dependency restoration can exceed the target, so this is not yet a
+hosted runtime guarantee.
+
+Weekly `timing-ab` retains the full 17-case, ten-round suite, comparing two
+separately installed copies of the same exact `dev` SHA. Manual dispatch also
+compares BASE=HEAD at the dispatched revision; select `timing_profile: smoke`
+for the PR profile or `full` (default) for the weekly profile. This checks
+same-runner stability, not cumulative timing creep; weekly instruction counts
+provide the committed-baseline creep gate. The full memory suite is unchanged,
+including opaka/BET fit counts on PRs and IO YFT fit counts weekly/manually.
+The `instructions`
 job uses Valgrind on weekly and manual runs only. `OPAL_BENCHMARK_FULL_FITS`
 controls only the costly `io_yft_fit_evals` case: it is enabled on weekly/manual
 runs and disabled on PRs. The opaka and BET fit-count gates still run on every
@@ -138,7 +153,10 @@ For instruction counts, install Valgrind and run
 with the same environment. To reproduce PR timing, install BASE and HEAD in
 separate libraries, set `OPAL_BENCHMARK_BASE_LIBRARY` and
 `OPAL_BENCHMARK_HEAD_LIBRARY` to their absolute paths, and run
-`Rscript dev/run-benchmark-ab.R`. Do not reuse a loaded package between
+`OPAL_BENCHMARK_TIMING_PROFILE=smoke OPAL_BENCHMARK_ROUNDS=5 Rscript dev/run-benchmark-ab.R`.
+For the full suite use `OPAL_BENCHMARK_TIMING_PROFILE=full` and
+`OPAL_BENCHMARK_ROUNDS=10`. Both retain the 10% threshold and fail timing only
+when the lower 95% ratio confidence bound exceeds 1.10. Do not reuse a loaded package between
 revisions. Workflow artifacts retain measurements and environment metadata;
 the job summaries report results even when a regression fails.
 
@@ -182,6 +200,11 @@ baseline$results <- rbind(
   instructions$results
 )
 baseline$metadata$instruction_measurement <- instructions$metadata
+# Retain the exact run and artifact links alongside each layer's provenance.
+baseline$metadata$hosted_artifacts <- list(
+  memory = "REPLACE_WITH_REVIEWED_MEMORY_ARTIFACT_URL",
+  instructions = "REPLACE_WITH_REVIEWED_INSTRUCTION_ARTIFACT_URL"
+)
 saveRDS(baseline, "tests/testthat/_benchmark/baseline.rds", version = 3)
 RS
 ```
@@ -206,6 +229,47 @@ Branch protection is configured separately, not by this workflow. The
 evidence of an instruction measurement. Require the applicable PR checks
 (`memory`, `timing-ab`) only after calibration; evaluate `instructions` through
 weekly/manual runs rather than claiming it measures every PR.
+
+#### Calibration evidence and pending rollout (2026-11-03)
+
+At SHA `f0037b83831d1428f5158974f5e1674d151d9967`, hosted
+[run 41724716265, attempt 2](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41724716265)
+completed the [memory job](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41724716265/job/126228220003)
+successfully: measurement took 8 minutes, total job approximately 12 minutes.
+[Artifact 13275492072](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41724716265/artifacts/13275492072)
+contains measurements and comparisons for 17 cases, all passing. Its provenance
+records Ubuntu 22.04, AMD EPYC 9V45, R 4.5.2, RTMB 1.9, TMB 1.9.21 and one
+OMP/OpenBLAS/MKL thread. These reviewed rows replace their initial sandbox
+candidates; IO YFT full-fit and instruction rows still retain explicitly marked
+sandbox provenance pending a full hosted calibration.
+
+The original full A/B job was still running after 90 minutes when inspected;
+this is neither a pass nor BASE=HEAD evidence. Run 41721585609 was cancelled;
+do not count it as a successful noise run. The shorter profile's hosted runtime
+and false-failure rate are not yet validated. Existing unit tests demonstrate
+memory/count regression rejection and the 5 MiB RSS floor, but are not hosted
+injected-regression evidence. No slowdown injection is present in the code.
+
+The agent's available GitHub tools can read runs/logs/artifacts but cannot
+dispatch or approve workflows. A maintainer must use **Actions → benchmarks →
+Run workflow**, select this PR branch, and:
+
+1. Run with `update_baseline: true`, `timing_profile: full` to obtain all 18
+   memory/timing/count workloads and the four instruction measurements. Review
+   and combine artifacts using the commands above; keep exact SHA, run attempt
+   and artifact links. Do not present retained sandbox rows as hosted results.
+2. At one unchanged SHA, dispatch at least five independent runs with
+   `timing_profile: smoke`. Preserve every run, including failures; each has
+   five paired rounds but is only **one** independent hosted run. Record
+   case-level ratios and 95% intervals from `benchmark-timing-ab/results.csv`.
+3. On this same branch, add an explicitly opt-in, temporary computational
+   injection and demonstrate approximately 15% slowdown rejection by timing
+   and instructions. Preserve failure summaries/artifacts and injection
+   settings, then remove the mechanism and revalidate the clean branch.
+   Do not use sleep-only injection or `performance-accepted`.
+4. Verify clean measurements against the reviewed hosted baseline before
+   configuring required PR checks `memory` and `timing-ab` on `dev` and `main`.
+   `instructions` remains weekly/manual, never a required skipped PR check.
 
 ## Numerical changes
 

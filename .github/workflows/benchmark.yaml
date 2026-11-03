@@ -16,6 +16,11 @@ on:
         description: "Regression tolerance as a fraction"
         type: string
         default: "0.10"
+      timing_profile:
+        description: "A/B profile (manual BASE=HEAD at the dispatched revision)"
+        type: choice
+        options: [smoke, full]
+        default: full
 
 permissions:
   contents: read
@@ -72,18 +77,20 @@ jobs:
           if-no-files-found: warn
 
   timing-ab:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
       OPAL_BENCHMARK_LAYER: timing-ab
-      OPAL_BENCHMARK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-      OPAL_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      OPAL_BENCHMARK_TIMING_PROFILE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.timing_profile || 'full' }}
+      OPAL_BENCHMARK_ROUNDS: ${{ github.event_name == 'pull_request' && '5' || inputs.timing_profile == 'smoke' && '5' || '10' }}
+      OPAL_BENCHMARK_BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+      OPAL_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPAL_BENCHMARK_BASE_LIBRARY: ${{ github.workspace }}/../opal-base-lib
       OPAL_BENCHMARK_HEAD_LIBRARY: ${{ github.workspace }}/../opal-head-lib
     steps:
       # This guard runs before any PR code. API failures deny the override.
       - name: Verify maintainer performance acceptance
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           API_URL: ${{ github.api_url }}
@@ -129,13 +136,20 @@ jobs:
           fi
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Resolve HEAD revision
+        id: timing-head
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha || steps.timing-head.outputs.sha }}
           path: base
           persist-credentials: false
+      - name: Record exact compared revisions
+        run: |
+          echo "OPAL_BENCHMARK_BASE_SHA=$(git -C base rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "OPAL_BENCHMARK_HEAD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - uses: ./.github/actions/setup-opal-env
       - name: Install BASE and HEAD packages separately
         run: |
@@ -143,6 +157,7 @@ jobs:
           R CMD INSTALL --library="$OPAL_BENCHMARK_BASE_LIBRARY" base/
           R CMD INSTALL --library="$OPAL_BENCHMARK_HEAD_LIBRARY" .
       - name: Measure interleaved BASE and HEAD timing
+        timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 350 }}
         run: Rscript dev/run-benchmark-ab.R
       - name: Publish summary
         if: always()
