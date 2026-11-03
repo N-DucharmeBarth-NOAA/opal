@@ -138,18 +138,21 @@ jobs:
         with:
           ref: ${{ github.event_name == 'schedule' && 'dev' || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Resolve HEAD revision
-        id: timing-head
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || steps.timing-head.outputs.sha }}
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.event.pull_request.base.sha || github.sha }}
           path: base
           persist-credentials: false
       - name: Record exact compared revisions
         run: |
-          echo "OPAL_BENCHMARK_BASE_SHA=$(git -C base rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPAL_BENCHMARK_HEAD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          base_sha=$(git -C base rev-parse HEAD)
+          head_sha=$(git rev-parse HEAD)
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$base_sha" != "$head_sha" ]; then
+            echo 'BASE=HEAD revisions differ; dev advanced during checkout. No stability measurement performed.'
+            exit 1
+          fi
+          echo "OPAL_BENCHMARK_BASE_SHA=$base_sha" >> "$GITHUB_ENV"
+          echo "OPAL_BENCHMARK_HEAD_SHA=$head_sha" >> "$GITHUB_ENV"
       - uses: ./.github/actions/setup-opal-env
       - name: Install BASE and HEAD packages separately
         run: |
