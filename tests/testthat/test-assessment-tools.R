@@ -29,6 +29,21 @@ test_that("profiles re-optimise a fixed parameter on its stored scale", {
   expect_s3_class(plot_opal_profile(x),"ggplot")
 })
 
+test_that("profile components account for fractional length compositions", {
+  inputs <- opal_example_inputs("multinomial")
+  inputs$data$lf_obs_flat <- inputs$data$lf_obs_flat * 1.037
+  expect_true(any(inputs$data$lf_obs_flat != round(inputs$data$lf_obs_flat)))
+  x <- opal_fit(opal_obj(inputs$data, inputs$parameters, inputs$map))
+  x <- opal_profile(x, "log_B0", x$fit$parameters$log_B0)
+  result <- opal_derived(x, "profile")
+  expect_true(all(is.na(result$table$error)))
+  expect_equal(as.numeric(rowsum(result$components$objective, result$components$value)),
+    result$table$objective, tolerance = 1e-8)
+  expect_equal(result$table$objective,
+    result$fits[[1]]$fit$opt$objective, tolerance = 1e-8)
+  expect_true("lp_lf_w" %in% result$components$component)
+})
+
 test_that("grid checkpoints match configurations and balanced draws retain model weights", {
   x <- small_opal_object()
   directory <- tempfile(); dir.create(directory); on.exit(unlink(directory,recursive=TRUE))

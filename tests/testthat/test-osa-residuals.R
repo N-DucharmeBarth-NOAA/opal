@@ -31,7 +31,7 @@ test_that("composition residuals calibrate for all three distributions", {
   }
 })
 
-osa_fixture <- function(family) {
+osa_fixture <- function(family, fractional = FALSE) {
   x <- small_opal_object()
   d <- x$data
   for (type in c("lf", "wf")) {
@@ -41,6 +41,10 @@ osa_fixture <- function(family) {
       obs_ints = rep(1:15,4), obs_prop = rep((1:15)/120,4))
     names(fields) <- paste0(type, "_", names(fields))
     d[names(fields)] <- fields
+    if (fractional) {
+      d[[paste0(type, "_obs_flat")]] <- rep((1:15) + 0.25, 4)
+      if (family == 1L) d[[paste0(type, "_n_fi")]] <- rep(list(rep(123.75, 2)), 2)
+    }
     d[[paste0("n_",type)]] <- 4L
   }
   d$n_wt <- 15L
@@ -49,6 +53,83 @@ osa_fixture <- function(family) {
   o <- opal_rtmb(x)
   opal_attach_fit(x, list(par = o$par, objective = o$fn(o$par), convergence = 0L), check = FALSE)
 }
+
+osa_refit <- function(x) {
+  x <- opal_build(x)
+  o <- opal_rtmb(x)
+  opal_attach_fit(x, list(par = o$par, objective = o$fn(o$par),
+    convergence = 0L), check = FALSE)
+}
+
+osa_messages <- function(x, seed = 3) {
+  messages <- character()
+  value <- withCallingHandlers(opal_osa(x, seed = seed), message = function(m) {
+    messages <<- c(messages, conditionMessage(m))
+    invokeRestart("muffleMessage")
+  })
+  list(value = value, messages = messages)
+}
+
+test_that("fractional multinomial PIT rounding is reported once per OSA call", {
+  x <- osa_fixture(1L, fractional = TRUE)
+  rounded <- osa_fixture(1L)
+  baseline <- opal_derived(opal_osa(rounded, seed = 3), "osa")
+  for (i in 1:2) {
+    result <- osa_messages(x)
+    expect_length(result$messages, 1L)
+    expect_match(paste(result$messages, collapse = ""),
+      "Fractional multinomial counts.*rounded.*fixed-effect.*PIT")
+    residuals <- opal_derived(result$value, "osa")$residuals
+    expect_identical(residuals$residual, baseline$residuals$residual)
+    expect_identical(x$data$lf_obs_flat, rep((1:15) + 0.25, 4))
+    expect_identical(x$data$wf_obs_flat, rep((1:15) + 0.25, 4))
+  }
+  for (type in c("lf", "wf")) {
+    d <- rounded$data
+    d[[paste0(type, "_obs_flat")]] <- x$data[[paste0(type, "_obs_flat")]]
+    d[[paste0(type, "_n_fi")]] <- x$data[[paste0(type, "_n_fi")]]
+    expect_length(osa_messages(osa_refit(opal_update(rounded, data = d)))$messages, 1L)
+  }
+})
+
+test_that("OSA rounding notices exclude integer, other-family and inactive counts", {
+  for (family in 1:3) {
+    x <- osa_fixture(family, fractional = family != 1L)
+    expect_length(osa_messages(x)$messages, 0L)
+  }
+  x <- osa_fixture(1L)
+  for (exclusion in c("lambda", "removed", "zero size", "disabled")) {
+    d <- x$data
+    for (type in c("lf", "wf")) {
+      d[[paste0(type, "_obs_flat")]][1:30] <- (1:15) + 0.25
+      if (exclusion == "zero size") d[[paste0(type, "_n_fi")]][[1]][] <- 0
+      if (exclusion == "disabled") d[[paste0(type, "_switch")]] <- 0L
+    }
+    if (exclusion == "lambda") d$lambdas <- list(lf = c(0, 1), wf = c(0, 1))
+    if (exclusion == "removed") d$removal_switch_f[1] <- 1L
+    result <- osa_messages(osa_refit(opal_update(x, data = d)))
+    expect_length(result$messages, 0L)
+  }
+})
+
+test_that("latent OSA does not announce fixed-effect multinomial rounding", {
+  x <- osa_fixture(1L, fractional = TRUE)
+  map <- x$map
+  map$rdev_y <- NULL
+  x <- osa_refit(opal_update(x, map = map, random = "rdev_y"))
+  observations <- character()
+  local_mocked_bindings(oneStepPredict = function(obj, observation.name, subset, ...) {
+    observations <<- c(observations, observation.name)
+    list(residual = rep(0, length(subset)))
+  }, .package = "RTMB")
+  result <- osa_messages(x)
+  expect_length(result$messages, 0L)
+  expect_setequal(observations, c("cpue_log_obs", "lf_obs_flat", "wf_obs_flat"))
+  residuals <- opal_derived(result$value, "osa")$residuals
+  expect_true(all(residuals$source == "RTMB marginal OSA"))
+  expect_identical(residuals$observed[residuals$type == "lf"], x$data$lf_obs_flat)
+  expect_identical(residuals$observed[residuals$type == "wf"], x$data$wf_obs_flat)
+})
 
 test_that("OSA covers both composition streams and all families with exclusions", {
   for (family in 1:3) {

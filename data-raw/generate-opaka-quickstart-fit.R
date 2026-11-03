@@ -1,6 +1,12 @@
 devtools::load_all()
 
 inputs <- opaka_quickstart_inputs()
+# Historical objects are configuration inputs only, never compatible runtimes.
+previous <- Sys.getenv("OPAL_REBUILD_FROM")
+if (nzchar(previous)) {
+  old <- readRDS(previous)
+  inputs <- old[c("data", "parameters", "map")]
+}
 control <- list(eval.max = 10000, iter.max = 10000)
 obj <- RTMB::MakeADFun(
   func = cmb(opal_model, inputs$data),
@@ -9,14 +15,22 @@ obj <- RTMB::MakeADFun(
   silent = TRUE
 )
 bounds <- get_bounds(obj, inputs$parameters)
-opt <- nlminb(
-  obj$par, obj$fn, obj$gr,
-  lower = bounds$lower, upper = bounds$upper, control = control
-)
-opt <- nlminb(
-  opt$par, obj$fn, obj$gr,
-  lower = bounds$lower, upper = bounds$upper, control = control
-)
+# OPAL_REBUILD_FROM reattaches a verified optimum for report-only changes.
+if (nzchar(previous)) {
+  stopifnot(identical(names(obj$par), names(old$fit$opt$par)))
+  opt <- old$fit$opt
+  stopifnot(abs(obj$fn(opt$par) - opt$objective) < 1e-8,
+            all(is.finite(obj$gr(opt$par))))
+} else {
+  opt <- nlminb(
+    obj$par, obj$fn, obj$gr,
+    lower = bounds$lower, upper = bounds$upper, control = control
+  )
+  opt <- nlminb(
+    opt$par, obj$fn, obj$gr,
+    lower = bounds$lower, upper = bounds$upper, control = control
+  )
+}
 invisible(obj$fn(opt$par))
 fit <- opal_fit(
   data = inputs$data,

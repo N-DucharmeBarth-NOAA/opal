@@ -38,8 +38,13 @@ bin. Composition tables include each observed bin's lower and upper
 boundaries, including row-specific schemes. The final composition bin
 is constrained and omitted from residual calculations. Removed
 fisheries, zero lambdas, zero sample sizes, exhausted counts, and numerical failures
-remain in the table with explicit exclusion reasons. Multinomial counts
-are rounded as in the fitted likelihood; no new pseudocounts are added.
+remain in the table with explicit exclusion reasons. For fixed-effect
+fits, multinomial counts are rounded to the nearest integer using
+\code{floor(count + 0.5)} for the sequential binomial PIT. A message is emitted
+once per call if fractional counts in an included LF or WF row are rounded.
+This diagnostic approximation does not change the fitted likelihood.
+The latent RTMB OSA path does not round observations. No new pseudocounts
+are added.
 Rows assigned a zero likelihood lambda are excluded with reason
 \code{"lambda = 0"}. For fixed-effect fits, fractional CPUE, LF, or WF lambdas
 temper the fitted estimates, but the residuals use the untempered

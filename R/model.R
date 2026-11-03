@@ -68,7 +68,8 @@ opal_globals <- function() {
     get_recruitment_prior = get_recruitment_prior, 
     evaluate_priors = evaluate_priors,
     .opal_validate_priors = .opal_validate_priors,
-    .opal_ddirmult = .opal_ddirmult)
+    .opal_ddirmult = .opal_ddirmult,
+    .opal_dmultinom = .opal_dmultinom)
 }
 
 #' The opal model

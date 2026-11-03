@@ -175,8 +175,13 @@
 #'   boundaries, including row-specific schemes. The final composition bin
 #'   is constrained and omitted from residual calculations. Removed
 #'   fisheries, zero lambdas, zero sample sizes, exhausted counts, and numerical failures
-#'   remain in the table with explicit exclusion reasons. Multinomial counts
-#'   are rounded as in the fitted likelihood; no new pseudocounts are added.
+#'   remain in the table with explicit exclusion reasons. For fixed-effect
+#'   fits, multinomial counts are rounded to the nearest integer using
+#'   `floor(count + 0.5)` for the sequential binomial PIT. A message is emitted
+#'   once per call if fractional counts in an included LF or WF row are rounded.
+#'   This diagnostic approximation does not change the fitted likelihood.
+#'   The latent RTMB OSA path does not round observations. No new pseudocounts
+#'   are added.
 #'   Rows assigned a zero likelihood lambda are excluded with reason
 #'   `"lambda = 0"`. For fixed-effect fits, fractional CPUE, LF, or WF lambdas
 #'   temper the fitted estimates, but the residuals use the untempered
@@ -234,6 +239,7 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
   latent <- length(x$random) > 0L
   source <- if (latent) "RTMB marginal OSA" else "exact conditional CDF"
   pieces <- list()
+  rounding_noticed <- FALSE
   if (isTRUE(d$cpue_switch > 0L) && nrow(d$cpue_data)) {
     cpue <- d$cpue_data
     idx <- if (is.null(cpue$index)) rep(1L, nrow(cpue)) else cpue$index
@@ -260,6 +266,14 @@ opal_osa <- function(x, seed = 123L, conf = 0.95, name = "osa") {
   for (type in c("lf", "wf")) {
     rows <- .opal_composition_rows(d, p, r, type)
     if (!length(rows)) next
+    if (!latent && !rounding_noticed && any(vapply(rows, function(row) {
+      row$include && row$family == 1L && length(row$predicted) > 1L &&
+        any(row$observed != floor(row$observed + 0.5))
+    }, logical(1)))) {
+      message("Fractional multinomial counts are rounded to the nearest integer ",
+              "for fixed-effect composition PIT residuals.")
+      rounding_noticed <- TRUE
+    }
     flat <- lapply(rows, function(row) {
       k <- length(row$bin)
       z <- rep(NA_real_, k)

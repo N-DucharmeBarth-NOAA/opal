@@ -94,7 +94,8 @@ Gradients propagate through PLA to growth parameters when estimated.
 \details{
 For Dirichlet, concentration is \code{pred * n_i * exp(log_wf_tau[f])};
 for Dirichlet-multinomial, it is \code{pred * exp(log_wf_tau[f])}. The
-multinomial branch uses RTMB's integer-rounded count behavior. The
+multinomial branch uses fractional counts unrounded (the multinomial
+kernel with a gamma-function normalising constant). The
 Dirichlet-multinomial is intended for real counts with variance adjustment
 equal to one; use Dirichlet for fractional effective sample sizes.
 }

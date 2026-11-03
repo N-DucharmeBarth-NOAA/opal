@@ -22,14 +22,32 @@ obj <- RTMB::MakeADFun(
 )
 bounds <- get_bounds(obj, inputs$parameters)
 control <- list(eval.max = 10000, iter.max = 10000)
-opt <- nlminb(
-  obj$par, obj$fn, obj$gr,
-  lower = bounds$lower, upper = bounds$upper, control = control
-)
-opt <- nlminb(
-  opt$par, obj$fn, obj$gr,
-  lower = bounds$lower, upper = bounds$upper, control = control
-)
+# For report-only contract changes, rebuild a reviewed reference without
+# introducing optimizer drift across R/RTMB versions.
+previous <- Sys.getenv("OPAL_REBUILD_FROM")
+if (nzchar(previous)) {
+  old <- readRDS(previous)
+  stopifnot(identical(names(obj$par), old$par_names),
+            identical(obj$par, old$start$par))
+  opt <- list(par = old$mle$par, objective = old$mle$nll)
+  for (point in c("start", "mle")) {
+    p <- old[[point]]$par
+    stopifnot(abs(obj$fn(p) - old[[point]]$nll) < 1e-8,
+              all(is.finite(obj$gr(p))))
+    if (!is.null(old[[point]]$gr)) {
+      stopifnot(max(abs(as.vector(obj$gr(p)) - old[[point]]$gr)) < 1e-8)
+    }
+  }
+} else {
+  opt <- nlminb(
+    obj$par, obj$fn, obj$gr,
+    lower = bounds$lower, upper = bounds$upper, control = control
+  )
+  opt <- nlminb(
+    opt$par, obj$fn, obj$gr,
+    lower = bounds$lower, upper = bounds$upper, control = control
+  )
+}
 
 snap_point <- function(par, with_gr = TRUE) {
   list(
@@ -52,7 +70,7 @@ ref <- list(
     platform = R.version$platform,
     scientific_version = .opal_model_scientific_version,
     opal_model_signature = .opal_model_metadata()$signature,
-    reason = "Decode flattened CPUE year-season indices; single-season Opakapaka objective, gradient, and reports are unchanged"
+    reason = "Correct fractional multinomial composition reports; Opakapaka objective, gradient, and estimates are unchanged"
   ),
   par_names = names(obj$par),
   start = snap_point(obj$par),

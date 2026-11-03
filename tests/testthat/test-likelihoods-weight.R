@@ -281,7 +281,7 @@ test_that("weight composition skips removal and zero-size observations", {
                tolerance = 1e-10)
 })
 
-test_that("weight multinomial rounds fractional counts in RTMB", {
+test_that("weight multinomial uses fractional counts unrounded", {
   fx <- comp_fixture()
   rebin <- wf_reference_rebin()
   groups <- attach_obs(list(
@@ -289,8 +289,6 @@ test_that("weight multinomial rounds fractional counts in RTMB", {
   ), integer = FALSE)
   args <- comp_args("wf", groups, fx, 1, c(0, 0), rebin = rebin)
   actual <- do.call(get_weight_like, args)
-  rounded_groups <- groups
-  rounded_groups[[1]]$obs <- round(rounded_groups[[1]]$obs)
-  expected <- expected_comp_nll(rounded_groups, fx, 1, c(0, 0), rebin = rebin)
+  expected <- expected_comp_nll(groups, fx, 1, c(0, 0), rebin = rebin)
   expect_equal(actual, expected, tolerance = 1e-10)
 })

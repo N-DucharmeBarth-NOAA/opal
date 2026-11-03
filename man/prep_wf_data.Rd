@@ -82,7 +82,7 @@ for converting predicted length compositions to weight compositions.}
 \item{\code{wf_obs_in}}{Observed proportions in retained input order:
 a matrix with one row per observation when bin counts agree, otherwise
 a list of row vectors. Native input has \code{n_wt} columns.}
-\item{\code{wf_obs_flat}}{Flattened numeric vector of counts (for
+\item{\code{wf_obs_flat}}{Flattened numeric vector of unrounded counts (for
 multinomial, \code{wf_switch = 1}).}
 \item{\code{wf_obs_ints}}{Flattened integer counts that sum to
 \code{wf_n_int} per observation (for Dirichlet-multinomial,

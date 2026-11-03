@@ -138,7 +138,8 @@ get_cpue_like <- function(cpue_data, parameters, number_ysa, sel_fya, weight_fya
 #'   lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.
 #' @details For Dirichlet, concentration is `pred * n_i * exp(log_lf_tau[f])`;
 #'   for Dirichlet-multinomial, it is `pred * exp(log_lf_tau[f])`. The
-#'   multinomial branch uses RTMB's integer-rounded count behavior. The
+#'   multinomial branch uses fractional counts unrounded (the multinomial
+#'   kernel with a gamma-function normalising constant). The
 #'   Dirichlet-multinomial is intended for real counts with variance adjustment
 #'   equal to one; use Dirichlet for fractional effective sample sizes.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
@@ -223,7 +224,7 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
       if (include) {
         if (lf_switch == 1) { # Multinomial
           obs_i <- lf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
-          lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
+          lp[idx] <- -.opal_dmultinom(x = obs_i, prob = pred, log = TRUE)
         }
         if (lf_switch == 2) { # Dirichlet
           obs_i <- lf_obs_prop[(obs_offset + 1):(obs_offset + nbins)]
@@ -287,7 +288,8 @@ get_length_like <- function(lf_obs_flat, lf_obs_ints, lf_obs_prop,
 #'   lists for mixed schemes. Without scheme inputs, legacy bin pooling is used.
 #' @details For Dirichlet, concentration is `pred * n_i * exp(log_wf_tau[f])`;
 #'   for Dirichlet-multinomial, it is `pred * exp(log_wf_tau[f])`. The
-#'   multinomial branch uses RTMB's integer-rounded count behavior. The
+#'   multinomial branch uses fractional counts unrounded (the multinomial
+#'   kernel with a gamma-function normalising constant). The
 #'   Dirichlet-multinomial is intended for real counts with variance adjustment
 #'   equal to one; use Dirichlet for fractional effective sample sizes.
 #' @importFrom RTMB ADoverload dmultinom OBS REPORT
@@ -367,7 +369,7 @@ get_weight_like <- function(wf_obs_flat, wf_obs_ints, wf_obs_prop,
       if (include) {
         if (wf_switch == 1) { # Multinomial
           obs_i <- wf_obs_flat[(obs_offset + 1):(obs_offset + nbins)]
-          lp[idx] <- -RTMB::dmultinom(x = obs_i, prob = pred, log = TRUE)
+          lp[idx] <- -.opal_dmultinom(x = obs_i, prob = pred, log = TRUE)
         }
         if (wf_switch == 2) { # Dirichlet
           obs_i <- wf_obs_prop[(obs_offset + 1):(obs_offset + nbins)]
