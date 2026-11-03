@@ -1,3 +1,8 @@
+# Baseline calibration: 2026-11-03, Ubuntu 22.04, R 4.5.2, RTMB 1.9,
+# one OMP/OpenBLAS/MKL thread. Generated explicitly with
+# dev/update-benchmark-baseline.R 20 and dev/run-benchmark-instructions.R.
+# These sandbox measurements are initial candidates, not hosted noise validation.
+# Refresh on the hosted workflow before making the checks required.
 test_that("benchmark comparison gates memory and structure, not single-run time", {
   old <- Sys.getenv("OPAL_BENCHMARK_TOL", unset = NA_character_)
   on.exit(if (is.na(old)) Sys.unsetenv("OPAL_BENCHMARK_TOL") else
@@ -143,6 +148,33 @@ test_that("trajectory inputs cannot silently change and references are never syn
   trajectory$events[[1]]$par <- NA_real_
   saveRDS(trajectory, file.path(path, "example.rds"))
   expect_error(benchmark_read_trajectory("example", path, inputs), "Invalid benchmark trajectory")
+})
+
+test_that("the committed baseline covers every workload and regression metric", {
+  baseline <- readRDS(file.path(benchmark_root(), "tests/testthat/_benchmark/baseline.rds"))
+  results <- baseline$results
+  cases <- c(
+    paste0("opaka_", c("makeadfun", "fn", "gr", "fit", "report", "sdreport")),
+    paste0("bet_", c("makeadfun", "fn", "gr", "trajectory", "fit", "sdreport")),
+    paste0("io_yft_", c("makeadfun", "fn", "gr", "trajectory", "fit_evals")),
+    "opal_model_plain"
+  )
+  expect_setequal(unique(results$case), cases)
+  expect_false(anyDuplicated(results[c("case", "metric")]) > 0L)
+  expect_true(all(is.finite(results$value) & results$value >= 0))
+  for (case in cases) {
+    expect_true(all(c("median_seconds", "mem_alloc_bytes", "structural_bytes",
+                      "peak_rss_bytes") %in% results$metric[results$case == case]),
+                info = case)
+  }
+  for (case in c("opaka_fit", "bet_fit", "io_yft_fit_evals")) {
+    expect_true(all(c("fn_evals", "gr_evals", "iterations") %in%
+                      results$metric[results$case == case]), info = case)
+  }
+  expect_setequal(results$case[results$metric == "instructions"],
+                  c("opaka_fn", "opaka_gr", "io_yft_fn", "io_yft_gr"))
+  expect_true(all(c("git_sha", "R", "platform", "packages", "source_md5",
+                    "instruction_measurement") %in% names(baseline$metadata)))
 })
 
 test_that("model performance stays within the explicit measured baseline", {
