@@ -235,7 +235,8 @@ benchmark_child <- function(case = NULL, library = NULL, iterations = 20L, idle 
     result <<- run()
     invisible(result)
   }
-  if (!grepl("_fit_evals$", case)) measured_run()
+  # The allocation probe already warms long fits and tape construction.
+  if (!grepl("_(makeadfun|fit|fit_evals)$", case)) measured_run()
   gc()
   if (grepl("_fit_evals$", case)) {
     # Count-only fits run once, not once for allocation plus N timing repeats.
@@ -245,7 +246,7 @@ benchmark_child <- function(case = NULL, library = NULL, iterations = 20L, idle 
                      mem_alloc = sum(allocation$bytes, na.rm = TRUE))
   } else {
     # bench runs a memory allocation probe and timed iterations separately.
-    fixed_iterations <- if (grepl("_(fit|trajectory|sdreport)$", case)) {
+    fixed_iterations <- if (grepl("_(makeadfun|fit|trajectory|sdreport)$", case)) {
       min(iterations, 3L)
     } else {
       NULL

@@ -22,5 +22,25 @@ if (file.exists(path)) {
   if (is.null(history)) history <- list(previous$metadata)
   metadata$measurement_runs <- c(history, list(metadata))
 }
+instructions_path <- if (length(args) > 1L) args[[2L]] else
+  Sys.getenv("OPAL_BENCHMARK_INSTRUCTIONS", "")
+if (nzchar(instructions_path)) {
+  # Optional second argument (or environment variable): measured instructions.rds
+  # from dev/run-benchmark-instructions.R, never fabricated calibration values.
+  instruction <- readRDS(instructions_path)
+  required <- c("case", "metric", "value", "units")
+  x <- instruction$results
+  if (!is.data.frame(x) || !all(required %in% names(x)) ||
+      any(x$metric != "instructions") || any(!is.finite(x$value)) ||
+      any(x$value <= 0) || anyDuplicated(x[c("case", "metric")])) {
+    stop("Invalid measured instruction artifact: ", instructions_path)
+  }
+  key <- function(x) paste(x$case, x$metric, sep = "\r")
+  results <- rbind(results[!key(results) %in% key(x), ], x[required])
+  metadata$instruction_measurement <- list(
+    artifact = normalizePath(instructions_path, mustWork = TRUE),
+    md5 = tools::md5sum(instructions_path), metadata = instruction$metadata
+  )
+}
 saveRDS(list(results = results, metadata = metadata), path, version = 3)
 message("Measured baseline written to ", path, "; review provenance before committing.")

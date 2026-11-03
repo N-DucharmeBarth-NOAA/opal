@@ -165,6 +165,9 @@ Rscript dev/update-benchmark-trajectories.R opaka bet io_yft
 # Produce reviewable instruction measurements without gating against old values.
 OPAL_BENCHMARK_UPDATE=true OPAL_BENCHMARK_LAYER=instructions \
   Rscript dev/run-benchmark-instructions.R
+# Regenerate memory/timing baselines and merge reviewed instruction measurements.
+OPAL_BENCHMARK_FULL_FITS=true \
+  Rscript dev/update-benchmark-baseline.R 20 benchmark-out/instructions.rds
 ```
 
 For a dispatched update, extract the reviewed memory and instruction artifacts
