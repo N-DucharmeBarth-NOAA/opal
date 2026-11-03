@@ -53,7 +53,12 @@ benchmark_instructions_main <- function() {
                units = "instructions/call")
   })
   observed <- do.call(rbind, results)
-  saveRDS(list(results = observed, metadata = benchmark_metadata()),
+  metadata <- benchmark_metadata()
+  metadata$cachegrind <- list(
+    version = system2("valgrind", "--version", stdout = TRUE),
+    calls = 3L, method = "Three warmed calls minus identical zero-call process"
+  )
+  saveRDS(list(results = observed, metadata = metadata),
           file.path(out, "instructions.rds"))
   if (identical(Sys.getenv("OPAL_BENCHMARK_UPDATE"), "true")) {
     baseline <- observed
@@ -62,7 +67,14 @@ benchmark_instructions_main <- function() {
   }
   comparison <- compare_to_baseline(observed, baseline)
   write_benchmark_results(comparison, out)
-  if (any(!comparison$pass)) stop("Instruction-count regression; see results.csv")
+  failures <- comparison[!comparison$pass, ]
+  if (nrow(failures)) {
+    stop(paste(sprintf(
+      "%s instructions: %.6g vs baseline %.6g (%+.1f%%; limit +%.1f%%)",
+      failures$case, failures$observed, failures$baseline,
+      100 * (failures$ratio - 1), 100 * benchmark_tolerance()
+    ), collapse = "\n"))
+  }
 }
 
 if (sys.nframe() == 0L) {

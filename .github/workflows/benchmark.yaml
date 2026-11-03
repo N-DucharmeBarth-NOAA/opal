@@ -77,6 +77,8 @@ jobs:
     timeout-minutes: 360
     env:
       OPAL_BENCHMARK_LAYER: timing-ab
+      OPAL_BENCHMARK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      OPAL_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       OPAL_BENCHMARK_BASE_LIBRARY: ${{ runner.temp }}/opal-base-lib
       OPAL_BENCHMARK_HEAD_LIBRARY: ${{ runner.temp }}/opal-head-lib
     steps:

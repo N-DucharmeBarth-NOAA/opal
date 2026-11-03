@@ -192,7 +192,7 @@ label, rationale, latest label actor, and that actor's current repository
 permission through the read-only GitHub API. Missing evidence or API failure
 keeps the gate enabled. This exception covers the same-runner A/B comparison
 only; it does not suppress measurements or waive the committed-baseline memory
-gate or instruction regressions. Fork PRs use `pull_request`, not
+gate, fit-count regressions, or instruction regressions. Fork PRs use `pull_request`, not
 `pull_request_target`, and receive no elevated token.
 
 Before making benchmark checks required, maintainers must record at least five

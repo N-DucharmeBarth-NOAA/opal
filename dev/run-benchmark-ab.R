@@ -67,7 +67,9 @@ benchmark_ab_main <- function() {
   }
   results <- do.call(rbind, results)
   write_benchmark_results(results, out)
-  saveRDS(list(metadata = benchmark_metadata(), libraries = libraries),
+  saveRDS(list(metadata = benchmark_metadata(), libraries = libraries,
+               commits = Sys.getenv(c("OPAL_BENCHMARK_BASE_SHA",
+                                      "OPAL_BENCHMARK_HEAD_SHA"))),
           file.path(out, "provenance.rds"))
   failures <- results[!results$pass, ]
   if (nrow(failures)) {
@@ -76,7 +78,10 @@ benchmark_ab_main <- function() {
                        failures$baseline, 100 * (failures$ratio - 1),
                        100 * tolerance)
     # Set only by the workflow's permission-checked maintainer-label step.
-    if (identical(Sys.getenv("OPAL_BENCHMARK_ACCEPTED"), "true")) {
+    count_failure <- failures$metric %in% c("fn_evals", "gr_evals", "iterations",
+                                           "instructions")
+    if (identical(Sys.getenv("OPAL_BENCHMARK_ACCEPTED"), "true") &&
+        !any(count_failure)) {
       warning(paste(c("Maintainer accepted performance regression:", details),
                     collapse = "\n"))
     } else {

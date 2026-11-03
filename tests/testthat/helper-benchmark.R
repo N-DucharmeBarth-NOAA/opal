@@ -22,7 +22,12 @@ benchmark_cases <- function() {
     "opal_model_plain"
   )
   selection <- Sys.getenv("OPAL_BENCHMARK_CASES", "")
-  if (!nzchar(selection)) return(cases)
+  if (!nzchar(selection)) {
+    if (identical(Sys.getenv("OPAL_BENCHMARK_FULL_FITS"), "false")) {
+      cases <- setdiff(cases, "io_yft_fit_evals")
+    }
+    return(cases)
+  }
   selected <- trimws(strsplit(selection, ",", fixed = TRUE)[[1L]])
   if (any(!selected %in% cases)) {
     stop("Unknown benchmark case(s): ", paste(setdiff(selected, cases), collapse = ", "))
@@ -110,13 +115,36 @@ benchmark_read_trajectory <- function(model, trajectory_dir, inputs) {
   trajectory
 }
 
+benchmark_sample_trajectory <- function(trajectory, per_kind = 50L) {
+  if (length(per_kind) != 1L || !is.finite(per_kind) || per_kind < 1L ||
+      per_kind != as.integer(per_kind)) stop("per_kind must be a positive integer.")
+  events <- trajectory$reference_events
+  if (is.null(events)) events <- trajectory$events
+  kinds <- vapply(events, `[[`, "", "kind")
+  indices <- sort(unique(unlist(lapply(c("fn", "gr"), function(kind) {
+    index <- which(kinds == kind)
+    if (!length(index)) return(integer())
+    index[unique(round(seq(1, length(index), length.out = min(per_kind, length(index)))))]
+  }))))
+  trajectory$reference_events <- events
+  trajectory$events <- events[indices]
+  trajectory$replay_indices <- indices
+  trajectory
+}
+
 benchmark_validate_trajectory <- function(trajectory) {
-  obj <- benchmark_objective(trajectory$inputs)
-  for (i in seq_along(trajectory$events)) {
-    event <- trajectory$events[[i]]
-    value <- obj[[event$kind]](event$par)
-    if (!identical(value, event$value)) {
-      stop("Reference trajectory replay differs at event ", i, " (", event$kind, ").")
+  sequences <- list(trajectory$events)
+  if (!is.null(trajectory$reference_events)) {
+    sequences <- c(list(trajectory$reference_events), sequences)
+  }
+  for (events in sequences) {
+    obj <- benchmark_objective(trajectory$inputs)
+    for (i in seq_along(events)) {
+      event <- events[[i]]
+      value <- obj[[event$kind]](event$par)
+      if (!identical(value, event$value)) {
+        stop("Reference trajectory replay differs at event ", i, " (", event$kind, ").")
+      }
     }
   }
   invisible(TRUE)
@@ -207,7 +235,7 @@ benchmark_child <- function(case = NULL, library = NULL, iterations = 20L, idle 
     result <<- run()
     invisible(result)
   }
-  measured_run()
+  if (!grepl("_fit_evals$", case)) measured_run()
   gc()
   if (grepl("_fit_evals$", case)) {
     # Count-only fits run once, not once for allocation plus N timing repeats.
@@ -217,8 +245,14 @@ benchmark_child <- function(case = NULL, library = NULL, iterations = 20L, idle 
                      mem_alloc = sum(allocation$bytes, na.rm = TRUE))
   } else {
     # bench runs a memory allocation probe and timed iterations separately.
-    measured <- bench::mark(measured_run(), iterations = iterations, check = FALSE,
-                            filter_gc = TRUE, memory = TRUE)
+    fixed_iterations <- if (grepl("_(fit|trajectory|sdreport)$", case)) {
+      min(iterations, 3L)
+    } else {
+      NULL
+    }
+    measured <- bench::mark(measured_run(), iterations = fixed_iterations,
+                            min_iterations = max(20L, iterations), min_time = 1,
+                            check = FALSE, filter_gc = TRUE, memory = TRUE)
   }
   peak <- benchmark_hwm()
   state <- attr(run, "benchmark_state")()
@@ -247,8 +281,7 @@ run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations
   if (!length(cases) || anyDuplicated(cases)) stop("Supply unique benchmark cases.")
   if (!requireNamespace("callr", quietly = TRUE)) stop("Install the suggested callr package.")
   root <- benchmark_root()
-  scratch <- file.path(root, ".benchmark-scratch")
-  dir.create(scratch, showWarnings = FALSE)
+  scratch <- tempdir()
   child <- function(case, idle) {
     callr::r(function(root, case, library, iterations, idle) {
       source(file.path(root, "tests/testthat/helper-benchmark.R"), local = globalenv())
