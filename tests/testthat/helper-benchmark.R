@@ -290,7 +290,8 @@ benchmark_child <- function(case = NULL, library = NULL, iterations = 20L, idle 
              units = units, stringsAsFactors = FALSE)
 }
 
-run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations = 20L) {
+run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations = 20L,
+                           idle = NULL) {
   if (length(iterations) != 1L || !is.finite(iterations) || iterations < 1 ||
       iterations != as.integer(iterations)) stop("iterations must be a positive integer.")
   if (!length(cases) || anyDuplicated(cases)) stop("Supply unique benchmark cases.")
@@ -307,7 +308,7 @@ run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations
             OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1"),
     system_profile = FALSE, user_profile = FALSE)
   }
-  idle <- child(NULL, TRUE)
+  if (is.null(idle)) idle <- child(NULL, TRUE)
   rows <- lapply(cases, function(case) {
     message("Benchmark: ", case)
     result <- child(case, FALSE)
@@ -318,6 +319,7 @@ run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations
   result <- do.call(rbind, rows)
   rownames(result) <- NULL
   attr(result, "idle_hwm_bytes") <- idle$hwm
+  attr(result, "benchmark_idle") <- idle
   attr(result, "benchmark_metadata") <- c(idle$metadata,
                                          list(load_mode = idle$load_mode,
                                               iterations = iterations, cases = cases))

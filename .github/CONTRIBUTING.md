@@ -118,6 +118,10 @@ remain in the full weekly suite and the unchanged memory suite. PR timing target
 cached setup. The measurement step has a 20-minute PR timeout; setup time and
 uncached dependency restoration can exceed the target, so this is not yet a
 hosted runtime guarantee.
+Each measured case/round still runs in a fresh subprocess. A/B reuses one
+separate, fresh idle reference per installed library across the job, rather
+than reloading the same idle package before every round; this matches how the
+multi-case memory runner subtracts one idle reference.
 
 Weekly `timing-ab` retains the full 17-case, ten-round suite, comparing two
 separately installed copies of the same exact `dev` SHA. Manual dispatch also
@@ -246,6 +250,10 @@ do not count it as a successful noise run. The shorter profile's hosted runtime
 and false-failure rate are not yet validated. Existing unit tests demonstrate
 memory/count regression rejection and the 5 MiB RSS floor, but are not hosted
 injected-regression evidence. No slowdown injection is present in the code.
+An initial broader eight-case local run retained all comparisons (all passed),
+but exited with a parser error after its script was edited while R was still
+reading it. It is invalid execution evidence, not a successful workflow or
+noise-validation run, and is not counted toward rollout acceptance.
 
 The updated [run 41739587874](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41739587874)
 returned `action_required`, not a hosted smoke-test result. The agent's

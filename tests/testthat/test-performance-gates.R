@@ -62,6 +62,27 @@ test_that("15 percent memory and fit-count regressions fail without waiving the 
   expect_false(compare_to_baseline(observed, peak, tolerance = 0.10)$pass)
 })
 
+test_that("A/B can reuse an idle reference without reusing measured subprocesses", {
+  idle_calls <- 0L
+  measured_calls <- 0L
+  testthat::local_mocked_bindings(r = function(func, args, ...) {
+    if (args[[5L]]) {
+      idle_calls <<- idle_calls + 1L
+      return(list(hwm = 100, metadata = list(), load_mode = "installed"))
+    }
+    measured_calls <<- measured_calls + 1L
+    data.frame(case = args[[2L]], metric = "peak_rss_bytes", value = 200,
+                units = "bytes")
+  }, .package = "callr")
+  first <- run_benchmarks("opaka_fn")
+  second <- run_benchmarks("bet_fn", idle = attr(first, "benchmark_idle"))
+  expect_identical(idle_calls, 1L)
+  expect_identical(measured_calls, 2L)
+  expect_equal(first$value, 100)
+  expect_equal(second$value, 100)
+  expect_identical(attr(second, "benchmark_metadata")$cases, "bet_fn")
+})
+
 test_that("bootstrap comparisons preserve the caller's random seed", {
   set.seed(163)
   seed <- .Random.seed

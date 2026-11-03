@@ -14,12 +14,15 @@ benchmark_ab_main <- function() {
   out <- Sys.getenv("OPAL_BENCHMARK_OUT", file.path(root, "benchmark-out"))
   dir.create(out, recursive = TRUE, showWarnings = FALSE)
   measurements <- list()
+  # Each library needs one fresh idle reference, as in the multi-case runner.
+  idle <- setNames(vector("list", length(libraries)), names(libraries))
   for (case in timing_cases) {
     for (round in seq_len(rounds)) {
       for (version in names(libraries)) {
         iterations <- if (grepl("_fit$", case)) 1L else 20L
         value <- run_benchmarks(cases = case, library = libraries[[version]],
-                                iterations = iterations)
+                                iterations = iterations, idle = idle[[version]])
+        idle[[version]] <- attr(value, "benchmark_idle")
         value$round <- round
         value$version <- version
         measurements[[length(measurements) + 1L]] <- value
