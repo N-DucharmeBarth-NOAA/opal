@@ -105,6 +105,105 @@ Tests use `testthat` edition 3.
 
   `OPAL_SELFTEST_START` may be `"truth"` (default) or `"default"`, and `OPAL_SELFTEST_OUT` saves results to a directory. Self-tests also run in `.github/workflows/selftest.yaml`. Calibration limits are documented at the top of each self-test file; do not change them without rerunning the calibration and recording it there.
 
+### Performance benchmarks
+
+`.github/workflows/benchmark.yaml` runs independently of the numerical and
+simulation tests. Its `memory` job runs on every pull request to `dev` or
+`main`, weekly against `dev`, and on manual dispatch. The PR-only `timing-ab`
+job installs the exact PR BASE and HEAD in separate libraries outside the
+checkouts and measures them interleaved on the same runner. The `instructions`
+job uses Valgrind on weekly and manual runs only. `OPAL_BENCHMARK_FULL_FITS`
+controls only the costly `io_yft_fit_evals` case: it is enabled on weekly/manual
+runs and disabled on PRs. The opaka and BET fit-count gates still run on every
+PR, alongside objective construction and evaluation. All jobs use the shared
+Ubuntu 22.04 environment and one OpenMP, OpenBLAS, and MKL thread.
+
+Benchmarks are opt-in locally. From the repository root, install the package
+into a separate library, then run memory measurements:
+
+``` sh
+mkdir -p benchmark-out/head-lib
+R CMD INSTALL --library="$PWD/benchmark-out/head-lib" .
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export OPAL_BENCHMARK=true OPAL_BENCHMARK_ROOT="$PWD"
+export OPAL_BENCHMARK_OUT="$PWD/benchmark-out"
+export OPAL_BENCHMARK_LIBRARY="$PWD/benchmark-out/head-lib"
+export OPAL_BENCHMARK_TOL=0.10
+OPAL_BENCHMARK_LAYER=memory Rscript -e \
+  'testthat::test_local(filter = "benchmark-models", stop_on_failure = TRUE)'
+```
+
+For instruction counts, install Valgrind and run
+`OPAL_BENCHMARK_LAYER=instructions Rscript dev/run-benchmark-instructions.R`
+with the same environment. To reproduce PR timing, install BASE and HEAD in
+separate libraries, set `OPAL_BENCHMARK_BASE_LIBRARY` and
+`OPAL_BENCHMARK_HEAD_LIBRARY` to their absolute paths, and run
+`Rscript dev/run-benchmark-ab.R`. Do not reuse a loaded package between
+revisions. Workflow artifacts retain measurements and environment metadata;
+the job summaries report results even when a regression fails.
+
+The default regression tolerance is `0.10` (10%). Manual dispatch accepts a
+`tolerance` fraction and an `update_baseline` boolean. Set `update_baseline` to generate candidate
+baselines, or set `OPAL_BENCHMARK_UPDATE=true` locally. Download the artifacts,
+review the measured changes and metadata, and explicitly merge the memory
+artifact's `baseline.rds` and instruction artifact's `instructions.rds` before
+committing. The committed `tests/testthat/_benchmark/baseline.rds` stores all
+layers together in its `results` table; `instructions.rds` is an intermediate
+artifact, not a second tracked baseline. The workflow never commits or pushes.
+Baselines are measurements,
+not universal constants: refresh them on the documented Ubuntu environment
+after changes to the runner image, R, dependencies, or benchmark definitions.
+Do not treat measurements from another machine as calibrated hosted baselines.
+
+With the same environment as above, explicit regeneration commands are:
+
+``` sh
+# Regenerate measured baselines (20 timing samples for applicable cases).
+OPAL_BENCHMARK_FULL_FITS=true Rscript dev/update-benchmark-baseline.R 20
+# Regenerate deterministic replay trajectories after reviewing model changes.
+Rscript dev/update-benchmark-trajectories.R opaka bet io_yft
+# Produce reviewable instruction measurements without gating against old values.
+OPAL_BENCHMARK_UPDATE=true OPAL_BENCHMARK_LAYER=instructions \
+  Rscript dev/run-benchmark-instructions.R
+```
+
+For a dispatched update, extract the reviewed memory and instruction artifacts
+into `benchmark-out/`, then explicitly combine them:
+
+``` sh
+Rscript - <<'RS'
+baseline <- readRDS("benchmark-out/baseline.rds")
+instructions <- readRDS("benchmark-out/instructions.rds")
+baseline$results <- rbind(
+  subset(baseline$results, metric != "instructions"),
+  instructions$results
+)
+baseline$metadata$instruction_measurement <- instructions$metadata
+saveRDS(baseline, "tests/testthat/_benchmark/baseline.rds", version = 3)
+RS
+```
+
+For an intentional A/B time or memory regression, explain the trade-off in a nonempty
+`Performance rationale: ...` line in the PR description. A repository maintainer
+with `maintain` or `admin` permission may apply `performance-accepted`.
+Label additions/removals and PR description edits retrigger the workflow, so
+removing acceptance re-enables the gate. Before checking out PR code, the workflow checks the live PR
+label, rationale, latest label actor, and that actor's current repository
+permission through the read-only GitHub API. Missing evidence or API failure
+keeps the gate enabled. This exception covers the same-runner A/B comparison
+only; it does not suppress measurements or waive the committed-baseline memory
+gate or instruction regressions. Fork PRs use `pull_request`, not
+`pull_request_target`, and receive no elevated token.
+
+Before making benchmark checks required, maintainers must record at least five
+hosted BASE=HEAD timing runs and verify the gate detects an injected 15%
+slowdown. Calibrate memory and instruction checks on that environment as well.
+Branch protection is configured separately, not by this workflow. The
+`instructions` job is deliberately skipped on PRs: its skipped status is not
+evidence of an instruction measurement. Require the applicable PR checks
+(`memory`, `timing-ab`) only after calibration; evaluate `instructions` through
+weekly/manual runs rather than claiming it measures every PR.
+
 ## Numerical changes
 
 The golden test (`tests/testthat/test-golden-opaka.R`) compares the objective, gradient, and every `REPORT()` element of the 'opakapaka quickstart model against a stored reference, at both the starting values and the MLE. It also checks that the reference file was produced under the current `.opal_model_scientific_version`, and that the bundled example fit is compatible with the current model. `read_opal_fit()` uses the scientific version to identify fits created under an earlier model contract.
