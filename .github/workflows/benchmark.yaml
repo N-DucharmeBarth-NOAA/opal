@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 360
     env:
       OPAL_BENCHMARK_LAYER: memory
-      OPAL_BENCHMARK_LIBRARY: ${{ runner.temp }}/opal-head-lib
+      OPAL_BENCHMARK_LIBRARY: ${{ github.workspace }}/../opal-head-lib
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,8 +79,8 @@ jobs:
       OPAL_BENCHMARK_LAYER: timing-ab
       OPAL_BENCHMARK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       OPAL_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      OPAL_BENCHMARK_BASE_LIBRARY: ${{ runner.temp }}/opal-base-lib
-      OPAL_BENCHMARK_HEAD_LIBRARY: ${{ runner.temp }}/opal-head-lib
+      OPAL_BENCHMARK_BASE_LIBRARY: ${{ github.workspace }}/../opal-base-lib
+      OPAL_BENCHMARK_HEAD_LIBRARY: ${{ github.workspace }}/../opal-head-lib
     steps:
       # This guard runs before any PR code. API failures deny the override.
       - name: Verify maintainer performance acceptance
@@ -165,7 +165,7 @@ jobs:
     timeout-minutes: 360
     env:
       OPAL_BENCHMARK_LAYER: instructions
-      OPAL_BENCHMARK_LIBRARY: ${{ runner.temp }}/opal-head-lib
+      OPAL_BENCHMARK_LIBRARY: ${{ github.workspace }}/../opal-head-lib
     steps:
       - uses: actions/checkout@v4
         with:
