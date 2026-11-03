@@ -42,8 +42,7 @@ benchmark_timing_cases <- function(profile = Sys.getenv("OPAL_BENCHMARK_TIMING_P
   }
   cases <- setdiff(benchmark_cases(), "io_yft_fit_evals")
   if (profile == "smoke") {
-    cases <- intersect(cases, c("opaka_makeadfun", "opaka_fn", "opaka_gr",
-                                "opaka_report", "bet_fn", "bet_gr",
+    cases <- intersect(cases, c("opaka_fn", "opaka_gr", "bet_fn", "bet_gr",
                                 "io_yft_fn", "io_yft_gr"))
   }
   if (!length(cases)) stop("No timing cases selected for this profile.")

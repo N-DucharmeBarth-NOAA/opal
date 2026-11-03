@@ -112,9 +112,9 @@ simulation tests. Its `memory` job runs on every pull request to `dev` or
 `main`, weekly against `dev`, and on manual dispatch. The PR `timing-ab`
 job installs the exact PR BASE and HEAD in separate libraries outside the
 checkouts and measures them interleaved on the same runner. PR timing uses five
-paired rounds of eight indicative cases: opaka tape construction, objective,
-gradient and report, plus BET and IO YFT objectives and gradients. It excludes
-repeated fits, trajectories and Hessians, targeting 10–20 minutes including
+paired rounds of six indicative cases: objectives and gradients for opaka, BET
+and IO YFT. Tape construction, reports, repeated fits, trajectories and Hessians
+remain in the full weekly suite and the unchanged memory suite. PR timing targets 10–20 minutes including
 cached setup. The measurement step has a 20-minute PR timeout; setup time and
 uncached dependency restoration can exceed the target, so this is not yet a
 hosted runtime guarantee.
@@ -200,11 +200,8 @@ baseline$results <- rbind(
   instructions$results
 )
 baseline$metadata$instruction_measurement <- instructions$metadata
-# Retain the exact run and artifact links alongside each layer's provenance.
-baseline$metadata$hosted_artifacts <- list(
-  memory = "REPLACE_WITH_REVIEWED_MEMORY_ARTIFACT_URL",
-  instructions = "REPLACE_WITH_REVIEWED_INSTRUCTION_ARTIFACT_URL"
-)
+# Before saving, record reviewed run/attempt/artifact URLs in
+# baseline$metadata$hosted_artifacts alongside each layer's provenance.
 saveRDS(baseline, "tests/testthat/_benchmark/baseline.rds", version = 3)
 RS
 ```
@@ -250,8 +247,10 @@ and false-failure rate are not yet validated. Existing unit tests demonstrate
 memory/count regression rejection and the 5 MiB RSS floor, but are not hosted
 injected-regression evidence. No slowdown injection is present in the code.
 
-The agent's available GitHub tools can read runs/logs/artifacts but cannot
-dispatch or approve workflows. A maintainer must use **Actions → benchmarks →
+The updated [run 41739587874](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41739587874)
+returned `action_required`, not a hosted smoke-test result. The agent's
+available GitHub tools can read runs/logs/artifacts but cannot dispatch or
+approve workflows. A maintainer must approve the current PR workflow and use **Actions → benchmarks →
 Run workflow**, select this PR branch, and:
 
 1. Run with `update_baseline: true`, `timing_profile: full` to obtain all 18

@@ -20,8 +20,8 @@ test_that("PR timing smoke covers all model scales without repeated full fits", 
   })
   Sys.unsetenv(c("OPAL_BENCHMARK_CASES", "OPAL_BENCHMARK_FULL_FITS"))
   smoke <- benchmark_timing_cases("smoke")
-  expect_setequal(smoke, c("opaka_makeadfun", "opaka_fn", "opaka_gr", "opaka_report",
-                          "bet_fn", "bet_gr", "io_yft_fn", "io_yft_gr"))
+  expect_setequal(smoke, c("opaka_fn", "opaka_gr", "bet_fn", "bet_gr",
+                          "io_yft_fn", "io_yft_gr"))
   expect_length(benchmark_timing_cases("full"), 17L)
   expect_true(all(smoke %in% benchmark_timing_cases("full")))
   expect_false(any(grepl("_(fit|fit_evals|sdreport|trajectory)$", smoke)))
