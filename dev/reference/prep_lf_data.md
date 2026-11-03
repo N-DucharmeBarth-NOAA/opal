@@ -188,7 +188,8 @@ The input `data` list with the following elements appended or updated:
 
 - `lf_obs_flat`:
 
-  Flattened numeric vector of counts (for multinomial, `lf_switch = 1`).
+  Flattened numeric vector of unrounded counts (for multinomial,
+  `lf_switch = 1`).
 
 - `lf_obs_ints`:
 

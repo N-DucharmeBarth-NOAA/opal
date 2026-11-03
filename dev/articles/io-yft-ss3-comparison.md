@@ -484,8 +484,8 @@ knitr::kable(data.frame(
 | Estimated parameters             | 319       |
 | Objective                        | 15,601.99 |
 | Index                            | -237.1    |
-| Length compositions              | 14,231.6  |
-| Index size compositions (× 0.51) | 969.2     |
+| Length compositions              | 14,046.5  |
+| Index size compositions (× 0.51) | 965.7     |
 | Recruitment                      | 136.1     |
 | Priors                           | 679.4     |
 | Max \|gradient\|                 | 7.0e-12   |
@@ -879,6 +879,6 @@ bundled data were exported by
 code/rtmb/scripts/04-export-io-yft-for-opal.r at commit 047af02, and
 SS3’s size compositions and lambdas by
 code/rtmb/scripts/06-export-io-yft-sizefreq-for-opal.r. The opal outputs
-shown were computed with opal 0.1.1 (commit fdcd449) by
+shown were computed with opal 0.1.3 (commit baddf9a) by
 `data-raw/generate-io-yft-fits.R` and
 `data-raw/generate-io-yft-vignette-cache.R`.

@@ -15,7 +15,7 @@ Opal object. Use plot_osa_sdnr() for the dataset-level SDNR comparison."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">opal</a>
 
-    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.2</small>
+    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -100,8 +100,13 @@ bin. Composition tables include each observed bin's lower and upper
 boundaries, including row-specific schemes. The final composition bin
 is constrained and omitted from residual calculations. Removed
 fisheries, zero lambdas, zero sample sizes, exhausted counts, and numerical failures
-remain in the table with explicit exclusion reasons. Multinomial counts
-are rounded as in the fitted likelihood; no new pseudocounts are added.
+remain in the table with explicit exclusion reasons. For fixed-effect
+fits, multinomial counts are rounded to the nearest integer using
+<code>floor(count + 0.5)</code> for the sequential binomial PIT. A message is emitted
+once per call if fractional counts in an included LF or WF row are rounded.
+This diagnostic approximation does not change the fitted likelihood.
+The latent RTMB OSA path does not round observations. No new pseudocounts
+are added.
 Rows assigned a zero likelihood lambda are excluded with reason
 <code>"lambda = 0"</code>. For fixed-effect fits, fractional CPUE, LF, or WF lambdas
 temper the fitted estimates, but the residuals use the untempered

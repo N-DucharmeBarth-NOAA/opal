@@ -131,7 +131,8 @@ data list with the following weight composition elements appended:
 
 - `wf_obs_flat`:
 
-  Flattened numeric vector of counts (for multinomial, `wf_switch = 1`).
+  Flattened numeric vector of unrounded counts (for multinomial,
+  `wf_switch = 1`).
 
 - `wf_obs_ints`:
 

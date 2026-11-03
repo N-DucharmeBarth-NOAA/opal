@@ -99,12 +99,7 @@ Other assessment workflow:
 ``` r
 assessment <- opal_read(system.file("extdata", "opaka_quickstart_fit.rds",
                                    package = "opal"))
-#> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
-#> Warning: The saved fit runtime identity differs because it was serialized under a different R version; verifying by rebuild.
-#> Warning: The opal_model implementation checksum differs from the saved fit. The saved fit used opal 0.0.4; the current version is 0.1.2.
 assessment <- opal_check(assessment, scope = "fit")
-#> Warning: The model implementation checksum differs from the saved object.
-#> Warning: The model implementation checksum differs from the saved object.
 #> All parameters are estimable
 #> Warning: The fit check failed; results are retained.
 assessment$validation$fit$metrics

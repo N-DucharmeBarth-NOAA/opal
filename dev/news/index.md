@@ -1,5 +1,23 @@
 # Changelog
 
+## opal 0.1.3
+
+- 2026/11/02
+  ([\#155](https://github.com/N-DucharmeBarth-NOAA/opal/issues/155)):
+  Reported multinomial `lp_lf` / `lp_wf` and their weighted components
+  now use fractional counts unrounded, matching the fitted objective.
+  Objectives, gradients and estimates are unchanged when composition
+  probabilities are AD-valued, including the bundled fits. If
+  probabilities are entirely fixed during taping, the previously rounded
+  objective constant is now unrounded too; this does not change
+  gradients or estimates. Fixed-effect multinomial OSA residuals still
+  round counts for discrete binomial calculations, with one notice per
+  diagnostic call; RTMB’s latent OSA and simulation methods are
+  retained. The scientific model contract is now
+  `opal_model_contract_v6` because reported quantities changed. Fits
+  saved under v5 must be refitted or rebuilt before reading with the new
+  contract; their estimates will not change.
+
 ## opal 0.1.2
 
 - 2026/10/29: SD of length-at-age can be linear in mean length (SS3
