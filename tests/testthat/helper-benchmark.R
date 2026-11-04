@@ -4,8 +4,7 @@ benchmark_root <- function() {
   if (nzchar(root)) return(normalizePath(root, mustWork = TRUE))
   root <- normalizePath(getwd(), mustWork = TRUE)
   repeat {
-    if (file.exists(file.path(root, "DESCRIPTION")) &&
-        file.exists(file.path(root, "tests", "testthat", "helper-benchmark.R"))) {
+    if (file.exists(file.path(root, "tests", "testthat", "helper-benchmark.R"))) {
       return(root)
     }
     parent <- dirname(root)
