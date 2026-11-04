@@ -70,6 +70,14 @@ benchmark_ab_main <- function() {
   results <- do.call(rbind, results)
   metadata <- idle$head$metadata
   metadata$ab_library_metadata <- lapply(idle, function(record) record$metadata)
+  for (version in names(libraries)) {
+    record <- metadata$ab_library_metadata[[version]]
+    record$harness_checkout <- record[c("git_sha", "git_dirty", "source_md5")]
+    record[c("git_sha", "git_dirty", "source_md5")] <- NULL
+    record$git_sha <- Sys.getenv(
+      paste0("OPAL_BENCHMARK_", toupper(version), "_SHA"), unset = NA_character_)
+    metadata$ab_library_metadata[[version]] <- record
+  }
   metadata$timing_cases <- timing_cases
   metadata$rounds <- rounds
   attr(results, "benchmark_metadata") <- metadata
