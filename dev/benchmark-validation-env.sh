@@ -7,8 +7,8 @@ job=$1
 shift
 if [ "${GITHUB_EVENT_NAME:-}" = push ]; then
   case $job in
-    memory) allowed='UPDATE|INJECT_MEMORY|INJECT_FIT_START|INJECT_CASES' ;;
-    timing-ab) allowed='TIMING_PROFILE|ROUNDS|INJECT_SLOWDOWN|INJECT_CASES|INJECT_VERSION' ;;
+    memory) allowed='UPDATE|INJECT_MEMORY|INJECT_CASES' ;;
+    timing-ab) allowed='TIMING_PROFILE|ROUNDS|INJECT_SLOWDOWN|INJECT_FIT_START|INJECT_CASES|INJECT_VERSION' ;;
     instructions) allowed='UPDATE|INJECT_SLOWDOWN|INJECT_CASES' ;;
     *) echo "Unknown benchmark job: $job" >&2; exit 1 ;;
   esac
