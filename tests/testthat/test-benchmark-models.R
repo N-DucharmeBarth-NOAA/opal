@@ -39,7 +39,15 @@ test_that("benchmark comparison gates memory and structure, not single-run time"
   # Committed-baseline fit counts depend on the runner CPU, so they are recorded;
   # same-runner A/B comparisons gate them.
   expect_true(compare_to_baseline(raised, boundary)$pass)
-  expect_false(compare_to_baseline(raised, boundary, recorded = character())$pass)
+  expect_false(compare_to_baseline(raised, boundary, same_runner = TRUE)$pass)
+  fit_alloc <- data.frame(case = "bet_fit", metric = "mem_alloc_bytes", value = 100,
+                          units = "bytes")
+  raised_alloc <- fit_alloc
+  raised_alloc$value <- 130
+  expect_true(compare_to_baseline(raised_alloc, fit_alloc)$pass)
+  expect_false(compare_to_baseline(raised_alloc, fit_alloc, same_runner = TRUE)$pass)
+  fit_alloc$metric <- raised_alloc$metric <- "structural_bytes"
+  expect_false(compare_to_baseline(raised_alloc, fit_alloc)$pass)
   improved <- x
   improved$value[2] <- 80
   expect_message(compare_to_baseline(improved, x), "refresh.*baseline")

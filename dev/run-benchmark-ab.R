@@ -53,20 +53,21 @@ benchmark_ab_main <- function() {
     }
   }
   raw <- do.call(rbind, measurements)
-  counts <- raw[raw$round == 0L & raw$metric %in% benchmark_count_metrics(), ]
-  raw <- raw[raw$round > 0L & !raw$metric %in% benchmark_count_metrics(), ]
+  # Optimizer-path metrics come from the one-fit-per-revision comparison only.
+  counts <- raw[raw$round == 0L & benchmark_path_metric(raw$case, raw$metric), ]
+  raw <- raw[raw$round > 0L & !benchmark_path_metric(raw$case, raw$metric), ]
   tolerance <- benchmark_tolerance()
   results <- list()
   for (case in unique(counts$case)) {
     x <- counts[counts$case == case, ]
     observed <- x[x$version == "head", c("case", "metric", "value", "units")]
     row <- compare_to_baseline(observed, x[x$version == "base", names(observed)],
-                               tolerance, recorded = character())
+                               tolerance, same_runner = TRUE)
     row$lower <- NA_real_
     row$upper <- NA_real_
     row$enforced <- case %in% benchmark_gated_count_cases()
     if (any(!row$pass & !row$enforced)) {
-      warning(case, ": fit counts changed beyond tolerance (reported, not gated)")
+      warning(case, ": fit counts or allocation changed beyond tolerance (reported, not gated)")
     }
     results[[length(results) + 1L]] <- row
   }
@@ -94,7 +95,7 @@ benchmark_ab_main <- function() {
                                value = median(head), units = x$units[1])
         baseline <- observed
         baseline$value <- median(base)
-        row <- compare_to_baseline(observed, baseline, tolerance)
+        row <- compare_to_baseline(observed, baseline, tolerance, same_runner = TRUE)
         row <- row[, c("case", "metric", "baseline", "observed", "ratio", "pass")]
         row$lower <- NA_real_
         row$upper <- NA_real_

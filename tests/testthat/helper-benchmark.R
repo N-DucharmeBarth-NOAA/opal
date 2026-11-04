@@ -75,6 +75,13 @@ benchmark_count_cases <- function(profile = Sys.getenv("OPAL_BENCHMARK_TIMING_PR
 
 benchmark_gated_count_cases <- function() "opaka_fit"
 
+# Metrics that follow the optimizer path: fit counts, and fit allocations
+# (which scale with evaluations; BET allocated 30% more on the Xeon 8370C).
+benchmark_path_metric <- function(case, metric) {
+  metric %in% benchmark_count_metrics() |
+    (metric == "mem_alloc_bytes" & case %in% benchmark_fit_count_cases())
+}
+
 benchmark_inputs <- function(model) {
   if (identical(model, "opaka")) return(opal::opaka_quickstart_inputs())
   if (identical(model, "io_yft")) {
@@ -447,10 +454,11 @@ benchmark_tolerance <- function() {
   value
 }
 
-# `recorded` metrics are reported but never fail: single-run wall time, and fit
-# counts, which depend on the runner's CPU model when compared to a baseline.
+# Single-run wall time is recorded, never gated. Optimizer-path metrics are
+# gated only when both sides ran on the same runner (`same_runner`), because
+# they depend on the hosted CPU model when compared to a committed baseline.
 compare_to_baseline <- function(observed, baseline, tolerance = benchmark_tolerance(),
-                                recorded = c("median_seconds", benchmark_count_metrics())) {
+                                same_runner = FALSE) {
   if (is.list(baseline) && !is.data.frame(baseline)) baseline <- baseline$results
   required <- c("case", "metric", "value", "units")
   for (x in list(observed, baseline)) {
@@ -471,7 +479,9 @@ compare_to_baseline <- function(observed, baseline, tolerance = benchmark_tolera
     result$units.observed == result$units.baseline
   peak_noise <- result$metric == "peak_rss_bytes" &
     result$observed - result$baseline < 5 * 1024^2
-  result$pass <- valid & (result$metric %in% recorded |
+  recorded <- result$metric == "median_seconds" |
+    (!same_runner & benchmark_path_metric(result$case, result$metric))
+  result$pass <- valid & (recorded |
                            peak_noise |
                            result$observed <= result$baseline * (1 + tolerance))
   result$pass[is.na(result$pass)] <- FALSE

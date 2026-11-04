@@ -80,7 +80,7 @@ test_that("15 percent memory and fit-count regressions fail without waiving the 
   observed$value <- baseline$value * 1.15
   # Same-runner A/B fit counts gate; committed-baseline counts are recorded.
   expect_false(any(compare_to_baseline(observed, baseline, tolerance = 0.10,
-                                       recorded = character())$pass))
+                                       same_runner = TRUE)$pass))
   committed <- compare_to_baseline(observed, baseline, tolerance = 0.10)
   expect_identical(committed$pass, committed$metric %in% c("fn_evals", "gr_evals", "iterations"))
   peak <- baseline[baseline$metric == "peak_rss_bytes", ]

@@ -127,15 +127,18 @@ PR timing measures GitHub's test merge commit against its first parent, the
 target-branch tip it merged, so target-branch changes are not attributed to the
 PR. Rounds alternate whether BASE or HEAD runs first.
 
-Fit counts (`fn_evals`, `gr_evals`, `iterations`) are compared BASE versus
+Optimizer-path metrics, meaning fit counts (`fn_evals`, `gr_evals`,
+`iterations`) and the fit cases' `mem_alloc_bytes`, are compared BASE versus
 HEAD within `timing-ab`, one fit per revision on the same runner, not against
-the committed baseline. Counts are deterministic on one machine but differ
+the committed baseline. They are deterministic on one machine but differ
 between hosted CPU models: identical code gave 1225 BET fn evaluations on an
-AMD EPYC 9V45 and 1651 on an Intel Xeon 8370C. PRs gate the well-conditioned
-`opaka_fit` (+10% fails; `performance-accepted` does not waive it). The full
-profile also compares `bet_fit` and `io_yft_fit_evals`, but only warns, because
-their counts change with harmless floating-point rounding. The committed
-baseline still records all counts as trend measurements.
+AMD EPYC 9V45 and 1651 on an Intel Xeon 8370C, and allocated 30% more on the
+latter. PRs gate the well-conditioned `opaka_fit` (+10% fails;
+`performance-accepted` does not waive count failures). The full profile also
+compares `bet_fit` and `io_yft_fit_evals`, but only warns, because their paths
+change with harmless floating-point rounding. The committed baseline records
+these metrics as trends; it still gates the fit cases' peak RSS and structural
+size, which do not depend on the path.
 
 Weekly `timing-ab` retains the full 17-case, ten-round suite, comparing two
 separately installed copies of the same exact `dev` SHA. This checks
@@ -181,7 +184,9 @@ For the full suite use `OPAL_BENCHMARK_TIMING_PROFILE=full` and
 `OPAL_BENCHMARK_ROUNDS=10`. Both retain the 10% threshold and fail timing only
 when the lower 95% ratio confidence bound exceeds 1.10. Do not reuse a loaded package between
 revisions. Workflow artifacts retain measurements and environment metadata;
-the job summaries report results even when a regression fails.
+the job summaries report results even when a regression fails. Re-running a
+workflow deletes the previous attempt's artifacts (its job summary remains), so
+download them before re-running.
 
 The default regression tolerance is `0.10` (10%). Manual dispatch accepts a
 `tolerance` fraction and an `update_baseline` boolean. Set `update_baseline` to generate candidate
