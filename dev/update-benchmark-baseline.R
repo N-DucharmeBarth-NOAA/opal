@@ -13,6 +13,7 @@ metadata$idle_hwm_bytes <- attr(results, "idle_hwm_bytes")
 metadata$library <- library
 path <- file.path(root, "tests/testthat/_benchmark/baseline.rds")
 dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+previous <- NULL
 if (file.exists(path)) {
   previous <- readRDS(path)
   key <- function(x) paste(x$case, x$metric, sep = "\r")
@@ -24,6 +25,8 @@ if (file.exists(path)) {
 }
 instructions_path <- if (length(args) > 1L) args[[2L]] else
   Sys.getenv("OPAL_BENCHMARK_INSTRUCTIONS", "")
+metadata <- benchmark_retain_instruction_metadata(
+  metadata, if (is.null(previous)) NULL else previous$metadata, instructions_path)
 if (nzchar(instructions_path)) {
   # Optional second argument (or environment variable): measured instructions.rds
   # from dev/run-benchmark-instructions.R, never fabricated calibration values.

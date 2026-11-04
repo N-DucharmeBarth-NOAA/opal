@@ -179,6 +179,18 @@ test_that("the committed baseline covers every workload and regression metric", 
                     "instruction_measurement") %in% names(baseline$metadata)))
 })
 
+test_that("memory-only baseline refreshes retain instruction provenance", {
+  instruction_measurement <- list(artifact = "instructions.rds", md5 = "abc",
+                                  metadata = list(git_sha = "instructions"))
+  refreshed <- benchmark_retain_instruction_metadata(
+    list(git_sha = "memory"), list(instruction_measurement = instruction_measurement), "")
+  expect_identical(refreshed$instruction_measurement, instruction_measurement)
+  replaced <- benchmark_retain_instruction_metadata(
+    list(git_sha = "memory"), list(instruction_measurement = instruction_measurement),
+    "new-instructions.rds")
+  expect_null(replaced$instruction_measurement)
+})
+
 test_that("model performance stays within the explicit measured baseline", {
   skip_if_not_benchmark()
   skip_if(Sys.getenv("OPAL_BENCHMARK_LAYER") %in% c("instructions", "timing-ab"),

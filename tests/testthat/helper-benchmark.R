@@ -402,6 +402,15 @@ benchmark_metadata <- function() {
                                              full.names = TRUE))))
 }
 
+benchmark_retain_instruction_metadata <- function(metadata, previous_metadata,
+                                                 instructions_path) {
+  if (!nzchar(instructions_path) &&
+      !is.null(previous_metadata$instruction_measurement)) {
+    metadata$instruction_measurement <- previous_metadata$instruction_measurement
+  }
+  metadata
+}
+
 write_benchmark_results <- function(results, out) {
   dir.create(out, recursive = TRUE, showWarnings = FALSE)
   utils::write.csv(results, file.path(out, "results.csv"), row.names = FALSE)

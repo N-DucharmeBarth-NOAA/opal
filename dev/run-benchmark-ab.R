@@ -68,12 +68,13 @@ benchmark_ab_main <- function() {
     }
   }
   results <- do.call(rbind, results)
-  metadata <- benchmark_metadata()
+  metadata <- idle$head$metadata
+  metadata$ab_library_metadata <- lapply(idle, function(record) record$metadata)
   metadata$timing_cases <- timing_cases
   metadata$rounds <- rounds
   attr(results, "benchmark_metadata") <- metadata
   write_benchmark_results(results, out)
-  saveRDS(list(metadata = benchmark_metadata(), libraries = libraries,
+  saveRDS(list(metadata = metadata, libraries = libraries,
                commits = Sys.getenv(c("OPAL_BENCHMARK_BASE_SHA",
                                       "OPAL_BENCHMARK_HEAD_SHA"))),
           file.path(out, "provenance.rds"))
