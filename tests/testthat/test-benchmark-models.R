@@ -40,7 +40,9 @@ test_that("benchmark comparison gates memory and structure, not single-run time"
   improved <- x
   improved$value[2] <- 80
   expect_message(compare_to_baseline(improved, x), "refresh.*baseline")
-  expect_false(compare_to_baseline(observed, x[-2, ])$pass[2])
+  missing <- compare_to_baseline(observed, x[-2, ])
+  expect_false(missing$pass[missing$metric == "mem_alloc_bytes"])
+  expect_true(is.na(missing$baseline[missing$metric == "mem_alloc_bytes"]))
   expect_error(compare_to_baseline(rbind(x, x), x), "Duplicate")
   expect_error(compare_to_baseline(x, x, tolerance = -1), "Invalid tolerance")
   invalid <- x
@@ -153,7 +155,8 @@ test_that("trajectory inputs cannot silently change and references are never syn
 })
 
 test_that("the committed baseline covers every workload and regression metric", {
-  baseline <- readRDS(file.path(benchmark_root(), "tests/testthat/_benchmark/baseline.rds"))
+  # test_path() also resolves inside an R CMD check tarball tree.
+  baseline <- readRDS(test_path("_benchmark", "baseline.rds"))
   results <- baseline$results
   cases <- c(
     paste0("opaka_", c("makeadfun", "fn", "gr", "fit", "report", "sdreport")),
@@ -177,6 +180,50 @@ test_that("the committed baseline covers every workload and regression metric", 
                   c("opaka_fn", "opaka_gr", "io_yft_fn", "io_yft_gr"))
   expect_true(all(c("git_sha", "R", "platform", "packages", "source_md5",
                     "instruction_measurement") %in% names(baseline$metadata)))
+  expect_no_error(benchmark_check_baseline(results))
+})
+
+test_that("baseline merges require complete instruction artifacts and coverage", {
+  baseline <- readRDS(test_path("_benchmark", "baseline.rds"))
+  instructions <- list(
+    results = baseline$results[baseline$results$metric == "instructions", ],
+    metadata = list(git_sha = "instructions"))
+  merged <- benchmark_merge_instructions(baseline$results, list(git_sha = "memory"),
+                                         instructions, list(md5 = "abc"))
+  expect_no_error(benchmark_check_baseline(merged$results))
+  expect_identical(merged$metadata$instruction_measurement,
+                   list(md5 = "abc", metadata = list(git_sha = "instructions")))
+  partial <- instructions
+  partial$results <- partial$results[partial$results$case != "io_yft_gr", ]
+  expect_error(benchmark_merge_instructions(baseline$results, list(), partial),
+               "exactly the cases")
+  invalid <- instructions
+  invalid$results$value[1] <- 0
+  expect_error(benchmark_merge_instructions(baseline$results, list(), invalid),
+               "Invalid measured instruction")
+  incomplete <- baseline$results[!(baseline$results$case == "io_yft_fit_evals" &
+                                     baseline$results$metric == "fn_evals"), ]
+  expect_error(benchmark_check_baseline(incomplete), "io_yft_fit_evals fn_evals")
+  expect_error(benchmark_check_baseline(
+    baseline$results[baseline$results$case != "bet_fit", ]), "bet_fit")
+  extra <- rbind(baseline$results, data.frame(case = "unknown", metric = "median_seconds",
+                                              value = 1, units = "seconds"))
+  expect_error(benchmark_check_baseline(extra), "Unknown baseline case")
+})
+
+test_that("A/B provenance records each library's revision, not the harness checkout", {
+  record <- function(sha) list(metadata = list(git_sha = sha, git_dirty = character(),
+                                               source_md5 = c(a = "1"),
+                                               packages = c(opal = "0.1.3")))
+  metadata <- benchmark_ab_library_metadata(
+    list(base = record("harness"), head = record("harness")),
+    c(base = "base-sha", head = "head-sha"))
+  expect_identical(names(metadata), c("base", "head"))
+  expect_identical(metadata$base$git_sha, "base-sha")
+  expect_identical(metadata$head$git_sha, "head-sha")
+  expect_identical(metadata$base$harness_checkout$git_sha, "harness")
+  expect_null(metadata$base$source_md5)
+  expect_identical(metadata$head$packages, c(opal = "0.1.3"))
 })
 
 test_that("memory-only baseline refreshes retain instruction provenance", {

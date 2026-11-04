@@ -18,7 +18,6 @@ benchmark_instructions_worker <- function(case, iterations) {
 benchmark_instructions_main <- function() {
   if (!nzchar(Sys.which("valgrind"))) stop("Valgrind is required")
   root <- normalizePath(Sys.getenv("OPAL_BENCHMARK_ROOT", "."))
-  source(file.path(root, "tests/testthat/helper-skip.R"))
   source(file.path(root, "tests/testthat/helper-benchmark.R"))
   source(file.path(root, "tests/testthat/helper-performance.R"))
   library_path <- Sys.getenv("OPAL_BENCHMARK_LIBRARY")
@@ -30,7 +29,7 @@ benchmark_instructions_main <- function() {
   benchmark_load(library_path)
   out <- Sys.getenv("OPAL_BENCHMARK_OUT", file.path(root, "benchmark-out"))
   dir.create(out, showWarnings = FALSE, recursive = TRUE)
-  cases <- c("opaka_fn", "opaka_gr", "io_yft_fn", "io_yft_gr")
+  cases <- benchmark_instruction_cases()
   selection <- Sys.getenv("OPAL_BENCHMARK_CASES")
   if (nzchar(selection)) {
     selected <- strsplit(selection, ",", fixed = TRUE)[[1]]

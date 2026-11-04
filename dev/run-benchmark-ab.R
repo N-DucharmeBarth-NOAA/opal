@@ -1,7 +1,6 @@
 # The head checkout supplies the harness for both installed package versions.
 benchmark_ab_main <- function() {
   root <- normalizePath(Sys.getenv("OPAL_BENCHMARK_ROOT", "."))
-  source(file.path(root, "tests/testthat/helper-skip.R"))
   source(file.path(root, "tests/testthat/helper-benchmark.R"))
   source(file.path(root, "tests/testthat/helper-performance.R"))
   libraries <- c(base = Sys.getenv("OPAL_BENCHMARK_BASE_LIBRARY"),
@@ -18,13 +17,17 @@ benchmark_ab_main <- function() {
   idle <- setNames(vector("list", length(libraries)), names(libraries))
   for (case in timing_cases) {
     for (round in seq_len(rounds)) {
-      for (version in names(libraries)) {
+      # Alternate which revision runs first so within-pair drift cancels.
+      order <- if (round %% 2L) names(libraries) else rev(names(libraries))
+      for (position in seq_along(order)) {
+        version <- order[[position]]
         iterations <- if (grepl("_fit$", case)) 1L else 20L
         value <- run_benchmarks(cases = case, library = libraries[[version]],
                                 iterations = iterations, idle = idle[[version]])
         idle[[version]] <- attr(value, "benchmark_idle")
         value$round <- round
         value$version <- version
+        value$position <- position
         measurements[[length(measurements) + 1L]] <- value
         # Preserve partial results even when a later benchmark fails.
         write.csv(do.call(rbind, measurements), file.path(out, "rounds.csv"),
@@ -69,17 +72,15 @@ benchmark_ab_main <- function() {
   }
   results <- do.call(rbind, results)
   metadata <- idle$head$metadata
-  metadata$ab_library_metadata <- lapply(idle, function(record) record$metadata)
-  for (version in names(libraries)) {
-    record <- metadata$ab_library_metadata[[version]]
-    record$harness_checkout <- record[c("git_sha", "git_dirty", "source_md5")]
-    record[c("git_sha", "git_dirty", "source_md5")] <- NULL
-    record$git_sha <- Sys.getenv(
-      paste0("OPAL_BENCHMARK_", toupper(version), "_SHA"), unset = NA_character_)
-    metadata$ab_library_metadata[[version]] <- record
-  }
+  shas <- Sys.getenv(c(base = "OPAL_BENCHMARK_BASE_SHA", head = "OPAL_BENCHMARK_HEAD_SHA"),
+                     unset = NA_character_)
+  names(shas) <- names(libraries)
+  metadata$ab_library_metadata <- benchmark_ab_library_metadata(idle, shas)
+  metadata$comparison <- Sys.getenv("OPAL_BENCHMARK_COMPARISON", unset = NA_character_)
+  metadata$pr_head_sha <- Sys.getenv("OPAL_BENCHMARK_PR_HEAD_SHA", unset = NA_character_)
   metadata$timing_cases <- timing_cases
   metadata$rounds <- rounds
+  metadata$round_order <- "BASE first in odd rounds, HEAD first in even rounds"
   attr(results, "benchmark_metadata") <- metadata
   write_benchmark_results(results, out)
   saveRDS(list(metadata = metadata, libraries = libraries,

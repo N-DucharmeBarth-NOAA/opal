@@ -21,14 +21,20 @@ on:
         type: choice
         options: [smoke, full]
         default: full
+      base_ref:
+        description: "Optional BASE branch, tag or SHA for an on-demand BASE-versus-HEAD A/B (empty: BASE=HEAD)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
   pull-requests: read
 
+# Superseded PR runs are cancelled; each scheduled or manual run is independent
+# so queued calibration runs never cancel one another.
 concurrency:
-  group: benchmarks-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: benchmarks-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   OMP_NUM_THREADS: "1"
@@ -83,8 +89,6 @@ jobs:
       OPAL_BENCHMARK_LAYER: timing-ab
       OPAL_BENCHMARK_TIMING_PROFILE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.timing_profile || 'full' }}
       OPAL_BENCHMARK_ROUNDS: ${{ github.event_name == 'pull_request' && '5' || inputs.timing_profile == 'smoke' && '5' || '10' }}
-      OPAL_BENCHMARK_BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-      OPAL_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPAL_BENCHMARK_BASE_LIBRARY: ${{ github.workspace }}/../opal-base-lib
       OPAL_BENCHMARK_HEAD_LIBRARY: ${{ github.workspace }}/../opal-head-lib
     steps:
@@ -134,25 +138,47 @@ jobs:
             echo 'OPAL_BENCHMARK_ACCEPTED=true' >> "$GITHUB_ENV"
             echo 'Timing regression accepted by a verified repository maintainer; measurements remain in artifacts.' >> "$GITHUB_STEP_SUMMARY"
           fi
+      # PRs measure GitHub's test merge commit against its first parent (the
+      # target tip it merged), so target-branch changes are not attributed to
+      # the PR. Other runs compare BASE=HEAD unless base_ref is dispatched.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'schedule' && 'dev' || github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.sha }}
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
           persist-credentials: false
       - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.base_ref != ''
         with:
-          ref: ${{ github.event_name == 'schedule' && 'dev' || github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ inputs.base_ref }}
           path: base
           persist-credentials: false
       - name: Record exact compared revisions
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          base_sha=$(git -C base rev-parse HEAD)
+          set -euo pipefail
           head_sha=$(git rev-parse HEAD)
-          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$base_sha" != "$head_sha" ]; then
-            echo 'BASE=HEAD revisions differ; dev advanced during checkout. No stability measurement performed.'
-            exit 1
+          if [ -d base ]; then
+            comparison=base-ref
+            base_sha=$(git -C base rev-parse HEAD)
+          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            comparison=pr-merge
+            base_sha=$(git rev-parse HEAD^1)
+            if [ "$(git rev-parse HEAD^2)" != "$PR_HEAD_SHA" ]; then
+              echo 'The test merge commit does not contain the PR head; no A/B measurement performed.'
+              exit 1
+            fi
+            git worktree add --detach base "$base_sha"
+          else
+            comparison=same-revision
+            base_sha=$head_sha
+            git worktree add --detach base "$base_sha"
           fi
+          echo "OPAL_BENCHMARK_COMPARISON=$comparison" >> "$GITHUB_ENV"
           echo "OPAL_BENCHMARK_BASE_SHA=$base_sha" >> "$GITHUB_ENV"
           echo "OPAL_BENCHMARK_HEAD_SHA=$head_sha" >> "$GITHUB_ENV"
+          echo "OPAL_BENCHMARK_PR_HEAD_SHA=$PR_HEAD_SHA" >> "$GITHUB_ENV"
+          echo "A/B comparison: $comparison; BASE $base_sha; HEAD $head_sha" >> "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/setup-opal-env
       - name: Install BASE and HEAD packages separately
         run: |

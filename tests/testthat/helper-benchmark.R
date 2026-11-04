@@ -13,13 +13,23 @@ benchmark_root <- function() {
   }
 }
 
-benchmark_cases <- function() {
-  cases <- c(
+benchmark_case_names <- function() {
+  c(
     paste0("opaka_", c("makeadfun", "fn", "gr", "fit", "report", "sdreport")),
     paste0("bet_", c("makeadfun", "fn", "gr", "trajectory", "fit", "sdreport")),
     paste0("io_yft_", c("makeadfun", "fn", "gr", "trajectory", "fit_evals")),
     "opal_model_plain"
   )
+}
+
+benchmark_instruction_cases <- function() {
+  c("opaka_fn", "opaka_gr", "io_yft_fn", "io_yft_gr")
+}
+
+benchmark_fit_count_cases <- function() c("opaka_fit", "bet_fit", "io_yft_fit_evals")
+
+benchmark_cases <- function() {
+  cases <- benchmark_case_names()
   selection <- Sys.getenv("OPAL_BENCHMARK_CASES", "")
   if (!nzchar(selection)) {
     if (identical(Sys.getenv("OPAL_BENCHMARK_FULL_FITS"), "false")) {
@@ -408,6 +418,60 @@ benchmark_retain_instruction_metadata <- function(metadata, previous_metadata,
     metadata$instruction_measurement <- previous_metadata$instruction_measurement
   }
   metadata
+}
+
+# Instruction provenance is layer-wide, so only a complete measured artifact
+# may replace it; a partial one would leave stale rows under new provenance.
+benchmark_merge_instructions <- function(results, metadata, instructions, source = list()) {
+  required <- c("case", "metric", "value", "units")
+  x <- instructions$results
+  if (!is.data.frame(x) || !all(required %in% names(x)) ||
+      any(x$metric != "instructions") || any(!is.finite(x$value)) ||
+      any(x$value <= 0) || anyDuplicated(x[c("case", "metric")])) {
+    stop("Invalid measured instruction artifact.")
+  }
+  expected <- benchmark_instruction_cases()
+  if (!setequal(x$case, expected) || nrow(x) != length(expected)) {
+    stop("Instruction artifact must contain exactly the cases ",
+         paste(expected, collapse = ", "), "; got ", paste(x$case, collapse = ", "))
+  }
+  results <- rbind(results[results$metric != "instructions", required], x[required])
+  metadata$instruction_measurement <- c(source, list(metadata = instructions$metadata))
+  list(results = results, metadata = metadata)
+}
+
+benchmark_check_baseline <- function(results) {
+  cases <- benchmark_case_names()
+  if (!is.data.frame(results) || anyDuplicated(results[c("case", "metric")]) ||
+      any(!is.finite(results$value) | results$value < 0)) {
+    stop("Baseline rows must be unique, finite and non-negative.")
+  }
+  unknown <- setdiff(results$case, cases)
+  if (length(unknown)) stop("Unknown baseline case(s): ", paste(unknown, collapse = ", "))
+  missing <- unlist(lapply(cases, function(case) {
+    metrics <- c("median_seconds", "mem_alloc_bytes", "structural_bytes", "peak_rss_bytes")
+    if (case %in% benchmark_fit_count_cases()) {
+      metrics <- c(metrics, "fn_evals", "gr_evals", "iterations")
+    }
+    if (case %in% benchmark_instruction_cases()) metrics <- c(metrics, "instructions")
+    absent <- setdiff(metrics, results$metric[results$case == case])
+    if (length(absent)) paste(case, absent) else character()
+  }))
+  if (length(missing)) stop("Baseline is missing: ", paste(missing, collapse = ", "))
+  invisible(results)
+}
+
+# Idle metadata is collected from the HEAD checkout's harness, so its git
+# fields describe the harness; the measured revision comes from each library.
+benchmark_ab_library_metadata <- function(idle, shas) {
+  fields <- c("git_sha", "git_dirty", "source_md5")
+  stats::setNames(lapply(names(idle), function(version) {
+    record <- idle[[version]]$metadata
+    record$harness_checkout <- record[fields]
+    record[fields] <- NULL
+    record$git_sha <- unname(shas[[version]])
+    record
+  }), names(idle))
 }
 
 write_benchmark_results <- function(results, out) {

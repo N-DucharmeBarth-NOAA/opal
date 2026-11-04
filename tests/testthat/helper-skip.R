@@ -15,11 +15,3 @@ skip_if_not_benchmark <- function() {
     "Set OPAL_BENCHMARK=true to run performance benchmarks"
   )
 }
-
-benchmark_tolerance <- function() {
-  value <- suppressWarnings(as.numeric(Sys.getenv("OPAL_BENCHMARK_TOL", "0.10")))
-  if (length(value) != 1L || !is.finite(value) || value < 0) {
-    stop("OPAL_BENCHMARK_TOL must be a finite non-negative number")
-  }
-  value
-}

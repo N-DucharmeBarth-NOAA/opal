@@ -123,10 +123,19 @@ separate, fresh idle reference per installed library across the job, rather
 than reloading the same idle package before every round; this matches how the
 multi-case memory runner subtracts one idle reference.
 
+PR timing measures GitHub's test merge commit against its first parent, the
+target-branch tip it merged, so target-branch changes are not attributed to the
+PR. Rounds alternate whether BASE or HEAD runs first.
+
 Weekly `timing-ab` retains the full 17-case, ten-round suite, comparing two
 separately installed copies of the same exact `dev` SHA. Manual dispatch also
 compares BASE=HEAD at the dispatched revision; select `timing_profile: smoke`
-for the PR profile or `full` (default) for the weekly profile. This checks
+for the PR profile or `full` (default) for the weekly profile. For BASE-versus-HEAD
+coverage of BET, tape construction, trajectories, reports and Hessians, dispatch
+on the PR branch with `base_ref` set to the target branch or SHA and
+`timing_profile: full`; this on-demand comparison is not a required PR check.
+Each scheduled or manual run has its own concurrency group, so queued
+calibration runs are never cancelled; superseded PR runs are. This checks
 same-runner stability, not cumulative timing creep; weekly instruction counts
 provide the committed-baseline creep gate. The full memory suite is unchanged,
 including opaka/BET fit counts on PRs and IO YFT fit counts weekly/manually.
@@ -192,23 +201,19 @@ OPAL_BENCHMARK_FULL_FITS=true \
   Rscript dev/update-benchmark-baseline.R 20 benchmark-out/instructions.rds
 ```
 
-For a dispatched update, extract the reviewed memory and instruction artifacts
-into `benchmark-out/`, then explicitly combine them:
+For a dispatched update, extract the reviewed `benchmark-memory` and
+`benchmark-instructions` artifacts, then explicitly combine them, recording the
+reviewed run/attempt/artifact URLs:
 
 ``` sh
-Rscript - <<'RS'
-baseline <- readRDS("benchmark-out/baseline.rds")
-instructions <- readRDS("benchmark-out/instructions.rds")
-baseline$results <- rbind(
-  subset(baseline$results, metric != "instructions"),
-  instructions$results
-)
-baseline$metadata$instruction_measurement <- instructions$metadata
-# Before saving, record reviewed run/attempt/artifact URLs in
-# baseline$metadata$hosted_artifacts alongside each layer's provenance.
-saveRDS(baseline, "tests/testthat/_benchmark/baseline.rds", version = 3)
-RS
+Rscript dev/combine-benchmark-baseline.R \
+  benchmark-out/memory/baseline.rds benchmark-out/instructions/instructions.rds \
+  --hosted https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/<run>/attempts/<n> \
+  https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/<run>/artifacts/<id>
 ```
+
+The script requires all four instruction cases and every memory, timing and
+fit-count metric. A partial artifact cannot replace layer-wide provenance.
 
 For an intentional A/B time or memory regression, explain the trade-off in a nonempty
 `Performance rationale: ...` line in the PR description. A repository maintainer
