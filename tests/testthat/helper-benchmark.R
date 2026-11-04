@@ -58,6 +58,23 @@ benchmark_timing_cases <- function(profile = Sys.getenv("OPAL_BENCHMARK_TIMING_P
   cases
 }
 
+benchmark_count_metrics <- function() c("fn_evals", "gr_evals", "iterations")
+
+# Fit counts are deterministic on one runner but shift across hosted CPU models
+# (BET by about 35%), so A/B compares them BASE versus HEAD on the same runner.
+# Only the well-conditioned Opakapaka fit gates; BET and IO YFT counts are so
+# sensitive to rounding that they only warn, in the full profile.
+benchmark_count_cases <- function(profile = Sys.getenv("OPAL_BENCHMARK_TIMING_PROFILE", "full")) {
+  if (!is.character(profile) || length(profile) != 1L || is.na(profile) ||
+      !profile %in% c("smoke", "full")) {
+    stop("Timing profile must be smoke or full.")
+  }
+  cases <- if (profile == "smoke") "opaka_fit" else benchmark_fit_count_cases()
+  intersect(cases, benchmark_cases())
+}
+
+benchmark_gated_count_cases <- function() "opaka_fit"
+
 benchmark_inputs <- function(model) {
   if (identical(model, "opaka")) return(opal::opaka_quickstart_inputs())
   if (identical(model, "io_yft")) {
@@ -430,7 +447,10 @@ benchmark_tolerance <- function() {
   value
 }
 
-compare_to_baseline <- function(observed, baseline, tolerance = benchmark_tolerance()) {
+# `recorded` metrics are reported but never fail: single-run wall time, and fit
+# counts, which depend on the runner's CPU model when compared to a baseline.
+compare_to_baseline <- function(observed, baseline, tolerance = benchmark_tolerance(),
+                                recorded = c("median_seconds", benchmark_count_metrics())) {
   if (is.list(baseline) && !is.data.frame(baseline)) baseline <- baseline$results
   required <- c("case", "metric", "value", "units")
   for (x in list(observed, baseline)) {
@@ -449,10 +469,9 @@ compare_to_baseline <- function(observed, baseline, tolerance = benchmark_tolera
   valid <- is.finite(result$baseline) & is.finite(result$observed) &
     result$baseline >= 0 & result$observed >= 0 &
     result$units.observed == result$units.baseline
-  # Wall time is deliberately recorded, not gated in a single measurement.
   peak_noise <- result$metric == "peak_rss_bytes" &
     result$observed - result$baseline < 5 * 1024^2
-  result$pass <- valid & (result$metric == "median_seconds" |
+  result$pass <- valid & (result$metric %in% recorded |
                            peak_noise |
                            result$observed <= result$baseline * (1 + tolerance))
   result$pass[is.na(result$pass)] <- FALSE

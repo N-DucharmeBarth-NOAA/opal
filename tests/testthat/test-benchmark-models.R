@@ -36,7 +36,10 @@ test_that("benchmark comparison gates memory and structure, not single-run time"
   expect_true(compare_to_baseline(raised, boundary)$pass)
   boundary$metric <- raised$metric <- "fn_evals"
   raised$value <- 111
-  expect_false(compare_to_baseline(raised, boundary)$pass)
+  # Committed-baseline fit counts depend on the runner CPU, so they are recorded;
+  # same-runner A/B comparisons gate them.
+  expect_true(compare_to_baseline(raised, boundary)$pass)
+  expect_false(compare_to_baseline(raised, boundary, recorded = character())$pass)
   improved <- x
   improved$value[2] <- 80
   expect_message(compare_to_baseline(improved, x), "refresh.*baseline")

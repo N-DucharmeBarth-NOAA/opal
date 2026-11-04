@@ -127,24 +127,34 @@ PR timing measures GitHub's test merge commit against its first parent, the
 target-branch tip it merged, so target-branch changes are not attributed to the
 PR. Rounds alternate whether BASE or HEAD runs first.
 
+Fit counts (`fn_evals`, `gr_evals`, `iterations`) are compared BASE versus
+HEAD within `timing-ab`, one fit per revision on the same runner, not against
+the committed baseline. Counts are deterministic on one machine but differ
+between hosted CPU models: identical code gave 1225 BET fn evaluations on an
+AMD EPYC 9V45 and 1651 on an Intel Xeon 8370C. PRs gate the well-conditioned
+`opaka_fit` (+10% fails; `performance-accepted` does not waive it). The full
+profile also compares `bet_fit` and `io_yft_fit_evals`, but only warns, because
+their counts change with harmless floating-point rounding. The committed
+baseline still records all counts as trend measurements.
+
 Weekly `timing-ab` retains the full 17-case, ten-round suite, comparing two
-separately installed copies of the same exact `dev` SHA. Manual dispatch also
-compares BASE=HEAD at the dispatched revision; select `timing_profile: smoke`
-for the PR profile or `full` (default) for the weekly profile. For BASE-versus-HEAD
-coverage of BET, tape construction, trajectories, reports and Hessians, dispatch
-on the PR branch with `base_ref` set to the target branch or SHA and
-`timing_profile: full`; this on-demand comparison is not a required PR check.
-Each scheduled or manual run has its own concurrency group, so queued
-calibration runs are never cancelled; superseded PR runs are. This checks
+separately installed copies of the same exact `dev` SHA. This checks
 same-runner stability, not cumulative timing creep; weekly instruction counts
-provide the committed-baseline creep gate. The full memory suite is unchanged,
-including opaka/BET fit counts on PRs and IO YFT fit counts weekly/manually.
-The `instructions`
-job uses Valgrind on weekly and manual runs only. `OPAL_BENCHMARK_FULL_FITS`
-controls only the costly `io_yft_fit_evals` case: it is enabled on weekly/manual
-runs and disabled on PRs. The opaka and BET fit-count gates still run on every
-PR, alongside objective construction and evaluation. All jobs use the shared
-Ubuntu 22.04 environment and one OpenMP, OpenBLAS, and MKL thread.
+provide the committed-baseline creep gate. Manual dispatch also compares
+BASE=HEAD at the dispatched revision; select `timing_profile: smoke` for the PR
+profile or `full` (default) for the weekly profile. For BASE-versus-HEAD
+coverage of BET, tape construction, trajectories, reports, Hessians and the
+BET/IO YFT fit counts, dispatch on the PR branch with `base_ref` set to the
+target branch or SHA and `timing_profile: full`; this on-demand comparison is
+not a required PR check. Each scheduled or manual run has its own concurrency
+group, so queued calibration runs are never cancelled; superseded PR runs are.
+
+The full memory suite runs on PRs and records every workload against the
+committed baseline. The `instructions` job uses Valgrind on weekly and manual
+runs only. `OPAL_BENCHMARK_FULL_FITS` controls only the costly
+`io_yft_fit_evals` case: it is enabled on weekly/manual runs and disabled on
+PRs. All jobs use the shared Ubuntu 22.04 environment and one OpenMP, OpenBLAS,
+and MKL thread.
 
 Benchmarks are opt-in locally. From the repository root, install the package
 into a separate library, then run memory measurements:

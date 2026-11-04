@@ -8,7 +8,6 @@ benchmark_ab_main <- function() {
   if (any(!dir.exists(libraries))) stop("Both installed A/B libraries are required")
   rounds <- as.integer(Sys.getenv("OPAL_BENCHMARK_ROUNDS", "10"))
   if (!is.finite(rounds) || rounds < 5L) stop("At least five A/B rounds are required")
-  # A single long fit collects deterministic counts, not a timing CI.
   timing_cases <- benchmark_timing_cases()
   out <- Sys.getenv("OPAL_BENCHMARK_OUT", file.path(root, "benchmark-out"))
   dir.create(out, recursive = TRUE, showWarnings = FALSE)
@@ -19,34 +18,58 @@ benchmark_ab_main <- function() {
   injections <- list()
   # Each library needs one fresh idle reference, as in the multi-case runner.
   idle <- setNames(vector("list", length(libraries)), names(libraries))
+  measure <- function(case, version, iterations, round, position) {
+    value <- run_benchmarks(cases = case, library = libraries[[version]],
+                            iterations = iterations, idle = idle[[version]],
+                            inject = version == inject_version)
+    idle[[version]] <<- attr(value, "benchmark_idle")
+    for (injection in attr(value, "benchmark_metadata")$injections) {
+      injections[[length(injections) + 1L]] <<- c(injection,
+                                                  list(version = version, round = round))
+    }
+    value$round <- round
+    value$version <- version
+    value$position <- position
+    measurements[[length(measurements) + 1L]] <<- value
+    # Preserve partial results even when a later benchmark fails.
+    write.csv(do.call(rbind, measurements), file.path(out, "rounds.csv"),
+              row.names = FALSE)
+  }
   for (case in timing_cases) {
     for (round in seq_len(rounds)) {
       # Alternate which revision runs first so within-pair drift cancels.
       order <- if (round %% 2L) names(libraries) else rev(names(libraries))
       for (position in seq_along(order)) {
-        version <- order[[position]]
-        iterations <- if (grepl("_fit$", case)) 1L else 20L
-        value <- run_benchmarks(cases = case, library = libraries[[version]],
-                                iterations = iterations, idle = idle[[version]],
-                                inject = version == inject_version)
-        idle[[version]] <- attr(value, "benchmark_idle")
-        for (injection in attr(value, "benchmark_metadata")$injections) {
-          injections[[length(injections) + 1L]] <- c(injection,
-                                                     list(version = version, round = round))
-        }
-        value$round <- round
-        value$version <- version
-        value$position <- position
-        measurements[[length(measurements) + 1L]] <- value
-        # Preserve partial results even when a later benchmark fails.
-        write.csv(do.call(rbind, measurements), file.path(out, "rounds.csv"),
-                  row.names = FALSE)
+        measure(case, order[[position]], if (grepl("_fit$", case)) 1L else 20L,
+                round, position)
       }
     }
   }
+  # Counts are deterministic on one runner: one fit per revision suffices.
+  count_cases <- benchmark_count_cases()
+  for (case in count_cases) {
+    for (position in seq_along(libraries)) {
+      measure(case, names(libraries)[[position]], 1L, 0L, position)
+    }
+  }
   raw <- do.call(rbind, measurements)
+  counts <- raw[raw$round == 0L & raw$metric %in% benchmark_count_metrics(), ]
+  raw <- raw[raw$round > 0L & !raw$metric %in% benchmark_count_metrics(), ]
   tolerance <- benchmark_tolerance()
   results <- list()
+  for (case in unique(counts$case)) {
+    x <- counts[counts$case == case, ]
+    observed <- x[x$version == "head", c("case", "metric", "value", "units")]
+    row <- compare_to_baseline(observed, x[x$version == "base", names(observed)],
+                               tolerance, recorded = character())
+    row$lower <- NA_real_
+    row$upper <- NA_real_
+    row$enforced <- case %in% benchmark_gated_count_cases()
+    if (any(!row$pass & !row$enforced)) {
+      warning(case, ": fit counts changed beyond tolerance (reported, not gated)")
+    }
+    results[[length(results) + 1L]] <- row
+  }
   for (case in unique(raw$case)) {
     values <- raw[raw$case == case, ]
     for (metric in unique(values$metric)) {
@@ -76,10 +99,12 @@ benchmark_ab_main <- function() {
         row$lower <- NA_real_
         row$upper <- NA_real_
       }
+      row$enforced <- TRUE
       results[[length(results) + 1L]] <- row
     }
   }
   results <- do.call(rbind, results)
+  rownames(results) <- NULL
   metadata <- idle$head$metadata
   shas <- Sys.getenv(c(base = "OPAL_BENCHMARK_BASE_SHA", head = "OPAL_BENCHMARK_HEAD_SHA"),
                      unset = NA_character_)
@@ -88,6 +113,8 @@ benchmark_ab_main <- function() {
   metadata$comparison <- Sys.getenv("OPAL_BENCHMARK_COMPARISON", unset = NA_character_)
   metadata$pr_head_sha <- Sys.getenv("OPAL_BENCHMARK_PR_HEAD_SHA", unset = NA_character_)
   metadata$timing_cases <- timing_cases
+  metadata$count_cases <- count_cases
+  metadata$gated_count_cases <- intersect(count_cases, benchmark_gated_count_cases())
   metadata$rounds <- rounds
   metadata$round_order <- "BASE first in odd rounds, HEAD first in even rounds"
   metadata$injections <- injections
@@ -97,15 +124,14 @@ benchmark_ab_main <- function() {
                commits = Sys.getenv(c("OPAL_BENCHMARK_BASE_SHA",
                                       "OPAL_BENCHMARK_HEAD_SHA"))),
           file.path(out, "provenance.rds"))
-  failures <- results[!results$pass, ]
+  failures <- results[!results$pass & results$enforced, ]
   if (nrow(failures)) {
     details <- sprintf("%s %s: %.6g vs base %.6g (%+.1f%%; limit +%.1f%%)",
                        failures$case, failures$metric, failures$observed,
                        failures$baseline, 100 * (failures$ratio - 1),
                        100 * tolerance)
     # Set only by the workflow's permission-checked maintainer-label step.
-    count_failure <- failures$metric %in% c("fn_evals", "gr_evals", "iterations",
-                                           "instructions")
+    count_failure <- failures$metric %in% c(benchmark_count_metrics(), "instructions")
     if (identical(Sys.getenv("OPAL_BENCHMARK_ACCEPTED"), "true") &&
         !any(count_failure)) {
       warning(paste(c("Maintainer accepted performance regression:", details),

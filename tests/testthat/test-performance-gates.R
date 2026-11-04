@@ -37,6 +37,27 @@ test_that("PR timing smoke covers only Opakapaka and IO YFT objectives and gradi
   expect_identical(benchmark_timing_cases("full"), "bet_fit")
 })
 
+test_that("A/B fit counts gate only the Opakapaka fit on PRs", {
+  old <- Sys.getenv(c("OPAL_BENCHMARK_CASES", "OPAL_BENCHMARK_FULL_FITS"), unset = NA_character_)
+  on.exit({
+    for (name in names(old)) {
+      if (is.na(old[[name]])) Sys.unsetenv(name) else
+        do.call(Sys.setenv, setNames(list(old[[name]]), name))
+    }
+  })
+  Sys.unsetenv("OPAL_BENCHMARK_CASES")
+  Sys.setenv(OPAL_BENCHMARK_FULL_FITS = "false")
+  expect_identical(benchmark_count_cases("smoke"), "opaka_fit")
+  expect_identical(benchmark_count_cases("full"), c("opaka_fit", "bet_fit"))
+  Sys.setenv(OPAL_BENCHMARK_FULL_FITS = "true")
+  expect_identical(benchmark_count_cases("full"),
+                   c("opaka_fit", "bet_fit", "io_yft_fit_evals"))
+  expect_identical(benchmark_gated_count_cases(), "opaka_fit")
+  Sys.setenv(OPAL_BENCHMARK_CASES = "bet_fn")
+  expect_length(benchmark_count_cases("smoke"), 0L)
+  expect_error(benchmark_count_cases("invalid"), "smoke or full")
+})
+
 test_that("paired timing confidence intervals gate confident regressions", {
   expect_equal(unname(benchmark_ratio_ci(rep(1, 10), rep(1, 10))),
                c(1, 1, 1))
@@ -57,7 +78,11 @@ test_that("15 percent memory and fit-count regressions fail without waiving the 
                          units = c("bytes", "count", "count", "count", "bytes"))
   observed <- baseline
   observed$value <- baseline$value * 1.15
-  expect_false(any(compare_to_baseline(observed, baseline, tolerance = 0.10)$pass))
+  # Same-runner A/B fit counts gate; committed-baseline counts are recorded.
+  expect_false(any(compare_to_baseline(observed, baseline, tolerance = 0.10,
+                                       recorded = character())$pass))
+  committed <- compare_to_baseline(observed, baseline, tolerance = 0.10)
+  expect_identical(committed$pass, committed$metric %in% c("fn_evals", "gr_evals", "iterations"))
   peak <- baseline[baseline$metric == "peak_rss_bytes", ]
   observed <- peak
   observed$value <- peak$value + 5 * 1024^2 - 1
