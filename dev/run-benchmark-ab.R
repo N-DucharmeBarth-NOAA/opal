@@ -13,6 +13,10 @@ benchmark_ab_main <- function() {
   out <- Sys.getenv("OPAL_BENCHMARK_OUT", file.path(root, "benchmark-out"))
   dir.create(out, recursive = TRUE, showWarnings = FALSE)
   measurements <- list()
+  # TEMPORARY validation-only (#164): inject into one revision only.
+  inject_version <- Sys.getenv("OPAL_BENCHMARK_INJECT_VERSION", "head")
+  if (!inject_version %in% names(libraries)) stop("OPAL_BENCHMARK_INJECT_VERSION must be base or head")
+  injections <- list()
   # Each library needs one fresh idle reference, as in the multi-case runner.
   idle <- setNames(vector("list", length(libraries)), names(libraries))
   for (case in timing_cases) {
@@ -23,8 +27,13 @@ benchmark_ab_main <- function() {
         version <- order[[position]]
         iterations <- if (grepl("_fit$", case)) 1L else 20L
         value <- run_benchmarks(cases = case, library = libraries[[version]],
-                                iterations = iterations, idle = idle[[version]])
+                                iterations = iterations, idle = idle[[version]],
+                                inject = version == inject_version)
         idle[[version]] <- attr(value, "benchmark_idle")
+        for (injection in attr(value, "benchmark_metadata")$injections) {
+          injections[[length(injections) + 1L]] <- c(injection,
+                                                     list(version = version, round = round))
+        }
         value$round <- round
         value$version <- version
         value$position <- position
@@ -81,6 +90,7 @@ benchmark_ab_main <- function() {
   metadata$timing_cases <- timing_cases
   metadata$rounds <- rounds
   metadata$round_order <- "BASE first in odd rounds, HEAD first in even rounds"
+  metadata$injections <- injections
   attr(results, "benchmark_metadata") <- metadata
   write_benchmark_results(results, out)
   saveRDS(list(metadata = metadata, libraries = libraries,
