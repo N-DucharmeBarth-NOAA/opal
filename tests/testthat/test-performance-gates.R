@@ -10,7 +10,7 @@ test_that("benchmark tolerance rejects invalid input", {
   expect_equal(benchmark_tolerance(), 0.1)
 })
 
-test_that("PR timing smoke covers all model scales without repeated full fits", {
+test_that("PR timing smoke covers only Opakapaka and IO YFT objectives and gradients", {
   old <- Sys.getenv(c("OPAL_BENCHMARK_CASES", "OPAL_BENCHMARK_FULL_FITS"), unset = NA_character_)
   on.exit({
     for (name in names(old)) {
@@ -20,14 +20,18 @@ test_that("PR timing smoke covers all model scales without repeated full fits", 
   })
   Sys.unsetenv(c("OPAL_BENCHMARK_CASES", "OPAL_BENCHMARK_FULL_FITS"))
   smoke <- benchmark_timing_cases("smoke")
-  expect_setequal(smoke, c("opaka_fn", "opaka_gr", "bet_fn", "bet_gr",
+  expect_setequal(smoke, c("opaka_fn", "opaka_gr",
                           "io_yft_fn", "io_yft_gr"))
   expect_length(benchmark_timing_cases("full"), 17L)
   expect_true(all(smoke %in% benchmark_timing_cases("full")))
   expect_false(any(grepl("_(fit|fit_evals|sdreport|trajectory)$", smoke)))
+  expect_true(all(c("bet_fn", "bet_gr") %in% benchmark_timing_cases("full")))
   expect_error(benchmark_timing_cases("invalid"), "smoke or full")
   expect_error(benchmark_timing_cases(c("smoke", "full")), "smoke or full")
   expect_error(benchmark_timing_cases(NA_character_), "smoke or full")
+  Sys.setenv(OPAL_BENCHMARK_CASES = "bet_fn,bet_gr")
+  expect_error(benchmark_timing_cases("smoke"), "No timing cases")
+  expect_setequal(benchmark_timing_cases("full"), c("bet_fn", "bet_gr"))
   Sys.setenv(OPAL_BENCHMARK_CASES = "bet_fit")
   expect_error(benchmark_timing_cases("smoke"), "No timing cases")
   expect_identical(benchmark_timing_cases("full"), "bet_fit")

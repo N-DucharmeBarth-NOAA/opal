@@ -112,8 +112,8 @@ simulation tests. Its `memory` job runs on every pull request to `dev` or
 `main`, weekly against `dev`, and on manual dispatch. The PR `timing-ab`
 job installs the exact PR BASE and HEAD in separate libraries outside the
 checkouts and measures them interleaved on the same runner. PR timing uses five
-paired rounds of six indicative cases: objectives and gradients for opaka, BET
-and IO YFT. Tape construction, reports, repeated fits, trajectories and Hessians
+paired rounds of four indicative cases: objectives and gradients for Opakapaka
+and IO YFT. BET timing, tape construction, reports, repeated fits, trajectories and Hessians
 remain in the full weekly suite and the unchanged memory suite. PR timing targets 10–20 minutes including
 cached setup. The measurement step has a 20-minute PR timeout; setup time and
 uncached dependency restoration can exceed the target, so this is not yet a
