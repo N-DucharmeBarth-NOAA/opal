@@ -1,10 +1,8 @@
-# Baseline calibration: 2026-11-03, Ubuntu 22.04, R 4.5.2, RTMB 1.9,
-# one OMP/OpenBLAS/MKL thread. Generated explicitly with
-# dev/update-benchmark-baseline.R 20 and dev/run-benchmark-instructions.R.
-# Hosted memory rows: run 41724716265 attempt 2, artifact 13275492072.
-# IO YFT full-fit and instruction rows remain sandbox candidates; metadata
-# marks the pending hosted metrics. Complete hosted calibration/noise validation
-# before making the checks required.
+# Baseline calibration: 2026-11-04, hosted Ubuntu 22.04, R 4.5.2, RTMB 1.9,
+# TMB 1.9.21, one OMP/OpenBLAS/MKL thread, SHA 7ea4c1f, run 41895537099
+# attempt 1. Memory/timing/count rows: artifact 13356907664 (Intel Xeon
+# 8370C). Instruction rows: artifact 13356677878 (AMD EPYC 7763, Valgrind
+# 3.18.1). Combined with dev/combine-benchmark-baseline.R.
 test_that("benchmark comparison gates memory and structure, not single-run time", {
   old <- Sys.getenv("OPAL_BENCHMARK_TOL", unset = NA_character_)
   on.exit(if (is.na(old)) Sys.unsetenv("OPAL_BENCHMARK_TOL") else
