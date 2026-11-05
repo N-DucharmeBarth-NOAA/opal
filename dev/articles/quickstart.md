@@ -157,10 +157,10 @@ fit$validation$fit
 #> 
 #> 
 #> $checked_at
-#> [1] "2026-11-03 18:50:39 UTC"
+#> [1] "2026-11-05 18:41:31 UTC"
 #> 
 #> $payload_id
-#> [1] "40d88c5384ba0752160b1bdef1ecc23c"
+#> [1] "aef5f0f2b879743c73ed9570e05f5f6d"
 ```
 
 The optimiser can return convergence code zero while the maximum

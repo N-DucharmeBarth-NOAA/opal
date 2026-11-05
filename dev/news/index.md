@@ -2,6 +2,13 @@
 
 ## opal 0.1.3
 
+- 2026/11/03
+  ([\#163](https://github.com/N-DucharmeBarth-NOAA/opal/issues/163)):
+  Add opt-in performance measurements and separate memory, PR timing
+  A/B, and scheduled instruction-count regression checks. Model numerics
+  are unchanged. Benchmark baselines are regenerated explicitly, never
+  by tests.
+
 - 2026/11/02
   ([\#155](https://github.com/N-DucharmeBarth-NOAA/opal/issues/155)):
   Reported multinomial `lp_lf` / `lp_wf` and their weighted components
