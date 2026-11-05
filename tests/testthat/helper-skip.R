@@ -8,3 +8,10 @@ skip_if_not_selftest <- function() {
 reference_tolerance <- function() {
   as.numeric(Sys.getenv("OPAL_REFERENCE_TOL", "1e-6"))
 }
+
+skip_if_not_benchmark <- function() {
+  testthat::skip_if_not(
+    identical(Sys.getenv("OPAL_BENCHMARK"), "true"),
+    "Set OPAL_BENCHMARK=true to run performance benchmarks"
+  )
+}

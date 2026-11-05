@@ -1,0 +1,246 @@
+name: benchmarks
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+  schedule:
+    # Monday runs every job; other days run only the instruction-count check.
+    - cron: "0 9 * * 1"
+    - cron: "0 9 * * 0,2-6"
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: "Generate replacement baselines for review (never commits them)"
+        type: boolean
+        default: false
+      tolerance:
+        description: "Regression tolerance as a fraction"
+        type: string
+        default: "0.10"
+      timing_profile:
+        description: "A/B profile (manual BASE=HEAD at the dispatched revision)"
+        type: choice
+        options: [smoke, full]
+        default: full
+      base_ref:
+        description: "Optional BASE branch, tag or SHA for an on-demand BASE-versus-HEAD A/B (empty: BASE=HEAD)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# Superseded PR runs are cancelled; each scheduled or manual run is independent
+# so queued calibration runs never cancel one another.
+concurrency:
+  group: benchmarks-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  OPAL_BENCHMARK: "true"
+  OPAL_BENCHMARK_ROOT: ${{ github.workspace }}
+  OPAL_BENCHMARK_OUT: ${{ github.workspace }}/benchmark-out
+  OPAL_BENCHMARK_UPDATE: ${{ inputs.update_baseline && 'true' || 'false' }}
+  OPAL_BENCHMARK_FULL_FITS: ${{ github.event_name == 'pull_request' && 'false' || 'true' }}
+  OPAL_BENCHMARK_TOL: ${{ inputs.tolerance || '0.10' }}
+
+jobs:
+  memory:
+    if: github.event_name != 'schedule' || github.event.schedule == '0 9 * * 1'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      OPAL_BENCHMARK_LAYER: memory
+      OPAL_BENCHMARK_LIBRARY: ${{ github.workspace }}/../opal-head-lib
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-opal-env
+      - name: Install HEAD package
+        run: |
+          mkdir -p "$OPAL_BENCHMARK_LIBRARY" "$OPAL_BENCHMARK_OUT"
+          R CMD INSTALL --library="$OPAL_BENCHMARK_LIBRARY" .
+      - name: Measure memory
+        shell: Rscript {0}
+        run: testthat::test_local(filter = "benchmark-models", stop_on_failure = TRUE)
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f "$OPAL_BENCHMARK_OUT/summary.md" ]; then
+            cat "$OPAL_BENCHMARK_OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Memory benchmark did not produce a summary; inspect the job log and artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-memory${{ github.run_attempt != '1' && format('-attempt-{0}', github.run_attempt) || '' }}
+          path: benchmark-out/
+          if-no-files-found: warn
+
+  timing-ab:
+    if: github.event_name != 'schedule' || github.event.schedule == '0 9 * * 1'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      OPAL_BENCHMARK_LAYER: timing-ab
+      OPAL_BENCHMARK_TIMING_PROFILE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.timing_profile || 'full' }}
+      OPAL_BENCHMARK_ROUNDS: ${{ github.event_name == 'pull_request' && '5' || inputs.timing_profile == 'smoke' && '5' || '10' }}
+      OPAL_BENCHMARK_BASE_LIBRARY: ${{ github.workspace }}/../opal-base-lib
+      OPAL_BENCHMARK_HEAD_LIBRARY: ${{ github.workspace }}/../opal-head-lib
+    steps:
+      # This guard runs before any PR code. API failures deny the override.
+      - name: Verify maintainer performance acceptance
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ github.api_url }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'OPAL_BENCHMARK_ACCEPTED=false' >> "$GITHUB_ENV"
+          api() {
+            curl --fail --silent --show-error --retry 3 \
+              -H "authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" "$1"
+          }
+          if ! pr=$(api "$API_URL/repos/$REPOSITORY/pulls/$PR_NUMBER"); then
+            echo 'Acceptance verification unavailable; regression gate remains enabled.'
+            exit 0
+          fi
+          if ! jq -e '
+            any(.labels[]; .name == "performance-accepted") and
+            ((.body // "") | test("(?im)^Performance rationale:[ \\t]*\\S[^\\r\\n]*"))
+          ' <<< "$pr" > /dev/null; then
+            exit 0
+          fi
+          actor=''
+          for page in $(seq 1 100); do
+            if ! events=$(api "$API_URL/repos/$REPOSITORY/issues/$PR_NUMBER/events?per_page=100&page=$page"); then
+              exit 0
+            fi
+            latest=$(jq -r '[.[] | select(.event == "labeled" and .label.name == "performance-accepted")] | last | .actor.login // empty' <<< "$events")
+            if [ -n "$latest" ]; then actor=$latest; fi
+            if [ "$(jq 'length' <<< "$events")" -lt 100 ]; then break; fi
+            if [ "$page" -eq 100 ]; then exit 0; fi
+          done
+          if [ -z "$actor" ]; then exit 0; fi
+          if ! permission=$(api "$API_URL/repos/$REPOSITORY/collaborators/$actor/permission"); then
+            exit 0
+          fi
+          if jq -e '.permission == "admin" or .permission == "maintain" or .role_name == "maintain"' <<< "$permission" > /dev/null; then
+            echo 'OPAL_BENCHMARK_ACCEPTED=true' >> "$GITHUB_ENV"
+            echo 'Timing regression accepted by a verified repository maintainer; measurements remain in artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # PRs measure GitHub's test merge commit against its first parent (the
+      # target tip it merged), so target-branch changes are not attributed to
+      # the PR. Other runs compare BASE=HEAD unless base_ref is dispatched.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.sha }}
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.base_ref != ''
+        with:
+          ref: ${{ inputs.base_ref }}
+          path: base
+          persist-credentials: false
+      - name: Record exact compared revisions
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          head_sha=$(git rev-parse HEAD)
+          if [ -d base ]; then
+            comparison=base-ref
+            base_sha=$(git -C base rev-parse HEAD)
+          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            comparison=pr-merge
+            base_sha=$(git rev-parse HEAD^1)
+            if [ "$(git rev-parse HEAD^2)" != "$PR_HEAD_SHA" ]; then
+              echo 'The test merge commit does not contain the PR head; no A/B measurement performed.'
+              exit 1
+            fi
+            git worktree add --detach base "$base_sha"
+          else
+            comparison=same-revision
+            base_sha=$head_sha
+            git worktree add --detach base "$base_sha"
+          fi
+          echo "OPAL_BENCHMARK_COMPARISON=$comparison" >> "$GITHUB_ENV"
+          echo "OPAL_BENCHMARK_BASE_SHA=$base_sha" >> "$GITHUB_ENV"
+          echo "OPAL_BENCHMARK_HEAD_SHA=$head_sha" >> "$GITHUB_ENV"
+          echo "OPAL_BENCHMARK_PR_HEAD_SHA=$PR_HEAD_SHA" >> "$GITHUB_ENV"
+          echo "A/B comparison: $comparison; BASE $base_sha; HEAD $head_sha" >> "$GITHUB_STEP_SUMMARY"
+      - uses: ./.github/actions/setup-opal-env
+      - name: Install BASE and HEAD packages separately
+        run: |
+          mkdir -p "$OPAL_BENCHMARK_BASE_LIBRARY" "$OPAL_BENCHMARK_HEAD_LIBRARY" "$OPAL_BENCHMARK_OUT"
+          R CMD INSTALL --library="$OPAL_BENCHMARK_BASE_LIBRARY" base/
+          R CMD INSTALL --library="$OPAL_BENCHMARK_HEAD_LIBRARY" .
+      - name: Measure interleaved BASE and HEAD timing
+        timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 350 }}
+        run: Rscript dev/run-benchmark-ab.R
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f "$OPAL_BENCHMARK_OUT/summary.md" ]; then
+            cat "$OPAL_BENCHMARK_OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Timing benchmark did not produce a summary; inspect the job log and artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-timing-ab${{ github.run_attempt != '1' && format('-attempt-{0}', github.run_attempt) || '' }}
+          path: benchmark-out/
+          if-no-files-found: warn
+
+  instructions:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      OPAL_BENCHMARK_LAYER: instructions
+      OPAL_BENCHMARK_LIBRARY: ${{ github.workspace }}/../opal-head-lib
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-opal-env
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends valgrind
+      - name: Install HEAD package
+        run: |
+          mkdir -p "$OPAL_BENCHMARK_LIBRARY" "$OPAL_BENCHMARK_OUT"
+          R CMD INSTALL --library="$OPAL_BENCHMARK_LIBRARY" .
+      - name: Measure instructions
+        run: Rscript dev/run-benchmark-instructions.R
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f "$OPAL_BENCHMARK_OUT/summary.md" ]; then
+            cat "$OPAL_BENCHMARK_OUT/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Instruction benchmark did not produce a summary; inspect the job log and artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-instructions${{ github.run_attempt != '1' && format('-attempt-{0}', github.run_attempt) || '' }}
+          path: benchmark-out/
+          if-no-files-found: warn

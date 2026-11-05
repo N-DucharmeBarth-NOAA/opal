@@ -66,4 +66,7 @@ inst/doc
 
 # ignore benchmark results
 profile_*.html
+/benchmark-out/
+/.benchmark-scratch/
+/base/
 .positai

@@ -105,6 +105,241 @@ Tests use `testthat` edition 3.
 
   `OPAL_SELFTEST_START` may be `"truth"` (default) or `"default"`, and `OPAL_SELFTEST_OUT` saves results to a directory. Self-tests also run in `.github/workflows/selftest.yaml`. Calibration limits are documented at the top of each self-test file; do not change them without rerunning the calibration and recording it there.
 
+### Performance benchmarks
+
+`.github/workflows/benchmark.yaml` runs independently of the numerical and
+simulation tests. Its `memory` job runs on every pull request to `dev` or
+`main`, weekly against `dev`, and on manual dispatch. The PR `timing-ab`
+job installs the exact PR BASE and HEAD in separate libraries outside the
+checkouts and measures them interleaved on the same runner. PR timing uses five
+paired rounds of four indicative cases: objectives and gradients for Opakapaka
+and IO YFT. BET timing, tape construction, reports, repeated fits, trajectories and Hessians
+remain in the full weekly suite and the unchanged memory suite. In hosted validation the PR
+timing measurement step took 7–11 minutes, within its 20-minute PR timeout;
+setup and uncached dependency restoration add to the job time.
+Each measured case/round still runs in a fresh subprocess. A/B reuses one
+separate, fresh idle reference per installed library across the job, rather
+than reloading the same idle package before every round; this matches how the
+multi-case memory runner subtracts one idle reference.
+
+PR timing measures GitHub's test merge commit against its first parent, the
+target-branch tip it merged, so target-branch changes are not attributed to the
+PR. Rounds alternate whether BASE or HEAD runs first.
+
+Optimizer-path metrics, meaning fit counts (`fn_evals`, `gr_evals`,
+`iterations`) and the fit cases' `mem_alloc_bytes`, are compared BASE versus
+HEAD within `timing-ab`, one fit per revision on the same runner, not against
+the committed baseline. They are deterministic on one machine but differ
+between hosted CPU models: identical code gave 1225 BET fn evaluations on an
+AMD EPYC 9V45 and 1651 on an Intel Xeon 8370C, and allocated 30% more on the
+latter. PRs gate the well-conditioned `opaka_fit` (+10% fails;
+`performance-accepted` does not waive count failures). The full profile also
+compares `bet_fit` and `io_yft_fit_evals`, but only warns, because their paths
+change with harmless floating-point rounding. The committed baseline records
+these metrics as trends; it still gates the fit cases' peak RSS and structural
+size, which do not depend on the path.
+
+Weekly `timing-ab` retains the full 17-case, ten-round suite, comparing two
+separately installed copies of the same exact `dev` SHA. This checks
+same-runner stability, not cumulative timing creep; daily instruction counts
+provide the committed-baseline creep gate. Manual dispatch also compares
+BASE=HEAD at the dispatched revision; select `timing_profile: smoke` for the PR
+profile or `full` (default) for the weekly profile. For BASE-versus-HEAD
+coverage of BET, tape construction, trajectories, reports, Hessians and the
+BET/IO YFT fit counts, dispatch on the PR branch with `base_ref` set to the
+target branch or SHA and `timing_profile: full`; this on-demand comparison is
+not a required PR check. Each scheduled or manual run has its own concurrency
+group, so queued calibration runs are never cancelled; superseded PR runs are.
+
+The full memory suite runs on PRs and records every workload against the
+committed baseline. The `instructions` job uses Valgrind on daily and manual
+runs only. `OPAL_BENCHMARK_FULL_FITS` controls only the costly
+`io_yft_fit_evals` case: it is enabled on scheduled and manual runs and disabled on
+PRs. All jobs use the shared Ubuntu 22.04 environment and one OpenMP, OpenBLAS,
+and MKL thread.
+
+Benchmarks are opt-in locally. From the repository root, install the package
+into a separate library, then run memory measurements:
+
+``` sh
+mkdir -p benchmark-out/head-lib
+R CMD INSTALL --library="$PWD/benchmark-out/head-lib" .
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+export OPAL_BENCHMARK=true OPAL_BENCHMARK_ROOT="$PWD"
+export OPAL_BENCHMARK_OUT="$PWD/benchmark-out"
+export OPAL_BENCHMARK_LIBRARY="$PWD/benchmark-out/head-lib"
+export OPAL_BENCHMARK_TOL=0.10
+OPAL_BENCHMARK_LAYER=memory Rscript -e \
+  'testthat::test_local(filter = "benchmark-models", stop_on_failure = TRUE)'
+```
+
+For instruction counts, install Valgrind and run
+`OPAL_BENCHMARK_LAYER=instructions Rscript dev/run-benchmark-instructions.R`
+with the same environment. To reproduce PR timing, install BASE and HEAD in
+separate libraries, set `OPAL_BENCHMARK_BASE_LIBRARY` and
+`OPAL_BENCHMARK_HEAD_LIBRARY` to their absolute paths, and run
+`OPAL_BENCHMARK_TIMING_PROFILE=smoke OPAL_BENCHMARK_ROUNDS=5 Rscript dev/run-benchmark-ab.R`.
+For the full suite use `OPAL_BENCHMARK_TIMING_PROFILE=full` and
+`OPAL_BENCHMARK_ROUNDS=10`. Both retain the 10% threshold and fail timing only
+when the lower 95% ratio confidence bound exceeds 1.10. Do not reuse a loaded package between
+revisions. Workflow artifacts retain measurements and environment metadata;
+the job summaries report results even when a regression fails. Re-running a
+workflow deletes the previous attempt's artifacts (its job summary remains), so
+download them before re-running.
+
+The default regression tolerance is `0.10` (10%). Manual dispatch accepts a
+`tolerance` fraction and an `update_baseline` boolean. Set `update_baseline` to generate candidate
+baselines, or set `OPAL_BENCHMARK_UPDATE=true` locally. Download the artifacts,
+review the measured changes and metadata, and explicitly merge the memory
+artifact's `baseline.rds` and instruction artifact's `instructions.rds` before
+committing. The committed `tests/testthat/_benchmark/baseline.rds` stores all
+layers together in its `results` table; `instructions.rds` is an intermediate
+artifact, not a second tracked baseline. The workflow never commits or pushes.
+Baselines are measurements,
+not universal constants: refresh them on the documented Ubuntu environment
+after changes to the runner image, R, dependencies, or benchmark definitions.
+Do not treat measurements from another machine as calibrated hosted baselines.
+
+With the same environment as above, explicit regeneration commands are:
+
+``` sh
+# Regenerate measured baselines (20 timing samples for applicable cases).
+OPAL_BENCHMARK_FULL_FITS=true Rscript dev/update-benchmark-baseline.R 20
+# Regenerate deterministic replay trajectories after reviewing model changes.
+Rscript dev/update-benchmark-trajectories.R opaka bet io_yft
+# Produce reviewable instruction measurements without gating against old values.
+OPAL_BENCHMARK_UPDATE=true OPAL_BENCHMARK_LAYER=instructions \
+  Rscript dev/run-benchmark-instructions.R
+# Regenerate memory/timing baselines and merge reviewed instruction measurements.
+OPAL_BENCHMARK_FULL_FITS=true \
+  Rscript dev/update-benchmark-baseline.R 20 benchmark-out/instructions.rds
+```
+
+For a dispatched update, extract the reviewed `benchmark-memory` and
+`benchmark-instructions` artifacts, then explicitly combine them, recording the
+reviewed run/attempt/artifact URLs:
+
+``` sh
+Rscript dev/combine-benchmark-baseline.R \
+  benchmark-out/memory/baseline.rds benchmark-out/instructions/instructions.rds \
+  --hosted https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/<run>/attempts/<n> \
+  https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/<run>/artifacts/<id>
+```
+
+The script requires all four instruction cases and every memory, timing and
+fit-count metric. A partial artifact cannot replace layer-wide provenance.
+
+For an intentional A/B time or memory regression, explain the trade-off in a nonempty
+`Performance rationale: ...` line in the PR description. A repository maintainer
+with `maintain` or `admin` permission may apply `performance-accepted`.
+Label additions/removals and PR description edits retrigger the workflow, so
+removing acceptance re-enables the gate. Before checking out PR code, the workflow checks the live PR
+label, rationale, latest label actor, and that actor's current repository
+permission through the read-only GitHub API. Missing evidence or API failure
+keeps the gate enabled. This exception covers the same-runner A/B comparison
+only; it does not suppress measurements or waive the committed-baseline memory
+gate, fit-count regressions, or instruction regressions. Fork PRs use `pull_request`, not
+`pull_request_target`, and receive no elevated token.
+
+#### Hosted calibration and validation (2026-11-04)
+
+Validation ran on the PR branch through a temporary push trigger, since
+`workflow_dispatch` needs the workflow on the default branch. Each pushed
+commit selected jobs and settings in its message. A temporary, opt-in
+injection mechanism provided the regressions. The trigger and the injection
+code were removed afterwards (`498ef62` and the following commit). All runs
+used Ubuntu 22.04, R 4.5.2 and one OMP/OpenBLAS/MKL thread. Hosted runners
+varied between Intel Xeon 8370C/8573C and AMD EPYC 7763/9V45/9V74.
+
+| Scenario | Commit | Run | Result |
+| --- | --- | --- | --- |
+| A1 calibration (`update` mode) | `7ea4c1f` | [41895537099](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41895537099) | `memory` and `instructions` succeeded; [memory artifact 13356907664](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41895537099/artifacts/13356907664) (Intel Xeon 8370C), [instruction artifact 13356677878](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41895537099/artifacts/13356677878) (AMD EPYC 7763). Combined into the committed 136-row baseline (`2ec851e`). |
+| A2 noise, BASE=HEAD smoke, 5 rounds | `9db1de8` | [41904602801](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41904602801), attempts 1–5 | 5/5 passed; see the table below. |
+| B1 +15% computational slowdown on HEAD | `0c22771` | [41922666176](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41922666176) | `instructions` failed on all four cases (ratios 1.150–1.157). `timing-ab` failed on `opaka_fn` and `opaka_gr`; IO YFT was slower but not detected (below). |
+| B2 memory: hold max(15% of baseline, 6 MiB) | `4dd74b2` | [41922799259](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41922799259) | `memory` failed only on the four injected cases. |
+| B2b perturbed `opaka_fit` start on HEAD | `02b76eb` | [41922920727](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41922920727) | `timing-ab` failed on `opaka_fit`: `fn_evals` 315→917, `gr_evals` 258→814, `iterations` 255→812, `mem_alloc_bytes` 1.84×. Timing passed. |
+| B3 clean, injection removed | `ff3e082` | [42069709377](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/42069709377) | All three jobs passed: timing ratios 0.98–1.00 (highest upper bound 1.026), `opaka_fit` counts identical, instructions within 0.15%. |
+
+PR-event runs also passed at `40b3db6` ([41891944073](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41891944073),
+first verified `pr-merge` comparison), `9db1de8`
+([41904613006](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/41904613006), first with the `opaka_fit` count gate) and
+`ff3e082` ([42069724617](https://github.com/N-DucharmeBarth-NOAA/opal/actions/runs/42069724617)). PR runs superseded by a later push
+were cancelled, as designed, and are not evidence.
+
+A2 timing ratios (HEAD/BASE median, with 95% paired-bootstrap interval):
+
+| Attempt | Runner | `opaka_fn` | `opaka_gr` | `io_yft_fn` | `io_yft_gr` |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Intel Xeon 8573C | 1.000 (0.997–1.000) | 1.002 (0.993–1.002) | 0.946 (0.906–0.985) | 0.986 (0.976–1.054) |
+| 2 | AMD EPYC 9V74 | 0.999 (0.994–1.000) | 0.999 (0.997–1.020) | 0.999 (0.999–1.000) | 1.000 (0.995–1.005) |
+| 3 | not recovered | 0.999 (0.995–1.002) | 1.000 (0.992–1.005) | 1.004 (0.998–1.006) | 0.995 (0.990–0.998) |
+| 4 | not recovered | 0.916 (0.901–1.088) | 0.997 (0.966–1.103) | 0.999 (0.929–1.094) | 1.005 (0.939–1.092) |
+| 5 | AMD EPYC 9V74 | 0.999 (0.999–1.009) | 1.005 (0.996–1.008) | 0.995 (0.873–1.007) | 0.996 (0.993–1.002) |
+
+No attempt came near a false failure (highest lower bound 1.004). Attempt 4
+was noisy, with upper bounds up to 1.103. Re-running deleted the artifacts of
+attempts 3 and 4, so their rows come from the retained job summaries.
+
+B1 timing results on an AMD EPYC 9V45 (20 injected measurements, HEAD only):
+
+| Case | Ratio | 95% interval | Gate |
+| --- | --- | --- | --- |
+| `opaka_fn` | 1.152 | 1.133–1.238 | failed |
+| `opaka_gr` | 1.143 | 1.116–1.203 | failed |
+| `io_yft_fn` | 1.134 | 1.066–1.251 | passed (warned) |
+| `io_yft_gr` | 1.140 | 1.092–1.180 | passed (warned) |
+
+In B2, `mem_alloc_bytes` and `structural_bytes` failed for all four
+injected cases. Peak RSS failed for `opaka_fn` (2.12×), `opaka_gr`
+(2.13×) and `io_yft_gr` (+42 MB, 1.115×). For `io_yft_fn` it rose 32 MB
+(1.086×) and passed. The rise exceeded the 5 MiB floor but not 10% of the
+368 MB baseline.
+
+Unit tests (`test-performance-gates.R`, `test-benchmark-models.R`) cover
+the comparison logic: the 10% threshold, the 5 MiB RSS floor, same-runner fit
+counts, paired-bootstrap intervals, baseline merging and A/B provenance. The
+hosted runs above show the same gates working end to end on GitHub runners.
+
+#### Known limitations
+
+- **PR timing sensitivity.** Timing fails only when the lower interval bound
+  exceeds 1.10. Five rounds reliably catch about 15% on the Opakapaka cases,
+  but on the noisier IO YFT cases only slowdowns of roughly 20–25% or more.
+  Doubling the rounds would narrow intervals by about 30%: still short of
+  reliable 15% detection for IO YFT, and over the 20-minute PR step limit.
+  Smaller slowdowns are caught by the instruction counts, which run daily
+  (below).
+- **Peak RSS on large models.** Peak RSS must exceed both 5 MiB and 10%, so on
+  the 368 MB IO YFT cases it misses increases below about 37 MB. Allocation and
+  structural size still gate those cases.
+- **Runner hardware varies.** Fit counts and fit allocations depend on the CPU,
+  so they are compared BASE versus HEAD on one runner, never against the
+  committed baseline. Committed timing rows are reference values, not gates.
+- **The harness is part of the PR.** `timing-ab` runs the benchmark harness
+  from the HEAD checkout, so a PR can change its own gate. Review changes to
+  `tests/testthat/helper-benchmark.R`, `helper-performance.R` and
+  `dev/run-benchmark-*.R` as changes to the gate.
+- **Untested dispatch path.** `workflow_dispatch`, including `base_ref`,
+  cannot run until the workflow reaches the default branch. The same jobs ran
+  through the temporary push trigger, but the dispatch inputs themselves are
+  not hosted-tested.
+
+#### Required checks (maintainer handoff)
+
+Branch protection is configured in repository settings, not by this workflow.
+
+- Require `memory` and `timing-ab` on `dev` and `main`.
+- Do not require `instructions`. It is skipped on PRs, and a skipped status
+  is not evidence of a measurement. It runs daily against `dev` (all jobs run
+  on Mondays; the other days run only `instructions`). For a PR expected to
+  affect speed, a maintainer can dispatch the workflow on the PR branch to get
+  instruction counts before merging.
+- `performance-accepted` waives only A/B timing and memory failures. It never
+  waives fit-count or instruction regressions; those need a reviewed baseline
+  refresh or a fix.
+- When a daily instruction run fails, the regression is already on `dev`.
+  Bisect the merges since the last passing run.
+
 ## Numerical changes
 
 The golden test (`tests/testthat/test-golden-opaka.R`) compares the objective, gradient, and every `REPORT()` element of the 'opakapaka quickstart model against a stored reference, at both the starting values and the MLE. It also checks that the reference file was produced under the current `.opal_model_scientific_version`, and that the bundled example fit is compatible with the current model. `read_opal_fit()` uses the scientific version to identify fits created under an earlier model contract.
