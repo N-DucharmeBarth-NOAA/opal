@@ -108,86 +108,7 @@ benchmark_objective <- function(inputs) {
   ))
 }
 
-# TEMPORARY validation-only regression injection for the #164 hosted gate
-# checks. Inactive unless OPAL_BENCHMARK_INJECT_* is set; removed before merge.
-benchmark_inject_value <- function(name) {
-  value <- Sys.getenv(name, "")
-  if (!nzchar(value)) return(0)
-  value <- suppressWarnings(as.numeric(value))
-  if (length(value) != 1L || !is.finite(value) || value <= 0) {
-    stop(name, " must be a positive number.")
-  }
-  value
-}
-
-benchmark_inject_vars <- function() {
-  paste0("OPAL_BENCHMARK_INJECT_",
-         c("SLOWDOWN", "MEMORY", "FIT_START", "CASES", "SIZE", "VERSION"))
-}
-
-benchmark_inject_cases <- function() {
-  cases <- Sys.getenv("OPAL_BENCHMARK_INJECT_CASES", "")
-  if (!nzchar(cases)) return(benchmark_instruction_cases())
-  trimws(strsplit(cases, ",", fixed = TRUE)[[1L]])
-}
-
-benchmark_median_seconds <- function(f) {
-  as.numeric(bench::mark(f(), min_iterations = 20L, min_time = 0.5,
-                         check = FALSE, memory = FALSE)$median)
-}
-
-# Slowdown: one allocation-free native sum() over a preallocated vector per
-# measured call, sized to `fraction` of the call's own time (or a fixed size
-# from OPAL_BENCHMARK_INJECT_SIZE, set by the instruction runner). Memory:
-# retain an extra vector of `fraction` of the case's largest baseline memory
-# metric, at least 6 MiB so peak RSS clears its 5 MiB floor.
-benchmark_inject <- function(run, case) {
-  force(run)
-  if (!case %in% benchmark_inject_cases()) return(run)
-  slowdown <- benchmark_inject_value("OPAL_BENCHMARK_INJECT_SLOWDOWN")
-  memory <- benchmark_inject_value("OPAL_BENCHMARK_INJECT_MEMORY")
-  if (!slowdown && !memory) return(run)
-  injection <- list(case = case)
-  extra <- NULL
-  if (slowdown) {
-    size <- benchmark_inject_value("OPAL_BENCHMARK_INJECT_SIZE")
-    if (!size) {
-      probe <- rep(1, 1e6)
-      per_element <- benchmark_median_seconds(function() sum(probe)) / length(probe)
-      size <- slowdown * benchmark_median_seconds(run) / per_element
-    }
-    extra <- rep(1, max(1, round(size)))
-    injection$slowdown <- slowdown
-    injection$size <- length(extra)
-  }
-  bytes <- 0
-  if (memory) {
-    baseline <- readRDS(file.path(benchmark_root(),
-                                  "tests/testthat/_benchmark/baseline.rds"))$results
-    reference <- baseline$value[baseline$case == case & baseline$metric %in%
-                                  c("mem_alloc_bytes", "structural_bytes", "peak_rss_bytes")]
-    bytes <- max(memory * max(reference), 6 * 1024^2)
-    injection$memory <- memory
-    injection$bytes <- bytes
-  }
-  injected <- function() {
-    value <- run()
-    if (!is.null(extra)) sum(extra)
-    if (bytes) attr(value, "benchmark_injected") <- numeric(ceiling(bytes / 8))
-    value
-  }
-  attr(injected, "benchmark_injection") <- injection
-  injected
-}
-
-# Fit counts: start opaka_fit from alternately shifted parameters.
-benchmark_inject_fit_start <- function(case, par) {
-  scale <- benchmark_inject_value("OPAL_BENCHMARK_INJECT_FIT_START")
-  if (!scale || !identical(case, "opaka_fit")) return(par)
-  par + scale * rep_len(c(1, -1), length(par))
-}
-
-benchmark_fit <- function(obj, parameters, record = FALSE, start = obj$par) {
+benchmark_fit <- function(obj, parameters, record = FALSE) {
   bounds <- opal::get_bounds(obj, parameters)
   counts <- c(fn_evals = 0L, gr_evals = 0L, iterations = 0L)
   events <- list()
@@ -206,6 +127,7 @@ benchmark_fit <- function(obj, parameters, record = FALSE, start = obj$par) {
   }
   fn <- wrap("fn")
   gr <- wrap("gr")
+  start <- obj$par
   passes <- vector("list", 2L)
   for (pass in seq_len(2L)) {
     opt <- stats::nlminb(start, fn, gr, lower = bounds$lower, upper = bounds$upper,
@@ -304,8 +226,7 @@ benchmark_operation <- function(case, trajectory_dir =
     fn = function() obj$fn(next_par()),
     gr = function() obj$gr(next_par()),
     fit = function() {
-      fit <<- benchmark_fit(obj, inputs$parameters,
-                            start = benchmark_inject_fit_start(case, obj$par))
+      fit <<- benchmark_fit(obj, inputs$parameters)
       fit$opt
     },
     fit_evals = function() {
@@ -321,7 +242,6 @@ benchmark_operation <- function(case, trajectory_dir =
     },
     plain = function() opal::opal_model(inputs$parameters, inputs$data)
   )
-  run <- benchmark_inject(run, case)
   attr(run, "benchmark_state") <- function() list(obj = obj, fit = fit, inputs = inputs)
   run
 }
@@ -399,23 +319,18 @@ benchmark_child <- function(case = NULL, library = NULL, iterations = 20L, idle 
   if (!is.null(state$fit)) values <- c(values, state$fit$counts)
   units <- ifelse(grepl("_bytes$", names(values)), "bytes",
                   ifelse(names(values) == "median_seconds", "seconds", "count"))
-  result <- data.frame(case = case, metric = names(values), value = unname(values),
-                       units = units, stringsAsFactors = FALSE)
-  attr(result, "benchmark_injection") <- attr(run, "benchmark_injection")
-  result
+  data.frame(case = case, metric = names(values), value = unname(values),
+             units = units, stringsAsFactors = FALSE)
 }
 
-# `inject = FALSE` blanks inherited validation-only injection settings (#164).
 run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations = 20L,
-                           idle = NULL, inject = TRUE) {
+                           idle = NULL) {
   if (length(iterations) != 1L || !is.finite(iterations) || iterations < 1 ||
       iterations != as.integer(iterations)) stop("iterations must be a positive integer.")
   if (!length(cases) || anyDuplicated(cases)) stop("Supply unique benchmark cases.")
   if (!requireNamespace("callr", quietly = TRUE)) stop("Install the suggested callr package.")
   root <- benchmark_root()
   scratch <- tempdir()
-  blank <- if (inject) character() else
-    stats::setNames(rep("", length(benchmark_inject_vars())), benchmark_inject_vars())
   child <- function(case, idle) {
     callr::r(function(root, case, library, iterations, idle) {
       source(file.path(root, "tests/testthat/helper-benchmark.R"), local = globalenv())
@@ -423,7 +338,7 @@ run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations
     }, args = list(root, case, library, as.integer(iterations), idle),
     libpath = .libPaths(),
     env = c(OPAL_BENCHMARK_ROOT = root, TMPDIR = scratch, OMP_NUM_THREADS = "1",
-            OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", blank),
+            OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1"),
     system_profile = FALSE, user_profile = FALSE)
   }
   if (is.null(idle)) idle <- child(NULL, TRUE)
@@ -434,15 +349,13 @@ run_benchmarks <- function(cases = benchmark_cases(), library = NULL, iterations
     result$value[peak] <- pmax(0, result$value[peak] - idle$hwm)
     result
   })
-  injections <- Filter(Negate(is.null), lapply(rows, attr, "benchmark_injection"))
   result <- do.call(rbind, rows)
   rownames(result) <- NULL
   attr(result, "idle_hwm_bytes") <- idle$hwm
   attr(result, "benchmark_idle") <- idle
   attr(result, "benchmark_metadata") <- c(idle$metadata,
                                          list(load_mode = idle$load_mode,
-                                              iterations = iterations, cases = cases,
-                                              injections = injections))
+                                              iterations = iterations, cases = cases))
   result
 }
 
@@ -519,7 +432,6 @@ benchmark_metadata <- function() {
          timing_profile = Sys.getenv("OPAL_BENCHMARK_TIMING_PROFILE"),
          rounds = Sys.getenv("OPAL_BENCHMARK_ROUNDS")),
        threads = Sys.getenv(c("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")),
-       validation = Sys.getenv(c("OPAL_BENCHMARK_VALIDATION_LABEL", benchmark_inject_vars())),
        cpu = if (file.exists("/proc/cpuinfo")) unique(grep("^model name", readLines("/proc/cpuinfo"), value = TRUE)) else NA_character_,
        peak_rss_method = "Linux VmHWM minus a fresh idle process loading opal and bench; 5 MiB comparison floor",
        fit_evals_method = "One two-pass nlminb fit; fn/gr wrappers count actual calls; iterations summed across passes",
@@ -602,13 +514,8 @@ write_benchmark_results <- function(results, out) {
     if (is.numeric(x)) format(x, digits = 9, trim = TRUE) else as.character(x)
   }), stringsAsFactors = FALSE)
   rows <- if (nrow(formatted)) apply(formatted, 1L, paste, collapse = " | ") else character()
-  validation <- metadata$validation[nzchar(metadata$validation)]
   summary <- c("# Benchmark results", "", paste("Measured:", metadata$timestamp_utc),
-               paste("Commit:", paste(metadata$git_sha, collapse = " ")),
-               if (length(validation)) c("", paste0(
-                 "**Validation-only settings (temporary, #164):** ",
-                 paste(names(validation), validation, sep = "=", collapse = ", "))),
-               "",
+               paste("Commit:", paste(metadata$git_sha, collapse = " ")), "",
                paste0("| ", paste(names(results), collapse = " | "), " |"),
                paste0("| ", paste(rep("---", ncol(results)), collapse = " | "), " |"),
                paste0("| ", rows, " |"))
