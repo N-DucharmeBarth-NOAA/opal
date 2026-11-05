@@ -4,12 +4,10 @@ on:
   pull_request:
     branches: [dev, main]
     types: [opened, synchronize, reopened, labeled, unlabeled, edited]
-  # TEMPORARY validation-only (#164): commits whose message selects jobs with
-  # [bench <job>] tokens run hosted validation scenarios. Removed before merge.
-  push:
-    branches: [copilot/add-performance-benchmark-tests]
   schedule:
+    # Monday runs every job; other days run only the instruction-count check.
     - cron: "0 9 * * 1"
+    - cron: "0 9 * * 0,2-6"
   workflow_dispatch:
     inputs:
       update_baseline:
@@ -53,7 +51,7 @@ env:
 
 jobs:
   memory:
-    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[bench memory]')
+    if: github.event_name != 'schedule' || github.event.schedule == '0 9 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
@@ -70,11 +68,8 @@ jobs:
           mkdir -p "$OPAL_BENCHMARK_LIBRARY" "$OPAL_BENCHMARK_OUT"
           R CMD INSTALL --library="$OPAL_BENCHMARK_LIBRARY" .
       - name: Measure memory
-        env:
-          VALIDATION_MESSAGE: ${{ github.event.head_commit.message }}
-        run: >-
-          bash dev/benchmark-validation-env.sh memory Rscript -e
-          'testthat::test_local(filter = "benchmark-models", stop_on_failure = TRUE)'
+        shell: Rscript {0}
+        run: testthat::test_local(filter = "benchmark-models", stop_on_failure = TRUE)
       - name: Publish summary
         if: always()
         run: |
@@ -91,7 +86,7 @@ jobs:
           if-no-files-found: warn
 
   timing-ab:
-    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[bench timing-ab]')
+    if: github.event_name != 'schedule' || github.event.schedule == '0 9 * * 1'
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
@@ -196,9 +191,7 @@ jobs:
           R CMD INSTALL --library="$OPAL_BENCHMARK_HEAD_LIBRARY" .
       - name: Measure interleaved BASE and HEAD timing
         timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 350 }}
-        env:
-          VALIDATION_MESSAGE: ${{ github.event.head_commit.message }}
-        run: bash dev/benchmark-validation-env.sh timing-ab Rscript dev/run-benchmark-ab.R
+        run: Rscript dev/run-benchmark-ab.R
       - name: Publish summary
         if: always()
         run: |
@@ -215,9 +208,7 @@ jobs:
           if-no-files-found: warn
 
   instructions:
-    if: >-
-      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && contains(github.event.head_commit.message, '[bench instructions]'))
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
@@ -238,9 +229,7 @@ jobs:
           mkdir -p "$OPAL_BENCHMARK_LIBRARY" "$OPAL_BENCHMARK_OUT"
           R CMD INSTALL --library="$OPAL_BENCHMARK_LIBRARY" .
       - name: Measure instructions
-        env:
-          VALIDATION_MESSAGE: ${{ github.event.head_commit.message }}
-        run: bash dev/benchmark-validation-env.sh instructions Rscript dev/run-benchmark-instructions.R
+        run: Rscript dev/run-benchmark-instructions.R
       - name: Publish summary
         if: always()
         run: |
